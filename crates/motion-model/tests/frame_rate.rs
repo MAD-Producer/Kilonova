@@ -127,3 +127,38 @@ fn invalid_timebases_and_overflow_are_errors_instead_of_saturation() {
         Err(RateError::NumericRange)
     );
 }
+
+#[test]
+fn fractional_media_clock_matches_independent_exact_binary_oracle() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "fixtures/frame-rate/fractional-clock.json"
+    )).unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 644);
+    for case in cases {
+        let rate = FrameRate::new(case["rate"][0].as_u64().unwrap() as u32,
+            case["rate"][1].as_u64().unwrap() as u32).unwrap();
+        let frame = f64::from_bits(u64::from_str_radix(case["bits"].as_str().unwrap(), 16).unwrap());
+        for (index, rounding) in [Floor, Ceil, NearestTiesAwayFromZero].into_iter().enumerate() {
+            let expected = case["expected"][index].as_i64().ok_or(RateError::NumericRange);
+            assert_eq!(rate.ticks_at_fractional_frame(frame, case["ticks"].as_u64().unwrap() as u32,
+                rounding), expected, "case={case} rounding={rounding:?}");
+        }
+    }
+}
+
+#[test]
+fn fractional_boundaries_reject_invalid_inputs_without_rounding_renderer_frames() {
+    let rate = FrameRate::new(24000, 1001).unwrap();
+    for frame in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(rate.ticks_at_fractional_frame(frame, 1000000, Floor), Err(RateError::NumericRange));
+        assert_eq!(rate.map_frame(frame, rate), Err(RateError::NumericRange));
+    }
+    for ticks in [0, 1000000001] {
+        assert_eq!(rate.ticks_at_fractional_frame(0.5, ticks, Floor), Err(RateError::Timebase));
+    }
+    let child = FrameRate::new(60000, 1001).unwrap();
+    for (frame, expected) in [(-1.5, -3.75), (-0.25, -0.625), (0.25, 0.625), (4., 10.)] {
+        assert_eq!(rate.map_frame(frame, child).unwrap(), expected);
+    }
+}

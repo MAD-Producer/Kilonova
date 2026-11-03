@@ -52,7 +52,8 @@ fn rounded(n: i128, d: i128, rounding: ClockRounding) -> Result<i64, RateError> 
         ClockRounding::Floor => floor,
         ClockRounding::Ceil => floor + i128::from(remainder != 0),
         ClockRounding::NearestTiesAwayFromZero => {
-            floor + i128::from(remainder * 2 > d || (remainder * 2 == d && n >= 0))
+            let complement = d - remainder;
+            floor + i128::from(remainder > complement || (remainder == complement && n >= 0))
         }
     };
     i64::try_from(value).map_err(|_| RateError::NumericRange)
@@ -84,6 +85,50 @@ impl FrameRate {
     }
     pub fn ratio(self) -> [u32; 2] {
         [self.numerator, self.denominator]
+    }
+    pub fn is_between(self, minimum: u32, maximum: u32) -> bool {
+        u64::from(self.numerator) >= u64::from(minimum) * u64::from(self.denominator)
+            && u64::from(self.numerator) <= u64::from(maximum) * u64::from(self.denominator)
+    }
+    /// Preserve the unrounded renderer frame; calculate the rational rate
+    /// product before converting its exactly representable <=1e12 components.
+    pub fn map_frame(self, frame: f64, target: Self) -> Result<f64, RateError> {
+        let numerator = u64::from(self.denominator) * u64::from(target.numerator);
+        let denominator = u64::from(self.numerator) * u64::from(target.denominator);
+        let mapped = frame * numerator as f64 / denominator as f64;
+        if !frame.is_finite() || !mapped.is_finite() { return Err(RateError::NumericRange); }
+        Ok(mapped)
+    }
+    /// Quantize the exact binary value of an f64 frame only at a media leaf.
+    /// This is not a decimal reconstruction and never rounds to a whole frame.
+    pub fn ticks_at_fractional_frame(self, frame: f64, ticks_per_second: u32,
+        rounding: ClockRounding) -> Result<i64, RateError> {
+        let ticks = timebase(ticks_per_second)?;
+        if !frame.is_finite() { return Err(RateError::NumericRange); }
+        if frame == 0. { return Ok(0); }
+        let bits = frame.to_bits();
+        let exponent = ((bits >> 52) & 0x7ff) as i32;
+        let mantissa = (bits & ((1u64 << 52)-1)) | if exponent == 0 { 0 } else { 1u64 << 52 };
+        let shift = if exponent == 0 { -1074 } else { exponent - 1023 - 52 };
+        // At most 53+20+30 bits before the power of two is applied.
+        let magnitude = i128::from(mantissa) * i128::from(self.denominator) * ticks;
+        let signed = if frame.is_sign_negative() { -magnitude } else { magnitude };
+        let denominator = i128::from(self.numerator);
+        if shift >= 0 {
+            let factor = 1i128.checked_shl(shift as u32).filter(|v| *v > 0).ok_or(RateError::NumericRange)?;
+            return rounded(signed.checked_mul(factor).ok_or(RateError::NumericRange)?, denominator, rounding);
+        }
+        let divisor = 1i128.checked_shl((-shift) as u32).filter(|v| *v > 0)
+            .and_then(|power| denominator.checked_mul(power));
+        if let Some(divisor) = divisor { return rounded(signed, divisor, rounding); }
+        // The exact denominator exceeds i128::MAX, while the numerator has
+        // at most 103 bits. Its nonzero magnitude is strictly below half a
+        // tick, including subnormals. Preserve the sign for directed rounding.
+        Ok(match rounding {
+            ClockRounding::Floor if frame.is_sign_negative() => -1,
+            ClockRounding::Ceil if frame.is_sign_positive() => 1,
+            _ => 0,
+        })
     }
     /// Presentation/shader approximation only. Exact boundary conversion uses
     /// integer ratios below, never accumulated floating-point frame durations.
@@ -131,6 +176,18 @@ impl FrameRate {
             i128::from(self.numerator) * i128::from(target.denominator),
             rounding,
         )
+    }
+}
+impl From<FrameRate> for f64 {
+    fn from(rate: FrameRate) -> Self { rate.as_f64() }
+}
+impl From<FrameRate> for f32 {
+    fn from(rate: FrameRate) -> Self { rate.as_f64() as f32 }
+}
+impl fmt::Display for FrameRate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.denominator == 1 { self.numerator.fmt(f) }
+        else { write!(f, "{}/{}", self.numerator, self.denominator) }
     }
 }
 impl<'de> Deserialize<'de> for FrameRate {
