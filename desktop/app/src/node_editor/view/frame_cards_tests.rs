@@ -3,6 +3,7 @@ use super::*;
 use motion_ui::input::Modifiers;
 use std::cell::RefCell;
 mod drag_geometry;
+mod viewport_geometry;
 
 #[derive(Default)]
 struct Probe {
@@ -112,7 +113,7 @@ fn unchanged_draws_build_card_geometry_once_per_frame() {
 }
 
 #[test]
-fn navigation_rebuilds_current_geometry_without_editing_the_document() {
+fn navigation_projects_current_geometry_once_without_editing_the_document() {
     for language in [Language::English, Language::Chinese] {
         let mut editor = simple();
         let before = editor.snapshot();
@@ -144,7 +145,7 @@ fn navigation_rebuilds_current_geometry_without_editing_the_document() {
                 },
                 language,
             );
-            assert!(builds >= 2, "changed viewport needs fresh geometry");
+            assert_eq!(builds, 1, "changed viewport must reuse this frame's port metadata");
         }
         draw(
             &mut editor,
@@ -255,7 +256,7 @@ fn uncommitted_node_moves_release_and_cancel_keep_fresh_geometry_and_history() {
     // A press and newer pointer position may arrive in the same frame.
     let mut input = press(start, MouseButton::Left);
     input.mouse = end;
-    assert!(draw(&mut editor, &mut atlas, area, input, Language::English) >= 2);
+    assert_eq!(draw(&mut editor, &mut atlas, area, input, Language::English), 1);
     assert_eq!(
         editor.revision, before.revision,
         "held drag is not committed yet"

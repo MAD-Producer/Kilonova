@@ -66,7 +66,8 @@ impl NodeEditor {
             .collect()
     }
 
-    /// Only called for position-only changes in an existing, uncommitted drag.
+    /// Reproject this draw's metadata after viewport or position-only changes.
+    /// The caller checks metadata revisions, including position-only commits.
     /// Validate every identity before updating anything; never dereference the
     /// stored pointer or retain these cards beyond the current draw.
     pub(super) fn refresh_card_positions(&self, cards: &mut [Card], canvas: Rect) -> bool {

@@ -529,25 +529,33 @@ impl NodeEditor {
         }
         let current = geometry_stamp(self);
         if current != geometry {
-            cards = self.cards(layout.canvas);
+            if (current.0, current.1, current.2) != (geometry.0, geometry.1, geometry.2)
+                || !self.refresh_card_positions(&mut cards, layout.canvas)
+            {
+                cards = self.cards(layout.canvas);
+            }
             geometry = current;
         }
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
+        let semantic_revision = self.semantic_revision;
         if !self.minimap_input(layout.canvas, body_input, &styles) {
             self.canvas_input(&cards, layout.canvas, body_input, language);
         }
-        // An ongoing node drag changes positions without committing a revision.
-        // Reuse this frame's port metadata only while the document identity and
-        // viewport stamp remain unchanged; all other transitions rebuild as before.
-        let positions_refreshed = moving_nodes
-            && matches!(self.drag, Some(Drag::Nodes { .. }))
-            && geometry == geometry_stamp(self)
-            && self.refresh_card_positions(&mut cards, layout.canvas);
-        if !positions_refreshed
-            && (moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. }))
-                || geometry != geometry_stamp(self))
-        {
-            cards = self.cards(layout.canvas);
+        let current = geometry_stamp(self);
+        if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. })) || current != geometry {
+            // View changes and uncommitted moves preserve port metadata. A normal
+            // node release also commits a position-only revision; cancellation
+            // may replace the document and must still pass every identity check.
+            let position_commit = moving_nodes
+                && self.drag.is_none()
+                && body_input.released.is_some_and(|(button, _)| button == MouseButton::Left)
+                && self.semantic_revision == semantic_revision;
+            let same_metadata = current.0 == geometry.0
+                && current.2 == geometry.2
+                && (current.1 == geometry.1 || position_commit);
+            if !same_metadata || !self.refresh_card_positions(&mut cards, layout.canvas) {
+                cards = self.cards(layout.canvas);
+            }
         }
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
         self.paint_minimap(list, layout.canvas);
