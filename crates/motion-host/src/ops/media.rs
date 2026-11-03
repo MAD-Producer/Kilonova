@@ -541,9 +541,9 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
 
 fn default_name(kind: &str) -> String {
     if kind == "video" {
-        " ”∆µ".into()
+        "ËßÜÈ¢ë".into()
     } else {
-        "“Ù∆µ".into()
+        "Èü≥È¢ë".into()
     }
 }
 
