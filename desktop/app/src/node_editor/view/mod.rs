@@ -3,6 +3,8 @@ mod add_menu;
 mod canvas;
 #[cfg(test)]
 mod frame_cards_tests;
+#[cfg(test)]
+mod content_height_tests;
 mod connection_menu;
 mod context_menu;
 mod control_popup;
@@ -103,6 +105,8 @@ struct Card {
     sockets: Vec<Socket>,
 }
 pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
+    #[cfg(test)]
+    content_height_tests::record_height_resolution();
     if node.collapsed {
         return HEADER;
     }

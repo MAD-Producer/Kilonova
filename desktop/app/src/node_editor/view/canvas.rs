@@ -253,7 +253,15 @@ impl NodeEditor {
                 if selected { 2. } else { 1. },
             );
             let mut content = list.child();
-            let local = Rect::new(0., 0., NODE_WIDTH, node_height(node, &self.document));
+            // The current frame already resolved this node's height with its
+            // ports. Duplicate IDs may select another node: retain that node's
+            // original calculation when its identity differs from the card.
+            let height = if std::ptr::eq(card.source_node, node) {
+                card.world_height
+            } else {
+                node_height(node, &self.document)
+            };
+            let local = Rect::new(0., 0., NODE_WIDTH, height);
             let title = if previewing {
                 format!(
                     "{} · {}",
