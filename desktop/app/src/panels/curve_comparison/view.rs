@@ -303,7 +303,13 @@ pub(in crate::panels) fn render(
         false,
     );
     super::super::key_selection::ui::plot(panels, scroll.viewport, 0., 1.);
-    let fps = state["project"]["fps"].as_f64().unwrap_or(30.);
+    let Some(fps) = super::super::helpers::project_rate(state).map(|rate| rate.as_f64()) else {
+        panels.timeline.graph_ranges.no_comparison_plot();
+        body.clip_to(area);
+        list.append(body);
+        panels.timeline.comparison = controls;
+        return;
+    };
     let end = (offset + scroll.viewport.width() as f64 / ppf.max(f32::MIN_POSITIVE) as f64)
         .min(last_frame(state));
     let speed = panels.timeline.speed_graph;

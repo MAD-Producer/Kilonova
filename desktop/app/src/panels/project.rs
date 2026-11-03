@@ -527,7 +527,7 @@ pub(super) fn render(
         true,
     );
     let p = &state["project"];
-    let fps = p["fps"].as_u64().unwrap_or(30) as u32;
+    let fps = project_rate(state);
     label(
         list,
         atlas,
@@ -536,7 +536,7 @@ pub(super) fn render(
             "{} × {} · {} {} · {}",
             p["width"],
             p["height"],
-            fps,
+            fps.map(|rate| rate.to_string()).unwrap_or_else(|| "—".into()),
             locale.t(T::Fps),
             timecode(p["frames"].as_f64().unwrap_or(0.), fps)
         ),
