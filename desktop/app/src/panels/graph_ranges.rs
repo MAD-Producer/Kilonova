@@ -53,7 +53,8 @@ struct Scope {
     root: String,
     composition: String,
     generation: u64,
-    geometry: [Option<u64>; 4],
+    geometry: [Option<u64>; 3],
+    fps: Option<motion_core::FrameRate>,
 }
 impl Scope {
     fn of(state: &Value) -> Option<Self> {
@@ -68,8 +69,8 @@ impl Scope {
             root: root.into(),
             composition: composition.into(),
             generation: state["document_generation"].as_u64()?,
-            geometry: ["width", "height", "frames", "fps"]
-                .map(|field| state["project"][field].as_u64()),
+            geometry: ["width", "height", "frames"].map(|field| state["project"][field].as_u64()),
+            fps: crate::project_clock::read(state).ok(),
         })
     }
 }

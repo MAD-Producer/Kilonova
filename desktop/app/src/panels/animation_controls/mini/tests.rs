@@ -451,3 +451,36 @@ fn physical_readout_keeps_component_values_and_units_visible_with_long_layer_nam
         }
     }
 }
+
+#[test]
+fn rational_clock_readout_preserves_fractional_per_second_units_and_frame_coordinates() {
+    let target = KeyframeTarget::Property {
+        object: 7,
+        property: Property::Opacity,
+        axis: None,
+    };
+    let mut state = scalar_state(0., 1., 60);
+    let mut view = View::default();
+    for [numerator, denominator] in [[30u32, 1], [30000, 1001], [60000, 1001], [60000, 2002]] {
+        state["project"]["fps"] =
+            serde_json::json!({"numerator":numerator,"denominator":denominator});
+        let original = state.clone();
+        let (title, lines) = view.actual_readout(
+            &state,
+            Locale::En,
+            &target,
+            17,
+            Some(77),
+            0.5,
+            true,
+            "normalized t=0.5".into(),
+            vec![],
+        );
+        assert!(title.ends_with("47.00 f"), "{title}");
+        // One unit over sixty frames, converted to percent per second.
+        // The display samples f32 values, while the clock ratio stays f64.
+        let expected = (f64::from(numerator) / f64::from(denominator) / 60.) as f32 * 100.;
+        assert_eq!(lines, vec![format!("Opacity: {expected:.4} %/s")]);
+        assert_eq!(state, original);
+    }
+}
