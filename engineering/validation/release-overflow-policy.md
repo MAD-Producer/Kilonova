@@ -10,11 +10,17 @@
 
 ## 当前验收状态
 
-发布版现有时间映射、极值、资源尺寸与总量边界回归正在执行，最终结果与实际 Cargo profile 尚待归档。首次正常 release 编译在第三方 `image` 的 rustc 中以 `STATUS_ACCESS_VIOLATION` 退出，未执行测试；原始命令、诊断与退出 101 保留。不能据此声称产品缺陷已复现或验收通过。
+实际 release 下，算术策略 1 项、合成时间映射 3 项、图层时间映射 22 项、节点资源尺寸与总量 2 项，共 28 项不同测试通过。对已生成的 Cargo artifact 逐项检查，所选依赖与测试均开启整数检查；四个测试程序均为 opt-level=3、line-tables-only，并存在非空 PDB。行号配置和 PDB 存在不等于已验证发行包符号分发或跨平台符号化。
 
-额外的工作流路由测试未能启动：本机此 Python 缺少 PyYAML。没有工作流改动，不把缺依赖当成路由回归失败或通过；原始输出保留，不额外安装或修改依赖。
+负对照只对算术策略的最终测试 crate 显式传入 `-C overflow-checks=off`，源码与依赖不变：用例以退出 101 报告 unsigned add silently wrapped。恢复正常 Cargo 调用后，28 项再次通过，重复运行不另计。负对照的编译命令、实际程序哈希及失败原文保留；没有修改产品 profile、断言或正常发布参数来通过测试。
 
-原始记录位于本次本地 artifacts 的 `issue-goal-current/release-overflow-policy/`；可移植证据包与完整退出码待检查完成后补齐。先提交草稿，避免把已可审查的改动继续留在本地。
+首次正常 release 编译在第三方 `image` 的 rustc 中以 `STATUS_ACCESS_VIOLATION` 退出，未执行测试；其原始诊断与退出 101 保留。同一发布配置后续编译成功，没有证据证明这次编译器故障由本改动引起，也不宣称修复了编译器。
+
+额外工作流路由测试初次因本机 Python 缺少 PyYAML 未能启动。后来定位到已有工具目录内的 PyYAML 6.0.3，通过命令级 PYTHONPATH 复用，14 项原回归通过；没有安装或修改依赖。`cargo fmt --all --check` 在 Windows 报 os error 206（参数过长），未产生可用的全仓格式差异清单；该运行不算格式验收通过。新增测试模块独立 rustfmt 和 git diff --check 通过。
+
+效果解析器的正常 release 构建也完成：34 项库回归与 3 项循环工作量回归通过，沿用原断言。合计 65 项不同 Rust release 测试和 14 项工作流路由回归；恢复配置后的重复运行不另计。六个最终测试程序的 profile、SHA-256 和 PDB 存在性，以及原始失败记录见[证据清单](release-overflow-policy-evidence/manifest.json)与[原始记录](release-overflow-policy-evidence/evidence.zip)。
+
+#595 的远端检查需以最终提交为准，本地结果不代替跨平台 CI。新增算术策略用例随普通模型测试运行，但现有 CI 的专用 release 调用仍只覆盖 effects；将模型策略用例接入持续 release 门禁仍是 #125 的后续工作，本轮没有修改其他活跃分支占用的工作流。
 
 ## 错误与范围
 
