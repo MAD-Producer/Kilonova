@@ -32,6 +32,8 @@ mod native_input_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod project_precision_tests;
 #[cfg(all(test, target_os = "windows", feature = "gpu-tests"))]
+mod rational_clock_native_tests;
+#[cfg(all(test, target_os = "windows", feature = "gpu-tests"))]
 mod model_layer_tests;
 pub(crate) mod presentation_observation;
 
