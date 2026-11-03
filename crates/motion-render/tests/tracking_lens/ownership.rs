@@ -145,7 +145,7 @@ fn exposure_receivers_keep_fractional_calibration_and_portable_output_refuses_ne
         motion_effects::Registry::new_with_builtins().unwrap(),
     )
     .unwrap();
-    let plain = Project::new(640, 480, p.fps, p.frames).unwrap();
+    let plain = Project::new_with_frame_rate(640, 480, p.fps, p.frames).unwrap();
     let plan = builder
         .build(&routing::sample(&plain, 0.), &[0], 640, 480, true)
         .unwrap();
