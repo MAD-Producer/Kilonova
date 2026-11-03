@@ -213,3 +213,98 @@ fn complete_shell_drag_frames_match_static_work_and_solve_once_for_each_stable_l
     }
     println!("whole-shell steady drag samples={} (cold solves=1; warmed solves=0; chrome=1; cards=1; exact shape/glyph/order counts)", samples.len());
 }
+
+fn layout_transition(
+    shell: &mut crate::Shell,
+    size: [f32; 2],
+    label: &str,
+    records: &mut Vec<serde_json::Value>,
+) {
+    // The independent old solver does not warm the cache under test.
+    let expected = calculate_frames(shell.workspace.display_root(), size);
+    let changed = frame(shell, size, Input::default());
+    assert_eq!(changed.counts.solves, 1, "changed layout: {label}");
+    assert_eq!(changed.counts.chrome, 1, "changed layout: {label}");
+    assert_eq!(changed.notifications, 0, "changed layout: {label}");
+    let cached = frames(shell.workspace.display_root(), size);
+    assert_eq!(cached.len(), expected.len(), "{label}");
+    for (actual, original) in cached.iter().zip(&expected) {
+        assert_eq!(actual.panel, original.panel, "{label}");
+        assert_eq!(actual.tabs, original.tabs, "{label}");
+        assert_eq!(actual.content, original.content, "{label}");
+    }
+    let steady = frame(shell, size, Input::default());
+    assert_eq!(steady.counts.solves, 0, "unchanged layout: {label}");
+    assert_eq!(steady.counts.chrome, 1, "unchanged layout: {label}");
+    assert_eq!(steady.notifications, 0, "unchanged layout: {label}");
+    records.push(serde_json::json!({"label":label,"size":size,"changed":changed,"steady":steady}));
+}
+
+fn activate_next_tab(node: &mut Node) -> bool {
+    match node {
+        Node::Dock { tabs, active, .. } if tabs.len() > 1 => {
+            *active = (*active + 1) % tabs.len();
+            true
+        }
+        Node::Split { first, second, .. } => activate_next_tab(first) || activate_next_tab(second),
+        _ => false,
+    }
+}
+
+#[test]
+fn real_presets_resize_maximize_and_tab_changes_invalidate_once_without_stale_geometry() {
+    let folder = tempfile::tempdir().unwrap();
+    let mut shell =
+        crate::Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+    shell.home = None;
+    FRAME_CACHE.with(|slot| *slot.borrow_mut() = frame_cache::Cache::new());
+    let before = shell.state.clone();
+    let mut records = Vec::new();
+    for locale in [Locale::En, Locale::Zh] {
+        shell.workspace.locale = locale;
+        for preset in crate::workspace::Preset::ALL {
+            shell.workspace.select_preset(preset);
+            assert!(shell.workspace.valid());
+            let label = format!("{locale:?}/{preset:?}");
+            layout_transition(&mut shell, [900., 900.], &label, &mut records);
+            layout_transition(
+                &mut shell,
+                [1600., 1000.],
+                &format!("{label}/resize"),
+                &mut records,
+            );
+            assert!(shell
+                .workspace
+                .toggle_panel_maximize(Panel::Composition.dock()));
+            layout_transition(
+                &mut shell,
+                [1600., 1000.],
+                &format!("{label}/maximize"),
+                &mut records,
+            );
+            assert!(shell.workspace.restore_panel());
+            layout_transition(
+                &mut shell,
+                [1600., 1000.],
+                &format!("{label}/restore"),
+                &mut records,
+            );
+            if activate_next_tab(&mut shell.workspace.root) {
+                layout_transition(
+                    &mut shell,
+                    [1600., 1000.],
+                    &format!("{label}/tab"),
+                    &mut records,
+                );
+            }
+        }
+    }
+    assert_eq!(
+        shell.state, before,
+        "layout changes must not edit the project"
+    );
+    if let Some(path) = std::env::var_os("MOTION_LAYOUT_COST_EVIDENCE") {
+        std::fs::write(path, serde_json::to_vec_pretty(&records).unwrap()).unwrap();
+    }
+    println!("real preset layout transitions={} (changed solves=1; steady solves=0; chrome=1; exact original geometry)", records.len());
+}
