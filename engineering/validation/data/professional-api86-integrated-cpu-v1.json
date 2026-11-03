@@ -1,0 +1,71 @@
+{
+  "sourceHead": "7f40d752e1774b24b231a8eba676313f518963d0",
+  "status": "passed_scoped_final_acceptance_pending",
+  "passed": 880,
+  "failed": 0,
+  "ignored": 1,
+  "archive": "professional-api86-integrated-cpu-v1.zip",
+  "bytes": 156323,
+  "sha256": "8a9ce3a0f4d1e33972abb08bc7f2eef8b06834cc57b3b4612b6b0a18924b296d",
+  "members": 13,
+  "commands": [
+    {
+      "name": "model-core",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-model",
+        "-p",
+        "motion-core",
+        "--no-fail-fast",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 39808,
+      "exitCode": 0,
+      "elapsedSeconds": 526.875
+    },
+    {
+      "name": "desktop-check",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-desktop",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "pid": 39832,
+      "exitCode": 0,
+      "elapsedSeconds": 45.391
+    },
+    {
+      "name": "helper-check",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\ai-depth74\\venv\\Scripts\\python.exe",
+        "tools/build_desktop.py",
+        "--task",
+        "check",
+        "--debug",
+        "--target-dir",
+        "E:/Dev/aem/target/rational-rate85-contract",
+        "--",
+        "--offline"
+      ],
+      "status": "passed",
+      "pid": 37556,
+      "exitCode": 0,
+      "elapsedSeconds": 1.031
+    }
+  ],
+  "limits": [
+    "Complete model/core targets plus desktop all-target check and helper check; no GPU execution, no final desktop/render regression or cross-platform acceptance claim",
+    "No assertions, budgets, ignore markers, retries or filters changed"
+  ]
+}
