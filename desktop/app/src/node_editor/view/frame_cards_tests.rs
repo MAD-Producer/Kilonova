@@ -3,6 +3,7 @@ use super::*;
 use motion_ui::input::Modifiers;
 use std::cell::RefCell;
 mod drag_geometry;
+mod input_geometry;
 mod viewport_geometry;
 
 #[derive(Default)]
@@ -339,9 +340,9 @@ fn parent_navigation_invalidates_geometry_even_when_view_and_revision_match() {
         assert_eq!(editor.revision, revision);
         assert_eq!((editor.view.pan, editor.view.zoom), (view.pan, view.zoom));
         assert_ne!(editor.preview_revision, preview);
-        assert!(
-            builds >= 2,
-            "group navigation must invalidate before hit testing"
+        assert_eq!(
+            builds, 1,
+            "build parent geometry once after navigation, before hit testing"
         );
         draw(
             &mut editor,

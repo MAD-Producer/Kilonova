@@ -352,7 +352,7 @@ impl NodeEditor {
 
     pub(super) fn inline_input(
         &mut self,
-        cards: &[Card],
+        cards: &mut Option<Vec<Card>>,
         canvas: Rect,
         input: &Input,
         language: Language,
@@ -362,6 +362,7 @@ impl NodeEditor {
             return true;
         }
         if let Some(edit) = &self.inline.number {
+            let cards = cards.get_or_insert_with(|| self.cards(canvas));
             let spec = cards.iter().find(|c| c.id == edit.owner).and_then(|card| {
                 let node = self.document.nodes.iter().find(|n| n.id == card.id)?;
                 control_rows(node, &self.document, Language::English)
@@ -438,6 +439,7 @@ impl NodeEditor {
         if input.modifiers.alt || input.modifiers.control && input.modifiers.shift {
             return false;
         }
+        let cards = cards.get_or_insert_with(|| self.cards(canvas));
         let Some(card) = cards.iter().rev().find(|card| card.rect.contains(point)) else {
             return false;
         };
