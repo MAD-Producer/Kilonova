@@ -2393,6 +2393,9 @@ fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> motion_host
 mod tracking_relink_tests;
 
 #[cfg(test)]
+mod tracking_video_replacement_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     #[test]

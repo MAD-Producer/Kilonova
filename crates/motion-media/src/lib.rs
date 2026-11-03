@@ -39,7 +39,7 @@ pub use jobs::{AudioJobs, ImportOptions, Limits, TaskStatus};
 pub use mixer::{read_waveform, AudioMixer, WaveBucket};
 pub use video::{
     load_video_index, save_index, video_cache_path, ProbeVideo, VideoImportOptions, VideoJobs,
-    VideoProbe, VideoTaskStatus,
+    VideoProbe, VideoReplacementCandidate, VideoTaskStatus,
 };
 pub use video_metadata::{hevc_metadata, vp9_metadata};
 /// Bounded native panic detail, shared by asynchronous media and host adapters.

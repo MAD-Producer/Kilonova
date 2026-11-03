@@ -1,0 +1,482 @@
+{
+  "status": "accepted_selected_increment_full_issue_pending",
+  "sourceParent": "469412c5d61be1a8dfab54d534e0b2398beec2d1",
+  "branch": "fix/88-tracked-video-replacement",
+  "evidence": "tracking88-video-regression-v2/exit.json",
+  "archive": {
+    "path": "tracking88-video-publication-v1.zip",
+    "bytes": 1299218,
+    "sha256": "2afcb1b4f3b2360c1bd7a2c9887efbb6679e6598faaffcbbf7e5efde7d4384f1",
+    "members": {
+      "tracking88-video-baseline-v1/changes.patch": {
+        "bytes": 411,
+        "sha256": "1d6e46a29953f4b4cacc5f302d3059e4ffae15d32ef5c4690f4fc84f2e4f9020"
+      },
+      "tracking88-video-baseline-v1/controller.py": {
+        "bytes": 2751,
+        "sha256": "2e3c18bc65a402a7dbe98d1dd92858764365de4e80cef432ff9ffbfc1a81f92e"
+      },
+      "tracking88-video-baseline-v1/exit.json": {
+        "bytes": 271987,
+        "sha256": "f6a6feb2fe9c0b67822d849bcce34422d20be3e3611c9c002ba4f78b89d6ebb4"
+      },
+      "tracking88-video-baseline-v1/logs/motion-studio.log": {
+        "bytes": 4877,
+        "sha256": "917280bdd879178a6a1e2f7dc6f8f7d485947bba9d0ba22a93f7010140780e5f"
+      },
+      "tracking88-video-baseline-v1/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 32599,
+        "sha256": "2bbbfac8ab577f29376d9db11f0f1f1a580d3f04a231ed34c4fe2575d544397b"
+      },
+      "tracking88-video-baseline-v1/source/crates/motion-media/src/video.rs": {
+        "bytes": 34368,
+        "sha256": "c32f0d6e30a511319c26deb53fe598e3e7435a7f65e1788f8151fc256d18fba6"
+      },
+      "tracking88-video-baseline-v1/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 8231,
+        "sha256": "fbebc811c354a76d5cd49f2a3a3897b0e6fb9e9850c1eac1044fc0ec0485e664"
+      },
+      "tracking88-video-baseline-v1/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-baseline-v1/stderr.log": {
+        "bytes": 20119,
+        "sha256": "abe10c75796a26aed1536a307cd4d7f8cfa5a9cfbccc183ec9e2f0ca03959b3e"
+      },
+      "tracking88-video-baseline-v1/stdout.log": {
+        "bytes": 403,
+        "sha256": "3a195f756f2aae1336f600ef28bd4f74487a4a7c2ddda719b9b9da6a1313121b"
+      },
+      "tracking88-video-baseline-v2/changes.patch": {
+        "bytes": 411,
+        "sha256": "1d6e46a29953f4b4cacc5f302d3059e4ffae15d32ef5c4690f4fc84f2e4f9020"
+      },
+      "tracking88-video-baseline-v2/controller.py": {
+        "bytes": 2789,
+        "sha256": "77f3e0eab5d63920954feaa31df36e34386fd552ed7f296529ef98cca84eebb4"
+      },
+      "tracking88-video-baseline-v2/exit.json": {
+        "bytes": 271987,
+        "sha256": "32059173ee37b518c607608f5e7aa717891d8d946db80fbf8b25a248998c0ed8"
+      },
+      "tracking88-video-baseline-v2/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 32599,
+        "sha256": "2bbbfac8ab577f29376d9db11f0f1f1a580d3f04a231ed34c4fe2575d544397b"
+      },
+      "tracking88-video-baseline-v2/source/crates/motion-media/src/video.rs": {
+        "bytes": 34368,
+        "sha256": "c32f0d6e30a511319c26deb53fe598e3e7435a7f65e1788f8151fc256d18fba6"
+      },
+      "tracking88-video-baseline-v2/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 8486,
+        "sha256": "a16ea3adda2bfd1fbbcc5879a9fd48de211b424fdbb2cc0bbce76cc0fa02aa0e"
+      },
+      "tracking88-video-baseline-v2/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-baseline-v2/stderr.log": {
+        "bytes": 5292,
+        "sha256": "4be662d357cbb0c056e92b3cf11ca584d4d5e2e30d792b1bc1d786e6a091e9b8"
+      },
+      "tracking88-video-baseline-v2/stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-video-native-v1/changes.patch": {
+        "bytes": 12445,
+        "sha256": "1509ad83fcac49281fcc00afd4d036542668f7838a5c3e54d479434869744a46"
+      },
+      "tracking88-video-native-v1/controller.py": {
+        "bytes": 3430,
+        "sha256": "c90e856c895ddb6e756984e411dae5dc17f788a1ce5e64432f4db559b38942b4"
+      },
+      "tracking88-video-native-v1/exit.json": {
+        "bytes": 272358,
+        "sha256": "0f8da34e550ce803a07b7eec61bcc6f1d11db982b49a8bea31775dbd103b2766"
+      },
+      "tracking88-video-native-v1/logs/motion-studio.log": {
+        "bytes": 8647,
+        "sha256": "e82637351f3fb7e7d9eca97243ce584878cf5205cb05f12414699bc2185ee17d"
+      },
+      "tracking88-video-native-v1/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 30638,
+        "sha256": "6a67af196d759630bba018a13787c6a85fd43289b865d3631a640670cdb06b4c"
+      },
+      "tracking88-video-native-v1/source/crates/motion-media/src/video.rs": {
+        "bytes": 34710,
+        "sha256": "519b4a41d64242a181c464ecd8a130f219a24b811f4b62547351f639986e7510"
+      },
+      "tracking88-video-native-v1/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 10656,
+        "sha256": "eba87d660d0b6c0cedc0e0a28d542252b11a040cc30d46fc6d1a2e6432433977"
+      },
+      "tracking88-video-native-v1/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-native-v1/stderr.log": {
+        "bytes": 21217,
+        "sha256": "0f5fec03021c2b385d342a40995cc71d3eb2d7d62439cef929f048ed4b82095f"
+      },
+      "tracking88-video-native-v1/stdout.log": {
+        "bytes": 403,
+        "sha256": "7f68b067e4eb68cfd9d7dadf626787d5d47c3f9454523f476b8dad7eebd9926a"
+      },
+      "tracking88-video-native-v2/changes.patch": {
+        "bytes": 12445,
+        "sha256": "1509ad83fcac49281fcc00afd4d036542668f7838a5c3e54d479434869744a46"
+      },
+      "tracking88-video-native-v2/controller.py": {
+        "bytes": 3430,
+        "sha256": "0443da60fe0345e414a24a5e21a0591614d2e9d8f1a6ec439db6823e4f86f020"
+      },
+      "tracking88-video-native-v2/exit.json": {
+        "bytes": 272358,
+        "sha256": "cb9006d86a36aad397fdaed7094a42fde0737785fbbcf9abaacf2d07115f7caa"
+      },
+      "tracking88-video-native-v2/logs/motion-studio.log": {
+        "bytes": 11276,
+        "sha256": "ffa99025c38fe433249dac790e4ca2a89aa6455170e0a4a295e58fe300e98219"
+      },
+      "tracking88-video-native-v2/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 30638,
+        "sha256": "6a67af196d759630bba018a13787c6a85fd43289b865d3631a640670cdb06b4c"
+      },
+      "tracking88-video-native-v2/source/crates/motion-media/src/video.rs": {
+        "bytes": 34710,
+        "sha256": "519b4a41d64242a181c464ecd8a130f219a24b811f4b62547351f639986e7510"
+      },
+      "tracking88-video-native-v2/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11082,
+        "sha256": "3e1401563329e6db21255b08753e47c7a134d330809d6ad4c1868caf7a3dc932"
+      },
+      "tracking88-video-native-v2/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-native-v2/stderr.log": {
+        "bytes": 22047,
+        "sha256": "9d326a410749f5ebf2ac307ac0914b14c69db079be16a25673fd86cad19772aa"
+      },
+      "tracking88-video-native-v2/stdout.log": {
+        "bytes": 403,
+        "sha256": "22a8dfca34c5470d4d8214983fe9c5e388ce2013a3f06c2f8e69db7066cb794c"
+      },
+      "tracking88-video-native-v3/changes.patch": {
+        "bytes": 12540,
+        "sha256": "df75b35f45151d98fb8c0909e8fea4db6a4e4b90feb9531dc02f08e92d61d1c3"
+      },
+      "tracking88-video-native-v3/controller.py": {
+        "bytes": 3430,
+        "sha256": "72f89a85b019641089621da9a8cdd1942e04ed15e351c769cf94c3fd15fb5085"
+      },
+      "tracking88-video-native-v3/exit.json": {
+        "bytes": 272358,
+        "sha256": "490cfd0c8e9cb327930c60ebc8d3d5fd93b46409e57285186250bef448ff1726"
+      },
+      "tracking88-video-native-v3/logs/motion-studio.log": {
+        "bytes": 11931,
+        "sha256": "237a2c4a5be4e8bc5470cb97fb8667f221a4d1122a06825331bdbb679da985c8"
+      },
+      "tracking88-video-native-v3/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 30638,
+        "sha256": "6a67af196d759630bba018a13787c6a85fd43289b865d3631a640670cdb06b4c"
+      },
+      "tracking88-video-native-v3/source/crates/motion-media/src/video.rs": {
+        "bytes": 34710,
+        "sha256": "519b4a41d64242a181c464ecd8a130f219a24b811f4b62547351f639986e7510"
+      },
+      "tracking88-video-native-v3/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11082,
+        "sha256": "3e1401563329e6db21255b08753e47c7a134d330809d6ad4c1868caf7a3dc932"
+      },
+      "tracking88-video-native-v3/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-native-v3/stderr.log": {
+        "bytes": 22859,
+        "sha256": "96c22c6b482715ba5ffddeab889fc82a0a36002424276b715219e52cc6e0a40a"
+      },
+      "tracking88-video-native-v3/stdout.log": {
+        "bytes": 403,
+        "sha256": "44ca3c4ff6ff15673ad60f8e8ae6ff98ed269fe635c16644ef050025df5f25f7"
+      },
+      "tracking88-video-native-v4/before.png": {
+        "bytes": 7726,
+        "sha256": "e94153b83371d10871daa20e2c7945e4df56d874326e0ceeecdedddb1d99ffe1"
+      },
+      "tracking88-video-native-v4/changes.patch": {
+        "bytes": 12559,
+        "sha256": "3fc4c1e21257bd871178c130fc0d83e7468c551863674b796a20e7f48fde8f24"
+      },
+      "tracking88-video-native-v4/controller.py": {
+        "bytes": 3430,
+        "sha256": "de8a23171374bf3f268435ff3284552ab291eadbc0046cb2bdeb5bd3c4df11d4"
+      },
+      "tracking88-video-native-v4/exit.json": {
+        "bytes": 272352,
+        "sha256": "740e7f84fc0cd19b56cbefaa51d21bc59f67cb1c33d60ac060b57a6eb8ab767b"
+      },
+      "tracking88-video-native-v4/logs/motion-studio.log": {
+        "bytes": 32403,
+        "sha256": "319f19ae715311c5348c93f90ca4ba260d610cb5953d8c0302d38b89c58454a9"
+      },
+      "tracking88-video-native-v4/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 30638,
+        "sha256": "6a67af196d759630bba018a13787c6a85fd43289b865d3631a640670cdb06b4c"
+      },
+      "tracking88-video-native-v4/source/crates/motion-media/src/video.rs": {
+        "bytes": 34710,
+        "sha256": "519b4a41d64242a181c464ecd8a130f219a24b811f4b62547351f639986e7510"
+      },
+      "tracking88-video-native-v4/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11082,
+        "sha256": "3e1401563329e6db21255b08753e47c7a134d330809d6ad4c1868caf7a3dc932"
+      },
+      "tracking88-video-native-v4/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-native-v4/stderr.log": {
+        "bytes": 24928,
+        "sha256": "a433cffd62c6288e4a1eaa3af023fbce8669a63bb4d41bb1f30bbde0a89fe69b"
+      },
+      "tracking88-video-native-v4/stdout.log": {
+        "bytes": 249,
+        "sha256": "9c9d61f1b0dac2b5eb35b664afd630c097d7cc898528e3be843281ffbc90f1a3"
+      },
+      "tracking88-video-regression-v1/changes.patch": {
+        "bytes": 12559,
+        "sha256": "3fc4c1e21257bd871178c130fc0d83e7468c551863674b796a20e7f48fde8f24"
+      },
+      "tracking88-video-regression-v1/controller.py": {
+        "bytes": 5510,
+        "sha256": "ed3bd23d3d7a7f8a3abffb53e129a14d37f5cfc980a6f5779adc5e84c8cb4a2e"
+      },
+      "tracking88-video-regression-v1/exit.json": {
+        "bytes": 272878,
+        "sha256": "e41af3beec01c752d3a32693b0f35ae67e694756ba494191b2e85cb3d5beb274"
+      },
+      "tracking88-video-regression-v1/media-video.stderr.log": {
+        "bytes": 1845,
+        "sha256": "faccd887ba36e9d94c88e1ea88f623eb8d123a69ef51ae06bd61054b60d17a2c"
+      },
+      "tracking88-video-regression-v1/media-video.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-video-regression-v1/source/crates/motion-host/src/ops/media/relink/tracking.rs": {
+        "bytes": 3460,
+        "sha256": "609e5d65730dbd14155ce5f69e033ee2fb48ff5668cc41800c2085cb961cae0b"
+      },
+      "tracking88-video-regression-v1/source/crates/motion-host/src/ops/media/replacement.rs": {
+        "bytes": 7585,
+        "sha256": "effe768c05b998d0886cdc54e2873a02f881807830e77fde2c9bd2c3c09f4a3b"
+      },
+      "tracking88-video-regression-v1/source/crates/motion-host/src/ops/media/tracking.rs": {
+        "bytes": 7615,
+        "sha256": "dca308bb5cf0a35131a81375149b2fb772ef796f382d1ea6bd3c47c5b0d212f3"
+      },
+      "tracking88-video-regression-v1/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 30638,
+        "sha256": "6a67af196d759630bba018a13787c6a85fd43289b865d3631a640670cdb06b4c"
+      },
+      "tracking88-video-regression-v1/source/crates/motion-media/src/lib.rs": {
+        "bytes": 2929,
+        "sha256": "5128af3b388630d5508dccf75c00699c60359c290ee43ede94237dcdd2295053"
+      },
+      "tracking88-video-regression-v1/source/crates/motion-media/src/video/candidate.rs": {
+        "bytes": 5135,
+        "sha256": "af7fe3325d430b408bfead54e69ee0adca4b23d1813d9fc4e56c97b8902696c6"
+      },
+      "tracking88-video-regression-v1/source/crates/motion-media/src/video.rs": {
+        "bytes": 34710,
+        "sha256": "519b4a41d64242a181c464ecd8a130f219a24b811f4b62547351f639986e7510"
+      },
+      "tracking88-video-regression-v1/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11082,
+        "sha256": "3e1401563329e6db21255b08753e47c7a134d330809d6ad4c1868caf7a3dc932"
+      },
+      "tracking88-video-regression-v1/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-regression-v2/changes.patch": {
+        "bytes": 12559,
+        "sha256": "3fc4c1e21257bd871178c130fc0d83e7468c551863674b796a20e7f48fde8f24"
+      },
+      "tracking88-video-regression-v2/controller.py": {
+        "bytes": 5079,
+        "sha256": "d58b7e6823f6fc3d4d144b5e466cb3f7dcfb44b7255968e623578ded29944821"
+      },
+      "tracking88-video-regression-v2/desktop-check.stderr.log": {
+        "bytes": 15591,
+        "sha256": "645e3f0d6f5d035998eb8e61a306c247972b6870870510fc79908c4b90f369b2"
+      },
+      "tracking88-video-regression-v2/desktop-check.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-video-regression-v2/desktop-image.stderr.log": {
+        "bytes": 17698,
+        "sha256": "21251d621a02872f3cf76444f3e6f9a5f9f1971bcbe21555e894de33fa8db813"
+      },
+      "tracking88-video-regression-v2/desktop-image.stdout.log": {
+        "bytes": 224,
+        "sha256": "7ea8171e7a043e397b2735fff18f3561bb71ddda1894b7033b8c3abfa6c8f8bb"
+      },
+      "tracking88-video-regression-v2/desktop-video.stderr.log": {
+        "bytes": 24539,
+        "sha256": "e3730ccdcbec687aa9ea412df57ecf15594708342370807f5dc9585790096999"
+      },
+      "tracking88-video-regression-v2/desktop-video.stdout.log": {
+        "bytes": 249,
+        "sha256": "427e5ce5744ba224ddecda1ea6538ff549940767e8fb09e350dcaa2fbd4becb6"
+      },
+      "tracking88-video-regression-v2/exit.json": {
+        "bytes": 276816,
+        "sha256": "e8104e4141a409b607cf858c966acb395954ff8377ace73d951608c9df9259dd"
+      },
+      "tracking88-video-regression-v2/host-image-relink.stderr.log": {
+        "bytes": 1134,
+        "sha256": "c93367defc85e09fcbaeeb337e03f8c908029e2ca93dd2b50a6e567b6921f97b"
+      },
+      "tracking88-video-regression-v2/host-image-relink.stdout.log": {
+        "bytes": 636,
+        "sha256": "303cfaf3b05b54a88d40f0b3015d6912203d94ebf1f9c32fbb298253d293eb50"
+      },
+      "tracking88-video-regression-v2/host-media.stderr.log": {
+        "bytes": 17636,
+        "sha256": "85b6bc12fce59f61e5d8347f7bb797a9513f05e847e21e19de3ca9493913a2ff"
+      },
+      "tracking88-video-regression-v2/host-media.stdout.log": {
+        "bytes": 1861,
+        "sha256": "5fdf76e1f006d2bb67741ef014bd503f846a0e1d7d37542d284c3e08d7c2c4f9"
+      },
+      "tracking88-video-regression-v2/host-registration.stderr.log": {
+        "bytes": 1140,
+        "sha256": "3ae6d7c26ca4caa06757d87ad56ea09af2b92cda53708c0ac486fab47f5b112d"
+      },
+      "tracking88-video-regression-v2/host-registration.stdout.log": {
+        "bytes": 684,
+        "sha256": "b7a6086b0bc61b93c15674c2e95d803a7deec967a6c97dcb374b8e467b755d40"
+      },
+      "tracking88-video-regression-v2/host-tracking.stderr.log": {
+        "bytes": 12085,
+        "sha256": "ead3bd1d9b62ef7048c8ea2932edae3d70004fe7734dc450e73117fadbb1a7d9"
+      },
+      "tracking88-video-regression-v2/host-tracking.stdout.log": {
+        "bytes": 5337,
+        "sha256": "7e6ea77c8dd8ff69d3be02d61b22d764e0694dbd734dea2f5aa3d5495eef70e0"
+      },
+      "tracking88-video-regression-v2/image/before.png": {
+        "bytes": 7125,
+        "sha256": "0be96fab7be2aa85f228819a3370184ab443d7ce3ad1779cec98071df3cdac15"
+      },
+      "tracking88-video-regression-v2/image/logs/motion-studio.log": {
+        "bytes": 13176,
+        "sha256": "09cd548877cde5f7cb32a3713ab91574c1b38e972a181ec5a4141e50b86b7a41"
+      },
+      "tracking88-video-regression-v2/media-video.stderr.log": {
+        "bytes": 1129,
+        "sha256": "a40decb6a5a33f60151e52e980fee3bf1a7192e9407c34fa158bf20fe59938ee"
+      },
+      "tracking88-video-regression-v2/media-video.stdout.log": {
+        "bytes": 1369,
+        "sha256": "cfa7ab0ecbffae195226166a966e620bb49fbf2e2ee9d0dcac643b9969541513"
+      },
+      "tracking88-video-regression-v2/provenance.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-video-regression-v2/provenance.stdout.log": {
+        "bytes": 46,
+        "sha256": "3b774572553bf0319bc26d1629227bf9804dd1a18eb02893d9e3d25bb0e8a95e"
+      },
+      "tracking88-video-regression-v2/source/crates/motion-host/src/ops/media/relink/tracking.rs": {
+        "bytes": 3460,
+        "sha256": "609e5d65730dbd14155ce5f69e033ee2fb48ff5668cc41800c2085cb961cae0b"
+      },
+      "tracking88-video-regression-v2/source/crates/motion-host/src/ops/media/replacement.rs": {
+        "bytes": 7585,
+        "sha256": "effe768c05b998d0886cdc54e2873a02f881807830e77fde2c9bd2c3c09f4a3b"
+      },
+      "tracking88-video-regression-v2/source/crates/motion-host/src/ops/media/tracking.rs": {
+        "bytes": 7615,
+        "sha256": "dca308bb5cf0a35131a81375149b2fb772ef796f382d1ea6bd3c47c5b0d212f3"
+      },
+      "tracking88-video-regression-v2/source/crates/motion-host/src/ops/media.rs": {
+        "bytes": 30638,
+        "sha256": "6a67af196d759630bba018a13787c6a85fd43289b865d3631a640670cdb06b4c"
+      },
+      "tracking88-video-regression-v2/source/crates/motion-media/src/lib.rs": {
+        "bytes": 2929,
+        "sha256": "5128af3b388630d5508dccf75c00699c60359c290ee43ede94237dcdd2295053"
+      },
+      "tracking88-video-regression-v2/source/crates/motion-media/src/video/candidate.rs": {
+        "bytes": 5211,
+        "sha256": "89186033d93bbfdcbb895560433aa7bfa85f7f67a9ece267e7be6843052c8e76"
+      },
+      "tracking88-video-regression-v2/source/crates/motion-media/src/video.rs": {
+        "bytes": 34710,
+        "sha256": "519b4a41d64242a181c464ecd8a130f219a24b811f4b62547351f639986e7510"
+      },
+      "tracking88-video-regression-v2/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11082,
+        "sha256": "3e1401563329e6db21255b08753e47c7a134d330809d6ad4c1868caf7a3dc932"
+      },
+      "tracking88-video-regression-v2/source/desktop/app/src/engine.rs": {
+        "bytes": 120294,
+        "sha256": "4561ba8dbace1f2bd08b3ddf95cf9bfd13d2228bdd07c5d57ea3e209b2782b22"
+      },
+      "tracking88-video-regression-v2/style.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-video-regression-v2/style.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-video-regression-v2/video/before.png": {
+        "bytes": 7726,
+        "sha256": "e94153b83371d10871daa20e2c7945e4df56d874326e0ceeecdedddb1d99ffe1"
+      },
+      "tracking88-video-regression-v2/video/logs/motion-studio.log": {
+        "bytes": 32176,
+        "sha256": "a0c54028860dd34d102a18aab7fa68f7b859b06d8ffd6793760b529093d02557"
+      },
+      "tracking88-video-check-v1.log": {
+        "bytes": 16077,
+        "sha256": "e5dca20c86baae17468c4f5e413da2b3dcef7888747648c20904b15a491e6b3f"
+      },
+      "finalize-controller.py": {
+        "bytes": 3058,
+        "sha256": "b52b307b827dfe9f339e4756590e52ea727cf0baced7b5ab512f877b3130365c"
+      }
+    }
+  },
+  "selectedCommandCounts": {
+    "media_video": 13,
+    "host_tracking": 51,
+    "host_media": 15,
+    "host_image_relink": 7,
+    "host_registration": 8,
+    "desktop_image": 1,
+    "desktop_video": 1
+  },
+  "overlappingTests": [
+    "host stream-identity test appears in tracking and ops::media filters"
+  ],
+  "limits": [
+    "No successful pre-change native defect reproduction",
+    "Full workspace/desktop and cross-platform CI pending",
+    "Retained interactive Surface cache unqualified",
+    "New plate plus new solve and tracker prototype pending",
+    "No permanent filesystem lease",
+    "Android excluded",
+    "Previous compiler/native/external-calibration/performance failures unresolved"
+  ]
+}
