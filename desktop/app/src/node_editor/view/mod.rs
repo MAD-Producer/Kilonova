@@ -419,10 +419,8 @@ impl NodeEditor {
         let geometry_stamp = |editor: &Self| {
             (editor.epoch, editor.revision, editor.preview_revision, editor.view.pan, editor.view.zoom)
         };
-        // Inline controls need pre-edit hit geometry only when they actually read
-        // it. Other regions can finish their edits before the first card build.
-        let mut cards = None;
-        let mut geometry = geometry_stamp(self);
+        // Inline controls query only their pre-edit origin/row or hit rectangle.
+        // Build sockets once after toolbar, library and inspector edits finish.
         let numeric_file = if self.inline.popup.is_none()
             && self
                 .inline
@@ -455,7 +453,6 @@ impl NodeEditor {
             && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles))
         {
             self.inline_input(
-                &mut cards,
                 layout.canvas,
                 commit_input.as_ref().unwrap_or(input),
                 language,
@@ -532,20 +529,8 @@ impl NodeEditor {
         if let Some(inspector) = layout.inspector {
             self.inspector(list, atlas, inspector, body_input, language);
         }
-        let current = geometry_stamp(self);
-        let mut cards = match cards {
-            Some(mut cards) => {
-                if current != geometry
-                    && ((current.0, current.2) != (geometry.0, geometry.2)
-                        || !self.refresh_card_positions(&mut cards, layout.canvas))
-                {
-                    cards = self.cards(layout.canvas);
-                }
-                cards
-            }
-            None => self.cards(layout.canvas),
-        };
-        geometry = current;
+        let mut cards = self.cards(layout.canvas);
+        let geometry = geometry_stamp(self);
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
         if !self.minimap_input(layout.canvas, body_input, &styles) {
             self.canvas_input(&cards, layout.canvas, body_input, language);
