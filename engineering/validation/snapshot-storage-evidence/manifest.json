@@ -1,0 +1,58 @@
+{
+  "base_commit": "4bd7cd18a173458a3a385aaab1323f10e85e5122",
+  "branch": "perf/scene-asset-storage",
+  "pr": 589,
+  "issue": 126,
+  "issue_complete": false,
+  "results": {
+    "final-snapshot": {
+      "exit_code": 0,
+      "passed": 9,
+      "log": "final-snapshot.log"
+    },
+    "regression": {
+      "exit_code": 0,
+      "passed": 10,
+      "log": "regression.log"
+    },
+    "scene-regression": {
+      "exit_code": 0,
+      "passed": 2,
+      "log": "scene-regression.log"
+    },
+    "workspace": {
+      "exit_code": 0,
+      "passed": 0,
+      "log": "workspace.log"
+    }
+  },
+  "distinct_tests": 21,
+  "baseline": {
+    "exit": 101,
+    "calls": 120,
+    "allocations": 120
+  },
+  "source_sha256_raw_files": {
+    "crates/motion-render/src/renderer.rs": "79aee956c7df20c733842615bf0ab5080bb67177b1f5f72e40af8d5fb8c3bc98",
+    "crates/motion-render/src/renderer/snapshot_storage_tests.rs": "d754b0c41479824947c0887f864068e5cda2a787e1e156f026c36ce35fc5a1d9",
+    "crates/motion-render/src/renderer/admission_tests/input_snapshot_context.rs": "96320a1c12d1a54cdf0e68ceb2d54b094293d945e75acf6da191a701896ccce0",
+    "crates/motion-render/src/renderer/scene_asset_storage_tests.rs": "8af7a6bacec51902f064dea250e59baa99d17cf3c96034a0f1f4689adffda104",
+    "crates/motion-render/src/test_allocations.rs": "9802ffbfcf0a689f3ce50eeaae4ebd9f96aa71eed248b375293ab4863a635469",
+    "engineering/validation/snapshot-storage.md": "f1e577acde70ab339267ef9aa231b724c570356d0a44085b464c8357b28e2409"
+  },
+  "binary_sha256": {
+    "motion_render-1fcc3fb8d09fa888.exe": "eb36520ca4eb4a307af6917cc54162f2fb3f01ec4169c02ec3e3d18a184f8539",
+    "frame_image_imports-8d8832285c6b6175.exe": "3dbd6adf06290201f9b0d0d7dd648af6e454a751c91110cc7651faa41224f594",
+    "image_input_order_allocations-7644902f8f2c540b.exe": "1f32a96d7d299d17a768ff73c8f4aee5c2f1e7376c77e0a4ee64aaceb53fa3d6",
+    "typed_snapshot_execution-915ef53abd56fb31.exe": "cefc5f90d6f024eec1018b8aff1dada14acf9894fc4b3d0636e3ce8d2553038d"
+  },
+  "commands": [
+    "cargo test -p motion-render --lib snapshot --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --test typed_snapshot_execution --test frame_image_imports --test image_input_order_allocations --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --lib scene_asset_storage --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "scope": "Calling-thread allocations in resident snapshot preparation, after plan creation and GPU warmup. Whole-preview-frame allocation, background work and FPS remain unproven. Existing production failure channels unchanged.",
+  "ci": "pending for final head",
+  "evidence_zip_sha256": "7e273a34a53ad7910f446a9162ff2b4e631e17a41debf8beb4b51202cee5d494"
+}

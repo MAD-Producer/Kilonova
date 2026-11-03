@@ -103,6 +103,7 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
             Shape::Triangles { points } => {
                 points.iter_mut().for_each(&point)
             }
+            Shape::Mesh(mesh) => *shape = mesh.transformed(origin, zoom),
             Shape::Line { points, clip } => {
                 points.iter_mut().for_each(&point);
                 if let Some(clip) = clip {

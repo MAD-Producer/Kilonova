@@ -23,7 +23,7 @@ fn image_trim_preserves_lru_ties_active_and_replacement_protection() {
     for id in 1..=4 {
         upload(&mut renderer, id);
     }
-    renderer.image_active.insert(1);
+    renderer.image_active.push(1);
     renderer
         .image_access
         .extend([(1, 0), (2, 1), (3, 7), (4, 7)]);
@@ -53,7 +53,7 @@ fn image_trim_preserves_lru_ties_active_and_replacement_protection() {
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn repeated_pressure_reuses_one_eviction_allocation_and_healthy_trims_leave_it_idle() {
     let mut renderer = renderer();
-    renderer.image_active.insert(1);
+    renderer.image_active.push(1);
     let mut retained = None;
     for _ in 0..64 {
         renderer.effect_gpu.builder.source_texture_budget = TEXTURE_BUDGET;

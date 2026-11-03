@@ -1,0 +1,52 @@
+{
+  "base_commit": "0ba7817ee0f255a021d06791839871d731d5c6a1",
+  "branch": "perf/vector-scratch-planning",
+  "issue": 126,
+  "issue_complete": false,
+  "results": {
+    "after": {
+      "exit_code": 0,
+      "tests_passed": 4,
+      "log": "after.log"
+    },
+    "regression": {
+      "exit_code": 0,
+      "tests_passed": 16,
+      "log": "regression.log"
+    },
+    "workspace": {
+      "exit_code": 0,
+      "tests_passed": 0,
+      "log": "workspace.log"
+    }
+  },
+  "baseline": {
+    "runtime_exit": 101,
+    "allocations": 120,
+    "iterations": 120,
+    "fixture_compile_exit": 101
+  },
+  "source_sha256_raw_files": {
+    "crates/motion-render/src/layer_gpu.rs": "f9bef18c2d88701934469180b570d758873838e51f1d9f01a3a5524fad8aa740",
+    "crates/motion-render/src/layer_gpu/groups.rs": "7510d11a33a3679b2b6d91dd325bc830984c2a3f7b120c3d790f1e4d96e45eee",
+    "crates/motion-render/src/layer_gpu/groups/planning_tests.rs": "09d846b4eadea512b10242bc62b8cf2aeb94b2d12271bf4a018a69f58cdcaa86",
+    "crates/motion-render/src/renderer/vector_planning_tests.rs": "78f8dcc8f0acc5c921307227cf2ae86ee9efbd2d608f81fb8e3b1496662ccb50",
+    "crates/motion-render/src/test_allocations.rs": "9802ffbfcf0a689f3ce50eeaae4ebd9f96aa71eed248b375293ab4863a635469",
+    "engineering/validation/vector-texture-iteration.md": "2c9ddde0b63b7f8e9f7a81534f676af3854c8f1520688d89f8aa6833e873a4da"
+  },
+  "binary_sha256": {
+    "motion_render-1fcc3fb8d09fa888.exe": "661f531bae8e1b2240d1fbc3a2d0af36ac29057652df02495d18272f62e5f14d",
+    "vector_budget_alignment-80f3822d5431cb6a.exe": "da2ca56794301389a11a22ec81b9993f71c09cb1e8446c51adc1704b75cfc4b5",
+    "vector_error_boundaries-4162b162d7ecfa99.exe": "a094a7f488db98355f6c0152f5913a0c0a33908c8205eb0418f9b35a35988829",
+    "vector_groups-02147addf7395614.exe": "dcb666ef519b1dbd6bdae7db875154795caa2d49ffe22b5a747f69025ab10430",
+    "vector_upload_reuse-a94ca798c1da72b3.exe": "777cb54541cd7450b443f2f8731adc99a2eb86042e53b646a7be97150fd2fe15"
+  },
+  "commands": [
+    "cargo test -p motion-render --lib --features gpu-tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target planning -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --features gpu-tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target --test vector_groups --test vector_upload_reuse --test vector_budget_alignment --test vector_error_boundaries -- --test-threads=1 --nocapture",
+    "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "scope": "Specific preparation operations on the calling thread after warmup; excludes scene/plan building, final drawing, background allocations and FPS claims.",
+  "ci": "pending for final head",
+  "evidence_zip_sha256": "def3d961dedb9a8046c8201a126685b239ef555ad1c1d7982c22cc51c0c1b609"
+}
