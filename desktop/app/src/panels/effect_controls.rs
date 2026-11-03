@@ -52,6 +52,7 @@ fn context_row(card: Rect, width: f32, row: f32, index: usize) -> Rect {
 
 #[derive(Default)]
 pub struct Controls {
+    layer_identity: super::layer_identity::Reader,
     pub(crate) presets: Vec<crate::animation_presets::Entry>,
     pub(crate) presets_busy: bool,
     pub(crate) library_targets: Vec<u64>,
@@ -995,7 +996,11 @@ impl Controls {
         let mut overlays = list.child();
         self.cursor = false;
         self.drag_readout = None;
-        let object = layer["id"].as_u64().unwrap();
+        let Some(object) = self.layer_identity.read(layer, state, "effects.layer_id") else {
+            if self.cancel() { out.push(Action::History(4)); }
+            self.clear_key_channel();
+            return;
+        };
         let locked = layer["locked"].as_bool().unwrap_or(false) || state["observing"] == true;
         for ((owner, effect, parameter), editor) in &mut self.curve_editors {
             if (locked
