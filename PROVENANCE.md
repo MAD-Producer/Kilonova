@@ -13,6 +13,10 @@ selected local FFmpeg tools and separately installed OpenCV/NumPy. It copies no
 upstream tutorial implementation or assets, adds no product dependency and
 records executable hashes, raw source identity and original frame timestamps.
 Authorship, revisions, licenses and modification scope are in ATTRIBUTION.md.
+The frozen synthetic video and measured solve under
+`desktop/app/tests/fixtures/tracking-prototype` are independently authored MIT
+validation outputs, with exact source revision and hashes in their README.
+They contain no third-party photographed benchmark data or product artwork.
 
 The external #88 camera calibration qualification uses pinned OpenCV sample
 photographs under Apache-2.0, with unmodified license/copyright and file hashes

@@ -1,0 +1,145 @@
+{
+  "sourceSha256": {
+    "desktop/app/src/panels/key_selection/transform.rs": "f70ceed0325129ebc4ec6cde383e274c66f986ef7f36f1f41bc6d51e73d845a9",
+    "desktop/app/src/panels/key_selection/spatial_ui_tests.rs": "dd7faf18ed63901e595afc493b91725e02a81720b45f8238abe028cc14b0512b",
+    "desktop/app/src/panels/key_selection/mapped_spatial_tests.rs": "0a44b385a41fd3d5b4d706017356521222d3c91ae1a1c6784431fb536d8ba7ad",
+    "desktop/app/src/panels/key_selection/mapped_spatial_native.rs": "b7c0da6f62d8536855b0a1363d9e774895e6206885c7b36bac0fe86861c2a18f"
+  },
+  "results": [
+    {
+      "group": "mapped",
+      "args": [
+        "panels::key_selection::tests::ui::spatial::mapped::"
+      ],
+      "exit": 0,
+      "seconds": 5.038,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "297b77e10ecfeacdfa6e9c3a4ccca01c95cabfc35dfc15c4071aa3a7c8983cef",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "selection",
+      "args": [
+        "panels::key_selection::",
+        "--skip",
+        "panels::key_selection::tests::ui::spatial::mapped::"
+      ],
+      "exit": 0,
+      "seconds": 30.225,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "297b77e10ecfeacdfa6e9c3a4ccca01c95cabfc35dfc15c4071aa3a7c8983cef",
+      "passed": 77,
+      "failed": 0,
+      "ignored": 9
+    },
+    {
+      "group": "roving",
+      "args": [
+        "panels::animation_menu::roving::tests::"
+      ],
+      "exit": 0,
+      "seconds": 0.83,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "297b77e10ecfeacdfa6e9c3a4ccca01c95cabfc35dfc15c4071aa3a7c8983cef",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "native",
+      "args": [
+        "--exact",
+        "panels::key_selection::tests::ui::spatial::mapped::native::mapped_spatial_native_views_commit_and_reopen",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 59.797,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "297b77e10ecfeacdfa6e9c3a4ccca01c95cabfc35dfc15c4071aa3a7c8983cef",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "old-timeline",
+      "args": [
+        "--exact",
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 13.925,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "297b77e10ecfeacdfa6e9c3a4ccca01c95cabfc35dfc15c4071aa3a7c8983cef",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "old-graph",
+      "args": [
+        "--exact",
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 13.796,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "297b77e10ecfeacdfa6e9c3a4ccca01c95cabfc35dfc15c4071aa3a7c8983cef",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "old-comparison",
+      "args": [
+        "--exact",
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 13.547,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "297b77e10ecfeacdfa6e9c3a4ccca01c95cabfc35dfc15c4071aa3a7c8983cef",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "checks": {
+    "workspace_all_targets_ffmpeg": 0,
+    "style_consumers": 0,
+    "rustfmt_new_modules": 0,
+    "git_diff_check": 0
+  },
+  "passed": 96,
+  "nativeMappedCases": 40,
+  "nativeMappedScreenshots": 80,
+  "totalScreenshots": 104,
+  "actualWorkerReopens": 2,
+  "captureProcess": {
+    "pid": 49404
+  },
+  "reopenProcess": {
+    "pid": 53992
+  },
+  "unrunManualTests": [
+    "panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen",
+    "panels::key_selection::tests::ui::local_timing::clipboard::native::typed_fractional_clipboard_native_input_transactions_errors_and_reopen",
+    "panels::key_selection::tests::ui::local_timing::graphs::native::mapped_comparison_native_pixels_worker_undo_save_and_reopen",
+    "panels::key_selection::tests::ui::local_timing::handles::native::native_local_handles_edit_undo_save_pixels_and_reopen",
+    "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen",
+    "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen"
+  ],
+  "fullIssueComplete": false,
+  "retainedLimits": [
+    "Epic Vulkan overlay JSON registration errors",
+    "existing crowded and truncated timeline headings",
+    "remaining spatial mini editor, initial local roving selection and companion compensation",
+    "real media device, prewarm and high-speed final acceptance"
+  ],
+  "archiveBytes": 4391507,
+  "archiveSha256": "93f2a75eac5ef123fcd959cf8b14aaf2da8d3cf29d42e48750c2ed77fb467398"
+}

@@ -34,6 +34,7 @@ struct Menu {
 }
 #[derive(Default)]
 pub(in crate::panels) struct Controls {
+    pub(in crate::panels::path_controls) navigation_selection: Option<Vec<crate::panels::key_selection::AddressedKey>>,
     selection_intent: bool,
     context: Option<(String, String)>,
     pub(super) cache: SourceCache,
@@ -99,6 +100,7 @@ fn command(c: &Channel, edit: KeyEdit) -> Action {
 }
 impl Controls {
     pub(in crate::panels) fn project_key(&mut self, state: &Value, object: u64, item: u64, parameter: &str, frame: u32) {
+        self.navigation_selection = None;
         self.context=Some((state["root"].as_str().unwrap_or("").into(),state["composition"].as_str().unwrap_or("").into()));
         let channel=Channel {object,item,parameter:parameter.into()};
         self.active=Some(channel.clone());
@@ -111,6 +113,10 @@ impl Controls {
         if !self.selected_in(state, object, c.item, &c.parameter) { return None; }
         let (layer, parameter) = snapshot(state, c, 0, &self.cache)?;
         if parameter.static_value { return None; }
+        if layer.time_mapping.is_some() {
+            let selected=if let Some((selected,frame))=&self.selected {if selected!=c{return None;}Some(*frame)}else{None};
+            return clipboard::Selection::mapped(state,vec![motion_core::KeyframeTarget::Vector {object,item:Some(c.item),parameter:c.parameter.clone()}],selected,false,!layer.locked);
+        }
         let mut frames = clipboard::frames(state, parameter.keys.iter().map(|(f, _)| i64::from(*f)), i64::from(layer.timeline.map_or(0, |t| t.offset_frame)));
         if let Some((selected, frame)) = &self.selected {
             if selected != c { return None; }
@@ -142,6 +148,33 @@ impl Controls {
         out: &mut Vec<Action>,
     ) {
         use crate::panels::key_navigation::{self as navigation, Choice};
+        if crate::panels::property_authoring::precise(state, object) {
+            if parameter.static_value {
+                let rect = navigation::rail(&list.styles(), row);
+                navigation::draw(list, rect, input, Default::default(), false);
+                return;
+            }
+            let Ok(timing) = observe!("vector.navigation_time", super::super::key_time::vector(state, object, item, parameter),
+                "object={object} item={item} parameter={} phase=rail", parameter.id) else {return;};
+            let adjacent = navigation::neighbours(timing.entries.iter().map(|(time, _)| *time), timing.at, crate::panels::last_frame(state));
+            let editable = enabled && state["observing"] != true && !parameter.static_value && timing.editable;
+            let rect = navigation::rail(&list.styles(), row);
+            let Some(choice) = navigation::draw(list, rect, input, adjacent, editable) else {return;};
+            self.prepare(state, input, out);
+            self.choose(object, item, parameter);
+            match choice {
+                Choice::Seek(time) => {
+                    self.navigation_selection = Some(timing.selected(time));
+                    out.push(Action::Seek(time));
+                }
+                Choice::Toggle => {
+                    let (commands, keys) = timing.toggle();
+                    self.navigation_selection = Some(keys);
+                    out.push(Action::EditBatch(commands));
+                }
+            }
+            return;
+        }
         let Some(layer) = cached_layer(state, object, &self.cache) else { return };
         let offset = layer.timeline.map_or(0, |timeline| timeline.offset_frame);
         let at = state["frame"].as_f64().unwrap_or(0.);
@@ -179,6 +212,7 @@ impl Controls {
         self.menu.is_some()
     }
     pub(in crate::panels) fn clear_selection(&mut self) {
+        self.navigation_selection = None;
         self.selection_intent = false;
         self.active = None;
         self.selected = None;
@@ -189,6 +223,7 @@ impl Controls {
         self.drag.take().is_some_and(|d| d.begun)
     }
     pub(in crate::panels) fn choose(&mut self, object: u64, item: u64, p: &parameters::Parameter) {
+        self.navigation_selection = None;
         self.selection_intent = true;
         self.active = Some(Channel {
             object,
@@ -498,6 +533,24 @@ impl Controls {
         ) else {
             return false;
         };
+        if crate::panels::property_authoring::precise(state, c.object) {
+            let navigating = input.key_presses().any(|(k,m,_)| matches!(k, Key::J | Key::K) && !m.control && !m.alt && !m.shift);
+            if !navigating { return false; }
+            let Ok(timing) = observe!("vector.navigation_time", super::super::key_time::vector(state, c.object, c.item, &p),
+                "object={} item={} parameter={} phase=keyboard", c.object, c.item, c.parameter) else {return true;};
+            let mut at = timing.at;
+            for (key,_,_) in input.key_presses().filter(|(k,m,_)| matches!(k, Key::J | Key::K) && !m.control && !m.alt && !m.shift) {
+                let adjacent = crate::panels::key_navigation::neighbours(timing.entries.iter().map(|(time,_)|*time), at, crate::panels::last_frame(state));
+                if let Some(time) = if key==Key::J {adjacent.previous} else {adjacent.next} {
+                    at=time;
+                    self.selected=None;
+                    self.navigation_selection=Some(timing.selected(time));
+                    self.selection_intent=true;
+                    out.push(Action::Seek(time));
+                }
+            }
+            return true;
+        }
         let total = state["project"]["frames"].as_i64().unwrap_or(1);
         let mut at = state["frame"].as_f64().unwrap_or(0.);
         let mut used = false;

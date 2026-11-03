@@ -1,0 +1,177 @@
+{
+  "created_utc": "2026-10-31T10:55:07.879221+00:00",
+  "base_commit": "25ad26b1b2ba6ee796840429474e2cbda42310d7",
+  "stage": "关键帧投影和宿主形状快照；不是整个 #257 的交付或验收",
+  "source_sha256": {
+    "crates/motion-model/src/timeline.rs": {
+      "bytes": 12854,
+      "sha256": "3347cd405f9e867211a8b425c5f5be0c12db60dbca2998cebbde178e77638459"
+    },
+    "crates/motion-model/src/layer_time.rs": {
+      "bytes": 15979,
+      "sha256": "489d5e4b8e7b9e3b16ac23fa42e9e40730d2bedae6ae3d3cb490ec1c2b5d3a7d"
+    },
+    "crates/motion-model/src/layer_time/document.rs": {
+      "bytes": 8405,
+      "sha256": "01005079f0f8f256783d0ed904a4fce17b9b39d680d870882af7ce21564daef6"
+    },
+    "crates/motion-host/src/ops/snapshot.rs": {
+      "bytes": 41533,
+      "sha256": "ee0088dab2fa632b978b291a595b6fd36f4fe5b681c95f596d12c2a671a4a146"
+    },
+    "crates/motion-model/tests/layer_time_projection.rs": {
+      "bytes": 11572,
+      "sha256": "02f32f277cdd4fba77899a7a915af06c620a0d14c6db700bce59ffbcff8f5cf9"
+    },
+    "crates/motion-host/tests/layer_time_mapping.rs": {
+      "bytes": 8695,
+      "sha256": "e1dd9e5ef4e409b4004f7777e77ec69753b781b9875444287a33ad6d5fb615d0"
+    },
+    "crates/motion-core/tests/layer_clips.rs": {
+      "bytes": 17241,
+      "sha256": "d222780d262bc2243ec3db81f53109e32f0d88ecaeed925e9417ecb333626cc4"
+    },
+    "crates/motion-core/tests/separate_dimensions.rs": {
+      "bytes": 13294,
+      "sha256": "1b3a06abc61a5d7218b1a8179a894409c38467c6e7d350ad418292bffeee0025"
+    },
+    "crates/motion-core/tests/layer_anchor_animation.rs": {
+      "bytes": 7833,
+      "sha256": "269e8ff11a6adba5d6622303c6bc71129c6e3b138ae4d4f33f39451d05db5630"
+    }
+  },
+  "executed_new_test_programs": {
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_projection-031131098be9a580.exe": {
+      "bytes": 3153920,
+      "sha256": "62da5d7b24ce81e8786f137e3f0729f8e6894e168a52852a18a60ef311e1e7bb"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_mapping-72184fcc717f37dc.exe": {
+      "bytes": 44525568,
+      "sha256": "80dce9134ca35eeac831c8fee48293f03813ab6b60471393ea9c601edd0b2993"
+    }
+  },
+  "raw_evidence": {
+    "layer-time-projection-before.log": {
+      "bytes": 621,
+      "sha256": "810d806a13c6acee2f347525204b31a58527da7826cbc6714bb51cab2ea66ed6"
+    },
+    "layer-time-projection-before-behavior.log": {
+      "bytes": 1650,
+      "sha256": "939bf98173a5aceaee94abace4a940966cb4a4c73f7f22b23b262eeb05f23bf7"
+    },
+    "layer-time-projection-initial-fixed.log": {
+      "bytes": 4488,
+      "sha256": "a230f9146fc09031190c95f5cc0823df5960706880460ddaa32d84ec0a9a9777"
+    },
+    "layer-time-projection-expanded.log": {
+      "bytes": 1256,
+      "sha256": "266c533c750538a58fd21bec0fe4ebc8e7cabd4ed79fc26514c0b71e4561cfff"
+    },
+    "layer-time-host-before.log": {
+      "bytes": 2365,
+      "sha256": "0d8e006cca5d2e7ec78c4cb5c1c5caae43ff4abde54ca25b71cd06b3411c49b1"
+    },
+    "layer-time-host-before-behavior.log": {
+      "bytes": 1860,
+      "sha256": "41c82dfbc8bd8c22909c21c29eefa038e646f8d1d07c5eac5e4983a9ac7ea2fc"
+    },
+    "layer-time-host-before-clock.log": {
+      "bytes": 2030,
+      "sha256": "cd0ea1a58775c2d78c4b1a1380f89b6472fb34ba0e1099f7fb513a655b3b61b3"
+    },
+    "layer-time-host-fixed.log": {
+      "bytes": 1901,
+      "sha256": "a476dd318a4dd9a8953a7a87c7fb32fb2f28ac66c9f8f5f8699a52c41c791ea3"
+    },
+    "layer-time-projection-model-full.log": {
+      "bytes": 27609,
+      "sha256": "f77a535d259dfdd5602b93dc135da5178f4d8c06729b3bf383d0ede0a033a0e7"
+    },
+    "layer-time-projection-core.log": {
+      "bytes": 3491,
+      "sha256": "75667f2fc08e8a1275c6cf4b4f3218ce2d0498173e755c27edba45552c4dd0fb"
+    },
+    "layer-time-projection-core-clips.log": {
+      "bytes": 2145,
+      "sha256": "fea3d8927365e5ceba8e1bf3dad5bc16786fb26a84d5052339e8753ca9234684"
+    },
+    "layer-time-projection-core-axes.log": {
+      "bytes": 2627,
+      "sha256": "775c2c86e15529cabd00e75d430249bd614cc79f3106e78c17494803f0f2d89d"
+    },
+    "layer-time-projection-core-axes-fixed.log": {
+      "bytes": 2461,
+      "sha256": "f3f301b5975079f0d9937c40731f1a8866ac464ef2a02cf42916c2999f0f8fec"
+    },
+    "layer-time-projection-workspace-check.log": {
+      "bytes": 26670,
+      "sha256": "04b553e4a498832a2599971951d3ad342e3f3fc85b6b02dcd2d26d51fd669942"
+    },
+    "layer-time-projection-workspace-check-fixed.log": {
+      "bytes": 21307,
+      "sha256": "5d9a43d0ef7ec79c5863ab2014768ef7edd3bbb6c137401c7e65aa133f6bf0f6"
+    },
+    "layer-time-projection-workspace-check-final.log": {
+      "bytes": 19808,
+      "sha256": "772b8b82aadbfa462638dc2f786d3f19bc150b2fe6434ed336f3aa6f85436777"
+    }
+  },
+  "results": {
+    "layer-time-projection-model-full.log": {
+      "passed": 199,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-host-fixed.log": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-projection-core.log": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-projection-core-clips.log": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-projection-core-axes-fixed.log": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "distinct_tests_passed": 242,
+  "workspace_check": {
+    "command": "cargo check --workspace --exclude motion-android --all-targets --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target",
+    "result": "passed; existing warnings retained; compile coverage does not imply execution"
+  },
+  "test_commands": [
+    "cargo test -p motion-model --target-dir E:/Dev/aem/.tools/layer-time-mapping/target -- --nocapture",
+    "cargo test -p motion-host --test layer_time_mapping --test merge_dimensions --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-core --test layer_time --test project_format_contract --test subframe_clips --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-core --test layer_clips --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-core --test separate_dimensions --test layer_anchor_animation --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture"
+  ],
+  "failure_dispositions": {
+    "projection_before_behavior": "old offset projection failed exact expected 11.5/100; not an assertion relaxation",
+    "host_before": "fixture used invalid opacity units; corrected fixture only",
+    "host_before_behavior": "fixture opacity zero caused normal invisible layer culling; corrected fixture only",
+    "host_before_clock": "actual old snapshot angle 60 rather than expected 40; implementation corrected",
+    "workspace_first_two_and_axes_first": "five existing assertions needed same-number floating literals for derived TimelineKey.frame API; exact values and all checks retained"
+  },
+  "pending": [
+    "continuous ordinary-key editing and complete desktop consumers",
+    "source-range validation, actual media, nested/composed clocks and leaf endpoints",
+    "bounded nonlinear audio reads and unchanged fast path sample comparison",
+    "preview/export/cache/prerender and native fault-channel evidence",
+    "UI entry, main/floating windows, locales, focus/cancel and screenshots",
+    "current final PR CI and issue-by-issue completion audit"
+  ],
+  "archive": {
+    "bytes": 93802,
+    "sha256": "b8568986f303bf19f4df9635cf1a0b2fc91b9ad54b851dfeca697dd7b59a60ef"
+  }
+}

@@ -112,6 +112,8 @@ fn new_item(id: u64, kind: usize, locale: Locale) -> GroupItem {
     }
 }
 struct Field {
+    time: Option<crate::panels::property_authoring::NumericTime>,
+    global: bool,
     host: Panel,
     object: u64,
     item: u64,
@@ -296,7 +298,12 @@ impl Controls {
             .context
             .as_ref()
             .is_some_and(|c| c.0 != context.0 || c.1 != context.1);
+        let time_changed = self.field.as_ref().is_some_and(|f| !f.global &&
+            !matches!(observe!("vector.numeric_time_continue",
+                crate::panels::property_authoring::NumericTime::current(&f.time, state, f.object),
+                "object={} item={} parameter={} phase=continue", f.object, f.item, f.parameter), Ok(true)));
         if changed_project
+            || time_changed
             || input.focus_lost
             || input.keys.iter().any(|(k, _)| *k == Key::Escape)
             || state["observing"] == true
@@ -338,7 +345,7 @@ impl Controls {
             }
         }
         if let Some(f) = &self.field {
-            let valid=keys::cached_layer(state,f.object,&self.keys.cache).is_some_and(|l|!l.locked&&matches!(&l.content,Content::Vector{vector} if parameters::lookup_source(vector,l.size,f.item,&f.parameter,l.local_frame(f64::from(frame)),Locale::En).is_some()));
+            let valid=keys::cached_layer(state,f.object,&self.keys.cache).is_some_and(|l|!l.locked&&matches!(&l.content,Content::Vector{vector} if parameters::lookup_source(vector,l.size,f.item,&f.parameter,l.local_frame(state["frame"].as_f64().unwrap_or(f64::NAN)),Locale::En).is_some()));
             if !valid && self.cancel() {
                 out.push(Action::History(4));
             }
@@ -608,12 +615,12 @@ impl Controls {
         );
         if enabled && !p.static_value && click(input, f.watch) {
             self.finish(out);
-            out.push(Action::Edit(p.set(
+            out.push(Action::Edit(crate::panels::property_authoring::at_playhead(state, p.set(
                 object,
                 item,
                 frame,
                 Some(!p.animated()),
-            )));
+            ))));
         }
         label(list, atlas, f.caption, &p.name, styles.colors().TEXT_MUTED);
         if area.contains(input.mouse)
@@ -701,7 +708,12 @@ impl Controls {
                 object,
                 frame,
             ));
+            let Ok(time) = observe!("vector.numeric_time_begin",
+                if p.static_value {Ok(None)} else {crate::panels::property_authoring::NumericTime::read(state, object)},
+                "object={object} item={item} parameter={} phase=begin", p.id) else {return;};
             self.field = Some(Field {
+                time,
+                global: p.static_value,
                 host,
                 object,
                 item,
@@ -709,7 +721,9 @@ impl Controls {
                 axis,
                 number: Default::default(),
             });
-            out.push(Action::Seek(f64::from(frame)));
+            out.push(Action::Seek(if crate::panels::property_authoring::precise(state, object) {
+                state["frame"].as_f64().unwrap_or(f64::NAN)
+            } else {f64::from(frame)}));
         }
         if self.field.as_ref().is_some_and(|f| {
             f.host == host
@@ -742,7 +756,7 @@ impl Controls {
                 } else {
                     v as f32
                 };
-                p.set(object, item, frame, None)
+                crate::panels::property_authoring::at_playhead(state, p.set(object, item, frame, None))
             });
             if finished {
                 self.field = None;

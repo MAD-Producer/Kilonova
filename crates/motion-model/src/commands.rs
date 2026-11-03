@@ -55,6 +55,7 @@ pub enum Command {
         #[serde(deserialize_with = "deserialize_point_binding")]
         binding: Option<crate::tracking::point::PointBinding>,
     },
+    LayerTime { object: u64, action: crate::layer_time::LayerTimeAction },
     ApplyAnimationPreset { preset: Box<crate::AnimationPreset>, objects: Vec<u64>, at_frame: u32 },
     SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
     DepthCalibration {
@@ -207,6 +208,9 @@ pub enum Command {
     RegisterTrackingAsset {
         asset: crate::TrackingAsset,
     },
+    ReplaceTrackedVideo {
+        replacement: Box<crate::tracking_assets::replacement::Replacement>,
+    },
     RegisterFontAsset {
         asset: crate::FontAsset,
     },
@@ -268,17 +272,23 @@ pub enum Command {
         keep_external_references: bool,
     },
     RemoveLayers { objects: Vec<u64>, frame: u32 },
-    PasteKeyframes { clipboard: Box<crate::KeyframeClipboard>, targets: Vec<crate::KeyframeTarget>, at_frame: Option<u32> },
+    PasteKeyframes { clipboard: Box<crate::KeyframeClipboard>, targets: Vec<crate::KeyframeTarget>, at_frame: Option<f64> },
     RemoveKeyframes { clipboard: Box<crate::KeyframeClipboard> },
     KeyframeInterpolation { selections: Vec<crate::KeyframeSelection>, ease: Ease },
     KeyframeAutomatic { selections: Vec<crate::KeyframeSelection>, enabled: bool },
+    /// Signed authored-frame identities; no rounding through composition time.
+    LocalKeyframes { target: crate::KeyframeTarget, edit: crate::keyframe_clipboard::local::LocalKeyEdit },
+    /// Author at an exact composition instant, resolving property time once.
+    TrackAt { target: crate::KeyframeTarget, frame: f64, edit: crate::keyframe_clipboard::authoring::TrackEdit },
     /// Continuous spatial edits address a property and persistent key IDs.
     SpatialKeyframes { target:crate::KeyframeTarget, edit:crate::keyframe_clipboard::spatial::SpatialKeyEdit },
     /// `frame` addresses the interval's first key in composition time. Incoming
     /// selects the second key's incoming handle; otherwise edit the first key's
     /// outgoing handle. Only that control point and its owner's type change.
     KeyframeHandle { target: crate::KeyframeTarget, frame: u32, incoming: bool, control: [f64; 2] },
-    PasteEasing { clipboard: Box<crate::CurveClipboard>, selections: Vec<crate::KeyframeSelection> },
+    PasteEasing { clipboard: Box<crate::CurveClipboard>, selections: Vec<crate::KeyframeSelection>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        local_selections: Vec<crate::LocalKeyframeSelection> },
     KeyframeTiming { selections: Vec<crate::KeyframeSelection>, settings: crate::keyframe_clipboard::timing::TimingSettings },
     EaseKeyframes { selections: Vec<crate::KeyframeSelection>, incoming: bool, outgoing: bool },
     DeleteKeyframes { selections: Vec<crate::KeyframeSelection> },
@@ -312,11 +322,12 @@ pub enum Command {
         anchor: [f32; 2],
     },
     /// Move the sampled anchor with position compensation at composition time.
-    AnchorAt { object: u64, frame: u32, anchor: [f32; 2] },
+    AnchorAt { object: u64, frame: f64, anchor: [f32; 2] },
     CameraLens {
         #[serde(default)]
         object: u64,
-        frame: u32,
+        /// Exact composition time; FOV keys use the layer's property clock.
+        frame: f64,
         film_width_mm: f32,
         focal_length_mm: f32,
     },
@@ -353,6 +364,7 @@ impl Command {
             Self::RegisterAsset { .. }
             | Self::RegisterModelAsset { .. }
             | Self::RegisterTrackingAsset { .. }
+            | Self::ReplaceTrackedVideo { .. }
             | Self::RegisterAudioAsset { .. }
             | Self::RegisterVideoAsset { .. }
             | Self::MediaAsset { .. }
@@ -366,7 +378,20 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. }) { return true; }
+        if let Self::SpatialKeyframes { edit: crate::keyframe_clipboard::spatial::SpatialKeyEdit::Curve { .. }, .. } = self {
+            return false;
+        }
+        if let Self::TrackAt { edit, .. } = self {
+            return !matches!(edit, crate::keyframe_clipboard::authoring::TrackEdit::Set { .. }
+                | crate::keyframe_clipboard::authoring::TrackEdit::SetSpatialKey { .. });
+        }
+        // A handle repeatedly updates one authored interval inside an existing
+        // gesture. Structural local edits still require a separate transaction.
+        if let Self::LocalKeyframes { edit, .. } = self {
+            return !matches!(edit, crate::keyframe_clipboard::local::LocalKeyEdit::Curve { .. }
+                | crate::keyframe_clipboard::local::LocalKeyEdit::Handle { .. });
+        }
+        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. } | Self::ReplaceTrackedVideo { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeAutomatic {..} | Self::SpatialKeyframes {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

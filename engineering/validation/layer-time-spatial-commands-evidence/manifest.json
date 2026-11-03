@@ -1,0 +1,88 @@
+{
+  "sourceSha256": {
+    "crates/motion-model/src/keyframe_clipboard/spatial.rs": "9d235bb9f42fa63ddb8e7241c9f8e10e6f07984458224d6b3beae771a938d24d",
+    "crates/motion-core/tests/spatial_key_time.rs": "60ae5faf32aa41dd2b68e03f22935c835152df12d351f6c85cdeefa9e5dd9ca7",
+    "desktop/app/src/engine/animation_action_tests.rs": "3b03f85961f12bbbe2f589014729c11d7382d7f69eb4c7e668e2706f38b1c7b7",
+    "desktop/app/src/engine/animation_action_tests/spatial_time.rs": "84761fa2be86ca78baefef402931a71e71b97b3937b367b02e6aadada92fe5c3"
+  },
+  "results": [
+    {
+      "group": "mapped-core",
+      "exit": 0,
+      "seconds": 1.979,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_key_time-fd14e61b96ce2202.exe",
+      "exeSha256": "cdd7323cfddba5911160c3676c5b3e83134d0dc247476201b13bceb85f51328c",
+      "args": [],
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "existing-core",
+      "exit": 0,
+      "seconds": 1.612,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_keyframes-72e6c7630329e05f.exe",
+      "exeSha256": "f645c9af8effaab035614d6b1a3bcc0296c76942b844994db1ab438f1f655432",
+      "args": [],
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "worker",
+      "exit": 0,
+      "seconds": 46.175,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "7e69ef2d8d353c54ae36bde51528bbf09f1b0d15e1a07565df06f0c069b9a4c3",
+      "args": [
+        "engine::animation_action_tests::"
+      ],
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "selection",
+      "exit": 0,
+      "seconds": 0.886,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "7e69ef2d8d353c54ae36bde51528bbf09f1b0d15e1a07565df06f0c069b9a4c3",
+      "args": [
+        "panels::key_selection::tests::ui::spatial::"
+      ],
+      "passed": 8,
+      "failed": 0,
+      "ignored": 3
+    },
+    {
+      "group": "roving",
+      "exit": 0,
+      "seconds": 0.857,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "7e69ef2d8d353c54ae36bde51528bbf09f1b0d15e1a07565df06f0c069b9a4c3",
+      "args": [
+        "panels::animation_menu::roving::tests::"
+      ],
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "checks": {
+    "workspace_all_targets_ffmpeg": 0,
+    "style_consumers": 0,
+    "rustfmt_changed_modules": 0,
+    "git_diff_check": 0
+  },
+  "passed": 38,
+  "ignored": 3,
+  "fullIssueComplete": false,
+  "remaining": [
+    "mapped spatial mini editor and selection transforms",
+    "initial signed-local roving identities",
+    "media device, prewarm and high-speed final integration"
+  ],
+  "newUiScreenshots": false,
+  "archiveSha256": "f39c051ad257712b4b880d6e10a17e28eeebd404b9501ab687a22c5a4ff4c8cd",
+  "archiveBytes": 41244
+}

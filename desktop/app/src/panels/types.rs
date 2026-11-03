@@ -9,7 +9,7 @@ pub enum Action {
     ViewerSettings(crate::viewer_views::Settings),
     ViewerPick { key: super::composition_views::Key, cell: usize, point: [f64; 2] },
     ViewerCamera { key: super::composition_views::Key, cell: usize, action: motion_host::ops::preview::CameraGesture },
-    ViewerDrag { key: super::composition_views::Key, cell: usize, object:u64, delta:[f32;2], size:[i32;2] },
+    ViewerDrag { key: super::composition_views::Key, cell: usize, object:u64, delta:[f32;2], size:[i32;2], spatial_key:Option<u64> },
     OpenPluginEditor,
     OpenViewerInspection { floating: bool, point: [f32; 2] },
     CaptureViewerSnapshot { floating: bool },
@@ -57,11 +57,13 @@ pub enum Action {
         intent: crate::layer_clipboard::controller::Intent,
         source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
     },
     KeyframeClipboard {
         intent: crate::layer_clipboard::controller::Intent,
         source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     },
     PathClipboard {
@@ -102,6 +104,10 @@ pub enum Action {
     KeyframeTimingSettings {
         source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+    },
+    LayerTimeSettings {
+        source: crate::layer_clipboard::KeyframeSource,
+        objects: Vec<u64>,
     },
     Preferences,
     NewComposition,
@@ -159,6 +165,7 @@ pub enum Action {
     SelectAt([f64; 2]),
     PreviewDrag {
         object: u64,
+        spatial_key: Option<u64>,
         delta: [f32; 2],
         size: [i32; 2],
     },
@@ -473,6 +480,8 @@ pub struct EffectSearch {
 
 pub(crate) struct Field {
     pub object: u64,
+    pub time: Option<super::property_authoring::NumericTime>,
+    pub spatial: Option<super::property_authoring::SpatialDraft>,
     pub property: Property,
     pub axis: usize,
     pub text: String,
@@ -608,7 +617,7 @@ pub(crate) struct TimelineState {
     pub(crate) column_visibility: ColumnVisibility,
     pub(crate) graph_box: super::graph_box::Controls,
     pub rows_cache: Option<(
-        (String, String, u64),
+        (String, String, u64, Option<u64>),
         std::sync::Arc<Vec<super::timeline::Row>>,
     )>,
     pub expanded: std::collections::HashSet<u64>,

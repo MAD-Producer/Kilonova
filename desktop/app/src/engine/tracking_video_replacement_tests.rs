@@ -1,12 +1,16 @@
 //! Native video preparation must not silently reuse another plate's solve.
 #![cfg(feature = "ffmpeg")]
 use super::*;
+#[path = "tracking_video_replacement/mapped_time.rs"]
+mod mapped_time;
 use motion_core::media_assets::{AssetKind, AssetRef};
 use motion_host::tracking::{asset::Sample, plate::Extent};
 use serde_json::json;
 use std::{fs, path::Path, time::Instant};
 #[path = "../../../../crates/motion-model/tests/support/tracking_camera.rs"]
 mod authored;
+#[path = "tracking_video_pair_tests.rs"]
+mod paired;
 
 fn media(engine: &Engine, request: Value) -> Result<Value, String> {
     engine.media(request.to_string())

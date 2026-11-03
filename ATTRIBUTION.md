@@ -44,6 +44,11 @@
   orchestration uses documented optical-flow/homography APIs and original PTS;
   synthetic plates and evaluation geometry are authored within this repository.
   No tutorial code, photographs, icons or UI assets are copied
+- Frozen validation outputs: `desktop/app/tests/fixtures/tracking-prototype`
+  contains the contributors' MIT synthetic video and actual measured solve from
+  revision `6bfb541b9bb3cf2b3ada479f31cfc5dfb7f28183`. Both are unmodified copies;
+  exact hashes, generation tools and use limits are recorded in that directory's
+  README. Native tests consume the frozen files without a Python/CV dependency
 - References: [OpenCV optical flow](https://docs.opencv.org/5.0/tutorials/others/optical_flow.html),
   [homography](https://docs.opencv.org/4.13.0/d9/d0c/group__calib3d.html),
   [ffprobe](https://ffmpeg.org/ffprobe.html), [FFmpeg](https://ffmpeg.org/ffmpeg.html)

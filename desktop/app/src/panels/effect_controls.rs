@@ -27,6 +27,8 @@ mod track_cache_tests;
 mod removal_tests;
 #[cfg(test)]
 mod identity_tests;
+#[cfg(test)]
+mod mapped_authoring_tests;
 pub(crate) use library::{entries, Entry};
 
 fn word(locale: Locale, zh: &str, en: &str) -> String {
@@ -127,6 +129,7 @@ struct EffectContextMenu {
 struct Field {
     owner: Option<motion_ui::dock::Panel>,
     object: u64,
+    time: Option<super::property_authoring::NumericTime>,
     effect: u64,
     param: String,
     component: usize,
@@ -272,18 +275,23 @@ impl Controls {
             && f.number.editor.text.active()
             && input.pressed.is_some_and(|(b,p)| b == MouseButton::Left && !f.rect.contains(p))) else { return false; };
         let (object,effect,param,component) = (field.object,field.effect,field.param.clone(),field.component);
+        if self.cancel_stale_numeric(state, out) { return false; }
         let layer = state["project"]["layers"].as_array().into_iter().flatten()
             .find(|l| l["id"].as_u64() == Some(object));
         let parameter = layer.filter(|l| l["locked"] != true && state["observing"] != true)
             .and_then(|l| l["effects"].as_array()).into_iter().flatten()
             .find(|e| e["id"].as_u64() == Some(effect)).and_then(|e| e["params"].get(&param));
-        let (Some(layer),Some(parameter)) = (layer,parameter) else {
+        let (Some(_layer),Some(parameter)) = (layer,parameter) else {
             if self.cancel() { out.push(Action::History(4)); }
             return false;
         };
         let Ok(parameter) = observe!("effects.numeric_close_parameter", serde_json::from_value::<EffectParam>(parameter.clone()),
             "object={object} effect={effect} parameter={param} component={component}") else { return true; };
-        let local = state["frame"].as_f64().unwrap_or(0.) - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.);
+        let Ok(local) = observe!("effects.numeric_close_time", super::property_authoring::local(state, object, state["frame"].as_f64().unwrap_or(0.)),
+            "object={object} effect={effect} parameter={param}") else {
+                if self.cancel() { out.push(Action::History(4)); }
+                return true;
+            };
         let Ok(mut value) = observe!("effects.numeric_close_sample", parameter.sample(local),
             "object={object} effect={effect} parameter={param} component={component} frame={local}") else { return true; };
         let Some(field) = self.field.as_mut() else { return false; };
@@ -292,11 +300,24 @@ impl Controls {
             motion_ui::widgets::NumberOptions { min:parameter.min as f64, max:parameter.max as f64, ..Default::default() });
         let finished = super::numeric::apply(events,out,|v| {
             value[component]=v;
-            Command::Effect { object, action:EffectAction::Set { effect,param:param.clone(),
-                frame:state["frame"].as_f64().unwrap_or(0.).floor() as u32,value } }
+            super::property_authoring::at_playhead(state, Command::Effect { object, action:EffectAction::Set { effect,param:param.clone(),
+                frame:state["frame"].as_f64().unwrap_or(0.).floor() as u32,value } })
         });
         if finished || !field.number.editor.interacting() { self.field=None; }
         self.field.is_some()
+    }
+    /// A superseded draft is a normal cancellation, not a failed command.
+    fn cancel_stale_numeric(&mut self, state: &Value, out: &mut Vec<Action>) -> bool {
+        let Some(field) = self.field.as_ref() else { return false; };
+        let current = observe!("effects.numeric_time_continue",
+            super::property_authoring::NumericTime::current(&field.time, state, field.object),
+            "object={} effect={} parameter={} component={} phase=continue",
+            field.object, field.effect, field.param, field.component);
+        if matches!(current, Ok(true)) { return false; }
+        if self.field.take().is_some_and(|mut field| field.number.cancel()) {
+            out.push(Action::History(4));
+        }
+        true
     }
     fn report_invalid_effect_id(&mut self, object: u64, index: usize) {
         let previous = self.invalid_effect_ids;
@@ -984,8 +1005,12 @@ impl Controls {
             }
         }
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
-        let local = state["frame"].as_f64().unwrap_or(0.0)
-            - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.0);
+        let Ok(local) = observe!("effects.property_time", super::property_authoring::local(state, object, state["frame"].as_f64().unwrap_or(0.)),
+            "object={object}") else {
+                if self.cancel() { out.push(Action::History(4)); }
+                return;
+            };
+        let input = if self.cancel_stale_numeric(state, out) { &neutral } else { input };
         if self.field.as_ref().is_some_and(|f| {
             f.object != object || locked
                 || !layer["effects"].as_array().into_iter().flatten()
@@ -1747,7 +1772,7 @@ impl Controls {
                                 },
                                 !locked && implemented && state["observing"] != true,
                                 &current,
-                                |value| Command::Effect {
+                                |value| super::property_authoring::at_playhead(state, Command::Effect {
                                     object,
                                     action: EffectAction::SetCurveObject {
                                         effect: id,
@@ -1755,7 +1780,7 @@ impl Controls {
                                         frame,
                                         value,
                                     },
-                                },
+                                }),
                                 out,
                                 &mut self.drag_readout,
                             );
@@ -1800,7 +1825,7 @@ impl Controls {
                                 );
                             }
                         } else {
-                            out.push(Action::Edit(Command::Effect {
+                            out.push(Action::Edit(super::property_authoring::at_playhead(state, Command::Effect {
                                 object,
                                 action: EffectAction::Animate {
                                     effect: id,
@@ -1808,7 +1833,7 @@ impl Controls {
                                     frame,
                                     enabled: !animated,
                                 },
-                            }));
+                            })));
                         }
                     }
                     if kind == "color" {
@@ -1969,7 +1994,7 @@ impl Controls {
                                 };
                             if let Some(next) = changed {
                                 value[0] = next;
-                                out.push(Action::Edit(Command::Effect {
+                                out.push(Action::Edit(super::property_authoring::at_playhead(state, Command::Effect {
                                     object,
                                     action: EffectAction::Set {
                                         effect: id,
@@ -1977,7 +2002,7 @@ impl Controls {
                                         frame,
                                         value,
                                     },
-                                }));
+                                })));
                             }
                         } else {
                             let min = parameter["min"].as_f64().unwrap_or(-1e9);
@@ -1994,6 +2019,7 @@ impl Controls {
                                 min,
                                 max,
                                 frame,
+                                state,
                                 input,
                                 !locked && implemented,
                                 true,
@@ -2134,8 +2160,12 @@ impl Controls {
             return;
         };
         let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
-        let local = state["frame"].as_f64().unwrap_or(0.)
-            - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.0);
+        let Ok(local) = observe!("effects.color_time", super::property_authoring::local(state, popup.object, state["frame"].as_f64().unwrap_or(0.)),
+            "object={} effect={} param={}", popup.object, popup.effect, popup.param) else {
+                if self.cancel() { out.push(Action::History(4)); }
+                self.color_popup = None;
+                return;
+            };
         let locked = layer["locked"].as_bool().unwrap_or(false);
         let track = layer["effects"]
             .as_array()
@@ -2254,6 +2284,7 @@ impl Controls {
                 0.,
                 1.,
                 frame,
+                state,
                 input,
                 enabled,
                 false,
@@ -2277,6 +2308,7 @@ impl Controls {
         min: f64,
         max: f64,
         frame: u32,
+        state: &Value,
         input: &Input,
         enabled: bool,
         inline_inspector: bool,
@@ -2293,9 +2325,13 @@ impl Controls {
             if self.field.take().is_some_and(|mut f| f.number.cancel()) {
                 out.push(Action::History(4));
             }
+            let Ok(time) = observe!("effects.numeric_time_begin",
+                super::property_authoring::NumericTime::read(state, object),
+                "object={object} effect={effect} parameter={param} component={component} phase=begin") else { return; };
             self.field = Some(Field {
                 owner: self.context_window,
                 object,
+                time,
                 effect,
                 param: param.into(),
                 component,
@@ -2331,7 +2367,7 @@ impl Controls {
             }
             let finished = super::numeric::apply(events, out, |v| {
                 value[component] = v;
-                Command::Effect {
+                super::property_authoring::at_playhead(state, Command::Effect {
                     object,
                     action: EffectAction::Set {
                         effect,
@@ -2339,7 +2375,7 @@ impl Controls {
                         frame,
                         value: *value,
                     },
-                }
+                })
             });
             if finished || !field.number.editor.interacting() {
                 self.field = None;

@@ -39,6 +39,7 @@ fn mask_numeric_clipboard_preserves_draft_history_range_validation_save_and_sing
     let before = engine.project().clone();
     let mut controls = Controls::default();
     controls.parameter = Some(Parameter {
+        time: None,
         host: motion_ui::dock::Panel::Masks,
         object: 7,
         mask: 1,

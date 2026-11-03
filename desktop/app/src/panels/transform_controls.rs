@@ -248,6 +248,8 @@ impl Seed {
 }
 struct Drag {
     seed: Seed,
+    time: Option<super::property_authoring::NumericTime>,
+    position_key: Option<super::property_authoring::SpatialDraft>,
     pose: Pose,
     handle: Handle,
     begun: bool,
@@ -263,6 +265,20 @@ struct Drag {
     snap_feedback: Option<([f32; 2], [Option<f32>; 2])>,
 }
 impl Drag {
+    fn at_time(seed: Seed, pose: Pose, handle: Handle, state: &Value) -> Option<Self> {
+        let time = observe!("transform.numeric_time_begin",
+            super::property_authoring::NumericTime::read(state, pose.object),
+            "object={} phase=begin", pose.object).ok()?;
+        let position_key = if matches!(handle, Handle::Move | Handle::Spatial(_, false)) {
+            observe!("transform.spatial_key_begin",
+                super::property_authoring::SpatialDraft::read(state, pose.object, Property::Position, None),
+                "object={} phase=begin handle={handle:?}", pose.object).ok()?
+        } else { None };
+        let mut drag = Self::new(seed, pose, handle)?;
+        drag.time = time;
+        drag.position_key = position_key;
+        Some(drag)
+    }
     fn new(seed: Seed, pose: Pose, handle: Handle) -> Option<Self> {
         let local_start = if matches!(handle, Handle::Spatial(..)) {
             pose.pivot_local()
@@ -278,6 +294,8 @@ impl Drag {
             pose.scale
         };
         Some(Self {
+            time: None,
+            position_key: None,
             last_pointer: seed.point,
             last_anchor: pose.anchor,
             seed,
@@ -342,6 +360,7 @@ impl Drag {
                         .min(self.pose.projection.image.height()/size[1] as f32);
                     out.push(Action::PreviewDrag {
                         object: self.pose.object,
+                        spatial_key: self.position_key.as_ref().map(|draft| draft.key()),
                         delta: delta.map(|v| v/scale),
                         size,
                     });
@@ -542,6 +561,13 @@ impl Drag {
                 value,
             }]
         };
+        let commands = commands.into_iter().map(|command| {
+            if property == Property::Position {
+                super::property_authoring::SpatialDraft::command(&self.position_key,state,command)
+            } else { Ok(super::property_authoring::at_playhead(state,command)) }
+        }).collect::<motion_core::Result<Vec<_>>>();
+        let Ok(commands) = observe!("transform.spatial_key_command",commands,
+            "object={} property={property:?} phase=command",self.pose.object) else { return vec![]; };
         self.last_value = value;
         vec![Action::EditBatch(commands)]
     }
@@ -625,6 +651,22 @@ impl Controls {
             self.notice = Some(problem);
             return true;
         }
+        if self.drag.as_ref().is_some_and(|drag| {
+            !matches!(observe!("transform.numeric_time_continue",
+                super::property_authoring::NumericTime::current(&drag.time, state, drag.pose.object),
+                "object={} phase=continue", drag.pose.object), Ok(true))
+        }) {
+            if self.cancel() { out.push(Action::History(4)); }
+            return true;
+        }
+        if self.drag.as_ref().is_some_and(|drag| {
+            !matches!(observe!("transform.spatial_key_continue",
+                super::property_authoring::SpatialDraft::current(&drag.position_key,state),
+                "object={} phase=continue",drag.pose.object),Ok(true))
+        }) {
+            if self.cancel() { out.push(Action::History(4)); }
+            return true;
+        }
         let styles = list.styles();
         let pose = selected.and_then(|id| Pose::new(state, id, view));
         self.cursor = self
@@ -655,7 +697,7 @@ impl Controls {
                         Tool::Scale => Handle::Scale(true, true, None),
                         Tool::Anchor => Handle::Anchor,
                     };
-                    self.drag = Drag::new(seed, p, kind);
+                    self.drag = Drag::at_time(seed, p, kind, state);
                 }
             }
         }
@@ -689,7 +731,7 @@ impl Controls {
                     p.handle(point, self.tool, &styles)
                         .map(|h| (p, h))
                 }) {
-                    self.drag = Drag::new(seed, p, handle);
+                    self.drag = Drag::at_time(seed, p, handle, state);
                     if let Some(drag) = &mut self.drag {
                         if matches!(handle, Handle::Spatial(..)) {
                             drag.spatial_context = spatial::context(state, drag.pose.object, handle);
@@ -726,6 +768,8 @@ mod guide_tests;
 mod guide_routing_tests;
 
 #[cfg(test)]
+mod mapped_anchor_tests;
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::engine::Engine;
@@ -759,18 +803,13 @@ mod tests {
                 }
                 Action::PreviewDrag {
                     object,
+                    spatial_key,
                     delta,
                     size,
                 } => {
                     engine
-                        .drag(
-                            object as i64,
-                            delta[0] as f64,
-                            delta[1] as f64,
-                            size[0],
-                            size[1],
-                        )
-                        .unwrap();
+                        .drag_at_key_async(object as i64,delta,size,spatial_key).unwrap()
+                        .recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
                 }
                 _ => panic!("unexpected gesture action"),
             }

@@ -3,6 +3,8 @@
 use crate::engine::{Engine, REQUEST_LIMIT};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
+#[path = "mcp/tracked_video.rs"]
+mod tracked_video;
 
 pub const PROTOCOL: &str = "2025-11-25";
 #[derive(Clone, Copy)]
@@ -22,6 +24,14 @@ impl ToolRouter<'_> {
         let args = arguments
             .as_object()
             .ok_or("tool arguments must be an object")?;
+        if name == "tracked_video_replacement" {
+            let request: crate::workflow::tracked_video::Request = serde_json::from_value(arguments.clone())
+                .map_err(|e| format!("tracked video replacement: {e}"))?;
+            if !request.read_only() && matches!(self.access, Access::ReadOnly) {
+                return Err("editor writes are disabled for this agent".into());
+            }
+            return self.engine.tracked_video_replacement(request);
+        }
         let fields: &[&str] = match name {
             "motion_state" => &[],
             "motion_edit" => &["commands", "expectedRevision"],
@@ -164,6 +174,7 @@ pub fn tools() -> Value {
             "source":{"type":"object","properties":{"kind":{"type":"string","enum":["image","video"]},"id":{"type":"integer","minimum":1}},"required":["kind","id"],"additionalProperties":false},
             "expectedRevision":{"type":"integer","minimum":0},"expectedDocumentGeneration":{"type":"integer","minimum":0}
         }),&["path","source","expectedRevision","expectedDocumentGeneration"]),false),
+        tool("tracked_video_replacement","Replace a tracked video and every attached solve in one saved undo step. Prepare a local video asynchronously, poll status until ready, then finish with the same requestId, current revision/document_generation, complete solve paths and explicit binding updates. Preparation changes no author state; status is allowed in read-only sessions, all other actions require editing. Cancel before release to discard unfinished preparation. Native video decoding is required. No implicit retracking, pose baking or source transcoding.",tracked_video::schema(),false),
         tool("command_list","List registered editing commands and their JSON schemas.",schema(json!({}),&[]),true),
         tool("command_run","Execute one registered core command with a revision check and one undo boundary.",schema(json!({"command":command_schema,"expectedRevision":{"type":"integer","minimum":0}}),&["command","expectedRevision"]),false),
         tool("command_batch","Execute an atomic batch of registered editing commands with one undo boundary.",schema(json!({"commands":{"type":"array","minItems":1,"items":command_schema},"expectedRevision":{"type":"integer","minimum":0}}),&["commands","expectedRevision"]),false),

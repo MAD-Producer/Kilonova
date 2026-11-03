@@ -37,6 +37,69 @@ pub(super) fn knots<T: Tween>(
     }).filter(move |frame|*frame>start && *frame<end);
     super::graph_adaptive::merge_knots(baseline,super::graph_adaptive::merge_knots(authored,spatial))
 }
+/// Keep the old lazy identity path. A reversed affine clock changes seed order;
+/// validate the authored track before this bounded projection, then order its
+/// composition seeds. Adjacent representable composition times retain jumps
+/// even when inverse projection collapses two neighboring local f64 values.
+pub(super) fn mapped_knots<T: motion_core::Tween>(
+    track: &Track<T>,
+    start: f64,
+    end: f64,
+    offset: f64,
+    clock: motion_core::layer_time::LayerClock,
+) -> Result<Box<dyn Iterator<Item = f64> + '_>, super::graph_adaptive::Failure<motion_core::Error>>
+{
+    use super::graph_adaptive::Failure;
+    if clock == motion_core::layer_time::LayerClock::default() {
+        return Ok(Box::new(knots(track, start, end, offset)));
+    }
+    let failure = |cause| Failure::Sample {
+        frame: start,
+        cause,
+    };
+    let a = clock.local_frame(start, offset as i32).map_err(failure)?;
+    let b = clock.local_frame(end, offset as i32).map_err(failure)?;
+    let mut seeds = Vec::new();
+    for local in knots(track, a.min(b), a.max(b), 0.) {
+        if seeds.len() >= 65_536 {
+            return Err(Failure::Budget {
+                evaluations: seeds.len(),
+                points: 0,
+            });
+        }
+        let frame = clock
+            .projected_composition_frame(local, offset as i32)
+            .map_err(failure)?;
+        if frame >= start && frame <= end {
+            seeds.push(frame);
+        }
+    }
+    for local in track.keys.iter().map(|key| f64::from(key.frame)).chain(
+        track
+            .spatial_animation
+            .iter()
+            .flat_map(|a| a.prepared().keys().map(|(_, time)| time)),
+    ) {
+        let frame = clock
+            .projected_composition_frame(local, offset as i32)
+            .map_err(failure)?;
+        for frame in [frame.next_down(), frame, frame.next_up()] {
+            if frame > start && frame < end {
+                if seeds.len() >= 65_536 {
+                    return Err(Failure::Budget {
+                        evaluations: seeds.len(),
+                        points: 0,
+                    });
+                }
+                seeds.push(frame);
+            }
+        }
+    }
+    seeds.extend([start, end]);
+    seeds.sort_by(f64::total_cmp);
+    seeds.dedup();
+    Ok(Box::new(seeds.into_iter()))
+}
 pub(super) fn velocity<T: Tween>(
     track: &Track<T>,
     frame: f64,

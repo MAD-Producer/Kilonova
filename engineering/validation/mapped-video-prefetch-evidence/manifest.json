@@ -1,0 +1,66 @@
+{
+  "base_commit": "9d085c0f1fb63106babb48d5781b700e20da6eac",
+  "branch": "fix/mapped-video-prefetch",
+  "issue": 257,
+  "issue_complete": false,
+  "results": {
+    "host_video": {
+      "exit_code": 0,
+      "log": "host-video-final.log"
+    },
+    "native_ffmpeg": {
+      "exit_code": 0,
+      "log": "app-tests-final.log"
+    },
+    "workspace": {
+      "exit_code": 0,
+      "log": "workspace-final.log"
+    }
+  },
+  "host_video_tests_passed": 46,
+  "native_ffmpeg_tests_passed": 2,
+  "native_sample_points": 64,
+  "default_level_fault_channel_record_counts": {
+    "motion-studio.log": 2,
+    "stderr.log": 2,
+    "stdout.log": 0
+  },
+  "commands": [
+    "cargo test -p motion-host --lib --features diagnostics --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target video_ -- --test-threads=1",
+    "cargo test -p motion-desktop --bin motion-studio --features ffmpeg,motion-host/diagnostics --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target engine::mapped_video_prefetch_tests:: -- --test-threads=1 --nocapture",
+    "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "MOTION_LOG_fault_test": "unset (default info)",
+    "ffmpeg": "ffmpeg-n8.1-latest-win64-lgpl-shared-8.1"
+  },
+  "source_sha256": {
+    "crates/motion-host/src/video_cache.rs": "873dcfee98ad280be9f43ad02dc557c29f6158799825d4e5e0d4cf45bf33a96a",
+    "crates/motion-host/src/video_frames.rs": "9a937d1d3e785b74791d767893cd7a6e51a244802c92442c62cc6c967c5a22ba",
+    "crates/motion-host/src/video_frames/mapped_prefetch.rs": "366e4f290e32875c9a05ce1f582aa2c10016e138d84697bef33821dc5be7e65e",
+    "crates/motion-host/src/video_frames/mapped_prefetch/tests.rs": "feb6105f59ac0c435c7e9104ccd0df3f27abc59c65164f0d741078b2954e14b4",
+    "desktop/app/src/engine.rs": "0d628968781f576c62b3eda3961be01c5565d57d9e1c7c0a073ba52e51c95caf",
+    "desktop/app/src/engine/mapped_video_prefetch_tests.rs": "1481bf32d3c9deffea80a720417e97e139bbde302baa6d617fce1a5a2a5da755",
+    "engineering/validation/mapped-video-prefetch.md": "818e019fa848adf2875515ff792957c27e52871e3987ad09845ecbcbfde07892"
+  },
+  "binary_sha256": {
+    "motion_studio-b34b3a7e7eb835e8.exe": "476b39267387af17f52920ca6d08ecb99c19f42177787cfa06810e165078bb06",
+    "motion_host-c9a9d3369fb6fb6e.exe": "68913f153064c7a5cfc2218ab8821695b331cff2e896b64b78ff69490ff8e496"
+  },
+  "ci": {
+    "followup": "pending at submission",
+    "base_run": "https://github.com/MAD-Producer/Kilonova/actions/runs/41414993528"
+  },
+  "limits": [
+    "Only currently sampled instances are predicted; no decoder creation for upcoming inactive layers.",
+    "Exact/export APIs do not enable speculative lookahead.",
+    "No UI acceptance claimed; no user-visible UI changes."
+  ],
+  "first_failures": {
+    "host-build.exit": 101,
+    "native-tests-first.exit": 101
+  },
+  "evidence_zip_sha256": "7ec6c026535b854c81ca18583297b9268f23acbf92710d253da65970a54cb1d9"
+}

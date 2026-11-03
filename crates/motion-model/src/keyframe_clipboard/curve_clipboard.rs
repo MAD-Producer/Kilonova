@@ -2,6 +2,7 @@
 //! The selected key owns its outgoing interval. A terminal key has no interval.
 use super::*;
 use crate::{CurveSpace, Easing};
+mod local;
 
 pub const CURVE_CLIPBOARD_VERSION: u32 = 1;
 pub const MAX_CURVE_CLIPBOARD_BYTES: usize = 16 * 1024;
@@ -106,30 +107,38 @@ impl CurveClipboard {
         let frame = project
             .edit_frame(selected.target.object(), selected.frames[0])
             .map_err(|cause| interpolation::failure("copy_easing", selected, cause))?;
+        Self::capture_at(project, &selected.target, frame)
+            .map_err(|cause| interpolation::failure("copy_easing", selected, cause))
+    }
+
+    pub fn capture_local(project: &Project, selected: &LocalKeyframeSelection) -> Result<Self> {
+        (|| {
+            ensure(selected.frames.len() == 1, "copy easing requires one source interval")?;
+            // Copy is read-only: locked layers retain their authoring data.
+            selected.target.signature(project)?;
+            selected.target.address()?;
+            Self::capture_at(project, &selected.target, selected.frames[0])
+        })().map_err(|cause| selected.target.failure("copy_easing_local", cause))
+    }
+
+    fn capture_at(project: &Project, target: &KeyframeTarget, frame: i32) -> Result<Self> {
         macro_rules! capture {
             ($track:expr) => {{
                 let keys = &$track.keys;
-                let index = keys
-                    .binary_search_by_key(&frame, |key| key.frame)
+                let index = keys.binary_search_by_key(&frame, |key| key.frame)
                     .map_err(|_| Error::Invalid("source keyframe does not exist".into()))?;
-                ensure(
-                    index + 1 < keys.len(),
-                    "source keyframe has no outgoing interval",
-                )?;
+                ensure(index + 1 < keys.len(), "source keyframe has no outgoing interval")?;
                 Self::new($track.effective_easing(index)?)
             }};
         }
-        (|| -> Result<Self> {
-            match read(project, &selected.target)? {
-                ReadChannel::Scalar(t) => capture!(t),
-                ReadChannel::Vec2(t) => capture!(t),
-                ReadChannel::Vec3(t) => capture!(t),
-                ReadChannel::Vec4(t) => capture!(t),
-                ReadChannel::Geometry(t) => capture!(t),
-                ReadChannel::ColorCurve(t) => capture!(t),
-            }
-        })()
-        .map_err(|cause| interpolation::failure("copy_easing", selected, cause))
+        match read(project, target)? {
+            ReadChannel::Scalar(t) => capture!(t),
+            ReadChannel::Vec2(t) => capture!(t),
+            ReadChannel::Vec3(t) => capture!(t),
+            ReadChannel::Vec4(t) => capture!(t),
+            ReadChannel::Geometry(t) => capture!(t),
+            ReadChannel::ColorCurve(t) => capture!(t),
+        }
     }
 
     /// Validate every address and outgoing interval before touching any channel.

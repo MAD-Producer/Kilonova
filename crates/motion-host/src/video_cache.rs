@@ -63,6 +63,10 @@ impl FrameCache {
         self.frames.retain(|f| f.pts >= first && f.pts <= last);
         self.bytes = self.frames.iter().map(|f| f.bytes()).sum();
     }
+    pub(crate) fn retain_targets(&mut self, targets: &[u64]) {
+        self.frames.retain(|f| targets.contains(&f.pts));
+        self.bytes = self.frames.iter().map(|f| f.bytes()).sum();
+    }
     pub fn can_prefetch(&self, expected: usize) -> bool {
         self.frames.len() < LOOKAHEAD + 1 && self.bytes + expected <= self.budget
     }

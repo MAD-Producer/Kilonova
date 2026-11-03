@@ -3,15 +3,20 @@ use super::animation_data as data;
 use super::types::ScrubRuler;
 use super::*;
 use motion_core::{Axis, Track};
+use motion_core::layer_time::LayerClock;
 use std::sync::Arc;
 #[cfg(test)]
 #[path="timeline_graph/spatial_tests.rs"]
 mod spatial_tests;
+#[cfg(test)]
+#[path="timeline_graph/time_tests.rs"]
+mod time_tests;
 
 /// One channel per timeline owner. Both successes and faults are retained only
 /// for its document/revision/target, so repainting never rebuilds arc geometry.
 #[derive(Clone, Default)]
 pub(super) struct Cache {
+    clock: LayerClock,
     entry: Option<(crate::layer_clipboard::KeyframeSource, motion_core::KeyframeTarget,
         Option<Arc<Samples>>)>,
     // Fault suppression does not authorize sample reuse when identity is absent.
@@ -28,7 +33,7 @@ impl Cache {
             if *source==stamp && channel==target {return result.clone();}
         }
         let began=std::time::Instant::now();
-        let result=(||->Result<Samples,String> {
+        let result=(||->Result<(Samples,LayerClock),String> {
             let (raw,_)=super::key_selection::authored_track(state,target)
                 .ok_or_else(||"authored graph channel missing".to_owned())?;
             fn decode<T: motion_core::Tween+serde::de::DeserializeOwned>(raw:&Value)->Result<Track<T>,String> {
@@ -40,10 +45,11 @@ impl Cache {
             let motion_core::KeyframeTarget::Property {property,axis,..}=target else {
                 return Err("timeline property graph received another channel kind".into());
             };
-            Ok(if property.is_scalar() || axis.is_some() {Samples::Scalar(decode(raw)?)}
+            let clock=super::key_selection::property_clock(state,target.object()).map_err(|e|e.to_string())?;
+            Ok((if property.is_scalar() || axis.is_some() {Samples::Scalar(decode(raw)?)}
                 else if *property==Property::Anchor {Samples::Anchor(decode(raw)?)}
-                else {Samples::Vector(decode(raw)?)})
-        })().map(Arc::new).map_err(|cause| {
+                else {Samples::Vector(decode(raw)?)},clock))
+        })().map(|(samples,clock)| {self.clock=clock;Arc::new(samples)}).map_err(|cause| {
             if self.fault.as_ref().is_some_and(|(source,channel)|*source==stamp && channel==target) {
                 return;
             }
@@ -64,8 +70,9 @@ enum Samples {
     Scalar(Track<f32>),
     Vector(Track<[f32; 3]>),
 }
+use super::graph_sampling::mapped_knots;
 impl Samples {
-    fn fit_bounds(&self,interval:[f64;2],layer_offset:f64,components:&[usize],speed:bool,fps:f64,
+    fn fit_bounds(&self,interval:[f64;2],layer_offset:f64,clock:LayerClock,components:&[usize],speed:bool,fps:f64,
         display_scale:f32,size:[f32;2],tolerance:f64)
         ->Result<super::graph_ranges::Bounds,super::graph_adaptive::Failure<motion_core::Error>> {
         use super::graph_adaptive::{self,Failure};
@@ -73,23 +80,22 @@ impl Samples {
         let [start,end]=interval;
         let x=Range::fitted(start,end,0.05,1.).ok_or(Failure::InvalidGeometry)?;
         let value=|frame:f64,component:usize|->motion_core::Result<f64> {
-            Ok(f64::from((if speed {self.velocity(frame-layer_offset,component,fps)?}
-                else {self.value(frame-layer_offset,component)?})*display_scale))
+            Ok(f64::from(self.composition_value(frame,layer_offset as i32,clock,component,speed,fps)?*display_scale))
         };
         let mut low=f64::INFINITY;let mut high=f64::NEG_INFINITY;
         for component in components.iter().copied() {
             let mut sample=|frame|value(frame,component);
             let bounds=match self {
-                Self::Anchor(track)=>graph_adaptive::extrema(super::graph_sampling::knots(track,start,end,layer_offset),&mut sample),
-                Self::Scalar(track)=>graph_adaptive::extrema(super::graph_sampling::knots(track,start,end,layer_offset),&mut sample),
-                Self::Vector(track)=>graph_adaptive::extrema(super::graph_sampling::knots(track,start,end,layer_offset),&mut sample),
+                Self::Anchor(track)=>graph_adaptive::extrema(mapped_knots(track,start,end,layer_offset,clock)?,&mut sample),
+                Self::Scalar(track)=>graph_adaptive::extrema(mapped_knots(track,start,end,layer_offset,clock)?,&mut sample),
+                Self::Vector(track)=>graph_adaptive::extrema(mapped_knots(track,start,end,layer_offset,clock)?,&mut sample),
             }?.ok_or(Failure::InvalidGeometry)?;
             low=low.min(bounds[0]);high=high.max(bounds[1]);
         }
         let preliminary=Range::fitted(low,high,0.1,1.).ok_or(Failure::InvalidGeometry)?;
         low=f64::INFINITY;high=f64::NEG_INFINITY;
         for component in components.iter().copied() {
-            let points=self.adaptive(start,end,layer_offset,
+            let points=self.adaptive(start,end,layer_offset,clock,
                 [f64::from(size[0])/x.span(),f64::from(size[1])/preliminary.span()],tolerance,
                 |frame|value(frame,component))?;
             for (_,value) in points {low=low.min(f64::from(value));high=high.max(f64::from(value));}
@@ -98,13 +104,13 @@ impl Samples {
         Ok(super::graph_ranges::Bounds {x,y})
     }
     fn adaptive(
-        &self, start: f64, end: f64, layer_offset: f64, scale: [f64;2], tolerance: f64,
+        &self, start: f64, end: f64, layer_offset: f64, clock:LayerClock, scale: [f64;2], tolerance: f64,
         value: impl FnMut(f64)->motion_core::Result<f64>,
     ) -> Result<Vec<(f64,f32)>,super::graph_adaptive::Failure<motion_core::Error>> {
         let points=match self {
-            Self::Anchor(track)=>super::graph_adaptive::sample(super::graph_sampling::knots(track,start,end,layer_offset),scale,tolerance,value),
-            Self::Scalar(track)=>super::graph_adaptive::sample(super::graph_sampling::knots(track,start,end,layer_offset),scale,tolerance,value),
-            Self::Vector(track)=>super::graph_adaptive::sample(super::graph_sampling::knots(track,start,end,layer_offset),scale,tolerance,value),
+            Self::Anchor(track)=>super::graph_adaptive::sample(mapped_knots(track,start,end,layer_offset,clock)?,scale,tolerance,value),
+            Self::Scalar(track)=>super::graph_adaptive::sample(mapped_knots(track,start,end,layer_offset,clock)?,scale,tolerance,value),
+            Self::Vector(track)=>super::graph_adaptive::sample(mapped_knots(track,start,end,layer_offset,clock)?,scale,tolerance,value),
         }?;
         Ok(points.into_iter().map(|(frame,value)|(frame,value as f32)).collect())
     }
@@ -118,6 +124,13 @@ impl Samples {
                 super::graph_sampling::velocity(track, frame, fps, |v| v[component] as f64)? as f32
             }
         })
+    }
+
+    fn composition_value(&self, frame:f64, offset:i32, clock:LayerClock, component:usize,
+        speed:bool, fps:f64) -> motion_core::Result<f32> {
+        let local=clock.local_frame(frame,offset)?;
+        if speed {Ok(self.velocity(local,component,fps)? * clock.rate() as f32)}
+        else {self.value(local,component)}
     }
 
     fn value(&self, frame: f64, component: usize) -> motion_core::Result<f32> {
@@ -139,21 +152,23 @@ fn unit(property:Property,speed:bool)->&'static str {
     }
 }
 
-fn fit_intervals(panels:&Panels,state:&Value,target:&motion_core::KeyframeTarget,source:&Value,offset:i64)
+fn fit_intervals(panels:&Panels,state:&Value,target:&motion_core::KeyframeTarget,source:&Value,mapped:bool)
     ->([f64;2],Option<[f64;2]>) {
     let mut all:Option<[f64;2]>=None;let mut selected:Option<[f64;2]>=None;
     let status=panels.selected_keys.status(state);
     let legacy=panels.animation_controls.user_key_in(state,panels.selected);
     for key in source["keys"].as_array().into_iter().flatten() {
-        let Some(frame)=key["local_frame"].as_i64().and_then(|frame|frame.checked_add(offset)).or_else(||key["frame"].as_i64())
-            .and_then(|frame|u32::try_from(frame).ok()).filter(|frame|f64::from(*frame)<=last_frame(state)) else {continue;};
-        let next=f64::from(frame);
+        let Some(next)=key["frame"].as_f64().filter(|t|t.is_finite() && *t>=0. && *t<state["project"]["frames"].as_f64().unwrap_or(0.)) else {continue;};
+        let frame=next as u32;
+        let local=key["local_frame"].as_i64().and_then(|f|i32::try_from(f).ok());
         all=Some(all.map_or([next,next],|[low,high]|[low.min(next),high.max(next)]));
         let chosen=match status {
-            super::key_selection::Status::Current=>panels.selected_keys.contains(&super::key_selection::Key {target:target.clone(),frame}),
-            super::key_selection::Status::Unowned=>panels.timeline.graph_box.has_selection() || legacy.is_some_and(|key| {
+            super::key_selection::Status::Current=>if mapped {local.is_some_and(|frame|panels.selected_keys.contains_addressed(
+                &super::key_selection::LocalKey {target:target.clone(),frame}.into()))}
+                else {panels.selected_keys.contains(&super::key_selection::Key {target:target.clone(),frame})},
+            super::key_selection::Status::Unowned=>!mapped && (panels.timeline.graph_box.has_selection() || legacy.is_some_and(|key| {
                 key.frame==frame && *target==(motion_core::KeyframeTarget::Property {object:key.object,property:key.property,axis:key.axis})
-            }),
+            })),
             _=>false,
         };
         if chosen {selected=Some(selected.map_or([next,next],|[low,high]|[low.min(next),high.max(next)]));}
@@ -170,8 +185,11 @@ fn fit_intervals(panels:&Panels,state:&Value,target:&motion_core::KeyframeTarget
     (all.unwrap_or([0.,last_frame(state)+1.]),selected)
 }
 
-fn observe_early_return(panels: &mut Panels, reason: &'static str) {
+fn observe_early_return(panels: &mut Panels, out: &mut Vec<Action>, reason: &'static str) {
     panels.timeline.graph_ranges.no_timeline_plot();
+    // Losing the mapped view is a normal gesture cancellation. Specific bad
+    // snapshots/sampling failures already have their own observed causes.
+    super::graph_handles::cancel_local(panels,out);
     let active = panels
         .timeline
         .graph_drag
@@ -212,6 +230,7 @@ pub(super) fn render(
             panels.timeline.graph_ranges.no_timeline_plot();
             let neutral=Input::default();
             let graph_input=if panels.timeline.comparison.popup_open(){&neutral}else{input};
+            super::graph_handles::cancel_local(panels,out);
             super::curve_comparison::render(list, atlas, content, panels, state, graph_input, offset, ppf, out);
             return;
         }
@@ -220,6 +239,7 @@ pub(super) fn render(
         list, atlas, area, panels, state, input, offset, ppf, out,
     ) {
         panels.timeline.graph_ranges.no_property_plot();
+        super::graph_handles::cancel_local(panels,out);
         return;
     }
     let styles = list.styles();
@@ -271,14 +291,14 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "no_selection");
+        observe_early_return(panels,out, "no_selection");
         return;
     };
     let Some(layer) = state["project"]["layers"]
         .as_array()
         .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)))
     else {
-        observe_early_return(panels, "missing_layer");
+        observe_early_return(panels,out, "missing_layer");
         return;
     };
     if panels.animation_controls.track_selection(state, Some(object))
@@ -288,7 +308,7 @@ pub(super) fn render(
             if panels.locale == Locale::Zh { "请选择属性" } else { "Select a property" }, true);
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "invalid_property_selection");
+        observe_early_return(panels,out, "invalid_property_selection");
         return;
     }
     let property = panels
@@ -307,11 +327,11 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "property_hidden_or_audio");
+        observe_early_return(panels,out, "property_hidden_or_audio");
         return;
     }
     let Some(timeline) = data::timeline(state, object) else {
-        observe_early_return(panels, "missing_timeline");
+        observe_early_return(panels,out, "missing_timeline");
         return;
     };
     let root = &timeline["properties"][data::name(property)];
@@ -352,7 +372,7 @@ pub(super) fn render(
     };
     let axis = panels.animation_controls.axis;
     let Some(source) = data::channel(state, object, property, axis) else {
-        observe_early_return(panels, "missing_channel");
+        observe_early_return(panels,out, "missing_channel");
         return;
     };
     let layer_offset = timeline["offset_frame"].as_i64().unwrap_or(0);
@@ -372,9 +392,18 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "unreadable_track");
+        observe_early_return(panels,out, "unreadable_track");
         return;
     };
+    let clock=panels.timeline.graph_samples.clock;
+    let mapped=super::property_authoring::precise(state,object);
+    if mapped {
+        // Clock changes supersede composition-integer gesture ownership.
+        // Local handle drags own a separate clock/selection guard. Legacy key
+        // drags remain incompatible with mapped authored identities.
+        panels.timeline.key_drag=None;
+        panels.timeline.graph_box=Default::default();
+    }
     let components = if axis.is_some() || property.is_scalar() {
         vec![0]
     } else {
@@ -392,7 +421,8 @@ pub(super) fn render(
         area.width().max(1.),
         (area.height() - 102.).max(1.),
     );
-    let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
+    let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(
+        if mapped {last_frame(state)+1.} else {last_frame(state)});
     let scale = data::display_scale(state,object,property,components[0]);
     let speed_graph = panels.timeline.speed_graph;
     let unit=unit(property,speed_graph);
@@ -400,11 +430,7 @@ pub(super) fn render(
     let identity=super::graph_ranges::Identity {surface:super::graph_ranges::Surface::Timeline,
         target:Some(target.clone()),component:Some(components[0]),speed:speed_graph,unit:unit.into()};
     let sample = |frame: f64, component: usize| -> motion_core::Result<f32> {
-        Ok(if speed_graph {
-            samples.velocity(frame - layer_offset as f64, component, fps)?
-        } else {
-            samples.value(frame - layer_offset as f64, component)?
-        } * scale)
+        Ok(samples.composition_value(frame,layer_offset as i32,clock,component,speed_graph,fps)? * scale)
     };
     let points = components
         .iter()
@@ -421,7 +447,7 @@ pub(super) fn render(
         "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end}") else {
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "sampling_failed");
+        observe_early_return(panels,out, "sampling_failed");
         return;
     };
     let min = points
@@ -451,7 +477,7 @@ pub(super) fn render(
         .map(|(x,y)|Bounds {x,y});
     let Ok(automatic)=observe!("timeline.graph_view_bounds",automatic.ok_or("unrepresentable graph range"),
         "object={object} property={property:?} axis={axis:?} generation={generation:?} revision={revision:?} phase=display") else {
-        graph.clip_to(area);list.append(graph);observe_early_return(panels,"invalid_view_bounds");return;
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,out,"invalid_view_bounds");return;
     };
     let before_view=panels.timeline.graph_ranges.displayed(state,&identity,automatic);
     if area.contains(input.mouse)
@@ -496,14 +522,14 @@ pub(super) fn render(
     let low = fixed.map_or(displayed.y.low as f32, |b| b[0]);
     let high = fixed.map_or(displayed.y.high as f32, |b| b[1]);
     let adaptive = components.iter().map(|component|samples.adaptive(
-        offset,end,layer_offset as f64,
+        offset,end,layer_offset as f64,clock,
         [f64::from(ppf),f64::from(plot.height())/f64::from(high-low)],
         f64::from(styles.metric("graph.sample.error",0.35)),
         |frame|sample(frame,*component).map(f64::from),
     )).collect::<Result<Vec<_>,_>>();
     let Ok(points)=observe!("timeline.graph_adaptive",adaptive,
         "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end} generation={generation:?} revision={revision:?} phase=screen_subdivision") else {
-        graph.clip_to(area);list.append(graph);observe_early_return(panels,"adaptive_sampling_failed");return;
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,out,"adaptive_sampling_failed");return;
     };
     let y_of = |value: f32| plot.max[1] - (value - low) / (high - low) * plot.height();
     for i in 0..5 {
@@ -540,7 +566,11 @@ pub(super) fn render(
         scale,
     };
     let spatial=source["spatial_keys"].is_array();
-    let box_owned = !spatial && super::graph_box::interact(
+    if mapped && !spatial && observe!("timeline.local_key_array",source["keys"].as_array()
+        .ok_or("projected local key array missing"),"object={object} phase=graph fallback=disable_key_edit").is_err() {
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,out,"missing_projected_keys");return;
+    }
+    let box_owned = !mapped && !spatial && super::graph_box::interact(
         &styles,
         panels,
         state,
@@ -556,7 +586,8 @@ pub(super) fn render(
         out,
     );
     super::key_selection::ui::plot(panels, plot, low, high);
-    super::key_selection::ui::all_channel(panels,state,motion_core::KeyframeTarget::Property {object,property,axis},source);
+    if mapped && !spatial {super::key_selection::ui::all_local_channel(panels,state,target.clone(),source);}
+    else {super::key_selection::ui::all_channel(panels,state,target.clone(),source);}
     if box_owned { super::key_selection::ui::block_background(panels); }
     let neutral_curve = Input::default();
     let curve_input = if box_owned { &neutral_curve } else { input };
@@ -592,6 +623,23 @@ pub(super) fn render(
                 Rect::new(point[0]-hit,point[1]-hit,hit*2.,hit*2.));
         }
         for key in source["keys"].as_array().into_iter().flatten() {
+            if mapped && !spatial {
+                let Ok((local,time))=observe!("timeline.graph_local_key",super::key_selection::ui::local_address(&target,key),
+                    "object={object} property={property:?} phase=paint fallback=disable_key_edit") else {continue;};
+                if time<0. || time<offset || time>end || time>=last_frame(state)+1. {continue;}
+                let Ok(value)=observe!("timeline.graph_key_sample",sample(time,components[index]),
+                    "object={object} property={property:?} axis={axis:?} frame={time}") else {continue;};
+                let point=[plot.min[0]+(time-offset) as f32*ppf,y_of(value)];
+                let radius=styles.metric("graph.key_radius",5.);
+                let hit=styles.metric("graph.selection.hit_radius",6.)+styles.metric("motion.drag_threshold",3.);
+                paint::diamond(&mut lines,point,radius,colors.KEYFRAME);
+                super::key_selection::ui::local_graph_mark(&mut lines,panels,local,point,radius,
+                    Rect::new(point[0]-hit,point[1]-hit,hit*2.,hit*2.),
+                    if axis.is_some() || property.is_scalar() {0} else {components[index]},
+                    if speed_graph {0.} else {(high-low)/plot.height()/scale},
+                    (property==Property::Opacity).then_some([0.,1.]));
+                continue;
+            }
             let Some(frame) = key["frame"]
                 .as_i64()
                 .filter(|f| *f >= 0 && (*f as f64) >= offset && (*f as f64) <= end)
@@ -657,6 +705,7 @@ pub(super) fn render(
         atlas,
         panels,
         source,
+        state,
         object,
         property,
         axis,
@@ -675,8 +724,8 @@ pub(super) fn render(
         layer["locked"] == true || state["observing"] == true,
         out,
     );
-    super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);
-    let box_selected = if !spatial && !box_owned && clicked_key.is_none() {
+    if !mapped {super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);}
+    let box_selected = if !mapped && !spatial && !box_owned && clicked_key.is_none() {
         super::graph_box::select_curve(
             &styles,
             panels,
@@ -698,7 +747,7 @@ pub(super) fn render(
         panels.audio_controls.clear_selection();
         panels.animation_controls.clear_key();
     }
-    super::graph_box::draw(&mut lines, panels, state, source, box_plot);
+    if !mapped {super::graph_box::draw(&mut lines, panels, state, source, box_plot);}
     lines.clip_to(plot);
     graph.append(lines);
     if let Some(frame) = clicked_key {
@@ -775,15 +824,15 @@ pub(super) fn render(
         panels.timeline.graph_ranges.record_probe(identity.clone(),row,plot,displayed);
         if let Some(point)=super::graph_ranges::launch(&mut graph,atlas,row,last_mode.max[0],input,
             panels.timeline.graph_ranges.ready() && !busy) {
-            let (all_interval,selection_interval)=fit_intervals(panels,state,&target,source,layer_offset);
+            let (all_interval,selection_interval)=fit_intervals(panels,state,&target,source,mapped);
             let tolerance=f64::from(styles.metric("graph.sample.error",0.35));
             let started=std::time::Instant::now();
-            let all=observe!("timeline.graph_fit_all",samples.fit_bounds(all_interval,layer_offset as f64,
+            let all=observe!("timeline.graph_fit_all",samples.fit_bounds(all_interval,layer_offset as f64,clock,
                 &components,speed_graph,fps,scale,[plot.width(),plot.height()],tolerance),
                 "object={object} property={property:?} axis={axis:?} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_all",started.elapsed().as_millis()).ok();
             let selection=selection_interval.and_then(|interval| {
                 let started=std::time::Instant::now();
-                observe!("timeline.graph_fit_selection",samples.fit_bounds(interval,layer_offset as f64,
+                observe!("timeline.graph_fit_selection",samples.fit_bounds(interval,layer_offset as f64,clock,
                     &components,speed_graph,fps,scale,[plot.width(),plot.height()],tolerance),
                     "object={object} property={property:?} axis={axis:?} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_selection",started.elapsed().as_millis()).ok()
             });

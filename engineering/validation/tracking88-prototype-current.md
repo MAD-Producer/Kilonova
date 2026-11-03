@@ -127,3 +127,12 @@ The PR remains draft while these gates are pending. Existing #580/#581 tests
 qualify their own importer/replacement changes; the native qualification above
 covers this prototype's measured output separately. No issue closure or complete
 3D-route claim follows from this document.
+
+
+## Frozen prototype output Surface qualification
+
+The [new Windows Surface record](tracking88-prototype-surface-current.md)
+executes the actual measured synthetic point/plane output through a native
+window, retained-front reuse, strict missing refusal, manual recovery, history
+and reopen. It retains the failed photographed quality conclusion and does not
+claim final full regression or cross-platform CI completion.

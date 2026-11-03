@@ -87,7 +87,6 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioMarkersAction) -> Resul
         ),
         "object has no audio",
     )?;
-    let clip = layer.clip(frames);
     let interval = layer.interval(frames);
     let local = |frame: u32| {
         ensure(
@@ -96,7 +95,7 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioMarkersAction) -> Resul
                 && f64::from(frame) < interval.out_frame,
             "audio marker outside visible clip",
         )?;
-        clip.edit_frame(frame)
+        layer.edit_frame(frame)
     };
     let mut markers = layer.audio_markers.clone();
     let mut next = markers.iter().map(|m| m.id).max().unwrap_or(0);
