@@ -153,8 +153,16 @@ fn effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoni
         // composition-capped sampling interval, so hover must check its own result.
         let mut good = effect_timeline::tests::state(&engine);
         good["project"]["frames"] = 1.into();
+        // Both snapshots share the finite large slope, including the comparison
+        // view's initially cached track. At 30 fps the readout is finite; at
+        // 240 fps only the hover's per-second f32 result overflows. Sampling
+        // remains capped before the authored keys in either snapshot.
+        good["project"]["layers"][0]["effects"][0]["params"]["speed"]["max"] =
+            serde_json::json!(3e38);
+        good["project"]["layers"][0]["effects"][0]["params"]["speed"]["track"]["keys"][1]
+            ["value"][0] = serde_json::json!(1e38);
         let mut bad = good.clone();
-        bad["project"]["fps"] = serde_json::json!(1e308);
+        bad["project"]["fps"] = serde_json::json!({"numerator":240,"denominator":1});
         bad["revision"] = 91.into();
         let target = Graph::Effect.target();
         let mut effect = Graph::Effect.panels(&good, &catalogue);
@@ -230,7 +238,7 @@ fn effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoni
             "sites":SITES,"actualHoverConsumers":true,"normalCurveStaysAvailable":true,
             "firstWarnAndErrorAtLifetime60":true,"suppressedAfter60":true,
             "recoveryPreservesCounterScope":true,"noEditsOrHistory":true,
-            "limits":"fps1e308 and shortened composition are intentionally degraded provider snapshots, not a legal saved project."
+            "limits":"Valid rational clock with finite large authored slope and parameter bound; shortened composition intentionally degrades the provider snapshot, not a legal saved project."
         })).unwrap()).unwrap();
         return;
     }

@@ -38,7 +38,9 @@ also remains unresolved.
 
 The parent Ubuntu CI failure at `9ea85107` independently confirms the known
 graph-readout fixture's invalid numeric clock. Its separate proposed fixture
-change remains unapplied pending authorization. No existing assertion, expected
+change was unapplied pending authorization at that point. The subsequent
+[authorized fixture repair](frame-rate85-readout-fixture-current.md) passes
+both fresh-process checks with the original assertions. No existing assertion, expected
 value, budget or ignore marker was altered to obtain these results.
 
 DESIGN section 0.7 baseline rows remain unchanged: only arithmetic and separate

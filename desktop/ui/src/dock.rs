@@ -8,6 +8,7 @@
 
 use crate::input::Rect;
 use crate::theme::metrics;
+mod solve_cache;
 
 /// Which edge of the parent a dock occupies.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
@@ -186,8 +187,14 @@ pub struct Placement {
 
 /// Resolve the tree into absolute rectangles for a window of `size` pixels.
 pub fn solve(root: &Node, area: Rect) -> Vec<Placement> {
+    if let Some(placements) = solve_cache::get(root, area) {
+        return placements;
+    }
+    #[cfg(test)]
+    solve_cache_tests::record_solve();
     let mut out = Vec::new();
     solve_into(root, area, &mut out);
+    solve_cache::store(root, area, &out);
     out
 }
 
@@ -527,6 +534,8 @@ pub fn clamp_split(edge: Edge, split: f32, area: Rect) -> f32 {
     split.clamp(floor, 1.0 - floor)
 }
 
+#[cfg(test)]
+mod solve_cache_tests;
 #[cfg(test)]
 mod tests {
     use super::*;

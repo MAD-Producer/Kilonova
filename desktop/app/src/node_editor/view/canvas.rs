@@ -10,18 +10,20 @@ impl NodeEditor {
             .nodes
             .iter()
             .map(|node| {
+                #[cfg(test)]
+                super::frame_cards_tests::record_port_resolution();
                 let ports = self.observed(
                     "canvas.sockets",
                     &node.id,
                     motion_graph::node_port_specs(node, &self.document.public_parameters),
                 );
+                let expanded_rows = ports.as_ref()
+                    .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
+                    .unwrap_or(1);
                 let height = if node.collapsed {
                     HEADER
                 } else {
-                    let rows = ports.as_ref()
-                        .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
-                        .unwrap_or(1);
-                    expanded_node_height(node, &self.document, rows)
+                    expanded_node_height(node, &self.document, expanded_rows)
                 };
                 let point = self.view.world_to_screen(node.position, canvas);
                 let rect = Rect::new(
@@ -35,6 +37,9 @@ impl NodeEditor {
                     let inputs = ports.inputs.len();
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
+                            let row_y = HEADER
+                                + ROW * (port_row_index(node, inputs, output, index) as f32 + 0.5);
+                            let visible_row = if node.collapsed { HEADER * 0.5 } else { row_y };
                             sockets.push(Socket {
                                 connectable: !node.collapsed,
                                 port: PortRef::new(&node.id, port),
@@ -43,18 +48,9 @@ impl NodeEditor {
                                 spec,
                                 point: [
                                     if output { rect.max[0] } else { rect.min[0] },
-                                    rect.min[1]
-                                        + if node.collapsed {
-                                            HEADER * 0.5 * self.view.zoom
-                                        } else {
-                                            (HEADER
-                                                + ROW
-                                                    * (port_row_index(node, inputs, output, index)
-                                                        as f32
-                                                        + 0.5))
-                                                * self.view.zoom
-                                        },
+                                    rect.min[1] + visible_row * self.view.zoom,
                                 ],
+                                row_y,
                             });
                         }
                     }
@@ -63,10 +59,48 @@ impl NodeEditor {
                     source_node: node,
                     id: node.id.clone(),
                     rect,
+                    world_height: height,
+                    expanded_rows,
+                    collapsed: node.collapsed,
                     sockets,
                 }
             })
             .collect()
+    }
+
+    /// Reproject this draw's metadata after viewport or presentation-only changes.
+    /// The caller checks epoch and preview revisions; nonsemantic revisions can
+    /// update positions or collapse state without resolving the ports again.
+    /// Validate every identity before updating anything; never dereference the
+    /// stored pointer or retain these cards beyond the current draw.
+    pub(super) fn refresh_card_positions(&self, cards: &mut [Card], canvas: Rect) -> bool {
+        if cards.len() != self.document.nodes.len()
+            || !cards.iter().zip(&self.document.nodes).all(|(card, node)| {
+                std::ptr::eq(card.source_node, node) && card.id == node.id
+            })
+        {
+            return false;
+        }
+        for (card, node) in cards.iter_mut().zip(&self.document.nodes) {
+            if card.collapsed != node.collapsed {
+                card.world_height = if node.collapsed {
+                    HEADER
+                } else {
+                    expanded_node_height(node, &self.document, card.expanded_rows)
+                };
+                card.collapsed = node.collapsed;
+            }
+            let point = self.view.world_to_screen(node.position, canvas);
+            card.rect = Rect::new(point[0], point[1], NODE_WIDTH * self.view.zoom,
+                card.world_height * self.view.zoom);
+            for socket in &mut card.sockets {
+                socket.connectable = !node.collapsed;
+                let row = if node.collapsed { HEADER * 0.5 } else { socket.row_y };
+                socket.point = [if socket.output { card.rect.max[0] } else { card.rect.min[0] },
+                    card.rect.min[1] + row * self.view.zoom];
+            }
+        }
+        true
     }
     pub(super) fn paint_canvas(
         &self,
@@ -233,7 +267,15 @@ impl NodeEditor {
                 if selected { 2. } else { 1. },
             );
             let mut content = list.child();
-            let local = Rect::new(0., 0., NODE_WIDTH, node_height(node, &self.document));
+            // The current frame already resolved this node's height with its
+            // ports. Duplicate IDs may select another node: retain that node's
+            // original calculation when its identity differs from the card.
+            let height = if std::ptr::eq(card.source_node, node) {
+                card.world_height
+            } else {
+                node_height(node, &self.document)
+            };
+            let local = Rect::new(0., 0., NODE_WIDTH, height);
             let title = if previewing {
                 format!(
                     "{} · {}",
