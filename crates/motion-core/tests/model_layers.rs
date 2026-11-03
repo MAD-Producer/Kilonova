@@ -178,14 +178,15 @@ fn imported_animation_time_is_explicit_signed_and_checked_for_overflow() {
         offset_seconds: 3.,
         speed: -2.,
     };
-    assert_eq!(animation.sample_seconds(15., 30).unwrap(), 2.);
-    assert_eq!(animation.sample_seconds(-15., 30).unwrap(), 4.);
+    let rate = motion_core::FrameRate::integer(30).unwrap();
+    assert_eq!(animation.sample_seconds(15., rate).unwrap(), 2.);
+    assert_eq!(animation.sample_seconds(-15., rate).unwrap(), 4.);
     animation.speed = 0.;
-    assert_eq!(animation.sample_seconds(300., 30).unwrap(), 3.);
-    assert!(animation.sample_seconds(f64::NAN, 30).is_err());
-    assert!(animation.sample_seconds(0., 0).is_err());
+    assert_eq!(animation.sample_seconds(300., rate).unwrap(), 3.);
+    assert!(animation.sample_seconds(f64::NAN, rate).is_err());
+    assert_eq!(motion_core::FrameRate::integer(0), Err(motion_core::RateError::Zero));
     animation.speed = f64::MAX;
-    assert!(animation.sample_seconds(f64::MAX, 30).is_err());
+    assert!(animation.sample_seconds(f64::MAX, rate).is_err());
     animation.offset_seconds = f64::INFINITY;
     assert!(animation.validate().is_err());
     animation.offset_seconds = 0.;

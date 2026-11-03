@@ -202,7 +202,7 @@ fn composition(id: &str, layers: Vec<Layer>) -> Composition {
         name: id.into(),
         width: W,
         height: H,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 12,
         work_area: motion_core::WorkArea::full(12),
         guides: Vec::new(),

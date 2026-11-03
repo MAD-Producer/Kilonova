@@ -88,9 +88,9 @@ fn real_delayed_video_import_shows_first_picture_and_preserves_audio_head_and_ta
         let asset = &project.video_assets[0];
         assert_eq!(video.source_offset_us, if with_audio { 0 } else { 250_000 });
         assert_eq!(video.hold_first_frame, with_audio);
-        assert_eq!(video.picture_time_us(0., project.fps, asset), 250_000);
+        assert_eq!(video.picture_time_us(0., project.fps, asset).unwrap(), 250_000);
         assert_eq!(
-            video.source_time_us(0., project.fps),
+            video.source_time_us(0., project.fps).unwrap(),
             if with_audio { 0 } else { 250_000 }
         );
         let mut decoder = backend
@@ -104,13 +104,13 @@ fn real_delayed_video_import_shows_first_picture_and_preserves_audio_head_and_ta
         assert!(decoder.frame(0, &|| Ok(())).is_err(), "{name}");
         let first = decoder
             .frame(
-                video.picture_time_us(0., project.fps, asset) as u64,
+                video.picture_time_us(0., project.fps, asset).unwrap() as u64,
                 &|| Ok(()),
             )
             .unwrap();
         assert_eq!(first.pts, asset.video_start_us);
         assert!(first.bytes() > 0);
-        let later = video.picture_time_us(30., project.fps, asset) as u64;
+        let later = video.picture_time_us(30., project.fps, asset).unwrap() as u64;
         assert_eq!(later, if with_audio { 500_000 } else { 750_000 });
         let decoded = decoder.frame(later, &|| Ok(())).unwrap();
         assert!(decoded.pts <= later && later < decoded.end);

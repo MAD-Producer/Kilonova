@@ -236,7 +236,7 @@ fn all_compositions_anchors_and_camera_owners_contribute_without_activation_chan
         name: "secondary".into(),
         width: 640,
         height: 360,
-        fps: 30,
+        fps: crate::FrameRate::integer(30).unwrap(),
         frames: 90,
         work_area: project.work_area,
         guides: Vec::new(),

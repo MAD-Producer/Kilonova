@@ -115,6 +115,8 @@ pub struct Dialog {
     settings_tab: usize,
     preset_dropdown: motion_ui::widgets::Dropdown,
     preset_index: usize,
+    timing_dropdown: motion_ui::widgets::Dropdown,
+    timing_index: usize,
     aspect_locked: bool,
     aspect: f64,
     fields: Vec<String>,
@@ -165,13 +167,21 @@ fn button(
 impl Dialog {
     pub fn new_composition(width: u32, height: u32) -> Self {
         let mut dialog = Self::settings(
-            &serde_json::json!({"project":{"name":"合成 1","width":width,"height":height,"fps":30,"frames":300}}),
+            &serde_json::json!({"project":{"name":"合成 1","width":width,"height":height,"fps":{"numerator":30,"denominator":1},"frames":300}}),
         );
         dialog.kind = Kind::NewComposition;
         dialog
     }
     pub fn settings(state: &Value) -> Self {
         let p = &state["project"];
+        let (fps, error) = match serde_json::from_value::<motion_core::FrameRate>(p["fps"].clone()) {
+            Ok(fps) => (fps.to_string(), None),
+            Err(cause) => {
+                let reason = crate::fallback_observation::error_cause(cause);
+                log::error!("composition settings failed phase=read_frame_rate cause={reason}");
+                (String::new(), Some(format!("Invalid composition frame rate: {reason}")))
+            }
+        };
         Self {
             kind: Kind::Settings,
             preferences: None,
@@ -181,20 +191,22 @@ impl Dialog {
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
+            timing_dropdown: Default::default(),
+            timing_index: 0,
             aspect_locked: false,
             aspect: 16. / 9.,
             fields: vec![
                 p["name"].as_str().unwrap_or("").into(),
                 p["width"].to_string(),
                 p["height"].to_string(),
-                p["fps"].to_string(),
+                fps,
                 p["frames"].to_string(),
             ],
             focus: 0,
             replace: true,
             text_editor: Default::default(),
             text_editor_field: None,
-            error: None,
+            error,
             fonts: vec![],
             font: None,
             font_open: false,
@@ -215,6 +227,8 @@ impl Dialog {
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
+            timing_dropdown: Default::default(),
+            timing_index: 0,
             aspect_locked: false,
             aspect: 16. / 9.,
             fields: vec!["Motion Studio".into(), "64".into(), "1024".into()],
@@ -430,15 +444,15 @@ impl Dialog {
                     let height = self.fields[2]
                         .parse::<u32>()
                         .map_err(|_| word(locale, "高度必须为整数", "Height must be an integer"))?;
-                    let fps = self.fields[3].parse::<u32>().map_err(|_| {
-                        word(locale, "帧率必须为整数", "Frame rate must be an integer")
+                    let fps = self.fields[3].parse::<motion_core::FrameRate>().map_err(|_| {
+                        word(locale, "帧率无效", "Invalid frame rate")
                     })?;
                     let frames = self.fields[4].parse::<u32>().map_err(|_| {
                         word(locale, "总帧数必须为整数", "Duration must be an integer")
                     })?;
-                    motion_core::Project::new(width, height, fps, frames)
+                    motion_core::Project::new_with_frame_rate(width, height, fps, frames)
                         .map_err(|e| e.to_string())?;
-                    let settings = serde_json::json!({"name":self.fields[0],"width":width,"height":height,"fps":fps,"frames":frames,"timing":"preserve_seconds","shorten":"reject"});
+                    let settings = serde_json::json!({"name":self.fields[0],"width":width,"height":height,"fps":fps,"frames":frames,"timing":self.timing_policy(),"shorten":"reject"});
                     Ok(if matches!(self.kind, Kind::NewComposition) {
                         Event::CreateComposition(settings)
                     } else {

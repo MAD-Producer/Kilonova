@@ -635,12 +635,14 @@ fn convert(frame: &frame::Video, asset: &VideoAsset) -> Result<VideoPixels> {
 pub struct EncoderSettings {
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
+    pub fps: motion_core::FrameRate,
 }
 impl EncoderSettings {
     pub fn bitrate(&self) -> i64 {
-        (i64::from(self.width) * i64::from(self.height) * i64::from(self.fps) / 8)
-            .clamp(2_000_000, 20_000_000)
+        let [numerator, denominator] = self.fps.ratio();
+        (u128::from(self.width) * u128::from(self.height) * u128::from(numerator)
+            / (8 * u128::from(denominator)))
+            .clamp(2_000_000, 20_000_000) as i64
     }
 }
 pub const OUTPUT_SAMPLE_RATE: u32 = motion_media::OUTPUT_RATE as u32;

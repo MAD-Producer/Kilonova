@@ -134,7 +134,7 @@ fn extended_span_requires_new_format_and_rename_or_extension_does_not_crop_it() 
     let mut old=p.clone();old.version=12;assert!(old.validate().is_err());
     for frames in [60,90] {
         p.edit_composition(motion_core::CompositionAction::Settings{settings:motion_core::CompositionSettings{
-            name:"Renamed".into(),width:64,height:64,fps:30,frames,timing:"preserve_seconds".into(),shorten:"reject".into()}}).unwrap();
+            name:"Renamed".into(),width:64,height:64,fps:motion_core::FrameRate::integer(30).unwrap(),frames,timing:"preserve_seconds".into(),shorten:"reject".into()}}).unwrap();
         assert_eq!(p.layers[0].timeline,Some(LayerTimeline{in_frame:-10,out_frame:100,offset_frame:-10}));p.validate().unwrap();
     }
 }

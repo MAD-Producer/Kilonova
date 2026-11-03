@@ -242,6 +242,61 @@ fn host_command_snapshot_save_and_undo_preserve_local_keys_and_fractional_projec
     }
 }
 
+#[test]
+fn rational_clock_capabilities_commands_history_and_reopen_keep_exact_project_rates() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut original = project(None);
+    original.fps = motion_core::FrameRate::new(30000, 1001).unwrap();
+    let mut session = Session::new(original.clone(), directory.path().into(), Arc::new(NoMedia)).unwrap();
+    session.frame = 40.125;
+    session.sample().unwrap();
+    let before = session.snapshot().unwrap();
+    assert_eq!(before["project"]["fps"], json!({"numerator":30000,"denominator":1001}));
+    assert_eq!(before["capabilities"]["composition_api"]["version"], 1);
+    let capabilities = &before["capabilities"]["composition"];
+    assert_eq!(capabilities["fps_type"], "rational");
+    assert_eq!(capabilities["frame_rate_wire_version"], 2);
+    assert_eq!(capabilities["timing_required"], true);
+    assert_eq!(capabilities["decimal_aliases"], false);
+    assert_eq!(capabilities["timecode"]["drop_pictures"], false);
+    let presets: Vec<motion_core::FrameRate> = serde_json::from_value(capabilities["fps_presets"].clone()).unwrap();
+    for [numerator, denominator] in [[24000,1001],[30000,1001],[60000,1001],[24,1],[240,1]] {
+        assert!(presets.contains(&motion_core::FrameRate::new(numerator, denominator).unwrap()));
+    }
+    let settings = |fps: Value| json!({"op":"composition","composition":"comp-main",
+        "action":{"kind":"settings","settings":{"name":"Rational","width":64,"height":64,
+        "fps":fps,"frames":240,"timing":"preserve_seconds","shorten":"reject"}}});
+    // Numeric wire values are invalid, even if they look like a supported rate.
+    for invalid in [json!(30), json!(29.97), json!({"numerator":30000}),
+        json!({"numerator":30000,"denominator":0})] {
+        assert!(session.apply_commands(&settings(invalid).to_string()).is_err());
+        assert_eq!(session.engine.project(), &original);
+        assert_eq!(session.engine.revision(), 0);
+    }
+    let changed = session.apply_commands(&settings(json!({"numerator":60000,"denominator":1001})).to_string()).unwrap();
+    assert_eq!(changed["project"]["fps"], json!({"numerator":60000,"denominator":1001}));
+    let current = session.engine.project().clone();
+    assert_eq!(current.layers[0].timeline.as_ref().unwrap().offset_frame, 20);
+    let keys = &current.layers[0].transform.opacity.keys;
+    assert_eq!(keys.iter().map(|key| key.frame).collect::<Vec<_>>(), vec![0,2,80]);
+    motion_core::storage::save(directory.path(), &current).unwrap();
+    let reopened = motion_core::storage::load(directory.path()).unwrap();
+    assert_eq!(reopened, current);
+    let mut other = Session::new(reopened, directory.path().into(), Arc::new(NoMedia)).unwrap();
+    other.frame = session.frame;
+    other.sample().unwrap();
+    let reopened = other.snapshot().unwrap();
+    for field in ["project","timeline_layers","vector_layers","sampledLayers"] {
+        assert_eq!(changed[field], reopened[field], "reopened field={field}");
+    }
+    assert!(session.engine.undo().unwrap());
+    assert_eq!(session.engine.project(), &original);
+    session.sample().unwrap();
+    assert_eq!(session.snapshot().unwrap()["project"], before["project"]);
+    assert!(session.engine.redo().unwrap());
+    assert_eq!(session.engine.project(), &current);
+}
+
 fn mapped_with_no_results(mapped: &Value) -> Value {
     let mut expected = mapped.clone();
     expected.as_object_mut().unwrap().remove("edit_result");

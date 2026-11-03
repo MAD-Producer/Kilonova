@@ -97,7 +97,7 @@ impl ParticleHistory {
                 return Ok(old.clone());
             }
         }
-        let mut pose = Project::new(p.width, p.height, p.fps, p.frames)?;
+        let mut pose = Project::new_with_frame_rate(p.width, p.height, p.fps, p.frames)?;
         pose.version = p.version;
         if camera_parent {
             pose.camera = p.camera.clone();
@@ -126,7 +126,7 @@ impl ParticleHistory {
         self.params
             .get(id)
             .ok_or_else(|| crate::Error::Invalid(format!("particle parameter {id} missing")))?
-            .sample(seconds * self.pose.fps as f64)
+            .sample(seconds * f64::from(self.pose.fps))
     }
     pub fn matrix_at(
         &self,
@@ -136,7 +136,7 @@ impl ParticleHistory {
     ) -> Result<Mat4> {
         crate::hierarchy::matrix_for(
             &self.pose,
-            seconds * self.pose.fps as f64 + self.offset as f64,
+            seconds * f64::from(self.pose.fps) + self.offset as f64,
             0,
             world,
             states,

@@ -454,7 +454,7 @@ fn frozen_export_has_180_strictly_ordered_timestamps_and_is_edit_independent() {
     assert_eq!(pts[0], 0);
     assert_eq!(pts[179], 5_966_667);
     assert!(pts.windows(2).all(|w| w[1] > w[0]));
-    assert_eq!(frozen.frames as f64 / frozen.fps as f64, 6.0);
+    assert_eq!(frozen.frames as f64 / f64::from(frozen.fps), 6.0);
     assert_ne!(
         e.project().layers[1].transform.position,
         frozen.layers[1].transform.position

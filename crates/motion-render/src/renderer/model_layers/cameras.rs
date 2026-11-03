@@ -59,7 +59,7 @@ impl CameraSampler for ModelSourceCatalog {
         &self,
         camera: &Camera,
         frame: f64,
-        fps: u32,
+        fps: motion_model::FrameRate,
         size: [u32; 2],
         prefix: glam::Mat4,
     ) -> motion_model::Result<CameraSample> {

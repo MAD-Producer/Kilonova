@@ -335,7 +335,7 @@ fn inactive_image_input_never_opens_missing_source_and_other_composition_clock_i
                 name: "Child".into(),
                 width: 320,
                 height: 180,
-                fps: 60,
+                fps: motion_core::FrameRate::integer(60).unwrap(),
                 frames: 120,
                 timing: "preserve_seconds".into(),
                 shorten: "reject".into(),

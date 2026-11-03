@@ -188,7 +188,7 @@ fn lens_edit_uses_local_clip_time_and_legacy_camera_and_matches_render_projectio
 #[test]
 fn scoped_lens_edits_use_target_dimensions_and_survive_package_export() {
     let (mut engine, _) = engine();
-    let result=engine.apply_batch(motion_core::parse_commands(r#"{"op":"composition","action":{"kind":"create","settings":{"name":"Portrait","width":1080,"height":1920,"fps":30,"frames":300}}}"#).unwrap()).unwrap();
+    let result=engine.apply_batch(motion_core::parse_commands(r#"{"op":"composition","action":{"kind":"create","settings":{"name":"Portrait","width":1080,"height":1920,"fps":{"numerator":30,"denominator":1},"frames":300,"timing":"preserve_frames"}}}"#).unwrap()).unwrap();
     let EditResult::Composition { result } = &result[0] else {
         panic!("{result:?}")
     };

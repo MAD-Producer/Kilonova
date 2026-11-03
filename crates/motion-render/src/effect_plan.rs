@@ -1324,7 +1324,7 @@ impl PlanBuilder {
                                 input_region: region,
                                 source_region: region,
                                 clock: [
-                                    (e.local_frame / scene.fps as f64) as f32,
+                                    (e.local_frame / f64::from(scene.fps)) as f32,
                                     e.local_frame as f32,
                                     0.,
                                     e.seed as f32,

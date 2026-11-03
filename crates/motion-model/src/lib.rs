@@ -97,6 +97,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    FrameRate(#[from] RateError),
     #[error("layer time object={object} phase={phase}: {source}")]
     LayerTimeObject { object: u64, phase: &'static str, #[source] source: Box<Error> },
     #[error("layer time phase={phase}: {source}")]

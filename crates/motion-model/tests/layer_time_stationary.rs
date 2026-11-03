@@ -25,10 +25,10 @@ fn zero_speed_reverse_ease_keeps_the_last_native_sample_instead_of_becoming_a_fr
         assert_eq!(sample.frame, 24.);
         assert_eq!(sample.rate, 0.);
         assert_eq!(
-            sample.video_time_us(&VideoClip::new(1), 24).unwrap(),
+            sample.video_time_us(&VideoClip::new(1), motion_model::FrameRate::integer(24).unwrap()).unwrap(),
             999_999
         );
-        assert_eq!(sample.pcm_position(24, 48_000, 0).unwrap(), Some(47_999.));
+        assert_eq!(sample.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap(), Some(47_999.));
         assert!(sample.in_interval(0., 24.));
     }
 }
@@ -42,10 +42,10 @@ fn a_real_freeze_retains_its_exact_point_and_silence_through_later_clocks() {
         .unwrap();
     assert_eq!(sample.rate, 0.);
     assert_eq!(
-        sample.video_time_us(&VideoClip::new(1), 24).unwrap(),
+        sample.video_time_us(&VideoClip::new(1), motion_model::FrameRate::integer(24).unwrap()).unwrap(),
         1_000_000
     );
-    assert_eq!(sample.pcm_position(24, 48_000, 0).unwrap(), None);
+    assert_eq!(sample.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap(), None);
     assert!(!sample.in_interval(0., 24.));
     let child = TimeRemap::new(vec![
         key(
@@ -64,7 +64,7 @@ fn a_real_freeze_retains_its_exact_point_and_silence_through_later_clocks() {
         .through(LayerClock::default(), 0, Some(&child))
         .unwrap();
     assert_eq!(held.frame, 11.);
-    assert_eq!(held.pcm_position(24, 48_000, 0).unwrap(), None);
+    assert_eq!(held.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap(), None);
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn a_stationary_parent_enters_the_left_hold_interval_without_losing_its_directio
         .unwrap();
     assert_eq!(sample.frame, 3.);
     assert_eq!(sample.rate, 0.);
-    assert_eq!(sample.pcm_position(24, 48_000, 0).unwrap(), None);
+    assert_eq!(sample.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap(), None);
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn stationary_endpoints_keep_their_side_through_fps_conversion_and_two_reversals
             .unwrap();
         assert_eq!(sample.frame, 0.);
         assert_eq!(sample.rate, 0.);
-        assert_eq!(sample.pcm_position(24, 48_000, 0).unwrap(), Some(0.));
+        assert_eq!(sample.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap(), Some(0.));
         assert!(sample.in_interval(0., 24.));
     }
     let sample = SourceTimeSample::new(0., 1.)
@@ -133,18 +133,18 @@ fn stationary_endpoints_keep_their_side_through_fps_conversion_and_two_reversals
         )
         .unwrap();
     let child = sample
-        .through_composition(&CompositionClip::new("child".into()), 24, 48)
+        .through_composition(&CompositionClip::new("child".into()), motion_model::FrameRate::integer(24).unwrap(), motion_model::FrameRate::integer(48).unwrap())
         .unwrap();
     assert_eq!(child.frame, 48.);
     assert_eq!(child.rate, 0.);
     assert_eq!(
-        child.video_time_us(&VideoClip::new(1), 48).unwrap(),
+        child.video_time_us(&VideoClip::new(1), motion_model::FrameRate::integer(48).unwrap()).unwrap(),
         999_999
     );
     let reverse = LayerClock::new(TimeStretch::default(), TimeDirection::Reverse, 0., 48.).unwrap();
     let forward = child.through(reverse, 0, None).unwrap();
     assert_eq!(forward.frame, 0.);
-    assert_eq!(forward.pcm_position(48, 48_000, 0).unwrap(), Some(0.));
+    assert_eq!(forward.pcm_position(motion_model::FrameRate::integer(48).unwrap(), 48_000, 0).unwrap(), Some(0.));
     assert!(forward.in_interval(0., 48.));
     let backward = forward.through(reverse, 0, None).unwrap();
     assert_eq!(backward, child);
@@ -234,14 +234,14 @@ fn bezier_and_elastic_stationary_points_keep_their_analytic_one_sided_traversal(
                 .through(LayerClock::default(), 0, Some(&remap))
                 .unwrap();
             assert_eq!(sample.frame.to_bits(), expected_frame.to_bits());
-            let raw = VideoClip::new(1).source_time_us(expected_frame, 24);
+            let raw = VideoClip::new(1).source_time_us(expected_frame, motion_model::FrameRate::integer(24).unwrap()).unwrap();
             assert_eq!(
-                sample.video_time_us(&VideoClip::new(1), 24).unwrap(),
+                sample.video_time_us(&VideoClip::new(1), motion_model::FrameRate::integer(24).unwrap()).unwrap(),
                 raw - i64::from(direction < 0),
                 "{curve:?} incoming={incoming_rate}"
             );
             assert!(
-                sample.pcm_position(24, 48_000, 0).unwrap().is_some(),
+                sample.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap().is_some(),
                 "moving stationary point"
             );
             assert_eq!(

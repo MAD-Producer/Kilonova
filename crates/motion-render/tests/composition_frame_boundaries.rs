@@ -13,7 +13,7 @@ fn fixture() -> Project {
         name: "Child".into(),
         width: 64,
         height: 64,
-        fps: 60,
+        fps: motion_core::FrameRate::integer(60).unwrap(),
         frames: 240,
         work_area: motion_core::WorkArea::full(240),
         guides: Vec::new(),
@@ -47,9 +47,9 @@ fn sampling_and_prefetch_propagate_rate_errors_and_recover_after_correction() {
         let mut project = fixture();
         let mut scene = Scene::new(&project).unwrap();
         if parent_invalid {
-            project.fps = 0;
+            project.fps = motion_core::FrameRate::new(1, 2).unwrap();
         } else {
-            project.compositions[0].fps = 0;
+            project.compositions[0].fps = motion_core::FrameRate::new(1, 2).unwrap();
         }
         check(
             scene
@@ -69,8 +69,8 @@ fn sampling_and_prefetch_propagate_rate_errors_and_recover_after_correction() {
             "image_prefetch",
             !parent_invalid,
         );
-        project.fps = 30;
-        project.compositions[0].fps = 60;
+        project.fps = motion_core::FrameRate::integer(30).unwrap();
+        project.compositions[0].fps = motion_core::FrameRate::integer(60).unwrap();
         scene
             .sample(&project, 5., None, &motion_core::ExpressionEvaluator)
             .unwrap();

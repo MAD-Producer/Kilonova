@@ -350,7 +350,7 @@ fn authored_child_shutter_outside_its_whole_exposure_is_transparent_and_unused_c
         name: "independent shutter".into(),
         width: 32,
         height: 32,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 60,
         work_area: motion_core::WorkArea::full(60),
         guides: Vec::new(),

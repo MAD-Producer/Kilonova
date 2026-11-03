@@ -264,7 +264,10 @@ impl AudioOutput {
         {
             return Err("audio start outside composition".into());
         }
-        let start_sample = (start_frame * 48_000.0 / f64::from(project.fps)).floor() as u64;
+        let start_sample = u64::try_from(project.fps.ticks_at_fractional_frame(
+            start_frame, 48_000, motion_core::ClockRounding::Floor,
+        ).map_err(|error| format!("audio preview start boundary: {error}"))?)
+            .map_err(|error| format!("audio preview start boundary: {error}"))?;
         let samples = range.sample_bounds(project.fps, 48_000).map_err(|error| error.to_string())?;
         let range_start = samples.start;
         let total_samples = samples.end;
@@ -353,7 +356,7 @@ impl AudioOutput {
 
     /// Use this for the video playhead. It follows PCM submitted to the device,
     /// compensates output latency and freezes when the producer underruns.
-    pub fn frame(&self, fps: u32) -> f64 {
+    pub fn frame(&self, fps: motion_core::FrameRate) -> f64 {
         self.shared.check_callback_at(self.shared.now_ns());
         let device_frames = self
             .shared
@@ -374,7 +377,7 @@ impl AudioOutput {
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
         crate::fallback_observation::recovered(&self.shared.error, &FAILURES, "audio.error.read", |value| value.clone())
     }
-    pub fn finished(&self, frame: f64, fps: u32) -> bool {
+    pub fn finished(&self, frame: f64, fps: motion_core::FrameRate) -> bool {
         !self.looping && frame >= (self.total_samples.saturating_sub(1)) as f64 * f64::from(fps) / 48_000.
     }
     pub fn underruns(&self) -> u64 {
@@ -769,7 +772,7 @@ mod tests {
         shared.check_callback_at(CALLBACK_TIMEOUT_NS + 100);
         assert!(shared.stop.load(Ordering::Acquire));
         assert!(output.error().unwrap().contains("no device callback"));
-        assert_eq!(output.frame(30), 0.6);
+        assert_eq!(output.frame(motion_core::FrameRate::integer(30).unwrap()), 0.6);
         // Callback silence/late recovery cannot restart a failed output.
         let mut consumed = 960;
         let mut pcm = [1.0f32; 2];
@@ -887,7 +890,7 @@ mod tests {
         render_callback(&shared, &mut pcm, 2, &mut consumed, 1, 0);
         assert_eq!(consumed, 0);
         assert_eq!(pcm, [0.0, 0.0]);
-        assert_eq!(output.frame(30), 0.6);
+        assert_eq!(output.frame(motion_core::FrameRate::integer(30).unwrap()), 0.6);
     }
 
     #[test]
@@ -1037,11 +1040,11 @@ mod tests {
         let project = Project::new(64, 64, 30, 15).unwrap();
         let mut output = AudioOutput::start(project, root.path(), 0.0).unwrap();
         std::thread::sleep(Duration::from_millis(180));
-        let first = output.frame(30);
+        let first = output.frame(motion_core::FrameRate::integer(30).unwrap());
         assert!(first > 1.0 && first < 7.0, "real device clock={first}");
         std::thread::sleep(Duration::from_millis(500));
         assert!(
-            output.frame(30) >= 14.9,
+            output.frame(motion_core::FrameRate::integer(30).unwrap()) >= 14.9,
             "device clock must reach the last sample"
         );
         assert!(

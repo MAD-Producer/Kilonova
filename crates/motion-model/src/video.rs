@@ -119,17 +119,20 @@ impl VideoClip {
         }
         clip
     }
-    pub fn source_time_us(&self, local_frame: f64, fps: u32) -> i64 {
-        self.source_offset_us as i64 + (local_frame * 1_000_000.0 / f64::from(fps)).round() as i64
+    pub fn source_time_us(&self, local_frame: f64, fps: crate::FrameRate) -> Result<i64> {
+        let offset = i64::try_from(self.source_offset_us).map_err(|_| crate::RateError::NumericRange)?;
+        let relative = fps.ticks_at_fractional_frame(local_frame, 1_000_000,
+            crate::ClockRounding::NearestTiesAwayFromZero)?;
+        Ok(offset.checked_add(relative).ok_or(crate::RateError::NumericRange)?)
     }
     /// Decoder time for the picture; audio continues to use source_time_us.
-    pub fn picture_time_us(&self, local_frame: f64, fps: u32, asset: &VideoAsset) -> i64 {
-        let time = self.source_time_us(local_frame, fps);
-        if self.hold_first_frame && time >= 0 && time < asset.video_start_us as i64 {
+    pub fn picture_time_us(&self, local_frame: f64, fps: crate::FrameRate, asset: &VideoAsset) -> Result<i64> {
+        let time = self.source_time_us(local_frame, fps)?;
+        Ok(if self.hold_first_frame && time >= 0 && time < asset.video_start_us as i64 {
             asset.video_start_us as i64
         } else {
             time
-        }
+        })
     }
     pub fn validate(&self) -> Result<()> {
         ensure(

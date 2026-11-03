@@ -60,7 +60,7 @@ fn silence(encoder: &mut crate::encode::Mp4Encoder, frames: u32) {
 }
 
 fn encode(path: &Path, pixels: &[Vec<u8>]) {
-    let mut encoder = crate::encode::Mp4Encoder::new(path, 32, 32, 30).unwrap();
+    let mut encoder = crate::encode::Mp4Encoder::new(path, 32, 32, motion_core::FrameRate::integer(30).unwrap()).unwrap();
     for (index, frame) in pixels.iter().enumerate() {
         encoder.video_frame(frame, index as u32).unwrap();
     }

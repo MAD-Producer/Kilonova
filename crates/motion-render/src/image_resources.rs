@@ -49,7 +49,7 @@ pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> motion_mo
         document: &motion_model::Project,
         layers: &[motion_model::Layer],
         composition: &str,
-        fps: u32,
+        fps: motion_model::FrameRate,
         frames: u32,
         begin: f64,
         end: f64,
@@ -109,7 +109,7 @@ pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> motion_mo
     if !frame.is_finite() || frame < 0. {
         return Ok(vec![]);
     }
-    if project.fps == 0 {
+    if !project.fps.is_between(1, motion_model::MAX_COMPOSITION_FPS) {
         return motion_model::composition::fail(
             &project.composition_id,
             "invalid_frame_rate",

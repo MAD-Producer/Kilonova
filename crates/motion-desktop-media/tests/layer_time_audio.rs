@@ -142,7 +142,7 @@ fn frozen_movie_remapped_aac_equals_flat_authored_pcm_after_live_edits() {
                 name: "Reversed child".into(),
                 width: 32,
                 height: 32,
-                fps: 10,
+                fps: motion_core::FrameRate::integer(10).unwrap(),
                 frames: 2,
                 work_area: mapped.work_area,
                 guides: vec![],
@@ -152,7 +152,7 @@ fn frozen_movie_remapped_aac_equals_flat_authored_pcm_after_live_edits() {
                 expressions: vec![],
             };
             mapped.compositions.push(child);
-            mapped.fps = 5;
+            mapped.fps = motion_core::FrameRate::integer(5).unwrap();
             mapped.frames = 1;
             mapped.work_area = motion_core::WorkArea::full(1);
             let mut reference =

@@ -165,7 +165,7 @@ fn usages_include_unreachable_compositions_and_disabled_layers() {
         name: "child".into(),
         width: 64,
         height: 64,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 60,
         work_area: project.work_area,
         guides: Vec::new(),

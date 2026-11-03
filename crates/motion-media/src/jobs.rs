@@ -590,8 +590,10 @@ impl AudioJobs {
                 .unwrap_or(0)
                 .checked_add(1)
                 .ok_or("object ID space exhausted")? };
-            let source_frames = (prepared.asset.sample_frames * u64::from(p.fps))
-                .div_ceil(u64::from(prepared.asset.sample_rate));
+            let source_samples = i64::try_from(prepared.asset.sample_frames)
+                .map_err(|_| motion_model::RateError::NumericRange)?;
+            let source_frames = p.fps.frame_at_tick(source_samples,
+                prepared.asset.sample_rate, motion_model::ClockRounding::Ceil)? as u64;
             let in_frame = prepared.options.at_frame;
             let out_frame = (u64::from(in_frame) + source_frames).min(u64::from(p.frames)) as u32;
             let mut layer =

@@ -483,7 +483,7 @@ fn queued_source_is_bound_before_composition_switch_and_never_replaces_the_cache
                     name: "Other composition".into(),
                     width: 64,
                     height: 64,
-                    fps: 30,
+                    fps: motion_core::FrameRate::integer(30).unwrap(),
                     frames: 12000,
                     timing: "preserve_frames".into(),
                     shorten: "reject".into(),

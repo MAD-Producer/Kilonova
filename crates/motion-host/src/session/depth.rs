@@ -9,6 +9,8 @@ use motion_core::{Asset, Content, Layer, Project, VideoAsset};
 use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime, PreparedDepthInput};
 use std::{path::PathBuf, sync::Arc};
 mod retained;
+#[cfg(test)]
+mod clock_tests;
 
 pub(super) struct State {
     jobs: Jobs,
@@ -35,7 +37,7 @@ enum Source {
     Image(Asset),
     Video { asset: VideoAsset, object: u64 },
 }
-fn video_target(project: &Project, layer: &Layer, asset: &VideoAsset, frame: f64) -> Option<u64> {
+fn video_target(project: &Project, layer: &Layer, asset: &VideoAsset, frame: f64) -> Result<Option<u64>> {
     let clip = layer.clip(project.frames);
     // Original sources may be inspected while hidden, but empty clip intervals
     // remain normal misses. A clip may explicitly hold its first picture inside
@@ -46,14 +48,17 @@ fn video_target(project: &Project, layer: &Layer, asset: &VideoAsset, frame: f64
         || frame < f64::from(clip.in_frame)
         || frame >= f64::from(clip.out_frame)
     {
-        return None;
+        return Ok(None);
     }
     let Content::Video { video } = &layer.content else {
-        return None;
+        return Ok(None);
     };
-    let time = video.picture_time_us(layer.local_frame(frame), project.fps, asset);
-    let time = u64::try_from(time).ok()?;
-    (time >= asset.video_start_us && time < asset.video_end_us).then_some(time)
+    let time = video.picture_time_us(layer.local_frame(frame), project.fps, asset)
+        .map_err(|cause| crate::Error::with_context(
+            format!("depth video clock object={} asset={} frame={frame} phase=source_time", layer.id, asset.id), cause))?;
+    // A valid signed source time before the visible interval is a normal miss.
+    let Ok(time) = u64::try_from(time) else { return Ok(None); };
+    Ok((time >= asset.video_start_us && time < asset.video_end_us).then_some(time))
 }
 impl Source {
     fn registered(&self, project: &Project, key: &Identity) -> bool {
@@ -67,25 +72,25 @@ impl Source {
             _ => false,
         }
     }
-    fn current(&self, session: &Session, key: &Identity) -> bool {
+    fn current(&self, session: &Session, key: &Identity) -> Result<bool> {
         self.current_project(session.engine.project(), session.frame, key)
     }
-    fn current_project(&self, project: &Project, frame: f64, key: &Identity) -> bool {
-        match (self, key) {
+    fn current_project(&self, project: &Project, frame: f64, key: &Identity) -> Result<bool> {
+        Ok(match (self, key) {
             (Self::Image(asset), Identity::Sample(_)) => project.assets.iter().any(|a| a == asset),
             (Self::Video { asset, object }, Identity::Video(key)) => {
                 let Some(layer) = project.layers.iter().find(|layer| layer.id == *object) else {
-                    return false;
+                    return Ok(false);
                 };
                 let Content::Video { video } = &layer.content else {
-                    return false;
+                    return Ok(false);
                 };
                 key.object == *object && video.asset == asset.id
                     && project.video_assets.iter().any(|a| a == asset)
-                    && video_target(project, layer, asset, frame) == Some(key.target_us)
+                    && video_target(project, layer, asset, frame)? == Some(key.target_us)
             }
             _ => false,
-        }
+        })
     }
 }
 
@@ -136,7 +141,7 @@ impl CalibrationSample {
             }
         };
         if composition != self.composition
-            || !self.source.current_project(project, self.frame, &self.key)
+            || !self.source.current_project(project, self.frame, &self.key)?
             || asset != calibration.asset()
             || matches!(self.source, Source::Video { object: source_object, .. } if source_object != object)
         {
@@ -147,24 +152,24 @@ impl CalibrationSample {
     }
 }
 impl Binding {
-    fn current(&self, session: &Session) -> bool {
-        if self.frame == session.frame && self.current_document(session) { return true; }
+    fn current(&self, session: &Session) -> Result<bool> {
+        if self.frame == session.frame && self.current_document(session)? { return Ok(true); }
         // Only an authored indexed track can prove that a changed timeline
         // coordinate still denotes the same source sample while work is pending.
         // Decoder staging independently verifies the actual PTS/end afterward.
-        if !self.document_matches(session) || !self.source.current_project(session.engine.project(), self.frame, &self.key) {
-            return false;
+        if !self.document_matches(session) || !self.source.current_project(session.engine.project(), self.frame, &self.key)? {
+            return Ok(false);
         }
-        let (Source::Video { asset, object }, Identity::Video(key)) = (&self.source, &self.key) else { return false; };
+        let (Source::Video { asset, object }, Identity::Video(key)) = (&self.source, &self.key) else { return Ok(false); };
         let project = session.engine.project();
-        let Some(layer) = project.layers.iter().find(|layer| layer.id == *object) else { return false; };
-        let Some(track) = &layer.video_depth_calibration else { return false; };
-        let Some(target) = video_target(project, layer, asset, session.frame) else { return false; };
-        match (track.at(key.target_us), track.at(target)) {
+        let Some(layer) = project.layers.iter().find(|layer| layer.id == *object) else { return Ok(false); };
+        let Some(track) = &layer.video_depth_calibration else { return Ok(false); };
+        let Some(target) = video_target(project, layer, asset, session.frame)? else { return Ok(false); };
+        Ok(match (track.at(key.target_us), track.at(target)) {
             (Some(old), Some(current)) => old == current && current.calibration().geometry() == &key.geometry
                 && current.calibration().model() == &key.model,
             _ => false,
-        }
+        })
     }
     fn document_matches(&self, session: &Session) -> bool {
         session.frame.is_finite()
@@ -174,31 +179,31 @@ impl Binding {
             && self.root == session.root
             && self.decoded_budget == session.effects.memory_policy().decoded_image_budget_bytes
     }
-    fn current_document(&self, session: &Session) -> bool {
-        self.document_matches(session) && self.source.current(session, &self.key)
+    fn current_document(&self, session: &Session) -> Result<bool> {
+        Ok(self.document_matches(session) && self.source.current(session, &self.key)?)
     }
     fn video_track(&self, session: &Session) -> bool {
         let Source::Video { object, .. } = &self.source else { return false; };
         session.engine.project().layers.iter().any(|layer| layer.id == *object && layer.video_depth_calibration.is_some())
     }
-    fn cache_current(&self, session: &Session, owns_original: bool, interval: Option<(u64, u64)>) -> bool {
+    fn cache_current(&self, session: &Session, owns_original: bool, interval: Option<(u64, u64)>) -> Result<bool> {
         if self.video_track(session) {
-            owns_original && interval.is_some() && self.document_matches(session)
-                && self.source.registered(session.engine.project(), &self.key)
+            Ok(owns_original && interval.is_some() && self.document_matches(session)
+                && self.source.registered(session.engine.project(), &self.key))
         } else { self.retained_current(session, owns_original) }
     }
-    fn ready(&self, session: &Session, owns_original: bool, interval: Option<(u64, u64)>) -> bool {
+    fn ready(&self, session: &Session, owns_original: bool, interval: Option<(u64, u64)>) -> Result<bool> {
         if !self.video_track(session) { return self.retained_current(session, owns_original); }
-        if !self.cache_current(session, owns_original, interval) { return false; }
-        let Source::Video { asset, object } = &self.source else { return false; };
-        let Some(layer) = session.engine.project().layers.iter().find(|layer| layer.id == *object) else { return false; };
-        let Some(target) = video_target(session.engine.project(), layer, asset, session.frame) else { return false; };
-        interval.is_some_and(|(start, end)| target >= start && target < end)
+        if !self.cache_current(session, owns_original, interval)? { return Ok(false); }
+        let Source::Video { asset, object } = &self.source else { return Ok(false); };
+        let Some(layer) = session.engine.project().layers.iter().find(|layer| layer.id == *object) else { return Ok(false); };
+        let Some(target) = video_target(session.engine.project(), layer, asset, session.frame)? else { return Ok(false); };
+        Ok(interval.is_some_and(|(start, end)| target >= start && target < end))
     }
-    fn retained_current(&self, session: &Session, owns_original: bool) -> bool {
-        self.current_document(session)
+    fn retained_current(&self, session: &Session, owns_original: bool) -> Result<bool> {
+        Ok(self.current_document(session)?
             && (self.frame == session.frame
-                || (owns_original && matches!(self.source, Source::Image(_))))
+                || (owns_original && matches!(self.source, Source::Image(_)))))
     }
 }
 impl Session {
@@ -234,12 +239,20 @@ impl Session {
                                 }
                             }
                         }
-                        let entry = self.depth.as_ref().and_then(|state| state.retained.entries.iter().find(|entry| {
-                            matches!(&entry.binding.source, Source::Video { object, .. } if *object == layer.id)
-                                && entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval())
-                                && entry.video_interval() == Some((authored.start_us(), authored.end_us()))
-                                && authored.calibration().rebind(&entry.estimate.resource, entry.input).is_ok()
-                        })).ok_or_else(|| crate::Error::from(format!(
+                        let mut found = None;
+                        if let Some(state) = &self.depth {
+                            for entry in &state.retained.entries {
+                                if matches!(&entry.binding.source, Source::Video { object, .. } if *object == layer.id)
+                                    && entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval())?
+                                    && entry.video_interval() == Some((authored.start_us(), authored.end_us()))
+                                    && authored.calibration().rebind(&entry.estimate.resource, entry.input).is_ok()
+                                {
+                                    found = Some(entry);
+                                    break;
+                                }
+                            }
+                        }
+                        let entry = found.ok_or_else(|| crate::Error::from(format!(
                             "frozen indexed video depth export object={} pts_us={} phase=capture: admitted video sample pending or absent", layer.id, authored.start_us())))?;
                         let Source::Video { asset, .. } = &entry.binding.source else {
                             return Err("frozen depth video admission has no registered source".into());
@@ -414,10 +427,12 @@ impl Session {
                 let indexed_video = self.engine.project().layers.iter()
                     .any(|layer| layer.id == source_object && layer.video_depth_calibration.is_some());
                 if indexed_video {
-                    let already_requested = self.depth.as_ref().and_then(|state| state.binding.as_ref())
-                        .is_some_and(|binding| binding.current(self) && matches!(&binding.key,
+                    let already_requested = match self.depth.as_ref().and_then(|state| state.binding.as_ref()) {
+                        Some(binding) => binding.current(self)? && matches!(&binding.key,
                             Identity::Video(key) if key.object == source_object
-                                && &key.geometry == calibration.geometry() && &key.model == calibration.model()));
+                                && &key.geometry == calibration.geometry() && &key.model == calibration.model()),
+                        None => false,
+                    };
                     if !already_requested {
                         self.request_video_depth(source_object, calibration.geometry().clone(), calibration.model().clone())?;
                     }
@@ -460,7 +475,7 @@ impl Session {
         };
         let mut rejected = None;
         for entry in &state.retained.entries {
-            if !entry.binding.ready(self, entry.image.is_some(), entry.video_interval())
+            if !entry.binding.ready(self, entry.image.is_some(), entry.video_interval())?
                 || entry.estimate.resource.descriptor().source.asset != calibration.asset()
                 || matches!(entry.binding.source, Source::Video { object: source_object, .. } if source_object != object)
             {
@@ -504,7 +519,7 @@ impl Session {
             let Content::Video { video } = &layer.content else { return Err("video depth source is not video".into()); };
             let asset = self.engine.project().video_assets.iter().find(|asset| asset.id == video.asset)
                 .ok_or("video depth asset is missing")?;
-            let Some(target) = video_target(self.engine.project(), layer, asset, self.frame) else { return Ok(None); };
+            let Some(target) = video_target(self.engine.project(), layer, asset, self.frame)? else { return Ok(None); };
             Some(track.at(target).ok_or("video depth calibration has no indexed sample at this source time")?.calibration())
         } else { layer.depth_calibration.as_ref() };
         let Some(calibration) = selected else {
@@ -659,7 +674,7 @@ impl Session {
                 "registered depth video asset not found",
             ))?
             .clone();
-        let Some(target_us) = video_target(project, layer, &asset, self.frame) else {
+        let Some(target_us) = video_target(project, layer, &asset, self.frame)? else {
             self.cancel_depth()?;
             return Ok(None);
         };
@@ -750,9 +765,16 @@ impl Session {
         // Pinning is an admission cost, never an allocation on every healthy
         // render poll. The worker result owns the incoming immutable payload.
         let timeline = binding.video_track(self);
-        let pinned: Vec<_> = if timeline { self.depth.as_ref().map(|state| state.retained.entries.iter()
-            .filter(|entry| entry.binding.ready(self, entry.image.is_some(), entry.video_interval()))
-            .map(|entry| entry.binding.key.clone()).collect()).unwrap_or_default() } else { Vec::new() };
+        let mut pinned = Vec::new();
+        if timeline {
+            if let Some(state) = &self.depth {
+                for entry in &state.retained.entries {
+                    if entry.binding.ready(self, entry.image.is_some(), entry.video_interval())? {
+                        pinned.push(entry.binding.key.clone());
+                    }
+                }
+            }
+        }
         let state = self.depth.as_mut().ok_or(depth::Error::Invalid("depth owner disappeared during admission"))?;
         let (estimate, input, image, video_end_us) = estimate.into_owned_parts();
         let estimate = Arc::new(estimate);
@@ -825,12 +847,24 @@ impl Session {
         // immutable source sample is independent of the composition clock.
         // Pending tickets remain frame-bound except within an explicitly saved
         // indexed video interval. Different source intervals are canceled.
-        state.retained.retain(|entry| entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval()));
-        let result = if state.binding.as_ref().is_some_and(|binding| !binding.current(self)) {
-            state.binding = None;
-            state.installed = None;
-            state.jobs.cancel().map_err(crate::Error::from)
-        } else { Ok(()) };
+        let result = (|| -> Result<()> {
+            // Validate all fallible clock guards before evicting any admission.
+            let decisions = state.retained.entries.iter().map(|entry|
+                entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval()))
+                .collect::<Result<Vec<_>>>()?;
+            let current = match &state.binding {
+                Some(binding) => binding.current(self)?,
+                None => true,
+            };
+            let mut decisions = decisions.into_iter();
+            state.retained.retain(|_| decisions.next().unwrap_or(false));
+            if !current {
+                state.binding = None;
+                state.installed = None;
+                state.jobs.cancel()?;
+            }
+            Ok(())
+        })();
         // Restore ownership even if worker cancellation reports a poisoned lock.
         self.depth = Some(state);
         result

@@ -7,7 +7,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const ANIMATION_PRESET_VERSION: u32 = 1;
+pub const ANIMATION_PRESET_VERSION: u32 = 2;
 pub const MAX_ANIMATION_PRESET_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ pub struct AnimationPreset {
     pub version: u32,
     pub name: String,
     pub category: String,
-    pub source_fps: u32,
+    pub source_fps: crate::FrameRate,
     pub source_size: [f32; 2],
     pub properties: Vec<PresetProperty>,
     pub effects: Vec<EffectInstance>,
@@ -266,7 +266,7 @@ impl AnimationPreset {
             )?;
         }
         ensure(
-            (1..=crate::MAX_COMPOSITION_FPS).contains(&self.source_fps),
+            self.source_fps.is_between(1, crate::MAX_COMPOSITION_FPS),
             "invalid preset fps",
         )?;
         ensure(
@@ -327,7 +327,7 @@ impl AnimationPreset {
             "preset resource declaration does not match its effects",
         )?;
         layer.effects = self.effects.clone();
-        let mut project = Project::new(16, 16, self.source_fps, crate::MAX_FRAMES)?;
+        let mut project = Project::new_with_frame_rate(16, 16, self.source_fps, crate::MAX_FRAMES)?;
         project.layers.push(layer);
         project.assets = self.assets.clone();
         project.rebuild_plugin_dependencies();
@@ -442,11 +442,11 @@ impl AnimationPreset {
             let offset = layer.timeline.map_or(0, |t| t.offset_frame);
             let mut preset = self.clone();
             preset.times(&mut |frame| {
-                let relative =
-                    (f64::from(frame) * f64::from(fps) / f64::from(self.source_fps)).round();
-                let local = relative + f64::from(at_frame) - f64::from(offset);
+                let relative = self.source_fps.rescale_frame(i64::from(frame), fps,
+                    crate::ClockRounding::NearestTiesAwayFromZero)?;
+                let local = relative + i64::from(at_frame) - i64::from(offset);
                 ensure(
-                    local >= f64::from(i32::MIN) && local <= f64::from(i32::MAX),
+                    local >= i64::from(i32::MIN) && local <= i64::from(i32::MAX),
                     "preset target time overflow",
                 )?;
                 Ok(local as i32)

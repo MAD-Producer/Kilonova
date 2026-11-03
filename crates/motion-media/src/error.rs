@@ -153,6 +153,12 @@ source_conversion!(image::ImageError, Image);
 source_conversion!(motion_model::Error, Model);
 source_conversion!(std::time::SystemTimeError, Clock);
 
+impl From<motion_model::RateError> for Error {
+    fn from(error: motion_model::RateError) -> Self {
+        Self::from(motion_model::Error::from(error))
+    }
+}
+
 impl From<symphonia::core::errors::Error> for Error {
     fn from(error: symphonia::core::errors::Error) -> Self {
         Self::symphonia("probe", error)

@@ -48,7 +48,7 @@ fn upcoming_clips_map_nested_time_without_sampling_or_loading_media() {
         name: "child".into(),
         width: 64,
         height: 64,
-        fps: 60,
+        fps: motion_core::FrameRate::integer(60).unwrap(),
         frames: 90,
         work_area: motion_core::WorkArea::full(90),
         guides: Vec::new(),

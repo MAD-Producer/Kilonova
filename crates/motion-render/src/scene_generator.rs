@@ -223,7 +223,7 @@ fn generate_inner(
     scratch: &mut GeneratorScratch,
 ) -> Result<GeneratorStats, RenderError> {
     validate_settings(e, kind)?;
-    if scene.fps == 0 {
+    if !scene.fps.is_between(1, motion_model::MAX_COMPOSITION_FPS) {
         return Err("generator frame rate must be positive".into());
     }
     if kind == RendererKind::ParticleEmitter {
@@ -250,7 +250,7 @@ fn generate_inner(
         if rate == 0. {
             return Ok(stats);
         }
-        let t = e.local_frame / scene.fps as f64;
+        let t = e.local_frame / f64::from(scene.fps);
         if t < 0. {
             return Ok(stats);
         }

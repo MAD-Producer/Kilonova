@@ -31,7 +31,7 @@ pub struct Mp4Encoder {
 }
 
 impl Mp4Encoder {
-    pub fn new(path: &Path, width: u32, height: u32, fps: u32) -> Result<Self> {
+    pub fn new(path: &Path, width: u32, height: u32, fps: motion_core::FrameRate) -> Result<Self> {
         av::init().map_err(|e| e.to_string())?;
         if width == 0
             || height == 0
@@ -39,7 +39,7 @@ impl Mp4Encoder {
             || height > motion_core::MAX_VIDEO_DIMENSION
             || width % 2 != 0
             || height % 2 != 0
-            || !(1..=240).contains(&fps)
+            || !fps.is_between(1, 240)
         {
             return Err(format!(
                 "H.264 export requires positive even dimensions up to {} and 1–240 fps",
@@ -60,7 +60,10 @@ impl Mp4Encoder {
             .format()
             .flags()
             .contains(format::Flags::GLOBAL_HEADER);
-        let video_base = Rational(1, fps as i32);
+        // The codec clock is one exact composition frame, including NTSC rates.
+        let [numerator, denominator] = fps.ratio();
+        let video_base = Rational(denominator as i32, numerator as i32);
+        let frame_rate = Rational(numerator as i32, denominator as i32);
         let audio_base = Rational(1, crate::av::OUTPUT_SAMPLE_RATE as i32);
         let mut video = codec::context::Context::new_with_codec(video_codec)
             .encoder()
@@ -74,13 +77,10 @@ impl Mp4Encoder {
         video.set_color_primaries(color::Primaries::BT709);
         video.set_color_transfer_characteristic(color::TransferCharacteristic::IEC61966_2_1);
         video.set_time_base(video_base);
-        video.set_frame_rate(Some(Rational(fps as i32, 1)));
+        video.set_frame_rate(Some(frame_rate));
         video.set_aspect_ratio(Rational(1, 1));
-        video.set_bit_rate(
-            (u64::from(width) * u64::from(height) * u64::from(fps) / 8).clamp(2_000_000, 20_000_000)
-                as usize,
-        );
-        video.set_gop(fps * 2);
+        video.set_bit_rate(crate::av::EncoderSettings { width, height, fps }.bitrate() as usize);
+        video.set_gop((numerator * 2).div_ceil(denominator));
         video.set_max_b_frames(0);
         if global_header {
             video.set_flags(codec::Flags::GLOBAL_HEADER);
@@ -91,7 +91,7 @@ impl Mp4Encoder {
         {
             let mut stream = output.add_stream(video_codec).map_err(|e| e.to_string())?;
             stream.set_time_base(video_base);
-            stream.set_rate(Rational(fps as i32, 1));
+            stream.set_rate(frame_rate);
             stream.set_parameters(&video);
         }
         let mut audio = codec::context::Context::new_with_codec(audio_codec)
@@ -116,6 +116,10 @@ impl Mp4Encoder {
         }
         let mut options = Dictionary::new();
         options.set("movflags", "+faststart");
+        // MP4 edit-list durations use the movie clock. The default 1 kHz
+        // clock truncates even an integer-rate mix by up to 47 PCM samples.
+        // Keep audio endpoints exact; video packets retain their native clock.
+        options.set("movie_timescale", "48000");
         output
             .write_header_with(options)
             .map_err(|e| format!("write MP4 header: {e}"))?;

@@ -110,7 +110,7 @@ fn active_images_share_proxies_with_nested_instances_and_full_output_is_explicit
         name: "comp-child".into(),
         width: 64,
         height: 64,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 30,
         work_area: motion_core::WorkArea::full(30),
         guides: Vec::new(),

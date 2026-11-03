@@ -67,7 +67,7 @@ fn settings_and_mixed_fps_source_offsets_use_the_main_composition_range() {
     let result = edit(
         &mut e,
         MAIN_COMPOSITION,
-        json!({"kind":"create","settings":{"name":"144 fps","width":64,"height":64,"fps":144,"frames":144}}),
+        json!({"kind":"create","settings":{"name":"144 fps","width":64,"height":64,"fps":{"numerator":144,"denominator":1},"frames":144,"timing":"preserve_frames"}}),
     );
     let EditResult::Composition { result } = &result[0] else {
         panic!()
@@ -92,7 +92,7 @@ fn settings_and_mixed_fps_source_offsets_use_the_main_composition_range() {
     edit(
         &mut e,
         &id,
-        json!({"kind":"settings","settings":{"name":"239 fps","width":64,"height":64,"fps":239,"frames":239,"timing":"preserve_seconds","shorten":"reject"}}),
+        json!({"kind":"settings","settings":{"name":"239 fps","width":64,"height":64,"fps":{"numerator":239,"denominator":1},"frames":239,"timing":"preserve_seconds","shorten":"reject"}}),
     );
-    assert_eq!(e.project().composition(&id).unwrap().fps, 239);
+    assert_eq!(e.project().composition(&id).unwrap().fps, motion_core::FrameRate::integer(239).unwrap());
 }

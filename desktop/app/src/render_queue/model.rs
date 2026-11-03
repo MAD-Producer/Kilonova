@@ -6,7 +6,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-pub(crate) const VERSION: u32 = 1;
+pub(crate) const VERSION: u32 = 2;
 pub(crate) const MAX_JOBS: usize = 256;
 pub(crate) const MAX_TEMPLATES: usize = 32;
 
@@ -208,7 +208,7 @@ impl Document {
         for job in &self.jobs {
             job.template.validate()?;
             let s = &job.source;
-            motion_core::Project::new(s.width, s.height, s.fps, s.frames)
+            motion_core::Project::new_with_frame_rate(s.width, s.height, s.fps, s.frames)
                 .map_err(|e| e.to_string())?
                 .validate()
                 .map_err(|e| e.to_string())?;

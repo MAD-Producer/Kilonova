@@ -1,5 +1,5 @@
 //! One frame-range policy for the desktop clock and the audio producer.
-use motion_core::{FrameScope, Project, WorkArea};
+use motion_core::{FrameRate, FrameScope, Project, WorkArea};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -50,7 +50,7 @@ impl Default for Options {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Plan {
     pub range: WorkArea,
-    pub fps: u32,
+    pub fps: FrameRate,
     pub origin: f64,
     pub looping: bool,
     pub step: u32,
@@ -61,7 +61,7 @@ impl Plan {
         if !current.is_finite() {
             return Err("preview start must be finite".into());
         }
-        if !(1..=motion_core::MAX_COMPOSITION_FPS).contains(&project.fps) {
+        if !project.fps.is_between(1, motion_core::MAX_COMPOSITION_FPS) {
             return Err("invalid preview frame rate".into());
         }
         let range = project.frame_range(options.scope);

@@ -147,7 +147,7 @@ fn failed_batch_keeps_every_target_history_and_revision_unchanged() {
 #[test]
 fn fps_collision_is_an_error_instead_of_discarding_keys() {
     let mut p = source();
-    p.fps = 240;
+    p.fps = motion_core::FrameRate::integer(240).unwrap();
     p.layers[0].transform.position.keys = vec![key(0, [0.; 3]), key(1, [1.; 3])];
     let mut e = target(24);
     let before = e.snapshot();

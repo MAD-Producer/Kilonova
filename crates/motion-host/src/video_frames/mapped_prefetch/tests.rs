@@ -124,7 +124,7 @@ fn nested_double_reverse_retains_source_start_fps_and_instance_identity() {
         name: "20 fps child".into(),
         width: 16,
         height: 16,
-        fps: 20,
+        fps: motion_core::FrameRate::integer(20).unwrap(),
         frames: 20,
         work_area: WorkArea::full(20),
         guides: vec![],

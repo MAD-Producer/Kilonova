@@ -107,10 +107,10 @@ fn delayed_picture_keeps_audio_and_shows_first_frame_without_shifting_the_clock(
     assert!(asset.audio_asset.is_some());
     assert!(video.hold_first_frame);
     assert_eq!(video.source_offset_us, 0);
-    assert_eq!(video.picture_time_us(0., project.fps, asset), 250_000);
-    assert_eq!(video.picture_time_us(15., project.fps, asset), 250_000);
-    assert_eq!(video.picture_time_us(30., project.fps, asset), 500_000);
-    assert_eq!(video.picture_time_us(-1., project.fps, asset), -16_667);
+    assert_eq!(video.picture_time_us(0., project.fps, asset).unwrap(), 250_000);
+    assert_eq!(video.picture_time_us(15., project.fps, asset).unwrap(), 250_000);
+    assert_eq!(video.picture_time_us(30., project.fps, asset).unwrap(), 500_000);
+    assert_eq!(video.picture_time_us(-1., project.fps, asset).unwrap(), -16_667);
     assert_eq!(layer.clip(project.frames).out_frame, 195);
     assert_eq!(project.layer_audio(layer).unwrap().source_offset_us, 0);
 
@@ -121,7 +121,9 @@ fn delayed_picture_keeps_audio_and_shows_first_frame_without_shifting_the_clock(
     audio_only.layers[0].content = Content::Audio { audio };
     audio_only.layers[0].size = [0.; 2];
     audio_only.layers[0].transform = motion_core::Transform::new([0.; 3]);
-    let audio_frames = (audio_only.audio_assets[0].duration_us * u64::from(audio_only.fps)).div_ceil(1_000_000);
+    // Retain the original independent integer-rate oracle for this fixture.
+    assert_eq!(audio_only.fps.ratio()[1], 1);
+    let audio_frames = (audio_only.audio_assets[0].duration_us * u64::from(audio_only.fps.ratio()[0])).div_ceil(1_000_000);
     audio_only.layers[0].timeline.as_mut().unwrap().out_frame = audio_frames.min(195) as i32;
     let mut actual = AudioMixer::new(project, root.path()).unwrap();
     let mut reference = AudioMixer::new(audio_only, root.path()).unwrap();
@@ -410,7 +412,7 @@ fn imported_clip_offsets_the_head_but_keeps_the_duration_derived_length() {
     jobs.release("visible-head").unwrap();
     {
         let p = engine.project();
-        assert_eq!(p.fps, 60);
+        assert_eq!(p.fps, motion_core::FrameRate::integer(60).unwrap());
         let layer = &p.layers[0];
         let Content::Video { video } = &layer.content else {
             panic!("import did not create a video layer");
@@ -419,7 +421,7 @@ fn imported_clip_offsets_the_head_but_keeps_the_duration_derived_length() {
         assert_eq!(clip.in_frame, 0);
         // Head: layer-local zero is the first visible sample, not source PTS zero.
         assert_eq!(video.source_offset_us, 250_000);
-        assert_eq!(video.source_time_us(layer.local_frame(0.0), p.fps), 250_000);
+        assert_eq!(video.source_time_us(layer.local_frame(0.0), p.fps).unwrap(), 250_000);
         // Length is duration-derived, not span-derived: 3.250 s of container
         // duration minus the 0.250 s offset is 3.000 s at 60 fps. A visible-span
         // length would be 2.750 s = 165 frames and would drop the audio padding
@@ -427,17 +429,18 @@ fn imported_clip_offsets_the_head_but_keeps_the_duration_derived_length() {
         assert_eq!(clip.out_frame - clip.in_frame, 180);
         // Project::validate bounds source_offset_us + length by duration_us, so the
         // clip stays inside the recoverable source: 250_000 + 179 frames.
-        let last = video.source_time_us(layer.local_frame(f64::from(clip.out_frame - 1)), p.fps);
+        let last = video.source_time_us(layer.local_frame(f64::from(clip.out_frame - 1)), p.fps).unwrap();
         assert_eq!(last, 3_233_333);
         assert!(last < 3_250_000, "clip exceeds duration_us: {last}");
         // The picture itself still ends at 3.000 s: the last frame inside
         // [video_start_us, video_end_us) is frame 164 (165 frames = 2.750 s). Frames
         // 165..180 cover only the audio padding and sample as the pre-existing
         // non-fatal "outside" state; that tail is a known follow-up, not fixed here.
-        let visible_frames = (2_750_000u64 * u64::from(p.fps)).div_ceil(1_000_000);
+        assert_eq!(p.fps.ratio()[1], 1);
+        let visible_frames = (2_750_000u64 * u64::from(p.fps.ratio()[0])).div_ceil(1_000_000);
         assert_eq!(visible_frames, 165);
         let last_visible =
-            video.source_time_us(layer.local_frame((visible_frames - 1) as f64), p.fps);
+            video.source_time_us(layer.local_frame((visible_frames - 1) as f64), p.fps).unwrap();
         assert!(
             (250_000..3_000_000).contains(&last_visible),
             "last visible sample {last_visible}"

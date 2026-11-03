@@ -186,10 +186,10 @@ pub fn place(session: &mut Session, target: AssetRef, at_frame: u32) -> motion_h
         ),
         MediaAsset::Video(asset) => {
             let video = motion_core::VideoClip::for_source(asset, asset.audio_asset.is_some());
-            let frames = asset.duration_us.saturating_sub(video.source_offset_us)
-                .checked_mul(u64::from(project.fps))
-                .ok_or("video duration exceeds frame range")?
-                .div_ceil(1_000_000);
+            let duration = i64::try_from(asset.duration_us.saturating_sub(video.source_offset_us))
+                .map_err(|_| motion_core::Error::from(motion_core::RateError::NumericRange))?;
+            let frames = project.fps.frame_at_tick(duration, 1_000_000,
+                motion_core::ClockRounding::Ceil).map_err(motion_core::Error::from)? as u64;
             ([asset.display_width as f32, asset.display_height as f32],
                 center, Content::Video { video }, frames)
         },
@@ -199,11 +199,11 @@ pub fn place(session: &mut Session, target: AssetRef, at_frame: u32) -> motion_h
             Content::Audio {
                 audio: motion_core::AudioClip::new(asset.id),
             },
-            asset
-                .sample_frames
-                .checked_mul(u64::from(project.fps))
-                .ok_or("audio duration exceeds frame range")?
-                .div_ceil(u64::from(asset.sample_rate)),
+            project.fps.frame_at_tick(
+                i64::try_from(asset.sample_frames)
+                    .map_err(|_| motion_core::Error::from(motion_core::RateError::NumericRange))?,
+                asset.sample_rate, motion_core::ClockRounding::Ceil,
+            ).map_err(motion_core::Error::from)? as u64,
         ),
     };
     let mut layer = Layer::solid(object, name, size, position, [1.; 4]);

@@ -49,6 +49,7 @@ fn unmapped_video_retains_exact_timestamp_rounding_and_leading_picture_policy() 
             layer.timeline.as_mut().unwrap().offset_frame = offset;
             let before = layer.clone();
             for fps in [1, 24, 30, 60, 240] {
+                let fps = motion_model::FrameRate::integer(fps).unwrap();
                 for frame in [-1., 0., 0.25, 3.125, 6., 23.999, 24., 60.] {
                     let local = frame - f64::from(offset);
                     let Content::Video { video } = &layer.content else {
@@ -56,11 +57,11 @@ fn unmapped_video_retains_exact_timestamp_rounding_and_leading_picture_policy() 
                     };
                     assert_eq!(
                         layer.video_source_time_us(frame, fps).unwrap(),
-                        video.source_time_us(local, fps)
+                        video.source_time_us(local, fps).unwrap()
                     );
                     assert_eq!(
                         layer.video_picture_time_us(frame, fps, &asset).unwrap(),
-                        video.picture_time_us(local, fps, &asset)
+                        video.picture_time_us(local, fps, &asset).unwrap()
                     );
                 }
             }
@@ -78,22 +79,22 @@ fn reverse_video_uses_the_last_decoder_quantum_then_applies_only_the_existing_he
     });
     let before = layer.clone();
     assert_eq!(
-        layer.video_picture_time_us(0., 24, &asset).unwrap(),
+        layer.video_picture_time_us(0., motion_model::FrameRate::integer(24).unwrap(), &asset).unwrap(),
         999_999
     );
-    assert_eq!(layer.video_source_time_us(23., 24).unwrap(), 41_666);
-    assert_eq!(layer.video_source_time_us(24., 24).unwrap(), -1);
+    assert_eq!(layer.video_source_time_us(23., motion_model::FrameRate::integer(24).unwrap()).unwrap(), 41_666);
+    assert_eq!(layer.video_source_time_us(24., motion_model::FrameRate::integer(24).unwrap()).unwrap(), -1);
     assert_eq!(layer, before);
     let Content::Video { video } = &mut layer.content else {
         unreachable!()
     };
     video.hold_first_frame = true;
     assert_eq!(
-        layer.video_picture_time_us(23., 24, &asset).unwrap(),
+        layer.video_picture_time_us(23., motion_model::FrameRate::integer(24).unwrap(), &asset).unwrap(),
         250_000
     );
-    assert_eq!(layer.video_source_time_us(23., 24).unwrap(), 41_666);
-    assert_eq!(layer.video_picture_time_us(24., 24, &asset).unwrap(), -1);
+    assert_eq!(layer.video_source_time_us(23., motion_model::FrameRate::integer(24).unwrap()).unwrap(), 41_666);
+    assert_eq!(layer.video_picture_time_us(24., motion_model::FrameRate::integer(24).unwrap(), &asset).unwrap(), -1);
 }
 
 #[test]
@@ -101,14 +102,14 @@ fn video_clock_failures_keep_object_phase_and_original_cause_without_changing_th
     let (layer, mut asset) = fixture();
     let before = layer.clone();
     for error in [
-        layer.video_source_time_us(0., 0).unwrap_err(),
-        layer.video_source_time_us(f64::NAN, 24).unwrap_err(),
+        layer.video_source_time_us(0., motion_model::FrameRate::new(1, 2).unwrap()).unwrap_err(),
+        layer.video_source_time_us(f64::NAN, motion_model::FrameRate::integer(24).unwrap()).unwrap_err(),
         {
             asset.id = 99;
-            layer.video_picture_time_us(0., 24, &asset).unwrap_err()
+            layer.video_picture_time_us(0., motion_model::FrameRate::integer(24).unwrap(), &asset).unwrap_err()
         },
         Layer::solid(7, "not video", [32.; 2], [0.; 3], [1.; 4])
-            .video_source_time_us(0., 24)
+            .video_source_time_us(0., motion_model::FrameRate::integer(24).unwrap())
             .unwrap_err(),
     ] {
         let motion_model::Error::LayerTimeObject {

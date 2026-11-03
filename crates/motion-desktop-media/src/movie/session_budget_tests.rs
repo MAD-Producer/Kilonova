@@ -176,7 +176,7 @@ fn movie_windows_cover_setup_every_authored_frame_and_post_freeze_cancellation()
         }
     }).unwrap();
     assert!(active_seen);
-    assert_eq!((result.width,result.height,result.frames,result.fps),(32,24,6,30));
+    assert_eq!((result.width,result.height,result.frames,result.fps),(32,24,6,motion_core::FrameRate::integer(30).unwrap()));
     assert_eq!(result.revision,revision);
     assert!(!control.cancel());
     let decoded=crate::verify_video_runtime(&output).unwrap();

@@ -30,7 +30,7 @@ fn value(effect: &SampledEffect, id: &str) -> Option<[f32; 4]> {
         .position(|p| p == id)
         .map(|i| effect.values[i])
 }
-fn shake(effect: &SampledEffect, fps: u32, registry: &Registry) -> Option<Mat4> {
+fn shake(effect: &SampledEffect, fps: motion_model::FrameRate, registry: &Registry) -> Option<Mat4> {
     if !effect.enabled || effect.effect != "shake" {
         return None;
     }

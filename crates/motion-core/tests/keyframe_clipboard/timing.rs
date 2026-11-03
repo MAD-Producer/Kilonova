@@ -366,7 +366,7 @@ fn timing_command_is_registered_and_can_edit_an_inactive_composition_atomically(
                     name: "Child".into(),
                     width: 640,
                     height: 360,
-                    fps: 30,
+                    fps: motion_core::FrameRate::integer(30).unwrap(),
                     frames: 120,
                     timing: "preserve_seconds".into(),
                     shorten: "reject".into(),

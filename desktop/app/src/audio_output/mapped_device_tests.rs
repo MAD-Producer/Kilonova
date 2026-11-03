@@ -123,7 +123,7 @@ fn fixture(root: &Path, case: &str) -> (Project, f32) {
             name: "60 fps source".into(),
             width: 32,
             height: 32,
-            fps: 60,
+            fps: motion_core::FrameRate::integer(60).unwrap(),
             frames: 60,
             work_area: WorkArea::full(60),
             background: p.background,
@@ -164,7 +164,7 @@ fn mapped_audio_reaches_the_real_device_for_stretch_reverse_freeze_turn_and_nest
         let mut peak = [0f32; 2];
         let mut polls = 0;
         loop {
-            let frame = output.frame(30);
+            let frame = output.frame(motion_core::FrameRate::integer(30).unwrap());
             assert!(
                 frame >= previous && frame <= 15.,
                 "case={case} frame={frame} previous={previous}"
@@ -180,7 +180,7 @@ fn mapped_audio_reaches_the_real_device_for_stretch_reverse_freeze_turn_and_nest
                 "case={case} error={:?}",
                 output.error()
             );
-            if output.finished(frame, 30) {
+            if output.finished(frame, motion_core::FrameRate::integer(30).unwrap()) {
                 break;
             }
             assert!(

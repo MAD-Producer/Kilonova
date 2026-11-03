@@ -197,7 +197,8 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
                 })).unwrap(),
             ).unwrap();
             assert!(
-                playback_elapsed_us < u128::from(project.frames) * 1_000_000 / u128::from(project.fps),
+                playback_elapsed_us < u128::from(project.frames) * 1_000_000
+                    * u128::from(project.fps.ratio()[1]) / u128::from(project.fps.ratio()[0]),
                 "mode={name} exceeded the non-looping study horizon: clock_elapsed_us={playback_elapsed_us}"
             );
             for pair in records.windows(2) {

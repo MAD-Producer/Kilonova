@@ -189,7 +189,7 @@ fn deep_library_draws_only_active_nodes_and_reuses_gpu_outputs_at_normal_resolut
     for n in 1..=80 {
         let mut camera=Camera::new(64,64);camera.created=false;
         let mut c=Composition {id:format!("comp-{n}"),name:format!("Library {n}"),
-            width:64,height:64,fps:24,work_area: motion_core::WorkArea::full(120), guides: Vec::new(), frames:120,background:[0.;4],camera,layers:vec![],expressions:vec![]};
+            width:64,height:64,fps:motion_core::FrameRate::integer(24).unwrap(),work_area: motion_core::WorkArea::full(120), guides: Vec::new(), frames:120,background:[0.;4],camera,layers:vec![],expressions:vec![]};
         if n<9 {
             let mut l=reference.clone();l.content=Content::Composition {clip:CompositionClip::new(format!("comp-{}",n+1))};
             c.layers.push(l);
@@ -245,7 +245,7 @@ fn repeated_mixed_rate_shake_reuses_scenes_without_changing_pixels_or_export_pla
     let reference = e.project().layers[0].id;
     apply(&mut e, MAIN_COMPOSITION, json!({"kind":"precompose","objects":[reference],"name":"outside"}));
     let mut p = e.snapshot();
-    p.compositions[0].fps = 144;
+    p.compositions[0].fps = motion_core::FrameRate::integer(144).unwrap();
     p.compositions[0].frames = 288;
     let mut duplicate = p.layers[0].clone();
     duplicate.id += 1;

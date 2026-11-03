@@ -40,7 +40,7 @@ fn nested_fixture() -> Project {
         name: "Child".into(),
         width: 96,
         height: 96,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 90,
         work_area: project.work_area,
         guides: vec![],

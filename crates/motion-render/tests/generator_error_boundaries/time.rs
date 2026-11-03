@@ -101,7 +101,7 @@ fn both_particle_paths_reject_extreme_time_without_panicking_and_restore_the_sam
             assert_eq!(recovered, expected);
         }
         let fps = scene.fps;
-        scene.fps = 0;
+        scene.fps = motion_core::FrameRate::new(1, 2).unwrap();
         let mut output = expected.clone();
         let failure = run(&scene, &effect, kind, &mut output, &mut scratch).unwrap_err();
         assert!(failure.to_string().contains("frame rate must be positive"));

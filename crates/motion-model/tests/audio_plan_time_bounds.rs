@@ -33,7 +33,7 @@ fn nested() -> Project {
         name: "Audio child".into(),
         width: 32,
         height: 24,
-        fps: 30,
+        fps: motion_model::FrameRate::integer(30).unwrap(),
         frames: 90,
         work_area: motion_model::WorkArea::full(90),
         guides: Vec::new(),
@@ -174,6 +174,15 @@ fn invalid_audio_composition_bounds_never_panic_or_return_a_partial_plan() {
             (30, MAX_FRAMES + 1),
         ] {
             let mut project = if nested_document { nested() } else { project() };
+            if fps == 0 {
+                // Zero is rejected before a typed document can reach planning.
+                let mut wire = serde_json::to_value(&project).unwrap();
+                let target = if nested_document { &mut wire["compositions"][0] } else { &mut wire };
+                target["fps"] = serde_json::json!({"numerator":0,"denominator":1});
+                assert!(serde_json::from_value::<Project>(wire).is_err());
+                continue;
+            }
+            let fps = motion_model::FrameRate::integer(fps).unwrap();
             if nested_document {
                 project.compositions[0].fps = fps;
                 project.compositions[0].frames = frames;
@@ -267,7 +276,7 @@ fn audio_graph_instance_budget_accepts_the_boundary_and_rejects_excess_without_m
             name: "Shared audio graph".into(),
             width: 32,
             height: 24,
-            fps: 30,
+            fps: motion_model::FrameRate::integer(30).unwrap(),
             frames: 90,
             work_area: motion_model::WorkArea::full(90),
             guides: Vec::new(),

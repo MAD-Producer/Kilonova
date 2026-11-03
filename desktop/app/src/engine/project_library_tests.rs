@@ -87,7 +87,7 @@ fn project_open_rejects_stale_targets_reports_actual_failures_and_preserves_libr
             name: "细节".into(),
             width: 64,
             height: 64,
-            fps: 30,
+            fps: motion_core::FrameRate::integer(30).unwrap(),
             frames: 120,
             work_area: p.work_area.clone(),
             guides: vec![],

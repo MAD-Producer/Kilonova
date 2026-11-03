@@ -210,7 +210,7 @@ fn unavailable_audio_extraction_is_atomic_and_muted_sources_stay_muted() {
 #[test]
 fn reference_times_support_trimmed_long_sources_beyond_composition_frame_limits() {
     let mut project = project();
-    project.fps = 120;
+    project.fps = motion_core::FrameRate::integer(120).unwrap();
     project.frames = 36_000;
     project.audio_assets[0].sample_frames = 48_000 * 3600;
     project.audio_assets[0].duration_us = 3_600_000_000;
@@ -339,7 +339,7 @@ fn markers_follow_clip_moves_splits_and_frame_rate_changes() {
                     name: "Retime".into(),
                     width: 64,
                     height: 64,
-                    fps: 60,
+                    fps: motion_core::FrameRate::integer(60).unwrap(),
                     frames: 360,
                     timing: "preserve_seconds".into(),
                     shorten: "reject".into(),

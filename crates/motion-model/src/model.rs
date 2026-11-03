@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 32;
+pub const CURRENT_PROJECT_VERSION: u32 = 33;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -310,7 +310,7 @@ pub struct Project {
     pub name: String,
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
+    pub fps: crate::FrameRate,
     pub frames: u32,
     pub work_area: crate::WorkArea,
     #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::guides::deserialize")]
@@ -334,6 +334,9 @@ pub struct Project {
 }
 impl Project {
     pub fn new(width: u32, height: u32, fps: u32, frames: u32) -> Result<Self> {
+        Self::new_with_frame_rate(width, height, crate::FrameRate::integer(fps)?, frames)
+    }
+    pub fn new_with_frame_rate(width: u32, height: u32, fps: crate::FrameRate, frames: u32) -> Result<Self> {
         ensure(width > 0 && height > 0, "composition size must be positive")?;
         let mut project = Self {
             version: CURRENT_PROJECT_VERSION,
@@ -418,7 +421,7 @@ impl Project {
             "invalid composition size",
         )?;
         ensure(
-            (1..=MAX_COMPOSITION_FPS).contains(&self.fps),
+            self.fps.is_between(1, MAX_COMPOSITION_FPS),
             "composition frame rate must be 1..240",
         )?;
         ensure(
@@ -627,18 +630,18 @@ impl Project {
                         .find(|a| a.id == video.asset)
                         .ok_or_else(|| crate::Error::Invalid("video asset missing".into()))?;
                     let clip = layer.clip(self.frames);
-                    let start = i128::from(video.source_offset_us) * i128::from(self.fps)
-                        + (i128::from(clip.in_frame) - i128::from(clip.offset_frame)) * 1_000_000;
-                    let last = i128::from(video.source_offset_us) * i128::from(self.fps)
+                    let start = i128::from(video.source_offset_us) * i128::from(self.fps.ratio()[0])
+                        + (i128::from(clip.in_frame) - i128::from(clip.offset_frame)) * 1_000_000 * i128::from(self.fps.ratio()[1]);
+                    let last = i128::from(video.source_offset_us) * i128::from(self.fps.ratio()[0])
                         + (i128::from(clip.out_frame) - 1 - i128::from(clip.offset_frame))
-                            * 1_000_000;
+                            * 1_000_000 * i128::from(self.fps.ratio()[1]);
                     if let Some(range)=layer.subframe_range {
                         let origin=f64::from(clip.offset_frame);
                         let first=video.source_offset_us as f64/1_000_000.+(range.in_frame-origin)/f64::from(self.fps);
                         let end=video.source_offset_us as f64/1_000_000.+(range.out_frame-origin)/f64::from(self.fps);
                         ensure(first>=0.&&end<=asset.duration_us as f64/1_000_000.+1e-9,"video clip exceeds recoverable source interval")?;
                     }else{
-                        ensure(start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps),"video clip exceeds recoverable source interval")?;
+                        ensure(start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps.ratio()[0]),"video clip exceeds recoverable source interval")?;
                     }
                 }
                 Content::Audio { audio } => {
@@ -658,11 +661,11 @@ impl Project {
                         "audio has no spatial properties or parent",
                     )?;
                     let clip = layer.clip(self.frames);
-                    let start = i128::from(audio.source_offset_us) * i128::from(self.fps)
-                        + (i128::from(clip.in_frame) - i128::from(clip.offset_frame)) * 1_000_000;
-                    let last = i128::from(audio.source_offset_us) * i128::from(self.fps)
+                    let start = i128::from(audio.source_offset_us) * i128::from(self.fps.ratio()[0])
+                        + (i128::from(clip.in_frame) - i128::from(clip.offset_frame)) * 1_000_000 * i128::from(self.fps.ratio()[1]);
+                    let last = i128::from(audio.source_offset_us) * i128::from(self.fps.ratio()[0])
                         + (i128::from(clip.out_frame) - 1 - i128::from(clip.offset_frame))
-                            * 1_000_000;
+                            * 1_000_000 * i128::from(self.fps.ratio()[1]);
                     if let Some(range)=layer.subframe_range {
                         let origin=f64::from(clip.offset_frame);
                         let first=audio.source_offset_us as f64/1_000_000.+(range.in_frame-origin)/f64::from(self.fps);
@@ -670,7 +673,7 @@ impl Project {
                         let duration=asset.sample_frames as f64/f64::from(asset.sample_rate);
                         ensure(first>=0.&&end<=duration+1e-9,"audio clip exceeds recoverable source interval")?;
                     }else{
-                        ensure(start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps),"audio clip exceeds recoverable source interval")?;
+                        ensure(start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps.ratio()[0]),"audio clip exceeds recoverable source interval")?;
                     }
                 }
                 Content::Camera { camera } => {
@@ -716,7 +719,7 @@ impl Project {
     }
     pub fn frame_pts_us(&self, frame: u32) -> Result<i64> {
         ensure(frame < self.frames, "output frame outside composition")?;
-        Ok((u64::from(frame) * 1_000_000 + u64::from(self.fps) / 2) as i64 / i64::from(self.fps))
+        Ok(self.fps.ticks_at_frame(i64::from(frame), 1_000_000, crate::ClockRounding::NearestTiesAwayFromZero)?)
     }
     pub fn layer_audio(&self, layer: &Layer) -> Option<crate::AudioClip> {
         match &layer.content {

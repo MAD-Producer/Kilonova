@@ -249,7 +249,7 @@ fn two_level_precomposition_preserves_pcm_and_offsets_with_shared_assets() {
     let frozen=e.snapshot();let mut original=AudioMixer::new(before,root.path()).unwrap();let mut nested=AudioMixer::new(frozen.clone(),root.path()).unwrap();
     for start in [0,48000,12000,96000,36900,48000] {let mut a=vec![0.;12000*2];let mut b=a.clone();original.mix(start,&mut a).unwrap();nested.mix(start,&mut b).unwrap();assert_eq!(a,b,"sample {start}");}
     let mut p=frozen;let inner=p.compositions.iter().find(|c|c.name=="inner").unwrap().id.clone();
-    let settings=motion_core::CompositionSettings{name:"inner60".into(),width:256,height:256,fps:60,frames:360,timing:"preserve_seconds".into(),shorten:"reject".into()};
+    let settings=motion_core::CompositionSettings{name:"inner60".into(),width:256,height:256,fps:motion_core::FrameRate::integer(60).unwrap(),frames:360,timing:"preserve_seconds".into(),shorten:"reject".into()};
     let mut e=Engine::new(p.clone()).unwrap();e.apply(Command::InComposition{composition:inner,command:Box::new(Command::Composition{action:motion_core::CompositionAction::Settings{settings}})}).unwrap();p=e.snapshot();
     let mut retimed=AudioMixer::new(p,root.path()).unwrap();let mut a=vec![0.;24000*2];let mut b=a.clone();nested.mix(36000,&mut a).unwrap();retimed.mix(36000,&mut b).unwrap();assert_eq!(a,b);
 }

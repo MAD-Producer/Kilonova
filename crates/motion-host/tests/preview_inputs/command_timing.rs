@@ -41,7 +41,7 @@ fn native_packet_upload_keeps_reader_identity_separate_from_worker_requests() {
                 composition_frame: 21.5,
                 local_frame: 6.5,
                 seconds: 6.5 / 30.,
-                fps: 30,
+                fps: motion_core::FrameRate::integer(30).unwrap(),
                 source_time_us: Some(316_667),
             },
             stage: "original",

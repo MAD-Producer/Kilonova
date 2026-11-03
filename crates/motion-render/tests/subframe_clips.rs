@@ -25,7 +25,7 @@ fn nested_fractional_visibility_uses_exact_bounds_during_random_seek() {
         name: "child".into(),
         width: 64,
         height: 64,
-        fps: 48,
+        fps: motion_core::FrameRate::integer(48).unwrap(),
         frames: 96,
         work_area: motion_core::WorkArea::full(96),
         guides: Vec::new(),

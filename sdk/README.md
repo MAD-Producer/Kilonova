@@ -22,6 +22,7 @@ cargo build --locked -p motion-effects --bin effect_tool
 
 - [包与参数](motion-studio-plugin/references/package-format.md)
 - [WGSL 接口](motion-studio-plugin/references/wgsl.md)
+- [Composition, media and shader clocks](motion-studio-plugin/references/clocks.md)
 - [原生 UI 与共享组件](motion-studio-plugin/references/native-ui.md)
 - [开发、测试与发布](motion-studio-plugin/references/development.md)
 

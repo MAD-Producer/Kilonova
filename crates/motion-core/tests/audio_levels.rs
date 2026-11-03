@@ -138,10 +138,10 @@ fn invalid_ranges_locked_layers_and_non_audio_content_fail_atomically() {
 fn nested_envelopes_use_each_owner_fps_and_fractional_sample_origin() {
     let mut p = project();
     p.version = motion_model::CURRENT_PROJECT_VERSION;
-    p.fps = 59;
+    p.fps = motion_core::FrameRate::integer(59).unwrap();
     p.frames = 177;
     let mut child = p.clone();
-    child.fps = 24;
+    child.fps = motion_core::FrameRate::integer(24).unwrap();
     child.frames = 72;
     child.layers[0].timeline.as_mut().unwrap().offset_frame = -6;
     let mut levels = AudioLevels::default();
@@ -153,7 +153,7 @@ fn nested_envelopes_use_each_owner_fps_and_fractional_sample_origin() {
         name: "child".into(),
         width: 64,
         height: 64,
-        fps: 24,
+        fps: motion_core::FrameRate::integer(24).unwrap(),
         frames: 72,
         work_area: motion_core::WorkArea::full(72),
         guides: Vec::new(),
@@ -217,7 +217,7 @@ fn precompose_fps_changes_and_package_roundtrip_keep_audio_envelopes() {
         assert_eq!(before.audio_voices().unwrap()[0].gain_at(sample).unwrap(),e.project().audio_voices().unwrap()[0].gain_at(sample).unwrap());
     }
     e.apply(Command::InComposition{composition:child,command:Box::new(Command::Composition{action:CompositionAction::Settings{settings:CompositionSettings{
-        name:"sound child".into(),width:64,height:64,fps:48,frames:144,timing:"preserve_seconds".into(),shorten:"reject".into()}}})}).unwrap();
+        name:"sound child".into(),width:64,height:64,fps:motion_core::FrameRate::integer(48).unwrap(),frames:144,timing:"preserve_seconds".into(),shorten:"reject".into()}}})}).unwrap();
     let retimed=e.snapshot();
     for sample in [0,12345,24000,47999,60000] {assert_eq!(before.audio_voices().unwrap()[0].gain_at(sample).unwrap(),retimed.audio_voices().unwrap()[0].gain_at(sample).unwrap());}
     let root=tempfile::tempdir().unwrap();std::fs::create_dir(root.path().join("assets")).unwrap();

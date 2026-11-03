@@ -175,7 +175,7 @@ fn nest(p: &mut Project, parent_fps: u32) {
         expressions: vec![],
     };
     p.compositions.push(child);
-    p.fps = parent_fps;
+    p.fps = motion_core::FrameRate::integer(parent_fps).unwrap();
     let mut reference = Layer::solid(17, "Reference", [32.; 2], [0.; 3], [1.; 4]);
     reference.content = Content::Composition {
         clip: motion_core::CompositionClip::new("comp-child".into()),

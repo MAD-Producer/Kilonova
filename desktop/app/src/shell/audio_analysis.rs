@@ -15,7 +15,7 @@ pub(crate) struct Analysis {
     offset: f64,
     begin: f64,
     end: f64,
-    fps: u32,
+    fps: motion_core::FrameRate,
     last: Instant,
     cancelled: Arc<AtomicBool>,
     worker: Option<mpsc::Receiver<Result<Vec<u32>, String>>>,

@@ -33,7 +33,7 @@ fn prepare(
     let selected = project.layers.iter().enumerate().find(|(_, l)| l.id == e.target.object());
     let layer = selected.map(|(_, layer)| layer);
     let offset = layer.map_or(0, |l| l.clip(project.frames).offset_frame);
-    let fps = project.fps as f64;
+    let fps = f64::from(project.fps);
     let percent = matches!(
         e.target,
         ExpressionTarget::Property {
@@ -64,7 +64,7 @@ fn prepare(
                 (s ^ u32::from(b)).wrapping_mul(16777619)
             });
     let data=json!({"time":frame/fps,"value":js_value(track.sample(local)?),"index":index,"keys":keys,"seed":seed,
-        "comp":{"width":project.width,"height":project.height,"frameRate":project.fps,"frameDuration":1.0/fps,"duration":project.frames as f64/fps},
+        "comp":{"width":project.width,"height":project.height,"frameRate":fps,"frameRateRatio":project.fps,"frameDuration":1.0/fps,"duration":project.frames as f64/fps},
         "layer":{"name":layer.map_or("Camera",|l|l.name.as_str()),"index":index,"inPoint":clip.map_or(0.0,|c|c.in_frame as f64/fps),"outPoint":clip.map_or(project.frames as f64/fps,|c|c.out_frame as f64/fps),"startTime":offset as f64/fps}}).to_string();
     Ok(references::Invocation { data, track, fps, offset: f64::from(offset), percent })
 }

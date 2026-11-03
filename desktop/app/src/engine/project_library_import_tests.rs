@@ -341,7 +341,7 @@ fn project_library_delayed_video_placement_keeps_audio_clock_and_first_picture()
         let motion_core::Content::Video { video } = &layer.content else { panic!("expected video") };
         assert_eq!(video.hold_first_frame, with_audio);
         assert_eq!(video.source_offset_us, if with_audio { 0 } else { 250_000 });
-        assert_eq!(video.picture_time_us(0., placed.fps, &placed.video_assets[0]), 250_000);
+        assert_eq!(video.picture_time_us(0., placed.fps, &placed.video_assets[0]).unwrap(), 250_000);
         assert_eq!(layer.clip(placed.frames).out_frame, if with_audio { 215 } else { 200 });
         if with_audio { assert_eq!(placed.layer_audio(layer).unwrap().source_offset_us, 0); }
         assert_eq!(e.history(0).unwrap()["project"], before["project"]);

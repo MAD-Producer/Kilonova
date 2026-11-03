@@ -69,7 +69,7 @@ fn fixture() -> Project {
         name: "Camera child".into(),
         width: 96,
         height: 96,
-        fps: 60,
+        fps: motion_core::FrameRate::integer(60).unwrap(),
         frames: 180,
         work_area: motion_core::WorkArea::full(180),
         guides: Vec::new(),

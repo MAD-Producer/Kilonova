@@ -7,7 +7,7 @@ fn node(n: usize, fps: u32) -> Composition {
     let mut camera = Camera::new(64, 64);
     camera.created = false;
     Composition { id: format!("comp-{n}"), name: format!("Library {n}"),
-        width:64, height:64, fps, work_area: motion_core::WorkArea::full(240), guides: Vec::new(), frames:240, background:[0.;4], camera,
+        width:64, height:64, fps: FrameRate::integer(fps).unwrap(), work_area: motion_core::WorkArea::full(240), guides: Vec::new(), frames:240, background:[0.;4], camera,
         layers:vec![], expressions:vec![] }
 }
 fn reference(id: u64, target: &str) -> Layer {
@@ -153,7 +153,7 @@ fn node_limit_is_advertised_and_failed_create_is_atomic() {
     let mut engine = Engine::new(p).unwrap();
     let before=engine.snapshot(); let revision=engine.revision();
     let action=CompositionAction::Create { settings:CompositionSettings {
-        name:"Extra".into(),width:64,height:64,fps:20,frames:240,
+        name:"Extra".into(),width:64,height:64,fps:motion_core::FrameRate::integer(20).unwrap(),frames:240,
         timing:"preserve_seconds".into(),shorten:"reject".into() } };
     assert_eq!(error_code(engine.apply(Command::Composition {action}).unwrap_err()),"resource_limit");
     assert_eq!(engine.snapshot(),before); assert_eq!(engine.revision(),revision);

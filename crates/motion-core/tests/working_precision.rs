@@ -54,7 +54,7 @@ fn composition_scopes_share_the_document_precision_and_publish_a_strict_command_
                 name: "Child".into(),
                 width: 32,
                 height: 32,
-                fps: 24,
+                fps: motion_core::FrameRate::integer(24).unwrap(),
                 frames: 48,
                 timing: "preserve_seconds".into(),
                 shorten: "reject".into(),

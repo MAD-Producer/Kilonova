@@ -22,7 +22,7 @@ pub struct Composition {
     pub name: String,
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
+    pub fps: crate::FrameRate,
     pub frames: u32,
     pub work_area: crate::WorkArea,
     #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::guides::deserialize")]
@@ -41,7 +41,7 @@ pub struct CompositionView<'a> {
     pub name: &'a str,
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
+    pub fps: crate::FrameRate,
     pub frames: u32,
     pub work_area: crate::WorkArea,
     pub guides: &'a [crate::Guide],
@@ -75,7 +75,7 @@ pub struct AudioVoice {
 #[derive(Clone, Debug)]
 pub struct AudioEnvelope {
     pub levels: crate::AudioLevels,
-    pub fps: u32,
+    pub fps: crate::FrameRate,
     /// Rational composition origins converted only at the final sampling step.
     pub origin_sample: f64,
 }
@@ -121,8 +121,8 @@ impl CompositionClip {
     }
     /// Map clip-local time without allowing invalid rates or non-finite times
     /// to reach sampling, culling, or dependency prefetch.
-    pub fn source_frame(&self, local_frame: f64, parent_fps: u32, child_fps: u32) -> Result<f64> {
-        if parent_fps == 0 || child_fps == 0 {
+    pub fn source_frame(&self, local_frame: f64, parent_fps: crate::FrameRate, child_fps: crate::FrameRate) -> Result<f64> {
+        if !parent_fps.is_between(1, crate::MAX_COMPOSITION_FPS) || !child_fps.is_between(1, crate::MAX_COMPOSITION_FPS) {
             return fail(
                 &self.composition,
                 "invalid_frame_rate",
@@ -130,8 +130,12 @@ impl CompositionClip {
                 json!({"parent_fps":parent_fps,"child_fps":child_fps}),
             );
         }
-        let source = f64::from(self.source_start_frame)
-            + local_frame * f64::from(child_fps) / f64::from(parent_fps);
+        let mapped = parent_fps.map_frame(local_frame, child_fps);
+        let source = f64::from(self.source_start_frame) + match mapped {
+            Ok(value) => value,
+            Err(cause) => return fail(&self.composition, "invalid_time", &cause.to_string(),
+                json!({"local_frame":local_frame.to_string(),"parent_fps":parent_fps,"child_fps":child_fps})),
+        };
         if !local_frame.is_finite() || !source.is_finite() {
             return fail(
                 &self.composition,
@@ -150,15 +154,11 @@ pub struct CompositionSettings {
     pub name: String,
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
+    pub fps: crate::FrameRate,
     pub frames: u32,
-    #[serde(default = "seconds")]
     pub timing: String,
     #[serde(default = "reject")]
     pub shorten: String,
-}
-fn seconds() -> String {
-    "preserve_seconds".into()
 }
 fn reject() -> String {
     "reject".into()
@@ -312,7 +312,7 @@ impl Project {
     }
     pub fn audio_voices(&self) -> Result<Vec<AudioVoice>> {
         fn validate_clock(p: CompositionView<'_>) -> Result<()> {
-            if !(1..=crate::MAX_COMPOSITION_FPS).contains(&p.fps) {
+            if !p.fps.is_between(1, crate::MAX_COMPOSITION_FPS) {
                 return fail(p.id, "invalid_frame_rate", "Audio composition frame rate must be 1..240",
                     json!({"fps":p.fps}));
             }
@@ -332,17 +332,17 @@ impl Project {
             denominator: i128,
         }
         impl Time {
-            fn add_frames(self, frames: i64, fps: u32) -> Result<Self> {
+            fn add_frames(self, frames: i64, fps: crate::FrameRate) -> Result<Self> {
                 let overflow = || Error::Invalid("Audio timebase exceeds rational arithmetic budget".into());
-                crate::ensure(fps > 0, "invalid audio frame rate")?;
+                crate::ensure(fps.is_between(1, crate::MAX_COMPOSITION_FPS), "invalid audio frame rate")?;
                 let mut a = self.denominator;
-                let mut b = i128::from(fps);
+                let mut b = i128::from(fps.ratio()[0]);
                 while b != 0 {
                     (a, b) = (b, a % b);
                 }
-                let multiplier = i128::from(fps) / a;
+                let multiplier = i128::from(fps.ratio()[0]) / a;
                 let numerator = self.numerator.checked_mul(multiplier)
-                    .and_then(|left| i128::from(frames).checked_mul(48_000)
+                    .and_then(|left| i128::from(frames).checked_mul(48_000).and_then(|v| v.checked_mul(i128::from(fps.ratio()[1])))
                         .and_then(|v| v.checked_mul(self.denominator / a))
                         .and_then(|right| left.checked_add(right))).ok_or_else(overflow)?;
                 let denominator = self.denominator.checked_mul(multiplier).ok_or_else(overflow)?;
@@ -386,7 +386,7 @@ impl Project {
                 let context = |phase, source| Error::AudioTimeline {
                     composition: p.id.chars().take(64).collect(), object: l.id, phase, source: Box::new(source),
                 };
-                let add = |time: Time, frames: i64, fps: u32| time.add_frames(frames, fps).map_err(|e|
+                let add = |time: Time, frames: i64, fps: crate::FrameRate| time.add_frames(frames, fps).map_err(|e|
                     Error::Composition(CompositionError { code:"audio_time_limit".into(), composition:p.id.into(),
                         message:e.to_string(), details:json!({"layer":l.id,"frames":frames,"fps":fps}) }));
                 let clip = l.clip(p.frames);
@@ -470,7 +470,7 @@ impl Project {
                 denominator: 1,
             },
             0,
-            i64::from(self.frames) * 48_000 / i64::from(self.fps),
+            self.fps.ticks_at_frame(i64::from(self.frames), 48_000, crate::ClockRounding::Floor)?,
             1.,
             &[],
             None,
@@ -724,7 +724,7 @@ impl Project {
                     );
                 }
                 let id = self.new_composition_id()?;
-                let mut child = Project::new(
+                let mut child = Project::new_with_frame_rate(
                     settings.width,
                     settings.height,
                     settings.fps,
@@ -985,7 +985,7 @@ impl Project {
         let id = self.composition_id.clone();
         if !(1..=8192).contains(&s.width)
             || !(1..=8192).contains(&s.height)
-            || !(1..=crate::MAX_COMPOSITION_FPS).contains(&s.fps)
+            || !s.fps.is_between(1, crate::MAX_COMPOSITION_FPS)
             || !(1..=crate::MAX_FRAMES).contains(&s.frames)
             || s.name.len() > 1024
         {
@@ -1013,8 +1013,8 @@ impl Project {
         let mut impacts = Vec::new();
         fn retime(
             v: &mut Value,
-            old: u32,
-            new: u32,
+            old: crate::FrameRate,
+            new: crate::FrameRate,
             path: &str,
             impacts: &mut Vec<Value>,
         ) -> Result<()> {
@@ -1027,8 +1027,7 @@ impl Project {
                                 let before = f
                                     .as_i64()
                                     .ok_or_else(|| Error::Invalid("invalid key time".into()))?;
-                                let after = (before as f64 * f64::from(new) / f64::from(old))
-                                    .round() as i64;
+                                let after = old.rescale_frame(before, new, crate::ClockRounding::NearestTiesAwayFromZero)?;
                                 if !used.insert(after) {
                                     return Err(Error::Invalid("frame rate change merges keyframes; choose preserve_frames".into()));
                                 }
@@ -1046,18 +1045,18 @@ impl Project {
                         if k == "audio_markers" {
                             for marker in v.as_array_mut().ok_or_else(|| Error::Invalid("invalid audio markers".into()))? {
                                 let before = marker["frame"].as_i64().ok_or_else(|| Error::Invalid("invalid audio marker time".into()))?;
-                                marker["frame"] = json!((before as f64 * f64::from(new) / f64::from(old)).round() as i64);
+                                marker["frame"] = json!(old.rescale_frame(before, new, crate::ClockRounding::NearestTiesAwayFromZero)?);
                             }
                         }else if k=="subframe_range" {
                             let range=v.as_object_mut().ok_or_else(||Error::Invalid("invalid precise clip range".into()))?;
                             for endpoint in ["in_frame","out_frame"] {
                                 let before=range[endpoint].as_f64().ok_or_else(||Error::Invalid("invalid precise endpoint".into()))?;
-                                range.insert(endpoint.into(),json!(before*f64::from(new)/f64::from(old)));
+                                range.insert(endpoint.into(),json!(old.map_frame(before, new)?));
                             }
                         }else if matches!(k.as_str(), "in_frame" | "out_frame" | "offset_frame") {
                             if let Some(f) = v.as_i64() {
                                 *v = json!(
-                                    (f as f64 * f64::from(new) / f64::from(old)).round() as i64
+                                    old.rescale_frame(f, new, crate::ClockRounding::NearestTiesAwayFromZero)?
                                 );
                             }
                         } else {
@@ -1137,12 +1136,16 @@ impl Project {
         }
         for l in &mut node.layers {
             let old = l.clip(if s.timing == "preserve_seconds" {
-                (f64::from(old_frames) * f64::from(s.fps) / f64::from(old_fps)).round() as u32
+                u32::try_from(old_fps.rescale_frame(i64::from(old_frames), s.fps,
+                    crate::ClockRounding::NearestTiesAwayFromZero)?)
+                    .map_err(|_| crate::RateError::NumericRange)?
             } else {
                 old_frames
             });
             let previous_frames = if s.timing == "preserve_seconds" {
-                (f64::from(old_frames) * f64::from(s.fps) / f64::from(old_fps)).round() as u32
+                u32::try_from(old_fps.rescale_frame(i64::from(old_frames), s.fps,
+                    crate::ClockRounding::NearestTiesAwayFromZero)?)
+                    .map_err(|_| crate::RateError::NumericRange)?
             } else { old_frames };
             if s.frames < previous_frames && i64::from(old.out_frame) > i64::from(s.frames) {
                 impacts.push(json!({"kind":"clip","object":l.id,"before":old,"new_end":s.frames}));
@@ -1232,10 +1235,10 @@ impl Project {
                         impacts.push(json!({"kind":"reference","composition":source,"object":l.id,"old_size":old_size,"new_size":[s.width,s.height]}));
                         l.size = [s.width as f32, s.height as f32];
                         if old_fps != s.fps && s.timing == "preserve_seconds" {
-                            clip.source_start_frame = (f64::from(clip.source_start_frame)
-                                * f64::from(s.fps)
-                                / f64::from(old_fps))
-                            .round() as i32;
+                            clip.source_start_frame = i32::try_from(old_fps.rescale_frame(
+                                i64::from(clip.source_start_frame), s.fps,
+                                crate::ClockRounding::NearestTiesAwayFromZero)?)
+                                .map_err(|_| crate::RateError::NumericRange)?;
                         }
                         changed = true;
                     }
