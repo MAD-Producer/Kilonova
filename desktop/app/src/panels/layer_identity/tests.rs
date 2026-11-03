@@ -47,6 +47,43 @@ fn identity_reader_rejects_missing_or_non_u64_ids_and_accepts_zero_and_full_u64_
     assert_eq!(reader.failures, 0);
 }
 
+#[test]
+fn actual_renderers_preserve_each_healthy_identity_across_invalid_input_including_zero_and_maximum()
+{
+    for locale in [Locale::En, Locale::Zh] {
+        let mut atlas = TextAtlas::from_system_language(12., locale == Locale::Zh).unwrap();
+        let snapshot = |draw: Vec<(PaintList, f32, Vec<Action>)>| {
+            draw.into_iter()
+                .map(|(paint, y, actions)| {
+                    assert!(actions.is_empty() && !paint.glyphs.is_empty());
+                    format!(
+                        "{:?}",
+                        (paint.shapes, paint.colors, paint.glyphs, paint.order, y)
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut controls = Renderers::new();
+        for id in [0, 7, u64::MAX] {
+            let healthy = json!({"id":id,"effects":[]});
+            let expected = snapshot(Renderers::new().draw(&healthy, &mut atlas, locale, 420.));
+            assert_eq!(
+                snapshot(controls.draw(&healthy, &mut atlas, locale, 420.)),
+                expected
+            );
+            for (paint, y, actions) in controls.draw(&json!({"id":null}), &mut atlas, locale, 420.)
+            {
+                assert!(paint.shapes.is_empty() && paint.glyphs.is_empty() && actions.is_empty());
+                assert_eq!(y, 17.);
+            }
+            assert_eq!(
+                snapshot(controls.draw(&healthy, &mut atlas, locale, 420.)),
+                expected
+            );
+        }
+    }
+}
+
 struct Renderers {
     effects: effect_controls::Controls,
     curves: animation_controls::Controls,
