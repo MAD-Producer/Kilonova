@@ -240,3 +240,32 @@ fn composed_rate_overflow_retains_mapping_context_and_refuses_before_pcm_reads()
         .to_string()
         .contains("native PCM derivative is non-finite"));
 }
+
+#[test]
+fn low_pass_step_response_matches_reference_without_clamping_the_overshoot() {
+    let (root, project) = fixture(48_000, [1, 2], false, 18_000.);
+    let asset = &project.audio_assets[0];
+    let path = motion_media::cache_path(root.path(), asset).unwrap();
+    let mut file = std::io::BufWriter::new(fs::File::create(path).unwrap());
+    let source = |n: u64| if n < 24_000 { 1f32 / 64. } else { 1f32 / 32. };
+    for n in 0..asset.sample_frames {
+        file.write_all(&source(n).to_le_bytes().repeat(2)).unwrap();
+    }
+    file.flush().unwrap();
+    let frames = asset.sample_frames;
+    let mut mixer = AudioMixer::new(project, root.path()).unwrap();
+    let mut output = vec![0.; 1024];
+    mixer.mix(11_744, &mut output).unwrap();
+    let mut peak = 0f32;
+    for (i, frame) in output.chunks_exact(2).enumerate() {
+        let expected = reference::sample(2. * (11_744 + i) as f64, 2., frames, source);
+        for actual in frame {
+            assert!((*actual - expected).abs() < 1e-7);
+            peak = peak.max(*actual);
+        }
+    }
+    // Correct low-pass ringing is not an amplifier/gain error. A raw-sample
+    // shortcut or a clamp to the source plateau must both fail this control.
+    assert!(peak > 1. / 32. + 0.001, "step response peak={peak}");
+    println!("independent step-response peak={peak}");
+}
