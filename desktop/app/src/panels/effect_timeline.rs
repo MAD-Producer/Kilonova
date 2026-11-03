@@ -356,6 +356,7 @@ pub(super) fn render(
 ) {
     let styles = list.styles();
     let input = row_input(input, body);
+    let catalogue = panels.effect_controls.catalogue.clone();
     for (r, planned) in rows.iter().enumerate() {
         let py = y + r as f32 * height;
         if py < body.min[1] || py + height > body.max[1] {
@@ -367,7 +368,7 @@ pub(super) fn render(
         };
         let effect = &row.effects[index];
         let id = effect["id"].as_u64().unwrap_or(0);
-        let definition = panels.effect_controls.definition(effect);
+        let definition = super::effect_controls::definition::find(&catalogue, effect);
         let layout = timeline::property_layout(&styles, area, py, height, 0, 1);
         if let PlannedRow::Effect { open, .. } = planned {
             let slot = styles.metric("icon.slot", 20.);

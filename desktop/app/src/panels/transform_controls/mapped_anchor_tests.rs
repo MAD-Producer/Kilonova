@@ -183,7 +183,7 @@ fn anchor_time_faults_and_worker_rejections_reach_default_logs_without_stdout() 
                     object: 7,
                     frame: 8.75,
                     anchor: [0.7, 0.2],
-                })
+                 keys: None })
                 .unwrap(),
             )
             .unwrap_err();

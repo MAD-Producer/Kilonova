@@ -1058,8 +1058,8 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             layer.transform.position = position;
             layer.transform.anchor = Track::constant(anchor);
         }
-        Command::AnchorAt { object, frame, anchor } => {
-            motion_model::keyframe_clipboard::authoring::compensate_anchor(project, object, frame, anchor)?;
+        Command::AnchorAt { object, frame, anchor, keys } => {
+            motion_model::keyframe_clipboard::authoring::compensate_anchor_with_keys(project, object, frame, anchor, keys.as_ref())?;
         }
     }
     project.rebuild_plugin_dependencies();

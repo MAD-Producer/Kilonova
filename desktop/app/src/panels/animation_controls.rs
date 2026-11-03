@@ -23,6 +23,7 @@ pub(super) use selection::{highlight_row, SelectedTrack, TrackSelection};
 
 #[derive(Default)]
 pub struct Controls {
+    layer_identity: super::layer_identity::Reader,
     pub expanded: bool,
     pub property: Option<Property>,
     pub axis: Option<Axis>,
@@ -196,7 +197,11 @@ impl Controls {
         let styles = list.styles();
         let colors = styles.colors();
 
-        let object = layer["id"].as_u64().unwrap();
+        let Some(object) = self.layer_identity.read(layer, state, "curve.controls.layer_id") else {
+            if self.cancel() { out.push(Action::History(4)); }
+            self.clear_key();
+            return;
+        };
         let locked = layer["locked"] == true || state["observing"] == true;
         let timing = observe!("curve.controls.clock", time::Context::read(state, object),
             "object={object} phase=clock generation={:?} revision={:?}",

@@ -164,7 +164,7 @@ fn animated_anchor_compensation_preserves_parented_separated_pose_and_cancel_und
             object: 2,
             frame: 30.,
             anchor: a,
-        })
+         keys: None })
         .unwrap();
         close(pose, model(e.project(), 30.));
     }
@@ -175,7 +175,7 @@ fn animated_anchor_compensation_preserves_parented_separated_pose_and_cancel_und
         object: 2,
         frame: 30.,
         anchor: [0.8, 0.2],
-    })
+     keys: None })
     .unwrap();
     close(pose, model(e.project(), 30.));
     let after = e.snapshot();
@@ -233,7 +233,7 @@ fn anchor_keys_move_copy_ease_disable_and_reject_invalid_edits_atomically() {
             object: 2,
             frame: 120.,
             anchor: [0.; 2],
-        },
+         keys: None },
         Command::SeparateDimensions {
             object: 2,
             property: Property::Anchor,
@@ -271,3 +271,6 @@ fn anchor_keys_move_copy_ease_disable_and_reject_invalid_edits_atomically() {
     invalid.version = 19;
     assert!(invalid.validate().unwrap_err().to_string().contains("unsupported project format"));
 }
+
+#[path = "layer_anchor_animation/bound.rs"]
+mod bound;

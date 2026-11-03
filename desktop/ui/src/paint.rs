@@ -8,6 +8,8 @@
 use crate::input::Rect;
 use crate::theme::Color;
 mod strokes;
+mod static_mesh;
+pub use static_mesh::StaticMesh;
 pub mod allocation;
 mod memory;
 mod bitmaps;
@@ -41,6 +43,8 @@ pub enum Shape {
     },
     /// Precompiled SVG geometry, in independent triangle-list order.
     Triangles { points: Vec<[f32; 2]> },
+    /// Shared immutable geometry with deferred, allocation-free placement.
+    Mesh(StaticMesh),
 }
 #[derive(Clone, Debug)]
 pub enum Pattern {
@@ -219,6 +223,13 @@ impl PaintList {
                 clip.min = [clip.min[0].max(area.min[0]), clip.min[1].max(area.min[1])];
                 clip.max = [clip.max[0].min(area.max[0]), clip.max[1].min(area.max[1])];
                 clip.width() > 0. && clip.height() > 0.
+            } else if let Shape::Mesh(mesh) = shape {
+                if let Some(clipped) = mesh.clipped(area) {
+                    *shape = clipped;
+                    true
+                } else {
+                    false
+                }
             } else if let Shape::Triangles { points } = shape {
                 // A complete triangle list inside the clip needs no new output.
                 // Keep incomplete lists on the existing chunks_exact path.
@@ -1286,6 +1297,9 @@ impl Painter {
                             .iter()
                             .map(|position| SolidVertex::plain(*position, rgba)),
                     );
+                }
+                Shape::Mesh(mesh) => {
+                    solids.extend(mesh.points().map(|position| SolidVertex::plain(position, rgba)));
                 }
             }
             self.shape_ranges.push(start..solids.len() as u32);

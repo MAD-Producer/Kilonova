@@ -672,14 +672,16 @@ impl GpuState {
                     cache: None,
                 });
                 let validation = error_scope.pop();
-                let polled = device.poll(wgpu::PollType::wait_indefinitely());
+                // Native validation scopes are ready independently of queue
+                // completion. Service callbacks without draining unrelated frames.
+                let polled = device.poll(wgpu::PollType::Poll);
                 if let Some(e) = pollster::block_on(validation) {
                     let message = format!(
                         "effect program {}: {e}",
                         builder.programs[p.program as usize].key
                     );
                     let message = match &polled {
-                        Err(error) => format!("{message}; GPU wait also failed: {error}"),
+                        Err(error) => format!("{message}; GPU poll also failed: {error}"),
                         Ok(_) => message,
                     };
                     self.failed_program = Some((p.program, message.clone()));

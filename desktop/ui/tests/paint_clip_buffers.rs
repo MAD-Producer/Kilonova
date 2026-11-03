@@ -211,6 +211,16 @@ fn fully_contained_icon_clips_keep_triangle_storage() {
             Color::grey(220),
         );
     }
+    // This test owns its triangle buffers and verifies their pointer/capacity
+    // contract. Icons now emit shared instances; materialize this owned fixture
+    // explicitly rather than removing or relaxing any original storage checks.
+    for shape in &mut list.shapes {
+        if let Shape::Mesh(mesh) = shape {
+            *shape = Shape::Triangles {
+                points: mesh.points().collect(),
+            };
+        }
+    }
     let area = Rect::new(0., 0., 100., 100.);
     let buffers: Vec<_> = list
         .shapes
@@ -243,6 +253,56 @@ fn fully_contained_icon_clips_keep_triangle_storage() {
             panic!("icon triangles")
         };
         assert_eq!((points.as_ptr(), points.capacity()), expected);
+    }
+}
+
+#[test]
+fn fully_contained_shared_icon_clips_preserve_source_geometry_without_allocating() {
+    use motion_ui::icons::{self, Icon};
+    let mut list = PaintList::default();
+    for &icon in Icon::ALL {
+        icons::draw(
+            &mut list,
+            Rect::new(10., 10., 24., 24.),
+            icon,
+            20.,
+            Color::grey(220),
+        );
+    }
+    let area = Rect::new(0., 0., 100., 100.);
+    let sources: Vec<_> = list
+        .shapes
+        .iter()
+        .map(|shape| {
+            let Shape::Mesh(mesh) = shape else {
+                panic!("shared icon required")
+            };
+            assert!(mesh.point_count() > 0 && mesh.point_count() % 3 == 0);
+            assert!(mesh.points().all(|p| area.contains(p)));
+            (mesh.source_triangles(), mesh.points().collect::<Vec<_>>())
+        })
+        .collect();
+    let order = list.order.clone();
+    let colors = list.colors.clone();
+    let count = allocations(|| {
+        for _ in 0..20 {
+            black_box(&mut list).clip_to(area);
+        }
+    });
+    println!(
+        "20 clips / {} shared icons: {count} allocation requests",
+        sources.len()
+    );
+    assert_eq!(count, 0, "contained shared geometry must not materialize");
+    assert_eq!(list.order, order);
+    assert_eq!(list.colors, colors);
+    assert_eq!(list.shapes.len(), sources.len());
+    for (shape, (source, points)) in list.shapes.iter().zip(sources) {
+        let Shape::Mesh(mesh) = shape else {
+            panic!("shared geometry lost")
+        };
+        assert!(std::ptr::eq(mesh.source_triangles(), source));
+        assert_eq!(mesh.points().collect::<Vec<_>>(), points);
     }
 }
 

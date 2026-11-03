@@ -1,0 +1,85 @@
+{
+  "base_commit": "9d085c0f1fb63106babb48d5781b700e20da6eac",
+  "branch": "perf/vector-scratch-planning",
+  "issue": 126,
+  "issue_complete": false,
+  "results": {
+    "planning-restored-final": {
+      "exit_code": 0,
+      "tests_passed": 3,
+      "log": "planning-restored-final.log"
+    },
+    "vector-regression": {
+      "exit_code": 0,
+      "tests_passed": 16,
+      "log": "vector-regression.log"
+    },
+    "workspace-final": {
+      "exit_code": 0,
+      "tests_passed": 0,
+      "log": "workspace-final.log"
+    }
+  },
+  "negative_control": {
+    "exit_code": 101,
+    "failed_tests": 2,
+    "group_allocations": 240,
+    "flat_allocations": 120,
+    "iterations": 120,
+    "binary_sha256": "77712764e0f2666ec5ab48f3884585ae079860e61a5344b786dd079bd889b31f",
+    "replacements": {
+      "groups.rs": [
+        "self.needed_scratch.clear();",
+        "self.needed_scratch = HashSet::new();"
+      ],
+      "layer_gpu.rs": [
+        "self.raster_targets_scratch.clear();",
+        "self.raster_targets_scratch = std::collections::HashSet::new();"
+      ]
+    }
+  },
+  "first_failures": {
+    "planning-first.exit": 101,
+    "planning-restored.exit": 101
+  },
+  "source_sha256_raw_files": {
+    "crates/motion-render/src/layer_gpu.rs": "71ed83d24d19bf64c4a6101180dffc0d6f4a6f61da776cc6962181803e204052",
+    "crates/motion-render/src/layer_gpu/groups.rs": "a280cfced7965bb2f390193ad86def5f31432422cc195d17db47bb792e67b973",
+    "crates/motion-render/src/layer_gpu/groups/planning_tests.rs": "7da31a2a702177e66d845cc4337a8e5ca1cfe96dd28a85b033508d33493dcdab",
+    "crates/motion-render/src/lib.rs": "c5c504ddd42f78a67e26c1e69b22d0feb71b17bcfe83d0f47b2b18fd577eb1b5",
+    "crates/motion-render/src/renderer.rs": "d83792702c69466da468e0bf7072b3542e0f8b2e718c3db8cb486fbf08026ea7",
+    "crates/motion-render/src/renderer/vector_planning_tests.rs": "48693a851a54226222073b095d95206d07c5e0455e9be3ba40013d59c1b34c74",
+    "crates/motion-render/src/test_allocations.rs": "9802ffbfcf0a689f3ce50eeaae4ebd9f96aa71eed248b375293ab4863a635469",
+    "engineering/validation/vector-scratch-planning.md": "8fa879f4efcc9a30fc1e7ffb71933df6fbde0a57ca27dd5a392c869436d23d93"
+  },
+  "binary_sha256": {
+    "motion_render-1fcc3fb8d09fa888.exe": "5fc010933a30e57e9e2bc622df16b3e3920398a06a80f0aad41ccaca8147dc2d",
+    "vector_budget_alignment-80f3822d5431cb6a.exe": "e39a09dec8016214f48c32e36a3daa5ef33ed2587263f8b6f258807293de74e8",
+    "vector_error_boundaries-4162b162d7ecfa99.exe": "b9e40a8815836ba4a0bae827a5c219c7d9792d2a34e48c35ffc8eacba3c6ce06",
+    "vector_groups-02147addf7395614.exe": "24644c95ab25e615689bb86a6e99dc5573ad71e74c42bff8d6efef85b4c08362",
+    "vector_upload_reuse-a94ca798c1da72b3.exe": "fa3da2d5b33d51fef98d7c0fa17989cb23d84ea793d5677f5a0fcec6ab072f59"
+  },
+  "commands": [
+    "cargo test -p motion-render --lib --features gpu-tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target planning -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --features gpu-tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target --test vector_groups --test vector_upload_reuse --test vector_budget_alignment --test vector_error_boundaries -- --test-threads=1 --nocapture",
+    "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "environment": {
+    "adapter": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "backend": "Vulkan",
+    "driver": "591.86",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "scope": {
+    "counted": "successful allocations on the calling test thread inside the named planning operations, after warmup",
+    "excluded": [
+      "GPU initialization",
+      "fixture creation",
+      "background thread allocations",
+      "full-frame allocation and FPS claims"
+    ]
+  },
+  "ci": "pending at submission",
+  "evidence_zip_sha256": "5c3db45a26e573c23532329219d6c737277c36fb88c4f0ccc55bf2075fd63892"
+}

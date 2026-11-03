@@ -322,7 +322,14 @@ pub enum Command {
         anchor: [f32; 2],
     },
     /// Move the sampled anchor with position compensation at composition time.
-    AnchorAt { object: u64, frame: f64, anchor: [f32; 2] },
+    AnchorAt {
+        object: u64,
+        frame: f64,
+        anchor: [f32; 2],
+        /// Optional identities captured together before a compensated gesture.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        keys: Option<crate::keyframe_clipboard::authoring::AnchorKeyBinding>,
+    },
     CameraLens {
         #[serde(default)]
         object: u64,

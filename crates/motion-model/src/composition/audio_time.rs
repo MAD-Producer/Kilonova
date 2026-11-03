@@ -36,6 +36,8 @@ pub(super) struct Sample {
 #[derive(Clone, Copy, Debug)]
 pub struct AudioMappedSample {
     pub position: f64,
+    /// Signed native PCM samples traversed per output sample, after all clocks.
+    pub native_rate: f64,
     pub gain: [f32; 2],
 }
 
@@ -149,8 +151,16 @@ impl AudioVoice {
         else {
             return Ok(None);
         };
+        let native_rate = mapped.source.rate * (f64::from(sample_rate) / f64::from(mapped.fps));
+        if !native_rate.is_finite() {
+            return Err(Error::LayerTime {
+                phase: "pcm_rate",
+                source: Box::new(Error::Invalid("native PCM derivative is non-finite".into())),
+            });
+        }
         Ok(Some(AudioMappedSample {
             position,
+            native_rate,
             gain: self.gain_with(output_sample, mapped.db, mapped.balance)?,
         }))
     }

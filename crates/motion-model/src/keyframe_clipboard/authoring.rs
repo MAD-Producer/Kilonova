@@ -3,7 +3,7 @@
 use super::*;
 use crate::{layer_time::LayerClock, CurveObject, CurveTrack, Ease};
 mod anchor;
-pub use anchor::compensate_anchor;
+pub use anchor::{compensate_anchor, compensate_anchor_with_keys, AnchorKeyBinding};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]

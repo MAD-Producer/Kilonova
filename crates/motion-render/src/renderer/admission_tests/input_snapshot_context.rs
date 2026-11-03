@@ -68,7 +68,8 @@ fn input_snapshot_refusals_retain_layer_extent_typed_causes_old_texture_and_pixe
     let prior_limit = renderer.effect_gpu.builder.source_texture_budget;
     renderer.effect_gpu.builder.source_texture_budget = category_limit;
     let order = crate::effect_plan::image_input_order_for(&renderer.effect_gpu.builder.frame, &[]).unwrap();
-    let error = renderer.prepare_input_snapshots(&order).unwrap_err();
+    assert_eq!(renderer.effect_gpu.builder.effect_snapshot_order(), order);
+    let error = renderer.prepare_input_snapshots().unwrap_err();
     assert_eq!(error.resource_rejection(), Some(&ResourceRejection::Budget {
         scope: ResourceBudgetScope::SourceTextures,
         required_bytes: category_limit + 32 * 32 * 4, budget_bytes: category_limit,
