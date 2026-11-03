@@ -114,3 +114,6 @@ in this gate and is not claimed as package or GPU acceptance.
 
 See the [validation record](../validation/professional-api86-parameter-contract-current.md)
 for executed results, original failed attempts and remaining issue #86 scope.
+The separate [professional API matrix and native camera example](professional-compositing-api.md)
+adds actual GPU/frozen PNG/movie proof for one procedural camera fixture; it
+does not change the limits of the parameter-only host gate above.
