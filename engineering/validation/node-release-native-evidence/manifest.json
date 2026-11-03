@@ -1,0 +1,590 @@
+{
+  "head": "2882de24f5f90b79fe7407f900761ceedb8a1a47",
+  "profile": "release",
+  "ffmpeg": true,
+  "compiler_overrides": false,
+  "executable_sha256": "63e70c7507c6a85f0fbf8a8fc208cf6abc5e096ad7f4ca9007732edb1e31a365",
+  "ci_verifier_sha256": "e06e5a0375d09fe5e6f9238c31bce9f244473d7ec0b8eb560ecbf9e0891a9cb1",
+  "verifier_block_sha256": "c6a44ed5277cb8bb602beef830ed3479a6aa5215fce3dc35b91623c52e06d6cb",
+  "rust_min_stack_overridden": false,
+  "unchanged_timeout_seconds": 125,
+  "controlled_appdata": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-restore-geometry\\release-native\\appdata",
+  "controlled_temp": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-restore-geometry\\release-native\\tmp",
+  "physical_input_verified": false,
+  "native_verified": true,
+  "native_runs": [
+    {
+      "locale": "en",
+      "state": "verified",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\motion-studio.exe",
+        "--node-smoke",
+        "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-restore-geometry\\release-native\\node-smoke-en.json",
+        "--locale",
+        "en"
+      ],
+      "elapsed_seconds": 24.985000000000582
+    },
+    {
+      "locale": "zh",
+      "state": "verified",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\motion-studio.exe",
+        "--node-smoke",
+        "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-restore-geometry\\release-native\\node-smoke-zh.json",
+        "--locale",
+        "zh"
+      ],
+      "elapsed_seconds": 26.35899999999674
+    }
+  ],
+  "final_pngs": 438,
+  "retained_pngs": 8,
+  "screens": [
+    {
+      "locale": "en",
+      "window": "viewMain",
+      "role": "overview",
+      "path": "screens/node-smoke-en.node-view-main-overview.png"
+    },
+    {
+      "locale": "en",
+      "window": "viewMain",
+      "role": "contextMenu",
+      "path": "screens/node-smoke-en.node-view-main-menu.png"
+    },
+    {
+      "locale": "en",
+      "window": "viewFloat",
+      "role": "overview",
+      "path": "screens/node-smoke-en.node-view-float-overview.png"
+    },
+    {
+      "locale": "en",
+      "window": "viewFloat",
+      "role": "contextMenu",
+      "path": "screens/node-smoke-en.node-view-float-menu.png"
+    },
+    {
+      "locale": "zh",
+      "window": "viewMain",
+      "role": "overview",
+      "path": "screens/node-smoke-zh.node-view-main-overview.png"
+    },
+    {
+      "locale": "zh",
+      "window": "viewMain",
+      "role": "contextMenu",
+      "path": "screens/node-smoke-zh.node-view-main-menu.png"
+    },
+    {
+      "locale": "zh",
+      "window": "viewFloat",
+      "role": "overview",
+      "path": "screens/node-smoke-zh.node-view-float-overview.png"
+    },
+    {
+      "locale": "zh",
+      "window": "viewFloat",
+      "role": "contextMenu",
+      "path": "screens/node-smoke-zh.node-view-float-menu.png"
+    }
+  ],
+  "compiler_sources": {
+    "tools/ci_desktop.py": "e06e5a0375d09fe5e6f9238c31bce9f244473d7ec0b8eb560ecbf9e0891a9cb1",
+    ".github/workflows/ci.yml": "37a4265f1da721a3b2a213c5505b474abcbb0e8d5fc8485d4166fbe6d1b03a77",
+    "Cargo.toml": "9059bcf16fa56745ddc375fcfde5ce9002d4f6a907eb9288564fb78b9a7b8f60",
+    "Cargo.lock": "593e22b267f537ee419b467f82ecb3bb73260364fd4a0cab2d7289c6bd2c3531"
+  },
+  "build_warnings": [
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/crates/motion-render#0.1.0",
+      "message": "variant `Preserve` is never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/crates/motion-render#0.1.0",
+      "message": "method `create_owned_texture` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "unnecessary parentheses around pattern",
+      "code": {
+        "code": "unused_parens",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "unused variable: `state`",
+      "code": {
+        "code": "unused_variables",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "unused variable: `atlas`",
+      "code": {
+        "code": "unused_variables",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "unused variable: `slot`",
+      "code": {
+        "code": "unused_variables",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "type `mini::Context<'_>` is more private than the item `panels::animation_controls::Controls::render`",
+      "code": {
+        "code": "private_interfaces",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "type `viewer_guides::Visibility` is more private than the item `viewer_guides::Controls::visibility`",
+      "code": {
+        "code": "private_interfaces",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "type `navigation::Navigation` is more private than the item `panels::types::Panels::menu_navigation`",
+      "code": {
+        "code": "private_interfaces",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "type `toolbar_style::Controls` is more private than the item `panels::types::Panels::toolbar_style`",
+      "code": {
+        "code": "private_interfaces",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "type `panels::timeline::Row` is more private than the item `TimelineState::rows_cache`",
+      "code": {
+        "code": "private_interfaces",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `underruns` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `configured` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "field `queue` is never read",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "multiple variants are never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "associated function `start` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "methods `compile_runtime` and `compile_preview_runtime` are never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "fields `revision` and `semantic_revision` are never read",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "field `floating_mode` is never read",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "methods `options`, `set_floating_mode`, and `is_floating_mode` are never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `move_selected` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "associated functions `build`, `build_reusing`, and `build_with_cache` are never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `submit_to` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `phase` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `frame` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "function `render` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `apply` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `title` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `draw_in_viewport` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "variants `Language` and `ViewKind` are never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "multiple variants are never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "method `hit` is never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "struct `Context` is never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "struct `Capture` is never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "struct `Views` is never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "methods `begin`, `captured`, `release`, `cancel`, `set_layout`, and `set_mode` are never used",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    },
+    {
+      "package": "path+file:///E:/Dev/aem/.worktrees/layer-time-mapping/desktop/app#motion-desktop@0.1.0",
+      "message": "variant `Image` is never constructed",
+      "code": {
+        "code": "dead_code",
+        "explanation": null
+      }
+    }
+  ],
+  "zero_build_warnings": false,
+  "merge": "77f6145256a6acc0aebe7d29ab4a645322621771",
+  "merge_verified_files": 41,
+  "native_scope": "Real engine/GPU capture and internally driven native windows, EN/ZH; not OS physical pointer/keyboard input, GPU timestamp cost proof, or latest main integration.",
+  "raw_png_scope": "438 final files remain outside Git; archive retains 8 representative locale/window captures. Shared texture filenames were not independently snapshotted per locale.",
+  "archive_sha256": "38f44b02cd0a44b46018f6d0923f86ae2389c52f03cc5373981955e0e63d295c",
+  "records": [
+    {
+      "path": "native/receipt.json",
+      "bytes": 1631,
+      "sha256": "5c87653dcfe1c29683ef15d724bffb610ca97c6169c1e5b7958745ce0183ebc9"
+    },
+    {
+      "path": "native/unchanged-ci-node-verifier.py",
+      "bytes": 6163,
+      "sha256": "cd2d930566c1a7426777eb8d76416d9d5760282b3906d26b52bc87bf3df1aa4a"
+    },
+    {
+      "path": "native/node-smoke-en.json",
+      "bytes": 46033,
+      "sha256": "befa83c22c0adcb45e32175dc581573ac7bbc6ca7ea6844d9ac5f9b353e8c3a9"
+    },
+    {
+      "path": "native/node-smoke-zh.json",
+      "bytes": 46038,
+      "sha256": "2c6a0b15be15f7b58b7082278d52b381e3a8b876c3470b7a902fbf5cc1652c75"
+    },
+    {
+      "path": "native/node-smoke-en.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native/node-smoke-en.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native/node-smoke-zh.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native/node-smoke-zh.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "screens/node-smoke-en.node-view-main-overview.png",
+      "bytes": 202505,
+      "sha256": "e9099a3422148d3b7a8b51afa1d2b8cdb79c4839e68b16f8dfd857b35d46bfa9"
+    },
+    {
+      "path": "screens/node-smoke-en.node-view-main-menu.png",
+      "bytes": 196642,
+      "sha256": "2f914419e3189582f4bfe734ef66ad1ad6fccd80c3616accb6be4c6444fc5254"
+    },
+    {
+      "path": "screens/node-smoke-en.node-view-float-overview.png",
+      "bytes": 170821,
+      "sha256": "66d93bbf616aae1e1e05d5a3202df5b863618687adddd4cff4d16ef414795c6a"
+    },
+    {
+      "path": "screens/node-smoke-en.node-view-float-menu.png",
+      "bytes": 139879,
+      "sha256": "d0cf78b8b393bfae34e733ef7813999d408644248fd1bbc07655cb95a879e4aa"
+    },
+    {
+      "path": "screens/node-smoke-zh.node-view-main-overview.png",
+      "bytes": 214428,
+      "sha256": "69bbc16b3a5252854d422d4d31ea57497941baa7cb8bb76dae2110475fb30988"
+    },
+    {
+      "path": "screens/node-smoke-zh.node-view-main-menu.png",
+      "bytes": 210025,
+      "sha256": "5414c9cf7b2f692533ccdef078cea8cb316241c5871e4caf89a81318c8c6148e"
+    },
+    {
+      "path": "screens/node-smoke-zh.node-view-float-overview.png",
+      "bytes": 186906,
+      "sha256": "a67b864473d05c6d1d09670b6bced3a53559a5f233e2e478df0c2f8e58b3a38b"
+    },
+    {
+      "path": "screens/node-smoke-zh.node-view-float-menu.png",
+      "bytes": 155786,
+      "sha256": "05da7c73628df06671326e9dbeadb5b3450ddb334b4964b84f582d1947fa5add"
+    },
+    {
+      "path": "raw/build-release.ps1",
+      "bytes": 777,
+      "sha256": "c07b8de1c5d2777be0991596edf4464fef7f0d63002400b853347b483a08127a"
+    },
+    {
+      "path": "raw/run-release-native.py",
+      "bytes": 3266,
+      "sha256": "8a8735d552cca6f2b39f4c90988d7983eca5c61c794b9f026c1faeb317860d36"
+    },
+    {
+      "path": "raw/release-build.jsonl",
+      "bytes": 508284,
+      "sha256": "e4c1441f75269c80a4f84f7cecfa5188d0abc2cd01c6c5fdcabd500a8d644fdf"
+    },
+    {
+      "path": "raw/release-build.stderr",
+      "bytes": 11076,
+      "sha256": "419cef5140fe0faed347d076097fbf4d355b6f96eb2fcadb5ae8ebde4230be7b"
+    },
+    {
+      "path": "raw/native-final-png-manifest.json",
+      "bytes": 79472,
+      "sha256": "35b5a50456ccba5fc5f195c6d28dd04705584f8f25aecfcc30ef3e4c81625b04"
+    },
+    {
+      "path": "raw/stack-merge-preflight.json",
+      "bytes": 23556,
+      "sha256": "924068e41ff3f71ddd40c32bb63a105bb62eb22b9c2d341ab2d3c92572bf6f8a"
+    },
+    {
+      "path": "raw/stack-retarget.json",
+      "bytes": 140,
+      "sha256": "c679b8f0ed711e00ec55b896057dd6df94eacb11b8325d936ade55d7272acd9e"
+    },
+    {
+      "path": "raw/stack-merge-ready.json",
+      "bytes": 8058,
+      "sha256": "7c0c1307b11e995b3b2004b12ea59719c34b46577fe87d22fa0e39a1293bf273"
+    },
+    {
+      "path": "raw/stack-merge-result.json",
+      "bytes": 8207,
+      "sha256": "d907491f8cfcfe7873e8f434288cd68897b662a44d6f1eb4aad4602765e22927"
+    },
+    {
+      "path": "raw/stack-merge-verified.json",
+      "bytes": 7769,
+      "sha256": "51069a68d329d51dc9684ff9d37ea19ee9b24051ed90232fa1e5e5cfd7c1ea0d"
+    },
+    {
+      "path": "raw/local-worktrees.json",
+      "bytes": 94874,
+      "sha256": "8f9488d6a69b9746318184ea2389082785e85c8afdfd0e2a2c5f91357eec3cca"
+    },
+    {
+      "path": "raw/local-worktree-dispositions.json",
+      "bytes": 3924,
+      "sha256": "d22d91ca382651b73bbc24d22c5a53c9ccb29d04be64936af10644ecfb01fbbb"
+    },
+    {
+      "path": "native/appdata/MotionStudio/logs/motion-studio.log",
+      "bytes": 59118,
+      "sha256": "50a9c2628eeb682eefbcdbe97f34fc03401029167ee7a61851ab9aeb6155edde"
+    },
+    {
+      "path": "native/appdata/MotionStudio/diagnostics/last-stalls.json",
+      "bytes": 152802,
+      "sha256": "495a39864811463de392ac854d3e4940f7babbe02d0e8f232dad977e5c1ffbf0"
+    },
+    {
+      "path": "compiler-commit/tools/ci_desktop.py",
+      "bytes": 28115,
+      "sha256": "e06e5a0375d09fe5e6f9238c31bce9f244473d7ec0b8eb560ecbf9e0891a9cb1"
+    },
+    {
+      "path": "compiler-commit/.github/workflows/ci.yml",
+      "bytes": 20996,
+      "sha256": "37a4265f1da721a3b2a213c5505b474abcbb0e8d5fc8485d4166fbe6d1b03a77"
+    },
+    {
+      "path": "compiler-commit/Cargo.toml",
+      "bytes": 1036,
+      "sha256": "9059bcf16fa56745ddc375fcfde5ce9002d4f6a907eb9288564fb78b9a7b8f60"
+    },
+    {
+      "path": "compiler-commit/Cargo.lock",
+      "bytes": 146384,
+      "sha256": "593e22b267f537ee419b467f82ecb3bb73260364fd4a0cab2d7289c6bd2c3531"
+    },
+    {
+      "path": "raw/release-native-summary.json",
+      "bytes": 14263,
+      "sha256": "52521bb2d5f47d8ad971af753ecb6a668ae962d2987ba21e6d9353f0951a6f05"
+    },
+    {
+      "path": "raw/native-packaging-error.txt",
+      "bytes": 537,
+      "sha256": "62e0f936c2cb7d47e6afbfc21b6e2a59876a8d7bae9d6b4dc0c44421522022cf"
+    },
+    {
+      "path": "README.txt",
+      "bytes": 937,
+      "sha256": "c6fec3f51055732931b7d423387e77283fab203f374d552a8a075bcde62abfa2"
+    }
+  ]
+}
