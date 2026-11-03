@@ -247,13 +247,18 @@ fn collapsed_icon_viewports_keep_the_legacy_empty_output() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
+#[cfg_attr(
+    not(feature = "gpu-tests"),
+    ignore = "requires gpu-tests; run with --features gpu-tests"
+)]
 fn transformed_shared_icons_keep_owned_gpu_pixels_and_detect_wrong_placement() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
-        .expect("GPU adapter required for transformed icon acceptance");
-    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
-        .expect("transformed icon acceptance device");
+    let adapter =
+        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
+            .expect("GPU adapter required for transformed icon acceptance");
+    let (device, queue) =
+        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
+            .expect("transformed icon acceptance device");
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
     let sources: HashMap<String, Source> =
         serde_json::from_str(include_str!("../../icons/paths.json")).unwrap();
@@ -267,7 +272,12 @@ fn transformed_shared_icons_keep_owned_gpu_pixels_and_detect_wrong_placement() {
             let mut expected = PaintList::default();
             let mut wrong = PaintList::default();
             for (i, icon) in Icon::ALL.iter().enumerate() {
-                let area = Rect::new((i % 8) as f32 * 40. + 2.25, (i / 8) as f32 * 40. + 3.5, 35.5, 28.25);
+                let area = Rect::new(
+                    (i % 8) as f32 * 40. + 2.25,
+                    (i / 8) as f32 * 40. + 3.5,
+                    35.5,
+                    28.25,
+                );
                 let color = Color::grey(220).with_alpha(0.7);
                 draw(&mut actual, area, *icon, 25.75, color);
                 legacy_draw(&mut expected, area, &original[icon.id()], 25.75, color);
@@ -289,24 +299,49 @@ fn transformed_shared_icons_keep_owned_gpu_pixels_and_detect_wrong_placement() {
                     }
                 }
             }
-            for clip in [Rect::new(19.5, 22.25, 530.25, 529.5), Rect::new(23.25, 25.5, 524.5, 520.25)] {
+            for clip in [
+                Rect::new(19.5, 22.25, 530.25, 529.5),
+                Rect::new(23.25, 25.5, 524.5, 520.25),
+            ] {
                 for list in [&mut actual, &mut expected, &mut wrong] {
                     list.clip_to(clip);
                 }
             }
             let rendered = capture(&device, &queue, &mut painter, &actual, [640., 640.], ratio);
-            let expected = capture(&device, &queue, &mut painter, &expected, [640., 640.], ratio);
+            let expected = capture(
+                &device,
+                &queue,
+                &mut painter,
+                &expected,
+                [640., 640.],
+                ratio,
+            );
             let wrong = capture(&device, &queue, &mut painter, &wrong, [640., 640.], ratio);
             assert!(expected.iter().filter(|v| **v != 0).count() > 1000);
-            assert_eq!(rendered, expected, "outer transform changed pixels: zoom={zoom} ratio={ratio}");
-            assert!(wrong.iter().zip(&expected).filter(|(a, b)| a != b).count() > 100,
-                "negative control must detect wrong icon placement: zoom={zoom} ratio={ratio}");
+            assert_eq!(
+                rendered, expected,
+                "outer transform changed pixels: zoom={zoom} ratio={ratio}"
+            );
+            assert!(
+                wrong.iter().zip(&expected).filter(|(a, b)| a != b).count() > 100,
+                "negative control must detect wrong icon placement: zoom={zoom} ratio={ratio}"
+            );
             if let Some(output) = std::env::var_os("MOTION_ICON_ARTIFACTS") {
                 let output = std::path::PathBuf::from(output);
                 std::fs::create_dir_all(&output).unwrap();
-                for (name, pixels) in [("actual", &rendered), ("owned", &expected), ("wrong", &wrong)] {
-                    image::save_buffer(output.join(format!("node-icons-zoom{zoom}-ratio{ratio}-{name}.png")),
-                        pixels, (640. * ratio) as u32, (640. * ratio) as u32, image::ColorType::Rgba8).unwrap();
+                for (name, pixels) in [
+                    ("actual", &rendered),
+                    ("owned", &expected),
+                    ("wrong", &wrong),
+                ] {
+                    image::save_buffer(
+                        output.join(format!("node-icons-zoom{zoom}-ratio{ratio}-{name}.png")),
+                        pixels,
+                        (640. * ratio) as u32,
+                        (640. * ratio) as u32,
+                        image::ColorType::Rgba8,
+                    )
+                    .unwrap();
                 }
             }
         }

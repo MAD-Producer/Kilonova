@@ -16,22 +16,38 @@ fn canvas_transform_keeps_shared_icons_and_exact_coordinates() {
     for zoom in [0.5, 1.25, 1.75] {
         let mut list = PaintList::default();
         for icon in icons::Icon::ALL {
-            icons::draw(&mut list, Rect::new(2.25, 3.5, 24., 20.),
-                *icon, 18., motion_ui::Color::grey(220));
+            icons::draw(
+                &mut list,
+                Rect::new(2.25, 3.5, 24., 20.),
+                *icon,
+                18.,
+                motion_ui::Color::grey(220),
+            );
         }
-        let expected: Vec<Vec<_>> = list.shapes.iter().map(|shape| {
-            let Shape::Mesh(mesh) = shape else { panic!("shared icon required") };
-            mesh.points().map(|p| [13.25 + p[0] * zoom, 17.75 + p[1] * zoom]).collect()
-        }).collect();
+        let expected: Vec<Vec<_>> = list
+            .shapes
+            .iter()
+            .map(|shape| {
+                let Shape::Mesh(mesh) = shape else {
+                    panic!("shared icon required")
+                };
+                mesh.points()
+                    .map(|p| [13.25 + p[0] * zoom, 17.75 + p[1] * zoom])
+                    .collect()
+            })
+            .collect();
         let order = list.order.clone();
         controls::transform_content(&mut list, [13.25, 17.75], zoom);
         assert_eq!(list.order, order);
         for (shape, expected) in list.shapes.iter().zip(expected) {
-            let Shape::Mesh(mesh) = shape else { panic!("canvas must retain shared geometry") };
+            let Shape::Mesh(mesh) = shape else {
+                panic!("canvas must retain shared geometry")
+            };
             assert_eq!(mesh.points().collect::<Vec<_>>(), expected);
         }
     }
 }
+
 fn row(editor: &NodeEditor, id: &str, index: usize, slider: bool) -> Rect {
     let card = editor
         .cards(editor.last_canvas)

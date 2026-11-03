@@ -30,6 +30,11 @@ impl StaticMesh {
         self.triangles.len() * 3
     }
 
+    /// Immutable source geometry, shared across draw lists and instances.
+    pub fn source_triangles(&self) -> &'static [[[f32; 2]; 3]] {
+        self.triangles
+    }
+
     pub fn triangles(&self) -> impl Iterator<Item = [[f32; 2]; 3]> + '_ {
         self.triangles.iter().map(|triangle| {
             triangle.map(|mut point| {
@@ -57,12 +62,12 @@ impl StaticMesh {
             self.count += 1;
             Shape::Mesh(self)
         } else {
-            Shape::Triangles {
-                points: self
-                    .points()
-                    .map(|p| [origin[0] + p[0] * scale, origin[1] + p[1] * scale])
-                    .collect(),
-            }
+            let mut points = Vec::with_capacity(self.point_count());
+            points.extend(
+                self.points()
+                    .map(|p| [origin[0] + p[0] * scale, origin[1] + p[1] * scale]),
+            );
+            Shape::Triangles { points }
         }
     }
 
