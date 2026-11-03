@@ -13,6 +13,7 @@ thread_local! {
     static PROBE: RefCell<Option<Probe>> = const { RefCell::new(None) };
 }
 pub(super) fn record_build() {
+    crate::panels::workload_tests::record_cards();
     PROBE.with(|state| {
         if let Some(probe) = state.borrow_mut().as_mut() {
             probe.builds = probe.builds.saturating_add(1);
