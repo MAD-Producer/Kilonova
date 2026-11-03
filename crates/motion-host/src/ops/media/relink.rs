@@ -20,6 +20,7 @@ use std::{
 static NONCE: AtomicU64 = AtomicU64::new(1);
 const MAX_RELINKS: usize = motion_core::MAX_LAYERS * 2;
 pub(crate) mod observation;
+mod tracking;
 
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -578,7 +579,31 @@ pub fn missing(s: &Session) -> Result<Value> {
     )
 }
 
-pub fn finish(s: &mut Session, request: &str) -> Result<Value> {
+pub fn finish(id: i64, request: &str) -> Result<Value> {
+    // Capture immutable author state under the guard. Original document IO and
+    // staged-source hashing must finish outside it, before anything is published.
+    let check = crate::session::with_session(id, |s| tracking::Check::capture(s, request))?;
+    let verified = check.as_ref().map(|check| check.verify(id, request));
+    crate::session::with_session(id, |s| {
+        if let Some(check) = &check {
+            if !check.matches(s, request) {
+                // A sink callback can invalidate author state while verification
+                // runs outside the guard. Never publish an unverified successor.
+                return Ok(json!({"asset_operation_cancelled":true,
+                    "asset_operation_reason":"superseded","state":s.snapshot()?}));
+            }
+            if let Some(Err(cause)) = verified {
+                let batch = s.asset_relink.as_mut().ok_or("asset relink task missing")?;
+                batch.state = "failed";
+                batch.error = Some(cause.to_string().chars().take(8192).collect());
+                return Err(cause);
+            }
+        }
+        finish_inner(s, request)
+    })
+}
+
+fn finish_inner(s: &mut Session, request: &str) -> Result<Value> {
     if !s
         .asset_relink
         .as_ref()

@@ -23,6 +23,7 @@ pub mod preview;
 pub mod preview_inputs;
 pub mod project;
 pub mod snapshot;
+pub mod tracking;
 
 /// A host application bound to one platform backend.
 ///

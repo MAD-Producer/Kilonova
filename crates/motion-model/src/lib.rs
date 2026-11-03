@@ -29,6 +29,9 @@ mod model;
 pub mod layer_switches;
 pub use layer_switches::LayerSwitch;
 pub mod model_assets;
+pub mod tracking;
+pub mod tracking_assets;
+pub use tracking_assets::{TrackingAsset, TrackingFormat};
 pub mod node_resources;
 pub use node_resources::{NodeResource, NodeImageReference};
 pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
@@ -97,6 +100,20 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("viewer_camera object={object} phase=selection: {source}")]
+    CameraResolution { object:u64,#[source] source:std::sync::Arc<Error> },
+    #[error("tracking_camera phase=binding object={object} asset={asset} track={track}: {source}")]
+    TrackingCameraBinding { object:u64,asset:u64,track:String,#[source] source:Box<Error> },
+    #[error("tracking_camera phase=sample object={object} asset={asset} track={track} local_frame={local_frame}: {source}")]
+    TrackingCamera { object:u64,asset:u64,track:String,local_frame:f64,#[source] source:Box<Error> },
+    #[error("tracking_plane phase=binding object={object} asset={asset} track={track}: {source}")]
+    TrackingPlaneBinding { object:u64, asset:u64, track:String, #[source] source:Box<Error> },
+    #[error("tracking_plane phase=sample object={object} asset={asset} track={track} frame={frame}: {source}")]
+    TrackingPlane { object:u64, asset:u64, track:String, frame:f64, #[source] source:Box<Error> },
+    #[error("tracking_point phase=binding object={object} asset={asset} track={track}: {source}")]
+    TrackingBinding { object: u64, asset: u64, track: String, #[source] source: Box<Error> },
+    #[error("tracking_point object={object} asset={asset} track={track} frame={frame}: {source}")]
+    TrackingPoint { object: u64, asset: u64, track: String, frame: f64, #[source] source: Box<Error> },
     #[error("layer time object={object} phase={phase}: {source}")]
     LayerTimeObject { object: u64, phase: &'static str, #[source] source: Box<Error> },
     #[error("layer time phase={phase}: {source}")]
@@ -204,6 +221,13 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("node resource phase={phase} path={path} cause={source}")]
     NodeResourceIo {
+        phase: &'static str,
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("tracking resource phase={phase} path={path} cause={source}")]
+    TrackingResourceIo {
         phase: &'static str,
         path: String,
         #[source]

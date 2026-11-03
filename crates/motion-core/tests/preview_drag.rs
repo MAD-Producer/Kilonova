@@ -11,13 +11,13 @@ fn preview_drag_tracks_screen_distance_at_any_fit_size_and_depth() {
             let mut scene = Scene::new(&p).unwrap();
             scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
             let point = p.layers[1].transform.position.value;
-            let before = scene.project_point(point);
+            let before = scene.project_point(point).unwrap();
             let delta = scene
                 .screen_translation(point, [37.0, -19.0], [width, height])
                 .unwrap();
             assert!(delta[2].abs() < 0.001, "front view must preserve Z");
             let moved = std::array::from_fn(|i| point[i] + delta[i]);
-            let after = scene.project_point(moved);
+            let after = scene.project_point(moved).unwrap();
             let fit = (width as f32 / p.width as f32).min(height as f32 / p.height as f32);
             assert!(((after[0] - before[0]) * fit - 37.0).abs() < 0.005);
             assert!(((after[1] - before[1]) * fit + 19.0).abs() < 0.005);
@@ -25,8 +25,8 @@ fn preview_drag_tracks_screen_distance_at_any_fit_size_and_depth() {
             // Translation must preserve the projected width and height.
             for offset in [[200.0, 0.0, 0.0], [0.0, 140.0, 0.0]] {
                 let edge_before =
-                    scene.project_point(std::array::from_fn(|i| point[i] + offset[i]));
-                let edge_after = scene.project_point(std::array::from_fn(|i| moved[i] + offset[i]));
+                    scene.project_point(std::array::from_fn(|i| point[i] + offset[i])).unwrap();
+                let edge_after = scene.project_point(std::array::from_fn(|i| moved[i] + offset[i])).unwrap();
                 for axis in 0..2 {
                     assert!(
                         ((edge_after[axis] - after[axis]) - (edge_before[axis] - before[axis]))
@@ -59,11 +59,11 @@ fn drag_respects_orbit_and_orthographic_camera_projection() {
         }
         scene.sample(&p, 0.0, view.map(|_| &o), &motion_core::ExpressionEvaluator).unwrap();
         let point = [540.0, 960.0, 0.0];
-        let before = scene.project_point(point);
+        let before = scene.project_point(point).unwrap();
         let delta = scene
             .screen_translation(point, [-40.0, 23.0], [540, 960])
             .unwrap();
-        let after = scene.project_point(std::array::from_fn(|i| point[i] + delta[i]));
+        let after = scene.project_point(std::array::from_fn(|i| point[i] + delta[i])).unwrap();
         assert!(((after[0] - before[0]) * 0.5 + 40.0).abs() < 0.005);
         assert!(((after[1] - before[1]) * 0.5 - 23.0).abs() < 0.005);
         assert!((after[2] - before[2]).abs() < 0.00001);

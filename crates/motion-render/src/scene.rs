@@ -120,6 +120,7 @@ pub struct Scene {
     depth_pending: std::collections::HashSet<u64>,
     pub(crate) shared_rasters: std::collections::HashSet<u64>,
     node_cameras: Vec<Option<motion_model::CameraSample>>,
+    node_camera_errors: Vec<Option<std::sync::Arc<motion_model::Error>>>,
     pub layers: Vec<DrawLayer>,
     pub background: [f32; 4],
     pub width: u32,
@@ -172,6 +173,14 @@ impl Scene {
         self.camera_sample.and_then(|sample| sample.depth_of_field)
             .filter(|sample| sample.aperture_diameter > 0.)
     }
+    pub fn native_lens(&self) -> Option<motion_model::tracking::lens::LensWarp> {
+        self.camera_sample.and_then(|sample| sample.lens)
+    }
+    /// Portable planar output cannot reproduce nonlinear spatial raster output,
+    /// including a nested composition's independently sampled camera.
+    pub fn has_native_lens(&self) -> bool {
+        self.native_lens().is_some() || self.nested.iter().any(|nested| nested.scene.has_native_lens())
+    }
     /// Portable plane consumers cannot preserve an active native aperture,
     /// including one sampled by a child composition's independent camera.
     pub fn has_native_depth_of_field(&self) -> bool {
@@ -192,7 +201,7 @@ impl Scene {
     /// Create an empty, unsampled context. Imported cameras require a catalog
     /// before `sample`; the initial empty pose is never a source-camera fallback.
     pub fn new(project: &Project) -> motion_model::Result<Self> {
-        let initial = if project.camera.imported.is_some() { motion_model::Camera::new(project.width, project.height).pose(0., project.width, project.height)? } else { project.camera.pose(0., project.width, project.height)? };
+        let initial = if project.camera.imported.is_some() || project.camera.tracking.is_some() { motion_model::Camera::new(project.width, project.height).pose(0., project.width, project.height)? } else { project.camera.pose(0., project.width, project.height)? };
         Ok(Self::empty(initial, project.background,
             project.width, project.height, project.fps, project.composition_id.clone()))
     }
@@ -200,7 +209,7 @@ impl Scene {
     /// Install source ownership and sample before using it for content rendering.
     pub fn for_composition(project: &Project, id: &str) -> motion_model::Result<Self> {
         let view = project.composition_view(id)?;
-        let initial = if view.camera.imported.is_some() { motion_model::Camera::new(view.width, view.height).pose(0., view.width, view.height)? } else { view.camera.pose(0., view.width, view.height)? };
+        let initial = if view.camera.imported.is_some() || view.camera.tracking.is_some() { motion_model::Camera::new(view.width, view.height).pose(0., view.width, view.height)? } else { view.camera.pose(0., view.width, view.height)? };
         Ok(Self::empty(initial, view.background,
             view.width, view.height, view.fps, view.id.to_owned()))
     }
@@ -248,6 +257,7 @@ impl Scene {
             depth_pending: Default::default(),
             shared_rasters: Default::default(),
             node_cameras: Vec::new(),
+            node_camera_errors: Vec::new(),
             layers: Vec::with_capacity(motion_model::MAX_LAYERS),
             background,
             width,
@@ -436,12 +446,13 @@ impl Scene {
                         self.curve_sources.push(source);
                     }
                 }
+                layer.apply_tracking_plane(project, frame, sampled)?;
                 effect_index += 1;
             }
         }
         self.effects.truncate(effect_index);
-        motion_model::hierarchy::matrices_with_cameras(project, frame, &mut self.node_world,
-            &mut self.node_states, &self.model_sources, &mut self.node_cameras)?;
+        motion_model::hierarchy::matrices_for_scene(project, frame, &mut self.node_world,
+            &mut self.node_states, &self.model_sources, &mut self.node_cameras,&mut self.node_camera_errors)?;
         self.node_ids.clear();
         self.node_ids.extend(project.layers.iter().map(|l| l.id));
         self.node_ids.push(0);
@@ -760,7 +771,7 @@ impl Scene {
         self.evaluated_project.as_deref().unwrap_or(original)
     }
     pub fn node_position(&self, id: u64) -> Option<[f32; 3]> {
-        self.node_ids.iter().position(|v| *v == id).map(|i| {
+        self.node_ids.iter().position(|v| *v == id).filter(|i|self.node_states[*i]==2).map(|i| {
             motion_model::to_project(
                 self.node_world[i].w_axis.truncate(),
                 self.width,
@@ -772,23 +783,32 @@ impl Scene {
         self.node_ids
             .iter()
             .position(|v| *v == id)
+            .filter(|i|self.node_states[*i]==2)
             .map(|i| self.node_world[i])
     }
-    pub fn project_point(&self, point: [f32; 3]) -> [f32; 3] {
+    pub fn project_point(&self, point: [f32; 3]) -> Result<[f32; 3]> {
         let clip =
             self.camera.view_projection * to_world(point, self.width, self.height).extend(1.0);
         let ndc = clip.truncate() / clip.w;
-        [
+        ensure(ndc.is_finite(),"camera projection is not finite")?;
+        let mut pixel = [
             (ndc.x * 0.5 + 0.5) * self.width as f32,
             (0.5 - ndc.y * 0.5) * self.height as f32,
             ndc.z,
-        ]
+        ];
+        if let Some(lens) = self.native_lens() {
+            let q = lens.forward([f64::from(pixel[0]),f64::from(pixel[1])])?;
+            pixel[0] = q[0] as f32;pixel[1] = q[1] as f32;
+        }
+        Ok(pixel)
     }
     pub fn project_node(&self, id: u64) -> Option<[f32; 3]> {
         let point = self.node_position(id)?;
         let spatial = self.node_is_spatial(id)?;
         Some(if spatial {
-            self.project_point(point)
+            // An anchor outside the certified camera domain has no selectable
+            // projected marker. The checked point API retains the exact cause.
+            self.project_point(point).ok()?
         } else {
             [point[0], point[1], 0.5]
         })
@@ -808,6 +828,11 @@ impl Scene {
         )?;
         let x = point[0] / self.width as f32 * 2.0 - 1.0;
         let y = 1.0 - point[1] / self.height as f32 * 2.0;
+        let spatial_point = if let Some(lens) = self.native_lens() {
+            if (0. ..=self.width as f32).contains(&point[0]) && (0. ..=self.height as f32).contains(&point[1]) {
+                Some(lens.inverse(point.map(f64::from))?)
+            } else { None }
+        } else { Some(point.map(f64::from)) };
         let mut hits = Vec::new();
         let mut start = 0;
         while start < self.layers.len() {
@@ -825,14 +850,18 @@ impl Scene {
                 if l.opacity <= 0.0 || !l.composite_visible { continue; }
                 let [vx, vy, vw, vh] = self.camera_viewport;
                 if l.three_d && (point[0] < vx || point[0] >= vx + vw || point[1] < vy || point[1] >= vy + vh) { continue; }
+                let (x,y) = if l.three_d && !l.screen_overlay && !self.is_screen_overlay(l.id) {
+                    let Some(p) = spatial_point else {continue};
+                    (p[0]/f64::from(self.width)*2.-1.,1.-p[1]/f64::from(self.height)*2.)
+                } else { (f64::from(x),f64::from(y)) };
                 let mvp = (plane_projection(self, l, l.screen_overlay) * plane_model(l, l.screen_overlay)).as_dmat4();
                 let size = plane_size(self, l, l.screen_overlay);
                 if mvp.determinant().abs() < 1e-20 {
                     continue;
                 }
                 let inverse = mvp.inverse();
-                let a = inverse * glam::DVec4::new(f64::from(x), f64::from(y), 0.0, 1.0);
-                let b = inverse * glam::DVec4::new(f64::from(x), f64::from(y), 1.0, 1.0);
+                let a = inverse * glam::DVec4::new(x, y, 0.0, 1.0);
+                let b = inverse * glam::DVec4::new(x, y, 1.0, 1.0);
                 if a.w.abs() < 1e-12 || b.w.abs() < 1e-12 {
                     continue;
                 }
@@ -894,8 +923,18 @@ impl Scene {
             clip.is_finite() && clip.w > 1.0e-8,
             "drag target is behind the camera",
         )?;
-        clip.x += 2.0 * delta[0] as f64 / (self.width as f64 * scale) * clip.w;
-        clip.y -= 2.0 * delta[1] as f64 / (self.height as f64 * scale) * clip.w;
+        if let Some(lens) = self.native_lens() {
+            let pixel = [(clip.x/clip.w*0.5+0.5)*f64::from(self.width),
+                (0.5-clip.y/clip.w*0.5)*f64::from(self.height)];
+            let pixel = lens.forward(pixel)?;
+            let moved = lens.inverse_in_certified_domain([pixel[0]+f64::from(delta[0])/scale,
+                pixel[1]+f64::from(delta[1])/scale])?;
+            clip.x = (moved[0]/f64::from(self.width)*2.-1.)*clip.w;
+            clip.y = (1.-moved[1]/f64::from(self.height)*2.)*clip.w;
+        } else {
+            clip.x += 2.0 * delta[0] as f64 / (self.width as f64 * scale) * clip.w;
+            clip.y -= 2.0 * delta[1] as f64 / (self.height as f64 * scale) * clip.w;
+        }
         let moved = vp.inverse() * clip;
         ensure(
             moved.is_finite() && moved.w.abs() > 1.0e-8,

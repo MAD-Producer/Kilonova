@@ -27,19 +27,20 @@ impl Scene {
                 self.composition_id, self.frame
             ))
         };
+        let resolved=|index:usize,object:u64| {
+            if let Some(cause)=self.node_camera_errors.get(index).and_then(Option::as_ref) {
+                return Err(motion_model::Error::CameraResolution{object,source:std::sync::Arc::clone(cause)});
+            }
+            self.node_cameras.get(index).copied().flatten().ok_or_else(||fail(object,"camera has no resolved sample"))
+        };
         let sample = match view {
             ViewCamera::Composition => self
                 .composition_camera
                 .ok_or_else(|| fail(0, "composition camera has no resolved sample"))?,
-            ViewCamera::Camera(0) if self.legacy_camera_created => self
-                .node_cameras
-                .last()
-                .copied()
-                .flatten()
-                .ok_or_else(|| fail(0, "camera has no resolved sample"))?,
+            ViewCamera::Camera(0) if self.legacy_camera_created => resolved(self.node_ids.len()-1,0)?,
             ViewCamera::Camera(0) => return Err(fail(0, "authored camera does not exist")),
             ViewCamera::Camera(id) => {
-                let resolved = self
+                let resolved_id = self
                     .source_objects
                     .iter()
                     .find(|(_, source)| *source == id)
@@ -47,13 +48,11 @@ impl Scene {
                 let index = self
                     .node_ids
                     .iter()
-                    .position(|node| *node == resolved)
+                    .position(|node| *node == resolved_id)
                     .ok_or_else(|| fail(id, "camera layer does not exist"))?;
-                self.node_cameras
-                    .get(index)
-                    .copied()
-                    .flatten()
-                    .ok_or_else(|| fail(id, "object is not a camera"))?
+                if !self.node_camera_errors.get(index).is_some_and(Option::is_some)
+                    && !self.node_cameras.get(index).is_some_and(Option::is_some) {return Err(fail(id,"object is not a camera"));}
+                resolved(index,id)?
             }
             ViewCamera::Observer(observer) => {
                 self.camera = observer.pose(self.width, self.height)?;
@@ -94,6 +93,7 @@ impl Scene {
         context.composition_camera = self.composition_camera;
         context.legacy_camera_created = self.legacy_camera_created;
         context.node_cameras = self.node_cameras.clone();
+        context.node_camera_errors = self.node_camera_errors.clone();
         context.evaluated_project = self.evaluated_project.clone();
         context.nested = self.nested.clone();
         context.select_view(view)?;

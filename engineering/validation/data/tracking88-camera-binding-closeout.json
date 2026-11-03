@@ -1,0 +1,62 @@
+{
+  "status": "native_camera_verified_renderer_regression_failed_in_compiler",
+  "createdUtc": "2026-11-01T10:04:26.616900+00:00",
+  "parentCommit": "e0a4f9584306c4abc8843416440495bfa17148ea",
+  "source": {
+    "crates/motion-core/src/command_registry.rs": "1c918ec8ead4d557baa735f343b57da7d205bc944e7a3b1b6ac2f45973669359",
+    "crates/motion-core/src/editor.rs": "a2ed342c0fa375cea7d08da2422d9ac93b1ac7d79db2e7f3a165a7cb8c7db9aa",
+    "crates/motion-core/src/history_accounting.rs": "ce47fcb2f5d441cc689f47a1ca03d467389967a4d26c9be2198c656ff3c66997",
+    "crates/motion-core/tests/tracking_camera.rs": "706b6fdb22fda52a231cdb4992441889176b21674112660859903cf08f2a799a",
+    "crates/motion-model/src/camera.rs": "fbd404e3769c682c7795a5357dc3698dc8eb0156130a640b2348f0d4a5b5f456",
+    "crates/motion-model/src/camera/imported.rs": "ac2bbeb809197d207efce4204ac7743a1564610f1cbdf58b6ea674c0cd5b81f6",
+    "crates/motion-model/src/commands.rs": "1f7bc22c5ceebe9936930b5ba3fe187cad16f74ba59d54e93d03d0befc2a5d1a",
+    "crates/motion-model/src/hierarchy.rs": "86d77cba41e0c5a9780d1b0ab64a41cf3fea90f0d43afbeee23f7dd2c0e8bdd8",
+    "crates/motion-model/src/lib.rs": "6f8e30f662694955bcba4373da56b8771d9f92b4278698f3aed0ca7b842275a3",
+    "crates/motion-model/src/model.rs": "eac8c99962f148d99c958791266b3eb4731cb6f8db8395145612a1cdc0a46dfb",
+    "crates/motion-model/src/tracking.rs": "96d6e0ab9f1f047450ea5acb92654ea870e062b5510cc38e5301638ee3ba05d6",
+    "crates/motion-model/src/tracking/asset.rs": "645dd106e37119bb37f3b92fda368077f71b37cd399ce5444b47826054fdf118",
+    "crates/motion-model/src/tracking/camera.rs": "e125e951973a847ec486990a5d82a38454c4646b989a3534f3aa7f43518ea8dd",
+    "crates/motion-model/tests/support/tracking_camera.rs": "7faf47ea5f149a9b9dfb63d75890d270aff01dc14a9d382b9b01e012087c1761",
+    "crates/motion-model/tests/tracking_camera.rs": "f6f0af46faed92ca4a7fdff2552c2171252c464491350dde75e8a7d4bec3e8ae",
+    "crates/motion-render/src/scene.rs": "f51faed7b77245df6475ab7a578747fb7042780d4c1c531fe4b9e1ec0bf3eafe",
+    "crates/motion-render/src/scene/view.rs": "f2f8639be655f8c1d7719eeff7f374c9c8a577b50734b11139669539afa420ea"
+  },
+  "archive": {
+    "path": "tracking88-camera-binding-v1.zip",
+    "sha256": "afe915e01847767262f050fff466684fa7c287368649fcafe5bd790af01130c8",
+    "bytes": 819301,
+    "members": 64
+  },
+  "counts": {
+    "model": [
+      238,
+      0,
+      0
+    ],
+    "core": [
+      485,
+      0,
+      1
+    ],
+    "host-tracking": [
+      50,
+      0,
+      0
+    ]
+  },
+  "nativeExeSha256": "bbae7ef7763f9ad5366736669a7c89e27bcde16ebd4bda0be09b9f4db82cdae3",
+  "nativeStatus": "accepted_native_camera_increment_not_full_issue",
+  "regressionStatus": "failed",
+  "remainingStatus": "accepted_remaining_camera_checks_with_renderer_compiler_failure_retained",
+  "rendererTestsExecuted": false,
+  "failedGate": "rustc motion-render default/gpu-tests lib compilation exit0xc0000005",
+  "pending": [
+    "nonlinear lens output",
+    "calibrated real footage",
+    "vendor solve adapters",
+    "relink/cache/exposure integration",
+    "full maintained desktop/workspace and cross-platform CI",
+    "previous native/compiler fault causes",
+    "#82 strict P95 and GPU coverage"
+  ]
+}

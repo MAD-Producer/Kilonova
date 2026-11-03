@@ -44,6 +44,7 @@ impl Session {
             .chain(p.audio_assets.iter().map(|a| a.id))
             .chain(p.video_assets.iter().map(|a| a.id))
             .chain(p.model_assets.iter().map(|a| a.id))
+            .chain(p.tracking_assets.iter().map(|a| a.id))
             .max()
             .unwrap_or(0)
             .checked_add(1).ok_or("asset ID space exhausted")?;

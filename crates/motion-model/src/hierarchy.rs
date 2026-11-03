@@ -87,6 +87,45 @@ pub fn matrices_with_cameras(
     }
     Ok(())
 }
+/// Render roots and their ancestry are strict. An unused tracking camera can
+/// legitimately be outside its solve range after a cut; retain its exact cause
+/// for a later explicit view selection instead of failing an unrelated shot.
+/// Successful inactive samples remain available to fork_view without resampling.
+pub fn matrices_for_scene(
+    p: &Project,
+    frame: f64,
+    world: &mut Vec<Mat4>,
+    states: &mut Vec<u8>,
+    sampler: &dyn crate::CameraSampler,
+    cameras: &mut Vec<Option<crate::CameraSample>>,
+    errors: &mut Vec<Option<std::sync::Arc<Error>>>,
+) -> Result<()> {
+    world.resize(p.layers.len() + 1, Mat4::IDENTITY);
+    states.resize(world.len(), 0);
+    states.fill(0);
+    cameras.resize(world.len(), None);
+    cameras.fill(None);
+    errors.resize_with(world.len(), || None);
+    errors.fill(None);
+    // Preserve the existing strict spatial-object sampling contract, including
+    // cameras used as parents of those objects.
+    for (i, _) in p.layers.iter().enumerate().filter(|(_, l)| l.camera_data().is_none()) {
+        node(p, frame, i, world, states, sampler, Some(cameras))?;
+    }
+    let active = p.active_camera_layer(frame)
+        .and_then(|l| p.layers.iter().position(|v| v.id == l.id))
+        .unwrap_or(p.layers.len());
+    node(p, frame, active, world, states, sampler, Some(cameras))?;
+    for i in 0..world.len() {
+        if states[i] == 2 { continue; }
+        if let Err(cause) = node(p, frame, i, world, states, sampler, Some(cameras)) {
+            if !matches!(&cause, Error::TrackingCamera { .. }) { return Err(cause); }
+            errors[i] = Some(std::sync::Arc::new(cause));
+            for state in states.iter_mut().filter(|s| **s == 1) { *state = 0; }
+        }
+    }
+    Ok(())
+}
 /// Sample just one ancestry chain; particle births do not need unrelated nodes
 /// or the composition camera unless it is an explicit spatial parent.
 pub(crate) fn matrix_for(p: &Project, frame: f64, index: usize, world: &mut Vec<Mat4>, states: &mut Vec<u8>) -> Result<Mat4> {
@@ -150,7 +189,11 @@ fn node(
                 "imported_camera source={} scene={} node={} phase=binding frame={frame}: {cause}",
                 binding.asset, binding.scene, binding.node)))?;
         }
-        let sampled = sampler.sample(camera, frame, p.fps, [p.width, p.height], prefix)?;
+        let sampled = if let Some(binding)=&camera.tracking {
+            binding.sample(p,camera,camera_layer.map_or(0,|l|l.id),frame,prefix)?
+        }else{
+            sampler.sample(camera, frame, p.fps, [p.width, p.height], prefix)?
+        };
         if let Some(cameras) = cameras { cameras[index] = Some(sampled); }
         sampled.world
     } else {
@@ -160,7 +203,7 @@ fn node(
         } else {
             crate::geometry::flat_matrix(prefix)
         };
-        prefix * crate::geometry::pivot_matrix(layer, frame, p.width, p.height)?
+        prefix * crate::geometry::pivot_matrix(layer, frame, p)?
     };
     ensure(value.is_finite(), "invalid parent transform")?;
     world[index] = value;
