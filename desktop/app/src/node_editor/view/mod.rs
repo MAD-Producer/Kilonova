@@ -532,15 +532,17 @@ impl NodeEditor {
         let mut cards = self.cards(layout.canvas);
         let geometry = geometry_stamp(self);
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
-        if !self.minimap_input(layout.canvas, body_input, &styles) {
-            self.canvas_input(&cards, layout.canvas, body_input, language);
-        }
+        let ports_unchanged = if self.minimap_input(layout.canvas, body_input, &styles) {
+            true
+        } else {
+            self.canvas_input(&cards, layout.canvas, body_input, language)
+        };
         let current = geometry_stamp(self);
         if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. })) || current != geometry {
-            // Presentation-only commits preserve port metadata. A replacement
-            // document (including cancellation or group socket renaming) must
-            // still pass every node identity check before anything is updated.
-            let same_metadata = current.0 == geometry.0 && current.2 == geometry.2;
+            // Canvas connections and preview changes preserve port metadata too.
+            // Field commits/group navigation require a fresh build; replacement
+            // documents must still pass all identity checks before any update.
+            let same_metadata = current.0 == geometry.0 && ports_unchanged;
             if !same_metadata || !self.refresh_card_positions(&mut cards, layout.canvas) {
                 cards = self.cards(layout.canvas);
             }

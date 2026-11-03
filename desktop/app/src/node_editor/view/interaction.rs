@@ -169,13 +169,18 @@ impl NodeEditor {
             }
         }
     }
+    /// Whether this call leaves node operations and public port metadata intact.
+    /// Edges, preview selection and positions do not change port specifications;
+    /// field commits and group navigation may. The caller must still validate
+    /// the epoch and every source identity before reusing the cards.
     pub(super) fn canvas_input(
         &mut self,
         cards: &[Card],
         canvas: Rect,
         input: &Input,
         language: Language,
-    ) {
+    ) -> bool {
+        let mut ports_unchanged = true;
         if canvas.contains(input.mouse) && self.drag.is_none() && input.wheel != [0.; 2] {
             if input.modifiers.control && !input.modifiers.alt && !input.modifiers.shift {
                 self.view.zoom_at(
@@ -193,9 +198,11 @@ impl NodeEditor {
         let zoom = self.view.zoom;
         let socket = |point: [f32; 2]| wires::socket_at(cards, canvas, point, zoom).cloned();
         if let Some((button, point)) = input.pressed.filter(|(_, p)| canvas.contains(*p)) {
+            let before = (self.epoch, self.revision, self.preview_revision);
             if self.commit_field().is_err() {
-                return;
+                return false;
             }
+            ports_unchanged = before == (self.epoch, self.revision, self.preview_revision);
             match button {
                 MouseButton::Middle => {
                     self.drag = Some(Drag::Pan {
@@ -279,7 +286,7 @@ impl NodeEditor {
                             );
                             self.last_group_click = Some((card.id.clone(), now, point));
                             if double && self.enter_group(&card.id) {
-                                return;
+                                return false;
                             }
                         } else {
                             self.last_group_click = None;
@@ -481,5 +488,6 @@ impl NodeEditor {
                 }
             }
         }
+        ports_unchanged
     }
 }
