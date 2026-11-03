@@ -109,3 +109,127 @@ fn position_refresh_preserves_all_metadata_and_declines_changed_card_identity_wi
         assert!(!editor.refresh_card_positions(&mut fresh, canvas));
     }
 }
+
+#[test]
+fn every_builtin_graph_keeps_exact_card_and_socket_geometry_after_position_refresh() {
+    let mut checked = 0;
+    for example in motion_graph::builtin_examples() {
+        for collapsed in [false, true] {
+            let mut editor = NodeEditor::new(example.load().unwrap());
+            for node in &mut editor.document.nodes {
+                node.collapsed = collapsed;
+            }
+            for zoom in [0.33, 0.85, 2.75] {
+                editor.view.zoom = zoom;
+                let canvas = Rect::new(31., 77., 900., 600.);
+                let mut cards = editor.cards(canvas);
+                for (i, node) in editor.document.nodes.iter_mut().enumerate() {
+                    node.position = [i as f32 * 93.125 - 100., i as f32 * -24.75 + 20.];
+                }
+                assert!(editor.refresh_card_positions(&mut cards, canvas));
+                assert_eq!(
+                    geometry(&cards),
+                    geometry(&editor.cards(canvas)),
+                    "example={}",
+                    example.id
+                );
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 0);
+    println!("built-in graph geometry comparisons={checked}");
+}
+
+#[test]
+fn record_complete_node_drag_paint_and_history_for_original_path_comparison() {
+    let mut evidence = std::collections::BTreeMap::new();
+    for language in [Language::English, Language::Chinese] {
+        let mut atlas =
+            TextAtlas::from_system_language(12., language == Language::Chinese).unwrap();
+        for size in [[900., 600.], [1600., 1000.]] {
+            for zoom in [0.33, 0.85, 2.75] {
+                for collapsed in [false, true] {
+                    let mut editor = simple();
+                    let area = Rect::new(0., 0., size[0], size[1]);
+                    editor.draw(
+                        &mut PaintList::default(),
+                        &mut atlas,
+                        area,
+                        &Input::default(),
+                        language,
+                    );
+                    editor.view.zoom = zoom;
+                    let node = editor
+                        .document
+                        .nodes
+                        .iter_mut()
+                        .find(|n| n.id == "number")
+                        .unwrap();
+                    node.collapsed = collapsed;
+                    editor.view.pan = [
+                        100. - node.position[0] * zoom,
+                        100. - node.position[1] * zoom,
+                    ];
+                    let before = editor.snapshot();
+                    let card = editor
+                        .cards(editor.last_canvas)
+                        .into_iter()
+                        .find(|c| c.id == "number")
+                        .unwrap();
+                    let start = [
+                        card.rect.min[0] + NODE_WIDTH * zoom * 0.5,
+                        card.rect.min[1] + HEADER * zoom * 0.4,
+                    ];
+                    let end = [start[0] + 36.25, start[1] + 15.75];
+                    let mut frames = Vec::new();
+                    for input in [
+                        press(start, MouseButton::Left),
+                        Input {
+                            mouse: end,
+                            held: Some(MouseButton::Left),
+                            ..Default::default()
+                        },
+                        release(end, MouseButton::Left),
+                    ] {
+                        let mut paint = PaintList::default();
+                        let response = editor.draw(&mut paint, &mut atlas, area, &input, language);
+                        assert!(!paint.shapes.is_empty() && !paint.glyphs.is_empty());
+                        frames.push(format!(
+                            "{:?}",
+                            (
+                                paint.shapes,
+                                paint.colors,
+                                paint.glyphs,
+                                paint.order,
+                                response.actions,
+                                response.wants_pointer,
+                                response.wants_keyboard,
+                                response.changed,
+                                response.semantic_changed,
+                                editor.snapshot(),
+                                editor.undo.len()
+                            )
+                        ));
+                    }
+                    assert!(editor.drag.is_none());
+                    assert_eq!(editor.undo.len(), 1);
+                    assert_ne!(
+                        frames[0], frames[1],
+                        "pointer movement must change actual paint/state"
+                    );
+                    assert!(editor.undo());
+                    assert_eq!(editor.document, before.document);
+                    evidence.insert(
+                        format!("{language:?}-{}-{zoom}-{collapsed}", size[0]),
+                        frames,
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(evidence.len(), 24);
+    if let Some(path) = std::env::var_os("MOTION_NODE_DRAG_EVIDENCE") {
+        std::fs::write(path, serde_json::to_vec_pretty(&evidence).unwrap()).unwrap();
+    }
+}

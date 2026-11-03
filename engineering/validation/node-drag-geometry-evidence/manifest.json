@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "scope": "Steady position-only node drags reuse current-frame metadata; initial press, release and geometry changes keep original rebuild behavior",
+  "sources": {
+    "desktop/app/src/node_editor/view/mod.rs": "22811d7842503fa81a79f0dba7c59ee5efd44535ca67e68b1020230d05290058",
+    "desktop/app/src/node_editor/view/canvas.rs": "62449ab3d2f54d610657f77580a395faecd285136550a18ab928c5c0e6fd5737",
+    "desktop/app/src/node_editor/view/frame_cards_tests.rs": "19848599ea6e38ce181b916440ac4f2bdc1c9039ecd316ed0a19435410b75e1f",
+    "desktop/app/src/node_editor/view/frame_cards_tests/drag_geometry.rs": "220f5cc9256a79f9d61f641fcb60b0a6958214da40fec5b199c0e2f8c3350997",
+    "desktop/app/src/node_editor/view/wire_target_tests.rs": "1bf42f1c56ccefcaf7331f7a6f5de1ecf55b5fabeb7259aac7e27eee0d9ea5de",
+    "desktop/app/src/node_editor/view/wires/socket_index_tests.rs": "88741c25d3e12acb043166e35b2a7be9dd5ba5836dfba15d9e05196aa86b4a13"
+  },
+  "archive_sha256": "e09c0d1e120b2102376112a1dda887c5c44e61433494d414c36c8bc2dba77bbb",
+  "tests": {
+    "distinct_passed": 181,
+    "new": 4,
+    "existing": 177,
+    "ignored": 0,
+    "builtin_geometry_comparisons": 114,
+    "complete_paint_and_state_comparisons": 72,
+    "moving_pointer_controls": 24,
+    "original_rebuild_negative_exit": 101
+  },
+  "pending": [
+    "Exact-head CI",
+    "Whole issue134 acceptance",
+    "Whole-frame timing and memory peak",
+    "Other branch runtime integration",
+    "Full DESIGN acceptance"
+  ]
+}
