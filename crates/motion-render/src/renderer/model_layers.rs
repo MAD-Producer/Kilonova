@@ -70,6 +70,7 @@ pub(super) struct Models {
     targets: HashMap<u64, RenderTarget>,
     shared: [Option<crate::scene_gpu::ScenePass>; 2],
     matte_pass: Option<crate::scene_gpu::ScenePass>,
+    lens_output: Option<crate::LensOutputPipeline>,
 }
 impl Models {
     pub fn clear_gpu(&mut self) {
@@ -77,11 +78,13 @@ impl Models {
         self.targets.clear();
         self.shared = [None, None];
         self.matte_pass = None;
+        self.lens_output = None;
     }
     pub fn clear_targets(&mut self) {
         self.targets.clear();
         self.shared = [None, None];
         self.matte_pass = None;
+        self.lens_output = None;
     }
     pub fn retain_targets(&mut self, live: &std::collections::HashSet<u64>) {
         self.targets.retain(|id, _| live.contains(id));

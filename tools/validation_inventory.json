@@ -1,6 +1,20 @@
 {
   "version": 1,
   "tools": {
+    "tools/tracking/calibrate_photographs.py": {
+      "mode": "manual",
+      "command": "python tools/tracking/calibrate_photographs.py --source <pinned-photo-directory> --output <new-evidence-directory> [--download]",
+      "requires": [
+        "Pinned OpenCV sample photographs and their license, copyright and SHA-256 manifest",
+        "External opencv-python-headless 5.0.0.93 and NumPy 2.4.6"
+      ],
+      "reason": "Reproduce external photographed calibration with disjoint measured corners; native GPU rendering and original-source admission remain separate acceptance gates"
+    },
+    "tools/test_ci_tracking_calibration.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Exercise actual calibration CLI source-identity failures under normal and optimized Python without requiring optional OpenCV or downloading assets"
+    },
     "tools/ai_depth_onnx.py": {
       "mode": "manual",
       "command": "python tools/ai_depth_onnx.py <host-generated-request.json>",

@@ -105,6 +105,23 @@ fn percent(target: &ExpressionTarget) -> bool {
     )
 }
 
+// Position expressions author the correction channel. Cross-property references
+// observe that channel plus the independent source displacement, exactly once.
+fn tracked_value(project: &Project, target: &ExpressionTarget, frame: f64, mut value: Vec<f32>) -> Result<Vec<f32>> {
+    if let ExpressionTarget::Property { object, property: Property::Position, axis } = target {
+        if let Some(layer) = project.layers.iter().find(|layer| layer.id == *object && layer.tracking_point.is_some()) {
+            let delta = layer.tracking_displacement(project, frame)?;
+            if let Some(axis) = axis {
+                if axis.index() < 2 { value[0] += delta[axis.index()]; }
+            } else {
+                value[0] += delta[0]; value[1] += delta[1];
+            }
+            ensure(value.iter().all(|v| v.is_finite() && v.abs() <= 1e7), "referenced tracked position out of range")?;
+        }
+    }
+    Ok(value)
+}
+
 // Both limits apply to a single frame/session, reset when that session is
 // dropped; time-shifted recursion is still a dependency cycle. No worker restarts.
 const MAX_REFERENCE_DEPTH: usize = 16;
@@ -273,7 +290,7 @@ impl Session {
             .iter()
             .find(|e| e.target == target && active(&self.project, e))
         {
-            return js_sample(execute(expression, frame)?, false);
+            return js_sample(tracked_value(&self.project, &target, frame, execute(expression, frame)?)?, false);
         }
         if let ExpressionTarget::Property {
             object,
@@ -297,7 +314,7 @@ impl Session {
                     let component = values.get(axis.index()).ok_or_else(|| {
                         Error::Invalid("referenced vector is missing its component".into())
                     })?;
-                    return js_sample(vec![*component], false);
+                    return js_sample(tracked_value(&self.project, &target, frame, vec![*component])?, false);
                 }
             } else if matches!(
                 property,
@@ -325,11 +342,11 @@ impl Session {
                         values[index] = result[0];
                     }
                 }
-                return js_sample(values, false);
+                return js_sample(tracked_value(&self.project, &target, frame, values)?, false);
             }
         }
         js_sample(
-            track.sample(self.local_frame(&target, frame)?)?,
+            tracked_value(&self.project, &target, frame, track.sample(self.local_frame(&target, frame)?)?)?,
             percent(&target),
         )
     }

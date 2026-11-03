@@ -198,8 +198,21 @@ pub fn polygon(layer: &DrawLayer, scene: &Scene, registry: &Registry) -> Option<
             (0.5 - c.y / c.w * 0.5) * scene.height as f32,
         ));
     }
-    if points.len() == 4 {
-        return Some(points.into_iter().map(|v| v.to_array()).collect());
+    if points.len() != 4 { points = hull(points); }
+    if let Some(lens) = scene.native_lens().filter(|_|layer.three_d
+        && !layer.screen_overlay && !scene.is_screen_overlay(layer.id)) {
+        // A straight ideal edge becomes a curve under the output lens. Keep a
+        // bounded outline in output coordinates rather than four wrong chords.
+        // Outside the certified camera domain has no projected selection outline.
+        let mut outline = Vec::with_capacity(points.len()*16);
+        for i in 0..points.len() {
+            let a = points[i].as_dvec2();let b = points[(i+1)%points.len()].as_dvec2();
+            for step in 0..16 {
+                let q = lens.forward(a.lerp(b,f64::from(step)/16.).to_array()).ok()?;
+                outline.push([q[0] as f32,q[1] as f32]);
+            }
+        }
+        return Some(outline);
     }
-    Some(hull(points).into_iter().map(|v| v.to_array()).collect())
+    Some(points.into_iter().map(|v| v.to_array()).collect())
 }

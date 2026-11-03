@@ -71,6 +71,16 @@ pub trait Platform: Send + Sync {
     /// Short identifier recorded in preview and export reports.
     fn name(&self) -> &'static str;
 
+    /// Cold tracking import only: decode every source frame to EOF and compare
+    /// native rational PTS/raw dimensions. A backend without this capability
+    /// returns an error rather than claiming proof from rounded preview times.
+    fn verify_tracking_video(
+        &self, _path: &Path, _video: &VideoAsset,
+        _solve: &crate::tracking::asset::Asset, _check: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        Err("this backend cannot verify original decoded tracking video".into())
+    }
+
     /// Probe a video container/codec and return the importable asset description.
     fn probe_video(
         &self,

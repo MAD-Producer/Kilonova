@@ -49,6 +49,7 @@ impl Command {
             ImportProject { .. } => "import_project",
             ImportImage { .. } => "import_image",
             ImportModel { .. } => "import_model",
+            ImportTracking { .. } => "import_tracking",
             ReplaceImage { .. } => "replace_image",
             CreateText { .. } => "create_text",
             TextLayout { .. } => "text_layout",

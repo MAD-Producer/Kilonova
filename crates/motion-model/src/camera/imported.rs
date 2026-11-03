@@ -33,6 +33,9 @@ pub struct CameraSample {
     pub world: Mat4,
     /// Composition pixels; retained separately from projection to preserve aspect.
     pub viewport: [f32; 4],
+    /// Nonlinear output of this camera's spatial contributors only. A projective
+    /// matrix cannot encode this mapping; flat authored layers do not use it.
+    pub lens: Option<crate::tracking::lens::LensWarp>,
 }
 
 pub trait CameraSampler {
@@ -52,7 +55,9 @@ pub trait CameraSampler {
 pub struct AuthoredCameraSampler;
 impl CameraSampler for AuthoredCameraSampler {
     fn validate_source(&self, _asset: &crate::ModelAsset) -> Result<()> {
-        Err(crate::Error::Invalid("imported camera requires a source resolver".into()))
+        Err(crate::Error::Invalid(
+            "imported camera requires a source resolver".into(),
+        ))
     }
     fn sample(
         &self,
@@ -62,18 +67,34 @@ impl CameraSampler for AuthoredCameraSampler {
         [width, height]: [u32; 2],
         prefix: Mat4,
     ) -> Result<CameraSample> {
-        let pose = camera.pose_parented(frame, width, height, prefix)?;
-        let projection = Mat4::perspective_rh(
-            camera.fov.sample(frame)?.clamp(10.0, 120.0).to_radians(),
-            width as f32 / height as f32,
-            0.5,
-            100_000.0,
-        );
-        Ok(CameraSample {
-            pose,
-            depth_of_field: camera.depth_of_field.as_ref().map(|dof| dof.sample(frame)).transpose()?,
-            world: (projection.inverse() * pose.view_projection).inverse(),
-            viewport: [0., 0., width as f32, height as f32],
-        })
+        ensure(
+            camera.imported.is_none(),
+            "imported camera requires its model source resolver",
+        )?;
+        ensure(
+            camera.tracking.is_none(),
+            "tracking camera requires its project source resolver",
+        )?;
+        authored_sample(camera, frame, [width, height], prefix)
     }
+}
+/// Local correction evaluation never clones or resamples raw source observations.
+pub(crate) fn authored_sample(
+    camera: &Camera,
+    frame: f64,
+    [width, height]: [u32; 2],
+    prefix: Mat4,
+) -> Result<CameraSample> {
+    let (pose, world) = camera.authored_pose_and_world(frame, width, height, prefix)?;
+    Ok(CameraSample {
+        pose,
+        lens: None,
+        depth_of_field: camera
+            .depth_of_field
+            .as_ref()
+            .map(|dof| dof.sample(frame))
+            .transpose()?,
+        world,
+        viewport: [0., 0., width as f32, height as f32],
+    })
 }
