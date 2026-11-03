@@ -113,6 +113,9 @@ fn socket_hit_preserves_hover_area_visible_edges_and_front_card_occlusion() {
             source_node: std::ptr::null(),
             id: "front".into(),
             rect: Rect::new(point[0] - 20., point[1] - 20., 40., 40.),
+            world_height: 40.,
+            expanded_rows: 0,
+            collapsed: false,
             sockets: vec![],
         });
         assert!(wires::socket_at(&cards, canvas, point, zoom).is_none());

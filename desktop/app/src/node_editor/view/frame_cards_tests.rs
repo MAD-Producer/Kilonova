@@ -2,19 +2,32 @@ use super::super::tests::{press, release, simple};
 use super::*;
 use motion_ui::input::Modifiers;
 use std::cell::RefCell;
+mod drag_geometry;
+mod collapse_geometry;
+mod input_geometry;
+mod viewport_geometry;
 
 #[derive(Default)]
 struct Probe {
     builds: usize,
+    port_resolutions: usize,
     painted: Option<String>,
 }
 thread_local! {
     static PROBE: RefCell<Option<Probe>> = const { RefCell::new(None) };
 }
 pub(super) fn record_build() {
+    crate::panels::workload_tests::record_cards();
     PROBE.with(|state| {
         if let Some(probe) = state.borrow_mut().as_mut() {
             probe.builds = probe.builds.saturating_add(1);
+        }
+    });
+}
+pub(super) fn record_port_resolution() {
+    PROBE.with(|state| {
+        if let Some(probe) = state.borrow_mut().as_mut() {
+            probe.port_resolutions = probe.port_resolutions.saturating_add(1);
         }
     });
 }
@@ -54,6 +67,15 @@ fn draw(
     input: Input,
     language: Language,
 ) -> usize {
+    draw_counts(editor, atlas, area, input, language).0
+}
+fn draw_counts(
+    editor: &mut NodeEditor,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    input: Input,
+    language: Language,
+) -> (usize, usize) {
     struct Reset;
     impl Drop for Reset {
         fn drop(&mut self) {
@@ -71,7 +93,7 @@ fn draw(
         geometry(&editor.cards(editor.last_canvas)),
         "paint must use the current document, ports and viewport"
     );
-    probe.builds
+    (probe.builds, probe.port_resolutions)
 }
 fn center(rect: Rect) -> [f32; 2] {
     [
@@ -110,7 +132,7 @@ fn unchanged_draws_build_card_geometry_once_per_frame() {
 }
 
 #[test]
-fn navigation_rebuilds_current_geometry_without_editing_the_document() {
+fn navigation_projects_current_geometry_once_without_editing_the_document() {
     for language in [Language::English, Language::Chinese] {
         let mut editor = simple();
         let before = editor.snapshot();
@@ -142,7 +164,7 @@ fn navigation_rebuilds_current_geometry_without_editing_the_document() {
                 },
                 language,
             );
-            assert!(builds >= 2, "changed viewport needs fresh geometry");
+            assert_eq!(builds, 1, "changed viewport must reuse this frame's port metadata");
         }
         draw(
             &mut editor,
@@ -253,7 +275,7 @@ fn uncommitted_node_moves_release_and_cancel_keep_fresh_geometry_and_history() {
     // A press and newer pointer position may arrive in the same frame.
     let mut input = press(start, MouseButton::Left);
     input.mouse = end;
-    assert!(draw(&mut editor, &mut atlas, area, input, Language::English) >= 2);
+    assert_eq!(draw(&mut editor, &mut atlas, area, input, Language::English), 1);
     assert_eq!(
         editor.revision, before.revision,
         "held drag is not committed yet"
@@ -336,9 +358,9 @@ fn parent_navigation_invalidates_geometry_even_when_view_and_revision_match() {
         assert_eq!(editor.revision, revision);
         assert_eq!((editor.view.pan, editor.view.zoom), (view.pan, view.zoom));
         assert_ne!(editor.preview_revision, preview);
-        assert!(
-            builds >= 2,
-            "group navigation must invalidate before hit testing"
+        assert_eq!(
+            builds, 1,
+            "build parent geometry once after navigation, before hit testing"
         );
         draw(
             &mut editor,
