@@ -43,6 +43,8 @@ pub mod storage;
 mod timeline;
 mod frame_rate;
 pub use frame_rate::{ClockRounding, FrameRate, RateError, MAX_RATE_COMPONENT};
+mod timecode;
+pub use timecode::{TimecodeError, TimecodeMode};
 pub mod text;
 pub use text::{TextAlign, TextStyle};
 mod video;

@@ -1,11 +1,13 @@
 //! Exact positive clock rates. Project adoption and timecode are separate layers.
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
+mod parse;
 
 pub const MAX_RATE_COMPONENT: u32 = 1_000_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RateError {
+    Syntax,
     Zero,
     ComponentRange,
     Timebase,
@@ -14,6 +16,7 @@ pub enum RateError {
 impl fmt::Display for RateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
+            Self::Syntax => "frame rate must be a positive integer, decimal or numerator/denominator",
             Self::Zero => "frame rate requires positive numerator and denominator",
             Self::ComponentRange => "reduced frame-rate component exceeds 1000000",
             Self::Timebase => "clock timebase must be in 1..=1000000000",
