@@ -164,11 +164,7 @@ pub fn raw(project: &Project, target: &ExpressionTarget) -> Result<RawTrack> {
                     Error::Invalid("expression effect parameter does not exist".into())
                 })?;
             ensure(
-                !p.kind.discrete()
-                    && p.kind != motion_effects::ParamKind::Curve
-                    && p.curve.is_none()
-                    && p.animatable
-                    && p.implemented,
+                p.animation_support().expressions,
                 "expressions require an implemented, animatable continuous effect parameter",
             )?;
             Ok(RawTrack::Param(p.track.clone(), p.kind.dimensions()))

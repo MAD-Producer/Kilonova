@@ -7,6 +7,9 @@ use motion_host::{Platform, Session, SurfaceTarget, VideoDecoder, VideoQuery};
 use serde_json::{json, Value};
 use std::{path::Path, sync::Arc};
 
+#[path = "layer_time_mapping/parameter_animation.rs"]
+mod parameter_animation;
+
 struct NoMedia;
 impl Platform for NoMedia {
     fn name(&self) -> &'static str {

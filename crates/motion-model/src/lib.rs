@@ -76,7 +76,7 @@ pub use curve::{Curve, CurveSample, CurveShape, CurveSpace, Easing};
 pub use effects::{
     CurveLut, CurveObject, CurveTrack, SampledColorCurve, HIGH_PRECISION_CURVE_SAMPLES,
     EffectAction, EffectImageInput, EffectImageStage, EffectInstance, EffectParam, PluginDependency,
-    SampledEffect,
+    SampledEffect, ParameterAnimation, ParameterInterpolation,
 };
 pub use expressions::{
     ExpressionTarget, ExpressionValue, PropertyExpression, EXPRESSION_PROFILE, MAX_EXPRESSIONS,

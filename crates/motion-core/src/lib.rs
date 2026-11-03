@@ -56,7 +56,7 @@ pub use motion_model::CurveClipboard;
 pub use motion_model::{
     CurveLut, CurveObject, CurveTrack, SampledColorCurve, HIGH_PRECISION_CURVE_SAMPLES,
     EffectAction, EffectImageInput, EffectImageStage, EffectInstance, EffectParam, PluginDependency,
-    SampledEffect,
+    SampledEffect, ParameterAnimation, ParameterInterpolation,
 };
 pub use motion_model::{
     FontAsset,
