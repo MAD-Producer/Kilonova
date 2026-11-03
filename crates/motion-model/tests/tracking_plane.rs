@@ -8,6 +8,26 @@ use fixture::plane_fixture;
 #[path = "tracking_layer_time/plane.rs"]
 mod mapped_clock;
 #[test]
+fn rational_project_clock_keeps_plane_interpolation_on_original_source_pts() {
+    for (numerator, denominator) in [(30_000, 1001), (60_000, 1001), (2997, 100), (24, 1)] {
+        let mut project = plane_fixture();
+        project.fps = FrameRate::new(numerator, denominator).unwrap();
+        project.validate().unwrap();
+        // The fixture's original -4000/-2000 PTS pair translates by
+        // (0,0)/(10,5) output pixels. Sample its physical midpoint.
+        let frame = f64::from(numerator) / (48. * f64::from(denominator));
+        let layer = &project.layers[0];
+        let actual = layer.tracking_plane.as_ref().unwrap()
+            .displacement(&project, layer, frame).unwrap();
+        for corner in actual {
+            for (value, expected) in corner.into_iter().zip([5., 2.5]) {
+                assert!((value - expected).abs() < 0.00001, "{numerator}/{denominator}: {actual:?}");
+            }
+        }
+    }
+}
+
+#[test]
 fn equivalent_homogeneous_scales_preserve_perspective_and_reject_poles() {
     use tracking::plane::project_quad;
     let quad = [[0., 0.], [320., 0.], [320., 240.], [0., 240.]];

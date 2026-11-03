@@ -193,7 +193,8 @@ impl PlaneBinding {
             .iter()
             .find(|t| t.id == self.track)
             .ok_or_else(|| invalid("plane track missing"))?;
-        let rate = Rate::new(project.fps, 1).map_err(invalid)?;
+        let [numerator, denominator] = project.fps.ratio();
+        let rate = Rate::new(numerator, denominator).map_err(invalid)?;
         let mapping = Mapping::new(
             Time::frame(i64::from(self.anchor_local_frame), rate),
             self.source_anchor_pts,
