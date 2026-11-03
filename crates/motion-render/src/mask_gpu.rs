@@ -470,6 +470,12 @@ impl MaskGpu {
         }
         let changed = !next.is_empty();
         for (key, target, cost, size) in next {
+            // A matching geometry signature only validates the old output.
+            // Allocation commits an empty texture, which must be rasterized
+            // even when eviction/catalog replacement preserved the signature.
+            if let TextureKey::Mask(owner) = key {
+                self.fingerprints.remove(&owner);
+            }
             images.insert(key, GpuImage {
                 _texture: target.texture, view: target.view, bind_group: target.composite,
                 bytes: cost, size, video_stamp: None, plane_image: None,

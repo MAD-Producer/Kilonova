@@ -110,6 +110,65 @@ fn read(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn evicted_unchanged_output_rerenders_coverage_and_then_reuses_it() {
+    let renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let layout = layout(&renderer.device);
+    let mut gpu = admitted_gpu(&renderer, &layout);
+    let p = project();
+    let mut scene = Scene::new(&p).unwrap();
+    scene
+        .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    let masks = MaskCache::default().build(&scene, 1., false).unwrap();
+    let mut images: HashMap<TextureKey, GpuImage> = HashMap::new();
+    let mut bytes = 0;
+    let mut reference = Vec::new();
+    for (iteration, expected_changed) in [true, false, true, false].into_iter().enumerate() {
+        if iteration == 2 {
+            let removed = images.remove(&TextureKey::Mask(1)).unwrap();
+            bytes -= removed.bytes;
+        }
+        let mut encoder = renderer.device.create_command_encoder(&Default::default());
+        let changed = gpu
+            .prepare(
+                &renderer.device,
+                &renderer.queue,
+                &mut encoder,
+                &layout,
+                &scene,
+                &masks,
+                &mut images,
+                &mut bytes,
+                0,
+                128 << 20,
+            )
+            .unwrap();
+        renderer.submit_tracked(encoder.finish(), |_| {});
+        assert_eq!(changed, expected_changed, "iteration {iteration}");
+        let pixels = read(&renderer, &images[&TextureKey::Mask(1)]._texture);
+        assert_eq!(
+            pixels[32 * 64 + 32],
+            255,
+            "recreated output must contain coverage"
+        );
+        assert_eq!(pixels[32 * 64 + 2], 0);
+        if iteration == 0 {
+            reference = pixels;
+        } else {
+            assert_eq!(pixels, reference, "iteration {iteration}");
+        }
+        assert_eq!(bytes, 64 * 64);
+    }
+    assert_eq!(gpu.uploads, 2, "only allocation and recreation redraw");
+    assert_eq!(
+        gpu.meshes.len(),
+        1,
+        "recreation reuses the unchanged geometry"
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn animated_feathered_masks_reuse_actual_bindings_with_stable_memory_and_pixels() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let layout = layout(&renderer.device);
