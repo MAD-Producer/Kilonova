@@ -1,0 +1,32 @@
+{
+  "status": "tracking_rational_clock_fixed_combined_regression_pending",
+  "head": "37913f67fe082f96c77575cf1050c1ba3b7a8b05",
+  "dirtyFiles": [
+    "crates/motion-model/src/tracking/camera.rs",
+    "crates/motion-model/src/tracking/plane.rs",
+    "crates/motion-model/src/tracking/point.rs",
+    "crates/motion-model/tests/tracking_camera.rs",
+    "crates/motion-model/tests/tracking_plane.rs",
+    "crates/motion-model/tests/tracking_point.rs"
+  ],
+  "main": "acaab00b74df3f61b278408050040d19133074be",
+  "projectVersion": 37,
+  "passed": 28,
+  "failed": 0,
+  "ignored": 0,
+  "summaries": [
+    "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+    "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+    "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  ],
+  "limits": [
+    "Check passed on the three production edits; all three integration targets then passed with the three added tests",
+    "Focused shell commands exited zero as observed; the first combined check retained its original exit101 and frozen source report",
+    "The final clean commit, remaining complete package regressions and final cross-platform CI are not yet accepted",
+    "No assertions, error thresholds, layout, styles, migration or legacy numeric clock fallback changed"
+  ],
+  "archive": "frame-rate85-tracking-integration-v1.zip",
+  "bytes": 144353,
+  "sha256": "ffd44ff28a8fc7ba5b6177a19a3a7dc47fcbd2525a681bb1f4da21942fd20cd0",
+  "members": 16
+}

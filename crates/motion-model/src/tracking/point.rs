@@ -101,7 +101,9 @@ impl PointBinding {
             .iter()
             .find(|t| t.id == self.track)
             .ok_or_else(|| Error::Invalid("tracking point track missing".into()))?;
-        let clock = Rate::new(project.fps, 1).map_err(|cause| Error::Invalid(cause.to_string()))?;
+        let [numerator, denominator] = project.fps.ratio();
+        let clock = Rate::new(numerator, denominator)
+            .map_err(|cause| Error::Invalid(cause.to_string()))?;
         let mapping = Mapping::new(
             Time::frame(i64::from(self.anchor_local_frame), clock),
             self.source_anchor_pts,
