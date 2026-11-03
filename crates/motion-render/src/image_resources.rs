@@ -1,7 +1,7 @@
 //! Bounded image decoding. Dimensions describe the source, never the proxy.
 use motion_model::Asset;
 mod allowed;
-pub(crate) use allowed::allowed_assets;
+pub(crate) use allowed::AllowedAssets;
 mod error;
 pub use error::Error;
 mod memory;
@@ -171,20 +171,29 @@ impl Resolution {
 /// sampling already excludes inactive clips; offscreen geometry is kept because
 /// effects can move it into the viewport or use it for occlusion.
 pub fn scene_assets(scene: &Scene) -> BTreeSet<u64> {
-    fn collect(scene: &Scene, ids: &mut BTreeSet<u64>) {
-        ids.extend(scene.layers.iter().filter_map(|l| l.asset));
-        ids.extend(scene.effects.iter().filter(|e| e.enabled && scene.layers.iter().any(|l|l.id==e.layer))
-            .filter_map(|e| match e.image_input { Some(motion_model::EffectImageInput::Asset {asset}) => Some(asset), _ => None }));
-        ids.extend(scene.effects.iter()
-            .filter(|effect| effect.enabled && scene.layers.iter().any(|layer| layer.id == effect.layer))
-            .filter_map(|effect| effect.scene.as_ref().and_then(|settings| settings.sprite_asset)));
-        for child in &scene.nested {
-            collect(&child.scene, ids);
-        }
-    }
     let mut ids = BTreeSet::new();
-    collect(scene, &mut ids);
+    visit_scene_assets(scene, &mut |id| { ids.insert(id); });
     ids
+}
+
+/// Renderer-owned storage preserves ascending demand order without allocating
+/// tree nodes again on every preparation. Capacity follows the observed scene
+/// high water mark and is released on catalog replacement or clear_assets.
+pub(crate) fn collect_scene_assets(scene: &Scene, ids: &mut Vec<u64>) {
+    ids.clear();
+    visit_scene_assets(scene, &mut |id| ids.push(id));
+    ids.sort_unstable();
+    ids.dedup();
+}
+
+fn visit_scene_assets(scene: &Scene, visit: &mut impl FnMut(u64)) {
+    for id in scene.layers.iter().filter_map(|l| l.asset) { visit(id); }
+    for effect in scene.effects.iter()
+        .filter(|e| e.enabled && scene.layers.iter().any(|l| l.id == e.layer)) {
+        if let Some(motion_model::EffectImageInput::Asset { asset }) = effect.image_input { visit(asset); }
+        if let Some(asset) = effect.scene.as_ref().and_then(|settings| settings.sprite_asset) { visit(asset); }
+    }
+    for child in &scene.nested { visit_scene_assets(&child.scene, visit); }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -932,14 +941,14 @@ impl DecodeTask {
         self.pending.is_some()
     }
     pub fn cancel_unwanted(&mut self, wanted: &BTreeSet<u64>, resolution: Resolution) {
-        self.cancel_unwanted_inner(wanted, resolution, None);
+        self.cancel_unwanted_matching(|id| wanted.contains(id), resolution, None);
     }
     pub fn cancel_unwanted_with_budget(&mut self, wanted: &BTreeSet<u64>, resolution: Resolution, budget: u64) {
-        self.cancel_unwanted_inner(wanted, resolution, Some(budget));
+        self.cancel_unwanted_matching(|id| wanted.contains(id), resolution, Some(budget));
     }
-    fn cancel_unwanted_inner(&mut self, wanted: &BTreeSet<u64>, resolution: Resolution, budget: Option<u64>) {
+    pub(crate) fn cancel_unwanted_matching(&mut self, contains: impl FnOnce(&u64) -> bool, resolution: Resolution, budget: Option<u64>) {
         if let Some((source, mode, pending_budget, _, cancel, _, _)) = &self.pending {
-            if *mode != resolution || !wanted.contains(&source.id) || budget.is_some_and(|budget| budget != *pending_budget) {
+            if *mode != resolution || !contains(&source.id) || budget.is_some_and(|budget| budget != *pending_budget) {
                 cancel.store(true, Ordering::Relaxed);
             }
         }

@@ -1,0 +1,148 @@
+{
+  "base_commit": "6e6f66b5114574797f01cf7bf37d3bfc69acdcef",
+  "branch": "perf/scene-asset-storage",
+  "pr": 589,
+  "issue": 126,
+  "issue_complete": false,
+  "results": {
+    "render": {
+      "exit_code": 0,
+      "passed": 3,
+      "log": "render.log"
+    },
+    "desktop-final": {
+      "exit_code": 0,
+      "passed": 2,
+      "log": "desktop-final.log"
+    },
+    "cache": {
+      "exit_code": 0,
+      "passed": 1,
+      "log": "cache.log"
+    },
+    "snapshots": {
+      "exit_code": 0,
+      "passed": 2,
+      "log": "snapshots.log"
+    },
+    "workspace": {
+      "exit_code": 0,
+      "passed": 0,
+      "log": "workspace.log"
+    }
+  },
+  "distinct_tests": 8,
+  "default_info_production_channels": {
+    "portable": {
+      "file": {
+        "failure_records": 1,
+        "sha256": "e72e799f7975d2a39be40ead7192d314a17836ef6bdeee5552405cde4a8446aa"
+      },
+      "stderr": {
+        "failure_records": 1,
+        "sha256": "a2d021bfaf13ef6965500ff987b44d47d7370800d79bf6fd93aa8159bcc3a95e"
+      },
+      "stdout": {
+        "failure_records": 0,
+        "sha256": "95c423ebce4998fe35c25773e5f83cb1416c2644316cdb46cbccec8859ef95b4"
+      }
+    },
+    "native": {
+      "file": {
+        "failure_records": 1,
+        "sha256": "cc0b50f84aa5f2193b46f5b773080bdf7dac864d303cda3a66b21d11c2d854aa"
+      },
+      "stderr": {
+        "failure_records": 1,
+        "sha256": "aebb0f95dc31bff9b881bde97d3911e724c38e3de3e58c9fabd3f2f7b1b021d0"
+      },
+      "stdout": {
+        "failure_records": 0,
+        "sha256": "6cb1a2d0d8952a2bc68aabe2154f97045626baa42878aec92e6cf6ef2035db39"
+      }
+    },
+    "warm-cache/portable": {
+      "file": {
+        "failure_records": 1,
+        "sha256": "b5ea8851d2fbd441dc704dc4855b4ce3cd97db191dcfb6041935a0e697246686"
+      },
+      "stderr": {
+        "failure_records": 1,
+        "sha256": "8fe834ef5e60161bf699a85279db8d37ebb6f765720496bbdb64da29e3f5c685"
+      },
+      "stdout": {
+        "failure_records": 0,
+        "sha256": "b7e44cd4697f6694abdba65a9a9ad53f47a2b9163ac8635c9f1effec5bdfdfbd"
+      }
+    },
+    "warm-cache/native": {
+      "file": {
+        "failure_records": 1,
+        "sha256": "beb4e072986f1a44369fb9028f3f863f068335c5ff645141580da4dae7b5e968"
+      },
+      "stderr": {
+        "failure_records": 1,
+        "sha256": "36b1dc6df11a96b86f7bd5ce3dfb4942ffcd7dabdaf250093e8946a6773c74fd"
+      },
+      "stdout": {
+        "failure_records": 0,
+        "sha256": "cc5d872ca11296bcac26c3a7dbde8a929cb0d5bdd87cf03371b4bb80d34aa66c"
+      }
+    }
+  },
+  "desktop_test_profile": {
+    "opt_level": "0",
+    "debuginfo": 2,
+    "debug_assertions": true,
+    "overflow_checks": true,
+    "test": true
+  },
+  "desktop_test_linker_override": "-C link-arg=/DEBUG:NONE; only selected test executable, no Cargo profile or CI changes",
+  "source_sha256_raw_files": {
+    "crates/motion-render/src/effect_gpu.rs": "a70c3c824bfe78ee0b95ba414d8b20f37a614dbb58f655e5a085e2e96eaae605",
+    "crates/motion-render/tests/gpu_failure_observation.rs": "b91d7d4d1283f17799ea8466fc2f7ce3d6a1fc57724ecf9c32cfe70f38674dfa",
+    "crates/motion-render/tests/wgpu_upgrade.rs": "36154a5bc1c0b18024c538e4994a435743b9051d914c3bc5489b2ef8698f707a",
+    "crates/motion-render/src/effect_gpu/pipeline_cache/tests.rs": "9eb6cf56f0417ec2f9cee9e25571dd9c4212240a5831734825faf23ee708ddf4",
+    "crates/motion-render/src/renderer/snapshot_storage_tests.rs": "d754b0c41479824947c0887f864068e5cda2a787e1e156f026c36ce35fc5a1d9",
+    "desktop/app/src/logging/pointwise_compile_tests.rs": "1d250a7147999b654c43dae69f48804ee196dbf9c1498a3e55cd755871b47150",
+    "engineering/validation/pipeline-validation-poll.md": "50a086b0d63d71060aa5c012b50f29f039807f379027e336c2cd7573a24fc2d1"
+  },
+  "binary_sha256": {
+    "motion_render-1fcc3fb8d09fa888.exe": "719353d770a096d94d19335cbd53eb33eee677e97642ed2dd8a3fcac87204cc2",
+    "wgpu_upgrade-caae6ee351c2f903.exe": "8a592e5839830592033233510172c0291cebc48ec119973f2c3a0fef97bafa1e",
+    "gpu_failure_observation-7842539269294d3f.exe": "a20e09f0a288b0c54e5c3f7178506f87b2001582fdb210492349e081d63e9cd0",
+    "motion_studio-a04f845154e527f5.exe": "a6a313f68118507be960ce6e435ec974509ad6d01ef84f8aa744efac11f1107e"
+  },
+  "dependency_api_evidence": {
+    "locked": {
+      "wgpu": {
+        "version": "30.0.1",
+        "checksum": "527ccdf43dd5b2e8676eed9984ce00e2bbb0a1b85b70c1969dcb6cd2eb55ab9e"
+      },
+      "wgpu-types": {
+        "version": "30.0.1",
+        "checksum": "99dad6f1fbdbbdb4c278a6508b059d44688f5cebddf78d005a46a31340269286"
+      }
+    },
+    "local_source_sha256": {
+      "wgpu_native_scope": "1a9e1f8cb8c7c2dc9d23dce7e22cd9c7b06ce57c3a053189d2fb22aede8860fa",
+      "poll_type": "f6d5d2be4b970cf11af9dcbb04c915481e111995ef935b175b80ed5a94d67ed9"
+    },
+    "inspected_contract": "Native error scope returns ready(scope.error); Poll checks once without waiting for queue submission. No timing/FPS claim."
+  },
+  "commands": [
+    "cargo test -p motion-render --test wgpu_upgrade --test gpu_failure_observation --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo rustc -p motion-desktop --bin motion-studio --profile test --features ffmpeg --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target --message-format=json-render-diagnostics -- -C link-arg=/DEBUG:NONE",
+    "<verified desktop test artifact> logging::pointwise_compile_tests --test-threads=1 --nocapture",
+    "cargo test -p motion-render --lib native_pipeline_retirement_bounds_and_exact_static_proof --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --lib snapshot_storage_tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "limits": [
+    "Native local tests only; cross-platform CI pending.",
+    "Combined simultaneous shader rejection and poll error not injected.",
+    "Synchronous driver compilation and whole-preview-frame allocation remain separate work."
+  ],
+  "ci": "pending for final head",
+  "evidence_zip_sha256": "4142ac80a6b784612ea4f13de862dba455fa0f90f95583db132067495bb00377"
+}
