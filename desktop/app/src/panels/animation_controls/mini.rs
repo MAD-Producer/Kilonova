@@ -578,26 +578,28 @@ impl View {
             );
             return (title, lines);
         };
-        let fps = state["project"]["fps"]
-            .as_f64()
-            .filter(|fps| fps.is_finite() && *fps > 0.);
-        let Some(fps) = fps else {
-            let _ = observe!(
-                "curve.mini.readout_fps",
-                Err::<(), _>("composition fps unavailable"),
-                "phase=fps target={target:?} frame={frame} generation={:?} revision={:?}",
-                state["document_generation"].as_u64(),
-                state["revision"].as_u64()
-            );
-            lines.push(
-                if locale == Locale::Zh {
-                    "实际读数不可用"
-                } else {
-                    "Actual readout unavailable"
-                }
-                .into(),
-            );
-            return (title, lines);
+        let fps = crate::project_clock::read(state)
+            .map_err(|cause| format!("composition fps unavailable: {cause}"));
+        let fps = match fps {
+            Ok(rate) => rate.as_f64(),
+            Err(cause) => {
+                let _ = observe!(
+                    "curve.mini.readout_fps",
+                    Err::<(), _>(cause),
+                    "phase=fps target={target:?} frame={frame} generation={:?} revision={:?}",
+                    state["document_generation"].as_u64(),
+                    state["revision"].as_u64()
+                );
+                lines.push(
+                    if locale == Locale::Zh {
+                        "实际读数不可用"
+                    } else {
+                        "Actual readout unavailable"
+                    }
+                    .into(),
+                );
+                return (title, lines);
+            }
         };
         let started = std::time::Instant::now();
         let values = data

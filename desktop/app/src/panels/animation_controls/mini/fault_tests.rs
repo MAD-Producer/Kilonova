@@ -356,11 +356,15 @@ fn default_failure_channels_cache_suppression_recovery_and_process_reset_use_rea
             assert!(read(&mut view, &bad_fps, &target, true).1[0].contains("unavailable"));
             assert!(read(&mut view, &good, &target, true).1[0].ends_with("%/s"));
         }
-        // A degraded provider can carry finite fps outside the model's legal
-        // composition bounds. The actual Core derivative and f32 unit sample
-        // reject its overflow, instead of returning a successful partial card.
+        // The strict project clock rejects malformed rates before sampling.
+        // Exercise the distinct sample overflow boundary with a valid clock
+        // and finite authored values whose percent conversion overflows f32.
         let mut overflow = good.clone();
-        overflow["project"]["fps"] = serde_json::json!(1e308);
+        overflow["revision"] = 122.into();
+        overflow["project"]["layers"][0]["transform"]["opacity"]["keys"][0]["value"] =
+            serde_json::json!(1e37);
+        overflow["project"]["layers"][0]["transform"]["opacity"]["keys"][1]["value"] =
+            serde_json::json!(3e38);
         for _ in 0..120 {
             assert!(read(&mut view, &overflow, &target, true).1[0].contains("unavailable"));
             assert!(read(&mut view, &good, &target, true).0.contains("47.00 f"));
@@ -431,7 +435,7 @@ fn default_failure_channels_cache_suppression_recovery_and_process_reset_use_rea
             "sites":SITES,"sameSourceFailuresCached":true,"firstWarnAndErrorAtLifetime60":true,
             "suppressedAfter60":true,"healthyRecoveryPreservesCounterScope":true,"actualConsumers":true,
             "normalMissingAndNoIntervalQuiet":true,"originalCausesRetained":true,"sourceUnchanged":true,
-            "limits":"Invalid geometry is a presentation boundary; fps 0/1e308 model-provider faults do not describe legal stored projects. Adaptive/normalized_readout defensive branches and other surfaces remain unverified here."
+            "limits":"Invalid geometry is a presentation boundary; Malformed fps and overflowing percent samples are model-provider faults, not legal stored projects. Adaptive/normalized_readout defensive branches and other surfaces remain unverified here."
         })).unwrap()).unwrap();
         return;
     }

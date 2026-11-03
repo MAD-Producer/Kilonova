@@ -1,0 +1,18 @@
+{
+  "status": "mini_clock_fixed_focused_tests_passed_full_desktop_pending",
+  "archive": "frame-rate85-mini-clock-v1.zip",
+  "bytes": 205674,
+  "sha256": "96008fb14cb197abd2c2af5e110bc9cd0ceed76a75265b4c30e09ce028c9dfb4",
+  "members": 55,
+  "uniqueTests": 10,
+  "failed": 0,
+  "ignored": 0,
+  "limits": [
+    "Two selected tests re-executed to retain raw output, not counted as two new distinct tests",
+    "No original assertions, thresholds, limits, layout or styles changed",
+    "Existing process-lifetime observation counters preserve their scope and recovery behavior; 60 occurrences are not a time duration",
+    "This is not full desktop/workspace, current-main or final cross-platform acceptance",
+    "Remaining panel clock readers and the original native heap corruption are separate pending work",
+    "Complete render gate is independently scoped and still running when this archive is published"
+  ]
+}
