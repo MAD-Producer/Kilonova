@@ -1,0 +1,301 @@
+{
+  "status": "focused_native_router_and_real_stdio_passed_full_suite_not_rerun",
+  "baseCommit": "b19125681c66f5208af74ab309b3959d8afdf6d4",
+  "source": {
+    "desktop/app/src/workflow.rs": {
+      "rawSha256": "41aad832ec26c8dac85fa4fd048f6c2b5b504ae28d109f79a0acd41ac4fba0f8",
+      "gitLfSha256": "41aad832ec26c8dac85fa4fd048f6c2b5b504ae28d109f79a0acd41ac4fba0f8"
+    },
+    "desktop/app/src/engine/diagnostic_names.rs": {
+      "rawSha256": "b85d3d5641392d49ec0869786dd191d5d67854c5c70b6b406ea892642544052c",
+      "gitLfSha256": "b85d3d5641392d49ec0869786dd191d5d67854c5c70b6b406ea892642544052c"
+    },
+    "desktop/app/src/mcp/tracked_video_native_tests.rs": {
+      "rawSha256": "6d1a320b41e6d812a1c2273aab56dd68bd07dedfe95e09b8e25353b937e1ef78",
+      "gitLfSha256": "6d1a320b41e6d812a1c2273aab56dd68bd07dedfe95e09b8e25353b937e1ef78"
+    },
+    "desktop/app/src/workflow/tracked_video.rs": {
+      "rawSha256": "7c966471627839eee9f1ae57bd0acd1dcb98f061af0f13e3f99e9dcb02713a02",
+      "gitLfSha256": "7c966471627839eee9f1ae57bd0acd1dcb98f061af0f13e3f99e9dcb02713a02"
+    },
+    "desktop/app/src/engine.rs": {
+      "rawSha256": "6d133fb5b759a3e85e7c8ecc82c805896cb93375323111cc5b16330da4c2d6c9",
+      "gitLfSha256": "6d133fb5b759a3e85e7c8ecc82c805896cb93375323111cc5b16330da4c2d6c9"
+    },
+    "desktop/app/src/mcp/tracked_video_tests.rs": {
+      "rawSha256": "3c3dba997d05e7f7482ef35380033a91fd8bcef44db64a0def2eaed6c936c79d",
+      "gitLfSha256": "3c3dba997d05e7f7482ef35380033a91fd8bcef44db64a0def2eaed6c936c79d"
+    },
+    "desktop/app/src/mcp/tracked_video.rs": {
+      "rawSha256": "6313292bc133a66aac611e12efb3c1bd8f02b9728e69cf1bc74e3db9dfdf501f",
+      "gitLfSha256": "6313292bc133a66aac611e12efb3c1bd8f02b9728e69cf1bc74e3db9dfdf501f"
+    },
+    "desktop/app/src/mcp.rs": {
+      "rawSha256": "76b4b576cdf515ea774efd684f091ae3b1d409f9e838eeba8785c7a2e0c1f6a6",
+      "gitLfSha256": "76b4b576cdf515ea774efd684f091ae3b1d409f9e838eeba8785c7a2e0c1f6a6"
+    }
+  },
+  "focused": {
+    "commands": [
+      [
+        "tests",
+        [
+          "cargo",
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--features",
+          "ffmpeg",
+          "--locked",
+          "--offline",
+          "--",
+          "mcp::tracked_video::tests::",
+          "--test-threads=1",
+          "--nocapture"
+        ]
+      ],
+      [
+        "build",
+        [
+          "cargo",
+          "build",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--features",
+          "ffmpeg",
+          "--locked",
+          "--offline"
+        ]
+      ]
+    ],
+    "results": [
+      {
+        "phase": "tests",
+        "exitCode": 0
+      },
+      {
+        "phase": "build",
+        "exitCode": 0
+      }
+    ],
+    "tests": 3,
+    "nativeSeconds": 4.76
+  },
+  "mcpRegression": {
+    "exitCode": 0,
+    "sourceUnchanged": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--features",
+      "ffmpeg",
+      "--locked",
+      "--offline",
+      "--",
+      "mcp::",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0,
+    "seconds": 13.15
+  },
+  "actualStdio": {
+    "status": "native_stdio_workflow_default_logs_history_and_reopen_passed",
+    "binarySha256": "7488b2a90bd5b4a41eea6210258aa6570d14198beb2588f59c0b21b1094e3de9",
+    "checks": [
+      "real_stdio_advertises_five_actions",
+      "prepare_rejects_stale_context_and_unknown_fields",
+      "cancel_release_preserve_author_state",
+      "native_prepare_ready_does_not_publish_author_state",
+      "finish_rejects_stale_document_and_wrong_original",
+      "native_commit_is_one_revision_with_stable_ids_and_saved_project",
+      "wire_undo_redo_and_save_preserve_atomic_pair",
+      "default_info_start_error_file_and_stderr_with_pure_jsonrpc_stdout",
+      "new_process_reopens_saved_plate_and_solve",
+      "readonly_wire_denies_every_mutation_and_allows_status_dispatch"
+    ],
+    "editReplyCount": 22,
+    "readonlyReplyCount": 7,
+    "defaultMotionLogUnset": true
+  },
+  "earlierAttempts": [
+    {
+      "run": "tracking88-mcp-v1",
+      "result": "compile failed because new test omitted Platform trait import; fixed import, no assertion changed"
+    },
+    {
+      "run": "tracking88-mcp-v2",
+      "result": "three tests passed in retained stdout; original exec handle disappeared and no matching validator process remained; exit receipt contains only NUL bytes and build log ends with NUL bytes, so no complete build success claimed; unchanged source revalidated in v3",
+      "receiptBytes": 217786
+    }
+  ],
+  "limits": [
+    "Not a new full desktop or workspace regression; #583 prior full desktop binary gate has three unresolved native subprocess crashes",
+    "Headless stdio and router acceptance only; no new panel interaction or manual native-window claim",
+    "Actual stdio uses existing synthetic silent video fixtures; linked-audio native proof belongs to #583",
+    "No implicit tracking, camera solve, pose baking, transcoding or external-writer lease",
+    "Read-only status is tested on a ready task in the in-process router and dispatches as permitted with missing task after process reopen",
+    "Issue #88 and optional real-footage planar tracker quality remain open"
+  ],
+  "archive": {
+    "path": "tracking88-mcp-replacement-v1.zip",
+    "bytes": 490260,
+    "sha256": "5e11dd3214378c55d3a05c4320b3270cbe4156ee15bb332484d60f965fcd8d48",
+    "members": {
+      "source/desktop/app/src/engine.rs": {
+        "bytes": 121379,
+        "sha256": "6d133fb5b759a3e85e7c8ecc82c805896cb93375323111cc5b16330da4c2d6c9"
+      },
+      "source/desktop/app/src/engine/diagnostic_names.rs": {
+        "bytes": 4272,
+        "sha256": "b85d3d5641392d49ec0869786dd191d5d67854c5c70b6b406ea892642544052c"
+      },
+      "source/desktop/app/src/mcp.rs": {
+        "bytes": 29948,
+        "sha256": "76b4b576cdf515ea774efd684f091ae3b1d409f9e838eeba8785c7a2e0c1f6a6"
+      },
+      "source/desktop/app/src/mcp/tracked_video.rs": {
+        "bytes": 3165,
+        "sha256": "6313292bc133a66aac611e12efb3c1bd8f02b9728e69cf1bc74e3db9dfdf501f"
+      },
+      "source/desktop/app/src/mcp/tracked_video_native_tests.rs": {
+        "bytes": 10445,
+        "sha256": "6d1a320b41e6d812a1c2273aab56dd68bd07dedfe95e09b8e25353b937e1ef78"
+      },
+      "source/desktop/app/src/mcp/tracked_video_tests.rs": {
+        "bytes": 4970,
+        "sha256": "3c3dba997d05e7f7482ef35380033a91fd8bcef44db64a0def2eaed6c936c79d"
+      },
+      "source/desktop/app/src/workflow.rs": {
+        "bytes": 13932,
+        "sha256": "41aad832ec26c8dac85fa4fd048f6c2b5b504ae28d109f79a0acd41ac4fba0f8"
+      },
+      "source/desktop/app/src/workflow/tracked_video.rs": {
+        "bytes": 6958,
+        "sha256": "7c966471627839eee9f1ae57bd0acd1dcb98f061af0f13e3f99e9dcb02713a02"
+      },
+      "tracking88-mcp-regression-v1/exit.json": {
+        "bytes": 219,
+        "sha256": "1d7a4ab4a217fddb7940ac6086b106336b884a497376f0ba55b1261a4cfb2828"
+      },
+      "tracking88-mcp-regression-v1/process.json": {
+        "bytes": 193,
+        "sha256": "de289c3f0562fcfaa0627ec3b1f0998edcd78920a55b8640919e7452f583bb9e"
+      },
+      "tracking88-mcp-regression-v1/stderr.log": {
+        "bytes": 12713,
+        "sha256": "91550c79df4215dc88d49927cd0551433e39631c967365d5f2c5c7435a7c215e"
+      },
+      "tracking88-mcp-regression-v1/stdout.log": {
+        "bytes": 1278,
+        "sha256": "3138bfa8f6107d07f8a0facda441e9694ef74a7b04af47ceb3d85ec4228551c4"
+      },
+      "tracking88-mcp-v1/controller.py": {
+        "bytes": 2544,
+        "sha256": "4867c87fe7eb49c2159cc1d8696f704ceb5e068118ab2d073d523dfde0fc6d0c"
+      },
+      "tracking88-mcp-v1/exit.json": {
+        "bytes": 217829,
+        "sha256": "bdab0431356cd0c7e483e7e57b8165b98b5b2e60447ae7a2081846956b330d23"
+      },
+      "tracking88-mcp-v1/tests.stderr.log": {
+        "bytes": 5263,
+        "sha256": "eb5d0add61f3f9d8d58a06b4556625be90647a9748ddc2e3a1f848f55382feb4"
+      },
+      "tracking88-mcp-v1/tests.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-mcp-v2/build.stderr.log": {
+        "bytes": 15292,
+        "sha256": "d84d0f256b0c271433372f420835fefb8650d16c8180c87843396909182aff90"
+      },
+      "tracking88-mcp-v2/build.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-mcp-v2/controller.py": {
+        "bytes": 2546,
+        "sha256": "773e0d686ca2edf9861971bb0d44d389b20dbafbbeaf3bf7d3758cf469029a16"
+      },
+      "tracking88-mcp-v2/exit.json": {
+        "bytes": 217786,
+        "sha256": "359df2413bbc96b0841ad754fa1c6cff9ef6297ef1ae36d4fb217409ef832173"
+      },
+      "tracking88-mcp-v2/tests.stderr.log": {
+        "bytes": 12803,
+        "sha256": "bc1bf873aa924632b80f0a6cc8db15abc301151714e9f5674168588c0280aba1"
+      },
+      "tracking88-mcp-v2/tests.stdout.log": {
+        "bytes": 444,
+        "sha256": "aeaaeb09767652cf3d843e27d10088961529b0deefa19858ecdb58e02ab23db3"
+      },
+      "tracking88-mcp-v3/build.stderr.log": {
+        "bytes": 15292,
+        "sha256": "94afdda4d77831ede82a3a7affc4b832290839d7a9919d7fadfc7ad641cf6ad6"
+      },
+      "tracking88-mcp-v3/build.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-mcp-v3/controller.py": {
+        "bytes": 2548,
+        "sha256": "ab14b4f8d25eead626bd71bd49bd52aa42ff0f41b9587e80016a69df01b3db32"
+      },
+      "tracking88-mcp-v3/exit.json": {
+        "bytes": 217968,
+        "sha256": "464f72062c67b36f8b82012745ff1d0983a663610577fe08b93e52c65da60e18"
+      },
+      "tracking88-mcp-v3/rpc-fixture.json": {
+        "bytes": 106757,
+        "sha256": "6ec5b342c6f92a6fc1a106fea3ece2737e1f78b17b1bd984ce33a955858f1bb2"
+      },
+      "tracking88-mcp-v3/tests.stderr.log": {
+        "bytes": 12714,
+        "sha256": "8ae062fca7377f68ce58c37c9b567e469842de758e38a4d964fca588121ea57c"
+      },
+      "tracking88-mcp-v3/tests.stdout.log": {
+        "bytes": 444,
+        "sha256": "f3014dab72fc7d016aae7b0b003c7cbb2fec603dc91c0eabff92a0aa09c42113"
+      },
+      "tracking88-mcp-wire-v1/controller.py": {
+        "bytes": 9079,
+        "sha256": "3d75df64fbf81ff51c2cd368e474cdaf5c3b3e77e60d600766402ef6c783e7ee"
+      },
+      "tracking88-mcp-wire-v1/edit.motion-studio.log": {
+        "bytes": 5768,
+        "sha256": "08c5d1754786faaf588d3a8340c71f06fe6c449fc618e65179c524e0d12846ed"
+      },
+      "tracking88-mcp-wire-v1/edit.stderr.log": {
+        "bytes": 485,
+        "sha256": "e71414c4f2b1e99d213cbcf49cc4faf2db93efb5b4911eec0baee871b2134aa3"
+      },
+      "tracking88-mcp-wire-v1/edit.stdout.jsonl": {
+        "bytes": 933793,
+        "sha256": "6fb2b05751f389e199499ba2c50afa8c2f34fea674da815d1015b9b7afa4e812"
+      },
+      "tracking88-mcp-wire-v1/exit.json": {
+        "bytes": 217862,
+        "sha256": "3d41939aa52e9b6dbf7a4a8dfdad848e25ffd7a2560dd162767e47b49f78aa3f"
+      },
+      "tracking88-mcp-wire-v1/readonly-reopen.stderr.log": {
+        "bytes": 95,
+        "sha256": "47ee5d30e8c7e5ac148ea1bc6094b00eb1230b213c6a5eb0bd8211ab5a9e934c"
+      },
+      "tracking88-mcp-wire-v1/readonly-reopen.stdout.jsonl": {
+        "bytes": 104140,
+        "sha256": "10b3d6bbd4db0101ac9c87078aa42a3a069df098d216874a9ff309fe91d7eb6e"
+      }
+    }
+  }
+}
