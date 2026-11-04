@@ -1,0 +1,165 @@
+{
+  "status": "current_main_tracking_tools_and_native_stdio_passed",
+  "sourceHead": "6f845f1829b773d1dc3b17d65111dc68140a3ddd",
+  "main": "b4133761df4bed5341d104740ebbe9820ad14554",
+  "sourceUnchanged": true,
+  "check": {
+    "phase": "check",
+    "command": [
+      "cargo",
+      "check",
+      "-p",
+      "motion-host",
+      "-p",
+      "motion-desktop",
+      "--features",
+      "motion-desktop/ffmpeg",
+      "--all-targets",
+      "--locked",
+      "--offline"
+    ],
+    "pid": 16076,
+    "exitCode": 0,
+    "summaries": []
+  },
+  "steps": [
+    {
+      "phase": "tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "mcp::tracked_video::tests::",
+        "--config",
+        "profile.test.package.motion-desktop.codegen-units=4",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 11000,
+      "exitCode": 0,
+      "summaries": [
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "1799"
+        ]
+      ]
+    },
+    {
+      "phase": "surface",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::surface::tracked_plate_replacement_invalidates_actual_surface_front_and_history_retains_reuse",
+        "--config",
+        "profile.test.package.motion-desktop.codegen-units=4",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 40680,
+      "exitCode": 0,
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1801"
+        ]
+      ]
+    },
+    {
+      "phase": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline"
+      ],
+      "pid": 10460,
+      "exitCode": 0,
+      "summaries": []
+    }
+  ],
+  "codegenUnits": 4,
+  "nativeWorkflow": [
+    "real_stdio_advertises_five_actions",
+    "prepare_rejects_stale_context_and_unknown_fields",
+    "cancel_release_preserve_author_state",
+    "native_prepare_ready_does_not_publish_author_state",
+    "finish_rejects_stale_document_and_wrong_original",
+    "native_commit_is_one_revision_with_stable_ids_and_saved_project",
+    "wire_undo_redo_and_save_preserve_atomic_pair",
+    "default_info_start_error_file_and_stderr_with_pure_jsonrpc_stdout",
+    "new_process_reopens_saved_plate_and_solve",
+    "readonly_wire_denies_every_mutation_and_allows_status_dispatch"
+  ],
+  "editReplyCount": 22,
+  "readonlyReplyCount": 7,
+  "binarySha256": "5bb57c7146708b4e9f66bafa26b43b8ecd68c9ca2c9741ae1be6b4626e2e1789",
+  "surface": {
+    "actualSurface": true,
+    "after": {
+      "compositionRenders": 5,
+      "compositionReuses": 2,
+      "lastPresentUs": 1610
+    },
+    "before": {
+      "compositionRenders": 2,
+      "compositionReuses": 0,
+      "lastPresentUs": 22259
+    },
+    "nativeFfmpeg": true,
+    "oneRevision": true,
+    "originalFrame": 24,
+    "pairedCommitInvalidatesFront": true,
+    "redoAndReopenRestoreNewPixels": true,
+    "reopened": {
+      "compositionRenders": 2,
+      "compositionReuses": 1,
+      "lastPresentUs": 1525
+    },
+    "scope": "committed preview front after actual Surface present; not physical scanout readback or photographed tracking quality",
+    "unchangedPresentReusesFront": true,
+    "undoRestoresOldPixels": true,
+    "wrongSolvePreservesFront": true
+  },
+  "archive": "frame-rate85-tracking-tools-v2.zip",
+  "bytes": 1825132,
+  "sha256": "a1794c22c77382912381d450516f0a2e3ecd1261c240841865dd5e58ab279b1c",
+  "members": 79,
+  "limits": [
+    "4 Rust tests plus10 distinct real stdio controls, not14 Rust tests or full desktop/workspace",
+    "Default compiler build AV before tests retained; test codegenUnits4 diagnostic is not default-profile acceptance or a fix/cause for compiler or product crashes",
+    "Source fixture clock remains integer-valued rational24/1; does not replace fractional-rate matrix or real-footage quality",
+    "Native Surface output is not physical screen scanout. No Android, source/assertion/threshold/timeout/ignore changes or new third-party assets"
+  ]
+}
