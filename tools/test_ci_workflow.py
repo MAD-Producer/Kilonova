@@ -129,10 +129,32 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertEqual(len(matches), 1, command)
         return matches[0]
 
+    def test_build_and_publication_cannot_bypass_the_native_test_matrix(self):
+        jobs = self.workflow["jobs"]
+        tests, build = jobs["desktop-tests"], jobs["desktop"]
+        self.assertEqual(build["name"], "Desktop build")
+        self.assertEqual(build["needs"], "desktop-tests")
+        self.assertIn("desktop", jobs["publish"]["needs"])
+        for job in [tests, build]:
+            self.assertNotIn("if", job)
+            self.assertNotIn("continue-on-error", job)
+            for step in job["steps"]:
+                self.assertNotIn("continue-on-error", step)
+        self.assertEqual(tests["strategy"], build["strategy"])
+        self.assertEqual(tests["runs-on"], build["runs-on"])
+        for job in [tests, build]:
+            for os, budget in [("windows-2022", 90), ("macos-15-intel", 90),
+                               ("ubuntu-24.04", 60), ("macos-14", 60)]:
+                self.assertEqual(expression_value(job["timeout-minutes"], {"matrix": {"os": os}}), budget)
+        self.assertTrue(any(s.get("name") == "Run desktop unit tests" for s in tests["steps"]))
+        self.assertFalse(any(s.get("name") == "Build the desktop shell" for s in tests["steps"]))
+        self.assertFalse(any(s.get("name") == "Run desktop unit tests" for s in build["steps"]))
+        self.assertTrue(any(s.get("run") == "python tools/build_desktop.py --task check" for s in build["steps"]))
+
     def test_native_test_evidence_stays_under_upload_root_from_crate_cwd(self):
-        desktop = self.workflow["jobs"]["desktop"]
+        desktop = self.workflow["jobs"]["desktop-tests"]
         test = next(step for step in desktop["steps"] if step.get("name") == "Run desktop unit tests")
-        upload = next(step for step in desktop["steps"] if step.get("with", {}).get("name") == "desktop-build-${{ matrix.platform }}")
+        upload = next(step for step in desktop["steps"] if step.get("with", {}).get("name") == "desktop-tests-${{ matrix.platform }}")
         self.assertEqual(upload["if"], "always() && github.event_name != 'pull_request'")
         self.assertEqual(upload["with"]["path"], "artifacts/desktop/**")
         for paths, workspace in [(posixpath, "/runner/work/project/project"), (ntpath, r"D:\a\project\project")]:
@@ -147,7 +169,7 @@ class WorkflowPolicyTest(unittest.TestCase):
                 self.assertEqual(paths.commonpath([upload_root, resolved]), upload_root)
 
     def test_failed_pr_keeps_native_evidence_without_enabling_publication(self):
-        steps = self.workflow["jobs"]["desktop"]["steps"]
+        steps = self.workflow["jobs"]["desktop-tests"]["steps"]
         artifact_name = "desktop-failure-${{ matrix.platform }}"
         upload = next(s for s in steps if s.get("with", {}).get("name") == artifact_name)
         self.assertRegex(upload["uses"], r"actions/upload-artifact@[0-9a-f]{40}$")
@@ -255,8 +277,8 @@ class WorkflowPolicyTest(unittest.TestCase):
     def test_native_and_workspace_jobs_partition_all_supported_packages(self):
         validation = next(step for step in self.checks["steps"] if step.get("name") == "Run Rust and software Vulkan tests")
         self.assertNotIn("if", validation)
-        self.assertEqual(set(self.workflow["jobs"]), {"checks", "desktop", "desktop-media", "dependency-audit", "publish"})
-        desktop = self.workflow["jobs"]["desktop"]
+        self.assertEqual(set(self.workflow["jobs"]), {"checks", "desktop", "desktop-tests", "desktop-media", "dependency-audit", "publish"})
+        desktop = self.workflow["jobs"]["desktop-tests"]
         self.assertNotIn("if", desktop)
         tests = next(step for step in desktop["steps"] if step.get("name") == "Run desktop unit tests")
         self.assertNotIn("if", tests)
@@ -286,7 +308,7 @@ class WorkflowPolicyTest(unittest.TestCase):
             self.assertNotIn(legacy, text)
 
     def test_frozen_depth_exports_are_enabled_and_evidence_has_upload_routes(self):
-        desktop = self.workflow["jobs"]["desktop"]
+        desktop = self.workflow["jobs"]["desktop-tests"]
         native = next(s for s in desktop["steps"] if s.get("name") == "Run desktop unit tests")
         args = shlex.split(native["run"])
         self.assertIn("motion-desktop-media/ai-depth", args[args.index("--features") + 1].split(","))
@@ -341,7 +363,8 @@ class WorkflowPolicyTest(unittest.TestCase):
                 expected.add("macos-arm64")
             self.assertEqual({row["platform"] for row in rows}, expected)
             self.assertEqual(len(rows), len(expected))
-            active = [s for s in desktop["steps"] if expression_value(s.get("if"), context)]
+            active = [s for job in [desktop, self.workflow["jobs"]["desktop-tests"]]
+                      for s in job["steps"] if expression_value(s.get("if"), context)]
             active_names = {s.get("name") for s in active}
             self.assertIn("Run desktop unit tests", active_names)
             self.assertIn("Build the desktop shell", active_names)

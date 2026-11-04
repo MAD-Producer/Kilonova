@@ -123,8 +123,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  desktop:
-    name: Desktop build
+  desktop-tests:
+    name: Desktop tests
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ (matrix.os == 'macos-15-intel' || matrix.os == 'windows-2022') && 90 || 60 }}
     strategy:
@@ -200,6 +200,116 @@ jobs:
         # Exercise the optional depth contract/process tests without installing
         # a model or Python inference runtime on the native matrix.
         run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-host/ai-depth,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests,motion-desktop-media/ai-depth -- --test-threads=1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: desktop-tests-${{ matrix.platform }}
+          path: artifacts/desktop/**
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve failed PR native playback evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() && github.event_name == 'pull_request'
+        with:
+          name: desktop-failure-${{ matrix.platform }}
+          path: |
+            artifacts/desktop/sampling-playback/costs.json
+            artifacts/desktop/sampling-playback/failure.json
+            artifacts/desktop/sampling-playback/baseline-costs.json
+            artifacts/desktop/sampling-playback/blur-costs.json
+            artifacts/desktop/sampling-playback/raster-costs.json
+            artifacts/desktop/sampling-playback/combined-costs.json
+            artifacts/desktop/sampling-playback/motion-studio.log
+            artifacts/desktop/sampling-playback/stderr.log
+            artifacts/desktop/sampling-playback/baseline.png
+            artifacts/desktop/sampling-playback/blur.png
+            artifacts/desktop/sampling-playback/raster.png
+            artifacts/desktop/sampling-playback/combined.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve failed PR native capture evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() && github.event_name == 'pull_request' && runner.os == 'Windows'
+        with:
+          name: desktop-capture-failure-${{ matrix.platform }}
+          path: |
+            artifacts/desktop/path-selection/*.failure.json
+            artifacts/desktop/path-selection/motion-studio.log
+            artifacts/desktop/path-selection/stderr.log
+            artifacts/desktop/path-selection/stdout.log
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve failed PR frozen export evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() && github.event_name == 'pull_request'
+        with:
+          name: desktop-export-failure-${{ matrix.platform }}
+          path: |
+            artifacts/desktop/frozen-depth/**
+            artifacts/desktop/imported-camera/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  desktop:
+    name: Desktop build
+    # A failed or cancelled native test matrix must block the existing required
+    # build checks and, transitively, publication. Keep each phase's budget.
+    needs: desktop-tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ (matrix.os == 'macos-15-intel' || matrix.os == 'windows-2022') && 90 || 60 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request' &&
+          '[{"os":"ubuntu-24.04","platform":"linux-x86_64","binary":"motion-studio","target":"x86_64-unknown-linux-gnu"},
+          {"os":"windows-2022","platform":"windows-x86_64","binary":"motion-studio.exe","target":"x86_64-pc-windows-msvc"},
+          {"os":"macos-15-intel","platform":"macos-x86_64","binary":"motion-studio","target":"x86_64-apple-darwin"}]' ||
+          '[{"os":"ubuntu-24.04","platform":"linux-x86_64","binary":"motion-studio","target":"x86_64-unknown-linux-gnu"},
+          {"os":"windows-2022","platform":"windows-x86_64","binary":"motion-studio.exe","target":"x86_64-pc-windows-msvc"},
+          {"os":"macos-14","platform":"macos-arm64","binary":"motion-studio","target":"aarch64-apple-darwin"},
+          {"os":"macos-15-intel","platform":"macos-x86_64","binary":"motion-studio","target":"x86_64-apple-darwin"}]') }}
+    env:
+      XDG_RUNTIME_DIR: /tmp/motion-runtime
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+      PIP_CACHE_DIR: ${{ github.workspace }}/artifacts/ci-cache/pip
+      # Keep source locations for forced backtraces without full Unix DWARF
+      # type data in every isolated failure-path test process.
+      CARGO_PROFILE_DEV_DEBUG: ${{ matrix.platform != 'windows-x86_64' && 'line-tables-only' || '2' }}
+      CARGO_PROFILE_TEST_DEBUG: ${{ matrix.platform != 'windows-x86_64' && 'line-tables-only' || '2' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Reserve Linux desktop build disk space
+        if: runner.os == 'Linux'
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          # These hosted-runner SDKs are not used by the desktop build. Free
+          # them before restoring Rust artifacts; retain all build/test data.
+          sudo rm -rf -- /usr/local/lib/android /usr/share/dotnet
+          df -h "$GITHUB_WORKSPACE"
+      - name: Install headless Vulkan and native build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' -e 's|http://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          grep '^URIs:' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+          sudo apt-get install -y mesa-vulkan-drivers libvulkan1 libclang-18-dev fonts-noto-cjk xvfb libxkbcommon0 libxkbcommon-x11-0 libasound2-dev
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+      - name: Install Rust
+        run: rustup toolchain install 1.97.1 --profile minimal --no-self-update
+      - name: Install desktop target
+        run: rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: desktop-native
+          save-if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          cache-on-failure: true
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
       - name: Restore pinned libclang wheel cache
@@ -284,48 +394,6 @@ jobs:
           path: artifacts/desktop/**
           if-no-files-found: warn
           retention-days: 14
-      - name: Preserve failed PR native playback evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure() && github.event_name == 'pull_request'
-        with:
-          name: desktop-failure-${{ matrix.platform }}
-          path: |
-            artifacts/desktop/sampling-playback/costs.json
-            artifacts/desktop/sampling-playback/failure.json
-            artifacts/desktop/sampling-playback/baseline-costs.json
-            artifacts/desktop/sampling-playback/blur-costs.json
-            artifacts/desktop/sampling-playback/raster-costs.json
-            artifacts/desktop/sampling-playback/combined-costs.json
-            artifacts/desktop/sampling-playback/motion-studio.log
-            artifacts/desktop/sampling-playback/stderr.log
-            artifacts/desktop/sampling-playback/baseline.png
-            artifacts/desktop/sampling-playback/blur.png
-            artifacts/desktop/sampling-playback/raster.png
-            artifacts/desktop/sampling-playback/combined.png
-          if-no-files-found: warn
-          retention-days: 7
-      - name: Preserve failed PR native capture evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure() && github.event_name == 'pull_request' && runner.os == 'Windows'
-        with:
-          name: desktop-capture-failure-${{ matrix.platform }}
-          path: |
-            artifacts/desktop/path-selection/*.failure.json
-            artifacts/desktop/path-selection/motion-studio.log
-            artifacts/desktop/path-selection/stderr.log
-            artifacts/desktop/path-selection/stdout.log
-          if-no-files-found: warn
-          retention-days: 7
-      - name: Preserve failed PR frozen export evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure() && github.event_name == 'pull_request'
-        with:
-          name: desktop-export-failure-${{ matrix.platform }}
-          path: |
-            artifacts/desktop/frozen-depth/**
-            artifacts/desktop/imported-camera/**
-          if-no-files-found: warn
-          retention-days: 7
 
   desktop-media:
     name: Desktop libav backend

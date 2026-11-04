@@ -1,0 +1,8 @@
+{
+  "preservation.json": "3cf848e981f2b1b4ff3ca75d657b5d64d795f28d51b46482e6a58f97070571b3",
+  "workflow-tests.log": "912d8c1e428d85af6bffbd6f660c8a40e82e0bfee009e9cc295b9424e1db9765",
+  "release-tests.log": "2d63ff6384b807595e9dc367a80a8a0136cd136f34b624180d1928c2c3d08422",
+  "tools-tests.log": "017b824a52b0b6e3cd0e7bf92f7c7aeb0e1c6eabcfd4daa7d97381061ab85249",
+  "actionlint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "evidence.zip": "4b56d5331ffc89ccf4af69d904df0badfa3aa972ab43b82fcdcca97be88d6737"
+}
