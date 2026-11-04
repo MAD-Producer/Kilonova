@@ -308,6 +308,10 @@ fn outside_lines_leave_no_edge_pixels_and_clamped_centerlines_are_a_negative_con
             vec![[72., 12.], [72., 52.]],
             vec![[12., -8.], [52., -8.]],
             vec![[12., 72.], [52., 72.]],
+            vec![[-8., 12.], [-12., 32.], [-8., 52.]],
+            vec![[72., 12.], [76., 32.], [72., 52.]],
+            vec![[12., -8.], [32., -12.], [52., -8.]],
+            vec![[12., 72.], [32., 76.], [52., 72.]],
         ] {
             for width in [1., 4.] {
                 let make = |points: Vec<[f32; 2]>| {
