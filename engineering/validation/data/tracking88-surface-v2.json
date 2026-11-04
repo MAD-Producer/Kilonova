@@ -1,0 +1,248 @@
+{
+  "status": "actual_surface_retained_front_replacement_history_and_reopen_passed",
+  "baseCommit": "52ce7ebf0571b12ae2bea7eb9352493165955a7e",
+  "source": {
+    "desktop/app/src/engine/tracking_video_surface_tests.rs": {
+      "rawSha256": "4d59e9853db0c03f6f9141ba85e24ea186f049316b7237d453e8a443b4e9995a",
+      "gitLfSha256": "4d59e9853db0c03f6f9141ba85e24ea186f049316b7237d453e8a443b4e9995a"
+    },
+    "desktop/app/src/engine/tracking_video_pair_tests.rs": {
+      "rawSha256": "a7ef20333cca7c8858d457d41c270d65628944e397ed7d462e00772463e926bf",
+      "gitLfSha256": "a7ef20333cca7c8858d457d41c270d65628944e397ed7d462e00772463e926bf"
+    }
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-desktop",
+    "--features",
+    "ffmpeg",
+    "--locked",
+    "--offline",
+    "--bin",
+    "motion-studio",
+    "--",
+    "engine::tracking_video_replacement_tests::paired::surface::tracked_plate_replacement_invalidates_actual_surface_front_and_history_retains_reuse",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "elapsedSeconds": 148.969,
+  "native": {
+    "actualSurface": true,
+    "after": {
+      "compositionRenders": 5,
+      "compositionReuses": 2,
+      "lastPresentUs": 5144
+    },
+    "before": {
+      "compositionRenders": 2,
+      "compositionReuses": 0,
+      "lastPresentUs": 14434
+    },
+    "nativeFfmpeg": true,
+    "oneRevision": true,
+    "originalFrame": 24,
+    "pairedCommitInvalidatesFront": true,
+    "redoAndReopenRestoreNewPixels": true,
+    "reopened": {
+      "compositionRenders": 2,
+      "compositionReuses": 1,
+      "lastPresentUs": 4479
+    },
+    "scope": "committed preview front after actual Surface present; not physical scanout readback or photographed tracking quality",
+    "unchangedPresentReusesFront": true,
+    "undoRestoresOldPixels": true,
+    "wrongSolvePreservesFront": true
+  },
+  "childProcess": {
+    "elapsed_ms": 12060,
+    "exit_code": 0,
+    "exit_code_hex": "0x00000000",
+    "pid": 39204,
+    "schema_version": 1,
+    "started_unix_ms": 1793613139901,
+    "status": "exit code: 0",
+    "success": true
+  },
+  "earlierFailure": {
+    "status": "failed",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--features",
+      "ffmpeg",
+      "--locked",
+      "--offline",
+      "--bin",
+      "motion-studio",
+      "--",
+      "engine::tracking_video_replacement_tests::paired::surface::tracked_plate_replacement_invalidates_actual_surface_front_and_history_retains_reuse",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exitCode": 101,
+    "disposition": "New test incorrectly required reuse immediately after a rejected Media command. The existing dispatcher invalidates retained stamps before all Media commands. The final new control requires immediate old-front equality, an actual redraw with equal pixels, then reuse; no product behavior or pre-existing assertion changed."
+  },
+  "limits": [
+    "Windows real Surface with hidden event-pumped native window; not physical scanout readback",
+    "Real native video and camera replacement fixture; not photographed tracker quality or all codecs",
+    "Full desktop package passed before adding this test; current test is a separate focused acceptance",
+    "No product, panel, dependency, asset or Android change in this test increment"
+  ],
+  "archive": {
+    "path": "tracking88-surface-v2.zip",
+    "bytes": 223221,
+    "sha256": "e2eebe1798f9e411a363f86a1fe961fc2a0dc4f20097ef7c8c0f3c8370f2afa6",
+    "members": {
+      "v1/controller.py": {
+        "bytes": 3094,
+        "sha256": "98c93f1cfc8bfe77a0a0625ff225c40ff8f0787b66a727bf9c61997cdd347b0a"
+      },
+      "v1/exit.json": {
+        "bytes": 217852,
+        "sha256": "b9bc5e9ccb015560426e8ee475735214dae2f42c42c6df8a0debb5904f93cc45"
+      },
+      "v1/native/before.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "v1/native/child-process.json": {
+        "bytes": 203,
+        "sha256": "3670cf4c2897ab1be6b101d798dda6f8656d7f0237cee97a0dda61052cf4c3a9"
+      },
+      "v1/native/logs/motion-studio.log": {
+        "bytes": 11630,
+        "sha256": "0fa70ff7f100d92c9bc95fd9f8dcbebb434c2866f930b68c49a913db290302ad"
+      },
+      "v1/native/new.mstrack": {
+        "bytes": 25123,
+        "sha256": "09e58c92f949ef03585b484c3e5cc7c41768dcbd0256863543959f70585d7826"
+      },
+      "v1/native/old.mstrack": {
+        "bytes": 25115,
+        "sha256": "497f9e66fb7265465750b387370a4df89c588c7169c56fccba96597d86f6ac27"
+      },
+      "v1/native/retained.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "v1/native/stderr.log": {
+        "bytes": 8477,
+        "sha256": "99410c8492243a259b9946b3d02c4e23fbb44a721a5073c840e2ad836f345662"
+      },
+      "v1/native/stdout.log": {
+        "bytes": 450,
+        "sha256": "76d95bc95996a1685b023b705c6481646346f5287aaf90d3049655858d6449ba"
+      },
+      "v1/source/tracking_video_pair_tests.rs": {
+        "bytes": 13456,
+        "sha256": "a7ef20333cca7c8858d457d41c270d65628944e397ed7d462e00772463e926bf"
+      },
+      "v1/source/tracking_video_surface_tests.rs": {
+        "bytes": 12857,
+        "sha256": "3e85c43f30f131227edd6c2e5a70b1cf02092fd690dc74dddcf34439b3287a7a"
+      },
+      "v1/stderr.log": {
+        "bytes": 28561,
+        "sha256": "5938b87b96dc41c2ae93e8abb1d95a22bb05994450dfd9cf34393348a1557eee"
+      },
+      "v1/stdout.log": {
+        "bytes": 450,
+        "sha256": "46e7f89bd9d5cda8bbde14f8a4661ba1c609a05c31327c55e39b0524ab0b3082"
+      },
+      "v2/controller.py": {
+        "bytes": 3094,
+        "sha256": "dab97d10cba968eb84e1008fa2ea5781c208ac6f1b35245815e9b300bd949e5e"
+      },
+      "v2/exit.json": {
+        "bytes": 218938,
+        "sha256": "126bb042d7dacbd8b2aaa04a898e58dd403e7c6e7191adcba72ab94e3d017e89"
+      },
+      "v2/native/after-retained.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "v2/native/after.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "v2/native/before.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "v2/native/child-process.json": {
+        "bytes": 198,
+        "sha256": "26f581a2c5dd746a5d799c9e9077d09846a25efbb337766cfeabd0881823ee84"
+      },
+      "v2/native/logs/motion-studio.log": {
+        "bytes": 15100,
+        "sha256": "ed138b9a0fca41ca2ac77f161f02745b1ab46c8048a3fddb8ff3bb0820b0e7b3"
+      },
+      "v2/native/new.mstrack": {
+        "bytes": 25123,
+        "sha256": "09e58c92f949ef03585b484c3e5cc7c41768dcbd0256863543959f70585d7826"
+      },
+      "v2/native/old.mstrack": {
+        "bytes": 25115,
+        "sha256": "497f9e66fb7265465750b387370a4df89c588c7169c56fccba96597d86f6ac27"
+      },
+      "v2/native/redo.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "v2/native/rejected-front.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "v2/native/rejected.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "v2/native/reopened.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "v2/native/report.json": {
+        "bytes": 725,
+        "sha256": "64409e88e46abb5f450f7e4f56de67a5910013aa5feac45c5d62100255bfab6b"
+      },
+      "v2/native/retained.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "v2/native/stderr.log": {
+        "bytes": 1512,
+        "sha256": "55d457179b0aed0f6115f49596d57509767deb4795d93abe504b35b583f65acd"
+      },
+      "v2/native/stdout.log": {
+        "bytes": 272,
+        "sha256": "b324c29c45acbddb3beee322c0637c0c249f144974e5d9c6a974378ef94f2e20"
+      },
+      "v2/native/undo.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "v2/source/tracking_video_pair_tests.rs": {
+        "bytes": 13456,
+        "sha256": "a7ef20333cca7c8858d457d41c270d65628944e397ed7d462e00772463e926bf"
+      },
+      "v2/source/tracking_video_surface_tests.rs": {
+        "bytes": 13376,
+        "sha256": "4d59e9853db0c03f6f9141ba85e24ea186f049316b7237d453e8a443b4e9995a"
+      },
+      "v2/stderr.log": {
+        "bytes": 12803,
+        "sha256": "5e072e1a10223562ad2b3481a9fe494004440b842d9a6b4d3b766d81940026d1"
+      },
+      "v2/stdout.log": {
+        "bytes": 272,
+        "sha256": "63bf3300d0d2b3f22289604d4d428c6c7e65b8156045b82eb6f55708c384309c"
+      }
+    }
+  }
+}
