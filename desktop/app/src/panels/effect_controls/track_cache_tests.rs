@@ -1,6 +1,7 @@
 use super::*;
 use crate::engine::Engine;
 use motion_core::{Ease, Keyframe, Track};
+mod definition_views;
 
 struct Fixture {
     // Stop the worker before deleting its project directory.

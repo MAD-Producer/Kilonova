@@ -52,3 +52,5 @@ impl Drop for Observation {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod mapped_rate_tests;

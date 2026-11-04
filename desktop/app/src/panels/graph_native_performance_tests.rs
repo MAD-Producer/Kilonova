@@ -90,6 +90,9 @@ impl PaintWork {
                 motion_ui::paint::Shape::Triangles { points } => {
                     self.triangle_points = self.triangle_points.saturating_add(points.len() as u64);
                 }
+                motion_ui::paint::Shape::Mesh(mesh) => {
+                    self.triangle_points = self.triangle_points.saturating_add(mesh.point_count() as u64);
+                }
                 _ => {}
             }
         }

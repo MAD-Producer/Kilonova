@@ -67,6 +67,8 @@ mod video_gpu;
 mod vector_mesh;
 pub use vector_mesh::VectorGeometryError;
 mod layer_gpu;
+#[cfg(test)]
+mod test_allocations;
 mod vector_upload;
 pub use vector_upload::{VectorUploadError, VectorUploadInfo};
 pub mod mask_plan;

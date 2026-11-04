@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "scope": "Two actual property renderer layer-ID panic boundaries, bounded observations, gesture cleanup and regression evidence",
+  "parent": "f877bbf1f1e0bc80af7ffba3b1746da1682bdf0d",
+  "sources": {
+    "desktop/app/src/panels/mod.rs": "7c74f6ec15868a5eef2ff9c01ed87dee8c58a0a55dafb1e2b9628dd50fb8b34e",
+    "desktop/app/src/panels/layer_identity.rs": "c7d90822b4ca311d01d3c2346333f0878a103b3e0c71010cc979a647c4e8f1c5",
+    "desktop/app/src/panels/layer_identity/tests.rs": "09982221bbf0daa4c9a2bfced5f1c5dd3624ee70503db90c3f7f07eafd997b70",
+    "desktop/app/src/panels/effect_controls.rs": "19c1b5d994d8675ab20b1abc0942810d6a6683bd36edd8e5bfe2ebed1679d80c",
+    "desktop/app/src/panels/effect_controls/mapped_authoring_tests/numeric_time.rs": "517c86ecf763cdb33f0a13401cd641c71d777217a59a0062230f0584db4b1e09",
+    "desktop/app/src/panels/effect_controls/mapped_authoring_tests/numeric_time/layer_identity.rs": "69b22144db0ae1a698519b54be9877e90d73854e9fef15dfde0feb2bccf5fd74",
+    "desktop/app/src/panels/animation_controls.rs": "242e582b37ae1c1e1c5be3cf5fe32ccbaabaf0f6cec133cc8b6f608b54e1e7d2",
+    "desktop/app/src/panels/animation_controls/mapped_tests.rs": "ae2771f4446f51944e78bb82059bfb004569c42818fad0fcbaf2d1f154144f1c",
+    "desktop/app/src/panels/animation_controls/mapped_tests/layer_identity.rs": "7159c99a2da58794ef609df58f8e97f71f73d0ff8a7a6fae052a86ac2f60bb2c"
+  },
+  "archive_sha256": "c5fe8c1f1b9ca192a9d34402881f8ab44c849d84a22b3f1ddf898c61609a294e",
+  "tests": {
+    "distinct_passed": 93,
+    "new_tests": 6,
+    "existing_manual_ignored": 4,
+    "old_unwrap_negative_controls": 2
+  },
+  "pending": [
+    "Exact-head CI",
+    "Whole issue134 closure audit",
+    "Existing unrelated native manual acceptance",
+    "Full DESIGN remediation"
+  ]
+}

@@ -1,11 +1,29 @@
 //! Preflight both channels before publishing compensated anchor edits.
 use super::*;
 
+/// Persistent identities for the two channels of an atomic pivot edit.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnchorKeyBinding {
+    pub anchor: Option<u64>,
+    pub position: Option<u64>,
+}
+
 pub fn compensate_anchor(
     project: &mut Project,
     object: u64,
     frame: f64,
     anchor: [f32; 2],
+) -> Result<()> {
+    compensate_anchor_with_keys(project, object, frame, anchor, None)
+}
+
+pub fn compensate_anchor_with_keys(
+    project: &mut Project,
+    object: u64,
+    frame: f64,
+    anchor: [f32; 2],
+    keys: Option<&AnchorKeyBinding>,
 ) -> Result<()> {
     let target = KeyframeTarget::Property {
         object,
@@ -28,6 +46,24 @@ pub fn compensate_anchor(
             layer.camera_data().is_none() && !matches!(layer.content, Content::Audio { .. }),
             "object has no layer anchor",
         )?;
+        if let Some(keys) = keys {
+            ensure(
+                keys.anchor.is_some() || keys.position.is_some(),
+                "empty anchor key binding",
+            )?;
+            validate_binding(&layer.transform.anchor, keys.anchor, &time)
+                .map_err(|source| target.failure("anchor_key_binding", source))?;
+            validate_binding(&layer.transform.position, keys.position, &time).map_err(
+                |source| {
+                    KeyframeTarget::Property {
+                        object,
+                        property: crate::Property::Position,
+                        axis: None,
+                    }
+                    .failure("anchor_key_binding", source)
+                },
+            )?;
+        }
         let previous = layer.transform.anchor.sample(time.local)?;
         let mut rotation = layer.transform.rotation.sample(time.local)?;
         if !layer.three_d {
@@ -50,9 +86,7 @@ pub fn compensate_anchor(
         let next_anchor = edit_track(
             &layer.transform.anchor,
             &time,
-            &TrackEdit::Set {
-                value: TrackValue::Vec2(anchor),
-            },
+            &bound_edit(keys.and_then(|keys| keys.anchor), TrackValue::Vec2(anchor)),
             Some(anchor),
             false,
         )
@@ -60,9 +94,10 @@ pub fn compensate_anchor(
         let next_position = edit_track(
             &layer.transform.position,
             &time,
-            &TrackEdit::Set {
-                value: TrackValue::Vec3(position),
-            },
+            &bound_edit(
+                keys.and_then(|keys| keys.position),
+                TrackValue::Vec3(position),
+            ),
             Some(position),
             false,
         )
@@ -88,4 +123,31 @@ pub fn compensate_anchor(
         Ok(())
     })();
     result.map_err(|source| target.failure("anchor_at", source))
+}
+
+fn bound_edit(key: Option<u64>, value: TrackValue) -> TrackEdit {
+    match key {
+        Some(key) => TrackEdit::SetSpatialKey { key, value },
+        None => TrackEdit::Set { value },
+    }
+}
+fn validate_binding<T: Tween>(source: &Track<T>, key: Option<u64>, time: &EditTime) -> Result<()> {
+    let Some(key) = key else {
+        return Ok(());
+    };
+    let spatial = source.spatial_animation.as_ref().ok_or_else(|| {
+        Error::Invalid(format!(
+            "anchor compensation key={key} spatial storage no longer exists"
+        ))
+    })?;
+    let local = spatial
+        .prepared()
+        .keys()
+        .find(|(id, _)| *id == key)
+        .map(|(_, local)| local)
+        .ok_or_else(|| Error::Invalid(format!("anchor compensation key={key} no longer exists")))?;
+    ensure(
+        time.clock.projected_composition_frame(local, time.offset)? == time.composition,
+        &format!("anchor compensation key={key} no longer belongs to the captured time"),
+    )
 }

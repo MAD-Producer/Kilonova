@@ -1136,6 +1136,7 @@ fn responsive_layout_and_paint_remain_within_panel() {
                     clip.map_or(points, |bounds| vec![bounds.min, bounds.max])
                 }
                 motion_ui::paint::Shape::Triangles { points } => points,
+                motion_ui::paint::Shape::Mesh(mesh) => mesh.points().collect(),
                 motion_ui::paint::Shape::Procedural { clip, .. } => vec![clip.min, clip.max],
             };
             assert!(points.iter().all(|p| p[0].is_finite()
