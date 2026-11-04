@@ -412,6 +412,7 @@ pub use frames::{
 #[derive(Clone)]
 pub struct AdmittedTextureView {
     pub(crate) view: wgpu::TextureView,
+    pub(crate) format: wgpu::TextureFormat,
     pub(crate) lease: AllocationLease,
 }
 impl Deref for AdmittedTextureView {

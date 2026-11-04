@@ -1,0 +1,1186 @@
+{
+  "status": "latest_main_lens_video_clocks_prefetch_and_native_surface_passed",
+  "head": "8672e59e8492bb654ac39c5f5777f0f228144253",
+  "integratedParents": [
+    "8dafc3188bdf53d50ce61a6872bf2cbc78fbfc99",
+    "e23475585ce598dd4747342c4b0a3face71add50"
+  ],
+  "maintainedMain": "e23475585ce598dd4747342c4b0a3face71add50",
+  "counts": {
+    "render": {
+      "passed": 100,
+      "failed": 0,
+      "ignored": 0,
+      "summaries": 7,
+      "filtered": 0
+    },
+    "host": {
+      "passed": 176,
+      "failed": 0,
+      "ignored": 0,
+      "summaries": 1,
+      "filtered": 0
+    },
+    "surface": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "summaries": 1,
+      "filtered": 1752
+    },
+    "prefetch": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "summaries": 1,
+      "filtered": 1752
+    },
+    "mapped": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "summaries": 1,
+      "filtered": 1753
+    }
+  },
+  "source": {
+    "crates/motion-host/src/video_cache.rs": {
+      "rawSha256": "873dcfee98ad280be9f43ad02dc557c29f6158799825d4e5e0d4cf45bf33a96a",
+      "gitLfSha256": "873dcfee98ad280be9f43ad02dc557c29f6158799825d4e5e0d4cf45bf33a96a"
+    },
+    "crates/motion-host/src/video_frames.rs": {
+      "rawSha256": "9a937d1d3e785b74791d767893cd7a6e51a244802c92442c62cc6c967c5a22ba",
+      "gitLfSha256": "9a937d1d3e785b74791d767893cd7a6e51a244802c92442c62cc6c967c5a22ba"
+    },
+    "crates/motion-host/src/video_frames/mapped_prefetch.rs": {
+      "rawSha256": "366e4f290e32875c9a05ce1f582aa2c10016e138d84697bef33821dc5be7e65e",
+      "gitLfSha256": "366e4f290e32875c9a05ce1f582aa2c10016e138d84697bef33821dc5be7e65e"
+    },
+    "crates/motion-host/src/video_frames/mapped_prefetch/tests.rs": {
+      "rawSha256": "feb6105f59ac0c435c7e9104ccd0df3f27abc59c65164f0d741078b2954e14b4",
+      "gitLfSha256": "feb6105f59ac0c435c7e9104ccd0df3f27abc59c65164f0d741078b2954e14b4"
+    },
+    "crates/motion-render/src/renderer.rs": {
+      "rawSha256": "97b31456fe8488dec512519265d5208d2355115a09aeed7fb75c5ae5c7ea6717",
+      "gitLfSha256": "97b31456fe8488dec512519265d5208d2355115a09aeed7fb75c5ae5c7ea6717"
+    },
+    "crates/motion-render/src/scene.rs": {
+      "rawSha256": "c59e1b6facba243d0287208f1a0f96dbba641918da9af2481e7a0e5fce23e66e",
+      "gitLfSha256": "c59e1b6facba243d0287208f1a0f96dbba641918da9af2481e7a0e5fce23e66e"
+    },
+    "desktop/app/src/engine.rs": {
+      "rawSha256": "9c806f5b8d332261c09441b45adbdc0af5a97bc3b35d3538ba9c9f822c887801",
+      "gitLfSha256": "9c806f5b8d332261c09441b45adbdc0af5a97bc3b35d3538ba9c9f822c887801"
+    },
+    "desktop/app/src/engine/mapped_video_prefetch_tests.rs": {
+      "rawSha256": "1481bf32d3c9deffea80a720417e97e139bbde302baa6d617fce1a5a2a5da755",
+      "gitLfSha256": "1481bf32d3c9deffea80a720417e97e139bbde302baa6d617fce1a5a2a5da755"
+    },
+    "desktop/app/src/engine/tracking_surface_binding_tests.rs": {
+      "rawSha256": "072cf38ce8c535b78642f51ad21c0c56232b1d80cbc5a8a48ec0e515cdefb590",
+      "gitLfSha256": "072cf38ce8c535b78642f51ad21c0c56232b1d80cbc5a8a48ec0e515cdefb590"
+    },
+    "desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+      "rawSha256": "c851d5604d9206d6c2351f57fc1fc6c63028172b1f24558e5187fb53fbed57cc",
+      "gitLfSha256": "c851d5604d9206d6c2351f57fc1fc6c63028172b1f24558e5187fb53fbed57cc"
+    },
+    "desktop/app/src/engine/tracking_video_surface_tests.rs": {
+      "rawSha256": "2c8cb61723e0444088a57e9860ba3bdc5e3e2d2f9ac916c686d93d93557593ef",
+      "gitLfSha256": "2c8cb61723e0444088a57e9860ba3bdc5e3e2d2f9ac916c686d93d93557593ef"
+    },
+    "desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+      "rawSha256": "5ec5c9d78a34d849eb7ffa6c4e1bb3228031f3cf90c22df2fe02cbf60362b560",
+      "gitLfSha256": "5ec5c9d78a34d849eb7ffa6c4e1bb3228031f3cf90c22df2fe02cbf60362b560"
+    }
+  },
+  "unchangedCrateTreesFrom18579d81": {
+    "crates/motion-model": "3caa743c2775c80f4ebf00bc92e9a4c4e4b180f9",
+    "crates/motion-core": "07fdc6fff65f128f90d58ddb389fc0382b00c9a8",
+    "crates/motion-render": "416fb8a974983bff210321a69c16532a73301808"
+  },
+  "rayOracle": [
+    {
+      "checked": 288586,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": false
+    },
+    {
+      "checked": 290077,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": false
+    },
+    {
+      "checked": 288784,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": false
+    },
+    {
+      "checked": 289822,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": false
+    },
+    {
+      "checked": 288586,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": true
+    },
+    {
+      "checked": 289073,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": true
+    },
+    {
+      "checked": 288784,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": true
+    },
+    {
+      "checked": 288802,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": true
+    }
+  ],
+  "prefetch": [
+    {
+      "file": "silent-24fps.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 165888,
+        "cacheFrames": 3,
+        "cacheHits": 7,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 10,
+        "decoderSeeks": 1,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "stretch",
+      "points": 8
+    },
+    {
+      "file": "silent-24fps.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 165888,
+        "cacheFrames": 3,
+        "cacheHits": 7,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 10,
+        "decoderSeeks": 10,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "reverse",
+      "points": 8
+    },
+    {
+      "file": "silent-24fps.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 55296,
+        "cacheFrames": 1,
+        "cacheHits": 0,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 1,
+        "decoderSeeks": 1,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "freeze",
+      "points": 8
+    },
+    {
+      "file": "silent-24fps.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 165888,
+        "cacheFrames": 3,
+        "cacheHits": 5,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 5,
+        "decoderSeeks": 3,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "turn",
+      "points": 8
+    },
+    {
+      "file": "variable.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 165888,
+        "cacheFrames": 3,
+        "cacheHits": 5,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 8,
+        "decoderSeeks": 1,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "stretch",
+      "points": 8
+    },
+    {
+      "file": "variable.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 110592,
+        "cacheFrames": 2,
+        "cacheHits": 2,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 4,
+        "decoderSeeks": 4,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "reverse",
+      "points": 8
+    },
+    {
+      "file": "variable.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 55296,
+        "cacheFrames": 1,
+        "cacheHits": 0,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 1,
+        "decoderSeeks": 1,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "freeze",
+      "points": 8
+    },
+    {
+      "file": "variable.mp4",
+      "metrics": {
+        "cacheBudgetBytes": 8388608,
+        "cacheBytes": 110592,
+        "cacheFrames": 2,
+        "cacheHits": 3,
+        "cacheMisses": 1,
+        "cancelledFrames": 0,
+        "decodeInFlight": [],
+        "decodeWorkersStopped": 0,
+        "decodedFrames": 3,
+        "decoderSeeks": 3,
+        "holdMaxCacheBudgetBytes": 150994944,
+        "lookaheadFrames": 4,
+        "maxCacheBudgetBytes": 283115520,
+        "maxDecoderWorkers": 4,
+        "prefetchFailures": 0,
+        "retirementError": null,
+        "retiringStreams": 0,
+        "retiringWorkers": [],
+        "streams": 1
+      },
+      "mode": "turn",
+      "points": 8
+    }
+  ],
+  "recoveryElapsedSeconds": 211.312,
+  "steps": [
+    {
+      "name": "render",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--locked",
+        "--offline",
+        "--no-fail-fast",
+        "--test",
+        "tracking_lens",
+        "--test",
+        "video_yuv",
+        "--test",
+        "video_lifetime",
+        "--test",
+        "video_instances",
+        "--test",
+        "video_allocation_budget",
+        "--test",
+        "model_layers",
+        "--test",
+        "layer_time_nested",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T12:34:39.575091+00:00",
+      "pid": 8376,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:38:28.247639+00:00",
+      "summaries": [
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "53",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "17",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "host",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T12:38:29.545853+00:00",
+      "pid": 39576,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:41:29.679428+00:00",
+      "summaries": [
+        [
+          "ok",
+          "176",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "surface",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::surface::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T12:43:45.773090+00:00",
+      "pid": 35376,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:45:56.644776+00:00",
+      "summaries": [
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "1752"
+        ]
+      ]
+    },
+    {
+      "name": "prefetch",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::mapped_video_prefetch_tests::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T12:45:57.133255+00:00",
+      "pid": 17972,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:45:58.911522+00:00",
+      "summaries": [
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "1752"
+        ]
+      ]
+    },
+    {
+      "name": "mapped",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::mapped_time::mapped_original_video_keeps_native_picture_and_authored_clock_across_replacement",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T12:45:59.420792+00:00",
+      "pid": 28416,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:47:16.768698+00:00",
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1753"
+        ]
+      ]
+    }
+  ],
+  "originalAttempt": {
+    "status": "failed",
+    "failure": "AssertionError({'name': 'surface', 'command': ['cargo', 'test', '-p', 'motion-desktop', '--features', 'ffmpeg', '--bin', 'motion-studio', '--locked', '--offline', 'engine::tracking_video_replacement_tests::paired::surface::', '--', '--test-threads=1', '--nocapture'], 'startedUtc': '2026-11-02T12:41:29.991704+00:00', 'pid': 37336, 'exitCode': 101, 'completedUtc': '2026-11-02T12:41:46.290686+00:00', 'summaries': []})",
+    "steps": [
+      {
+        "name": "render",
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "motion-render",
+          "--locked",
+          "--offline",
+          "--no-fail-fast",
+          "--test",
+          "tracking_lens",
+          "--test",
+          "video_yuv",
+          "--test",
+          "video_lifetime",
+          "--test",
+          "video_instances",
+          "--test",
+          "video_allocation_budget",
+          "--test",
+          "model_layers",
+          "--test",
+          "layer_time_nested",
+          "--",
+          "--test-threads=1"
+        ],
+        "startedUtc": "2026-11-02T12:34:39.575091+00:00",
+        "pid": 8376,
+        "exitCode": 0,
+        "completedUtc": "2026-11-02T12:38:28.247639+00:00",
+        "summaries": [
+          [
+            "ok",
+            "8",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          [
+            "ok",
+            "53",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          [
+            "ok",
+            "17",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          [
+            "ok",
+            "2",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          [
+            "ok",
+            "5",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          [
+            "ok",
+            "8",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          [
+            "ok",
+            "7",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        ]
+      },
+      {
+        "name": "host",
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "motion-host",
+          "--locked",
+          "--offline",
+          "--lib",
+          "--",
+          "--test-threads=1"
+        ],
+        "startedUtc": "2026-11-02T12:38:29.545853+00:00",
+        "pid": 39576,
+        "exitCode": 0,
+        "completedUtc": "2026-11-02T12:41:29.679428+00:00",
+        "summaries": [
+          [
+            "ok",
+            "176",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        ]
+      },
+      {
+        "name": "surface",
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "motion-desktop",
+          "--features",
+          "ffmpeg",
+          "--bin",
+          "motion-studio",
+          "--locked",
+          "--offline",
+          "engine::tracking_video_replacement_tests::paired::surface::",
+          "--",
+          "--test-threads=1",
+          "--nocapture"
+        ],
+        "startedUtc": "2026-11-02T12:41:29.991704+00:00",
+        "pid": 37336,
+        "exitCode": 101,
+        "completedUtc": "2026-11-02T12:41:46.290686+00:00",
+        "summaries": []
+      }
+    ],
+    "elapsedSeconds": 426.718
+  },
+  "compilerEvents": {
+    "TimeCreated": "2026-11-02T20:41:40.5008458+08:00",
+    "RecordId": 15937,
+    "Message": "\u51fa\u9519\u5e94\u7528\u7a0b\u5e8f\u540d\u79f0\uff1a rustc.exe\uff0c\u7248\u672c\uff1a 1.97.1.0\uff0c\u65f6\u95f4\u6233\uff1a 0x6a566e9a\r\n\u51fa\u9519\u6a21\u5757\u540d\u79f0\uff1a rustc_driver-e41b336de1bfe42c.dll\uff0c \u7248\u672c\uff1a 1.97.1.0\uff0c\u65f6\u95f4\u6233\uff1a 0x6a566e98\r\n\u5f02\u5e38\u4ee3\u7801\uff1a 0xc0000005\r\n\u9519\u8bef\u504f\u79fb\uff1a 0x000000000180bd40\r\n\u51fa\u9519\u8fdb\u7a0b ID\uff1a 0x9E50\r\n\u51fa\u9519\u5e94\u7528\u7a0b\u5e8f\u5f00\u59cb\u65f6\u95f4\uff1a 0x1DD6AC77C62D342\r\nFaulting \u5e94\u7528\u7a0b\u5e8f\u8def\u5f84\uff1a C:\\Users\\nova\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\rustc.exe\r\nFaulting \u6a21\u5757\u8def\u5f84\uff1a C:\\Users\\nova\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\rustc_driver-e41b336de1bfe42c.dll\r\nReport ID\uff1a 24ebf2c7-1c6e-4403-b8b1-483d996f3e18\r\nFaulting \u5305\u5168\u540d\uff1a \r\nFaulting \u7a0b\u5e8f\u5305\u76f8\u5bf9\u5e94\u7528\u7a0b\u5e8f ID\uff1a  \u4e2a"
+  },
+  "limits": [
+    "Selected complete renderer targets and complete host library, not full desktop/workspace regression",
+    "Current Surface/footage/prefetch controls do not qualify every codec/lens/binding/clock combination",
+    "Prior model/core full results are historical on identical crate trees, not newly rerun here",
+    "Final-head cross-platform CI, photographed tracking quality and full #88/3D route remain incomplete",
+    "Android is retired and excluded"
+  ],
+  "archive": {
+    "path": "tracking88-lens-clock-current-v1.zip",
+    "bytes": 541714,
+    "sha256": "41830d23b697dce53aa98934317cf6ed2d611811b76a95d7d7f3f5e58204439a",
+    "members": {
+      "publisher.py": {
+        "bytes": 13902,
+        "sha256": "c88bb09a12555a69288962fc2f1250859d0350212930e8b9adc41da0e73e6fb9"
+      },
+      "tracking88-lens-clock-current-v1/compiler-events.json": {
+        "bytes": 827,
+        "sha256": "427dfa6a537c257105b31ed254845a1efc689eeb5e80e7757ba721b340682a51"
+      },
+      "tracking88-lens-clock-current-v1/controller.py": {
+        "bytes": 6267,
+        "sha256": "ef6332ed6fa952e1718423a41ced209683f53dbdb5c84479c75c56a91c9964b3"
+      },
+      "tracking88-lens-clock-current-v1/exit.json": {
+        "bytes": 267165,
+        "sha256": "6efdfbf992018cca1017f167d6728c7537625fca74f28880d16191f63e163f96"
+      },
+      "tracking88-lens-clock-current-v1/host.stderr.log": {
+        "bytes": 1224,
+        "sha256": "ee7ae4d57c0ef89183f57d8bc4dece4bfdae351f9ea1354cfe568d67ce182e72"
+      },
+      "tracking88-lens-clock-current-v1/host.stdout.log": {
+        "bytes": 19827,
+        "sha256": "ea747abde9663d9314afa79e9a7fbd2af67c697865d67d7df5562f7e70b08f3d"
+      },
+      "tracking88-lens-clock-current-v1/render-native/video-lens-report.json": {
+        "bytes": 794,
+        "sha256": "c655e31662d0bb1f15c644c1afb4e7c0ee5627d42410c045c4c0a56f1601c734"
+      },
+      "tracking88-lens-clock-current-v1/render.stderr.log": {
+        "bytes": 2210,
+        "sha256": "21cc69816973ae137e0f0105107dad897a2d89a7010ada9455f6e367d2b94426"
+      },
+      "tracking88-lens-clock-current-v1/render.stdout.log": {
+        "bytes": 10745,
+        "sha256": "402e52f03332b2100b1a09f2e55d731417e9b61823c773d962a2a59be0e7d174"
+      },
+      "tracking88-lens-clock-current-v1/source/crates/motion-host/src/video_cache.rs": {
+        "bytes": 8148,
+        "sha256": "873dcfee98ad280be9f43ad02dc557c29f6158799825d4e5e0d4cf45bf33a96a"
+      },
+      "tracking88-lens-clock-current-v1/source/crates/motion-host/src/video_frames.rs": {
+        "bytes": 49659,
+        "sha256": "9a937d1d3e785b74791d767893cd7a6e51a244802c92442c62cc6c967c5a22ba"
+      },
+      "tracking88-lens-clock-current-v1/source/crates/motion-host/src/video_frames/mapped_prefetch.rs": {
+        "bytes": 4332,
+        "sha256": "366e4f290e32875c9a05ce1f582aa2c10016e138d84697bef33821dc5be7e65e"
+      },
+      "tracking88-lens-clock-current-v1/source/crates/motion-host/src/video_frames/mapped_prefetch/tests.rs": {
+        "bytes": 16341,
+        "sha256": "feb6105f59ac0c435c7e9104ccd0df3f27abc59c65164f0d741078b2954e14b4"
+      },
+      "tracking88-lens-clock-current-v1/source/crates/motion-render/src/renderer.rs": {
+        "bytes": 144755,
+        "sha256": "97b31456fe8488dec512519265d5208d2355115a09aeed7fb75c5ae5c7ea6717"
+      },
+      "tracking88-lens-clock-current-v1/source/crates/motion-render/src/scene.rs": {
+        "bytes": 50370,
+        "sha256": "c59e1b6facba243d0287208f1a0f96dbba641918da9af2481e7a0e5fce23e66e"
+      },
+      "tracking88-lens-clock-current-v1/source/desktop/app/src/engine.rs": {
+        "bytes": 122218,
+        "sha256": "9c806f5b8d332261c09441b45adbdc0af5a97bc3b35d3538ba9c9f822c887801"
+      },
+      "tracking88-lens-clock-current-v1/source/desktop/app/src/engine/mapped_video_prefetch_tests.rs": {
+        "bytes": 10633,
+        "sha256": "1481bf32d3c9deffea80a720417e97e139bbde302baa6d617fce1a5a2a5da755"
+      },
+      "tracking88-lens-clock-current-v1/source/desktop/app/src/engine/tracking_surface_binding_tests.rs": {
+        "bytes": 16942,
+        "sha256": "072cf38ce8c535b78642f51ad21c0c56232b1d80cbc5a8a48ec0e515cdefb590"
+      },
+      "tracking88-lens-clock-current-v1/source/desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+        "bytes": 13870,
+        "sha256": "5ec5c9d78a34d849eb7ffa6c4e1bb3228031f3cf90c22df2fe02cbf60362b560"
+      },
+      "tracking88-lens-clock-current-v1/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11206,
+        "sha256": "c851d5604d9206d6c2351f57fc1fc6c63028172b1f24558e5187fb53fbed57cc"
+      },
+      "tracking88-lens-clock-current-v1/source/desktop/app/src/engine/tracking_video_surface_tests.rs": {
+        "bytes": 13437,
+        "sha256": "2c8cb61723e0444088a57e9860ba3bdc5e3e2d2f9ac916c686d93d93557593ef"
+      },
+      "tracking88-lens-clock-current-v1/surface.stderr.log": {
+        "bytes": 3461,
+        "sha256": "a4928c1c5befdc368fe554753650b3a7620ec0256fe116e48c774a851b4cb052"
+      },
+      "tracking88-lens-clock-current-v1/surface.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-lens-clock-current-v2/controller.py": {
+        "bytes": 7207,
+        "sha256": "52310667e718c94fbaf64b74771e4cae97ae07a990b6dd802e17c30657e4e553"
+      },
+      "tracking88-lens-clock-current-v2/exit.json": {
+        "bytes": 269993,
+        "sha256": "1fb2bb531904006c5af8e4cd607ca9d14bb081026be60e43ac21654e84c0df22"
+      },
+      "tracking88-lens-clock-current-v2/mapped.stderr.log": {
+        "bytes": 71077,
+        "sha256": "f48a43c65678c75c6684780c9ee8d6fe5962d110d7fae54a84e76fc0c60dc950"
+      },
+      "tracking88-lens-clock-current-v2/mapped.stdout.log": {
+        "bytes": 264,
+        "sha256": "883107503ac1939f0256628dcd1122da34b84242cef3b64dacdf315f3635fc21"
+      },
+      "tracking88-lens-clock-current-v2/mapped/logs/motion-studio.log": {
+        "bytes": 152289,
+        "sha256": "11df74be346a439c14a7872cdda0a22a3d8d6c6dedd655f9aa026743458cb192"
+      },
+      "tracking88-lens-clock-current-v2/mapped/report.json": {
+        "bytes": 978,
+        "sha256": "8ddac1dce7c246ae6eee2ff918721ac1cc6f5d068d79614edd6853857dc419e9"
+      },
+      "tracking88-lens-clock-current-v2/mapped/reverse-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-lens-clock-current-v2/mapped/reverse-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-lens-clock-current-v2/mapped/source-hold-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-lens-clock-current-v2/mapped/source-hold-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-lens-clock-current-v2/mapped/source-remap-reference.png": {
+        "bytes": 7648,
+        "sha256": "d8c0caa5be6826399212e903c29c96e876d551c9d58c678cfa184e9b7ebf2105"
+      },
+      "tracking88-lens-clock-current-v2/mapped/source-remap-reopened.png": {
+        "bytes": 7648,
+        "sha256": "d8c0caa5be6826399212e903c29c96e876d551c9d58c678cfa184e9b7ebf2105"
+      },
+      "tracking88-lens-clock-current-v2/mapped/stretch-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-lens-clock-current-v2/mapped/stretch-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-lens-clock-current-v2/prefetch-log/motion-studio.log": {
+        "bytes": 1448,
+        "sha256": "50527818f97d088b2da3a08592a791c3e0e1baa1d99aa956df13382e38bca169"
+      },
+      "tracking88-lens-clock-current-v2/prefetch-log/stderr.log": {
+        "bytes": 480,
+        "sha256": "c2248142e6782bb4dd5f130d85960caf1f4406385f13a2493c3ffe69c8349d05"
+      },
+      "tracking88-lens-clock-current-v2/prefetch-log/stdout.log": {
+        "bytes": 262,
+        "sha256": "9f29f8ddba0dfdf4dbeac2302baa5298db8c1c8decf6e86280b34725372a3e20"
+      },
+      "tracking88-lens-clock-current-v2/prefetch.json": {
+        "bytes": 5219,
+        "sha256": "2af8a46b6146fd20f4d6d9590818a9aedd02846cf5aa58c846ecaf6d1576b296"
+      },
+      "tracking88-lens-clock-current-v2/prefetch.stderr.log": {
+        "bytes": 12726,
+        "sha256": "aacabb8f5909f65aa40f8bb6a5584fa0add2c3181ca582d182e02f1bd537003e"
+      },
+      "tracking88-lens-clock-current-v2/prefetch.stdout.log": {
+        "bytes": 394,
+        "sha256": "6f2a9bcb95c018b99810bc32f5703ee22b85cb9daa7ec0e47308c5a1c2d94cdf"
+      },
+      "tracking88-lens-clock-current-v2/render-native/video-lens-report.json": {
+        "bytes": 794,
+        "sha256": "c655e31662d0bb1f15c644c1afb4e7c0ee5627d42410c045c4c0a56f1601c734"
+      },
+      "tracking88-lens-clock-current-v2/source/crates/motion-host/src/video_cache.rs": {
+        "bytes": 8148,
+        "sha256": "873dcfee98ad280be9f43ad02dc557c29f6158799825d4e5e0d4cf45bf33a96a"
+      },
+      "tracking88-lens-clock-current-v2/source/crates/motion-host/src/video_frames.rs": {
+        "bytes": 49659,
+        "sha256": "9a937d1d3e785b74791d767893cd7a6e51a244802c92442c62cc6c967c5a22ba"
+      },
+      "tracking88-lens-clock-current-v2/source/crates/motion-host/src/video_frames/mapped_prefetch.rs": {
+        "bytes": 4332,
+        "sha256": "366e4f290e32875c9a05ce1f582aa2c10016e138d84697bef33821dc5be7e65e"
+      },
+      "tracking88-lens-clock-current-v2/source/crates/motion-host/src/video_frames/mapped_prefetch/tests.rs": {
+        "bytes": 16341,
+        "sha256": "feb6105f59ac0c435c7e9104ccd0df3f27abc59c65164f0d741078b2954e14b4"
+      },
+      "tracking88-lens-clock-current-v2/source/crates/motion-render/src/renderer.rs": {
+        "bytes": 144755,
+        "sha256": "97b31456fe8488dec512519265d5208d2355115a09aeed7fb75c5ae5c7ea6717"
+      },
+      "tracking88-lens-clock-current-v2/source/crates/motion-render/src/scene.rs": {
+        "bytes": 50370,
+        "sha256": "c59e1b6facba243d0287208f1a0f96dbba641918da9af2481e7a0e5fce23e66e"
+      },
+      "tracking88-lens-clock-current-v2/source/desktop/app/src/engine.rs": {
+        "bytes": 122218,
+        "sha256": "9c806f5b8d332261c09441b45adbdc0af5a97bc3b35d3538ba9c9f822c887801"
+      },
+      "tracking88-lens-clock-current-v2/source/desktop/app/src/engine/mapped_video_prefetch_tests.rs": {
+        "bytes": 10633,
+        "sha256": "1481bf32d3c9deffea80a720417e97e139bbde302baa6d617fce1a5a2a5da755"
+      },
+      "tracking88-lens-clock-current-v2/source/desktop/app/src/engine/tracking_surface_binding_tests.rs": {
+        "bytes": 16942,
+        "sha256": "072cf38ce8c535b78642f51ad21c0c56232b1d80cbc5a8a48ec0e515cdefb590"
+      },
+      "tracking88-lens-clock-current-v2/source/desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+        "bytes": 13870,
+        "sha256": "5ec5c9d78a34d849eb7ffa6c4e1bb3228031f3cf90c22df2fe02cbf60362b560"
+      },
+      "tracking88-lens-clock-current-v2/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11206,
+        "sha256": "c851d5604d9206d6c2351f57fc1fc6c63028172b1f24558e5187fb53fbed57cc"
+      },
+      "tracking88-lens-clock-current-v2/source/desktop/app/src/engine/tracking_video_surface_tests.rs": {
+        "bytes": 13437,
+        "sha256": "2c8cb61723e0444088a57e9860ba3bdc5e3e2d2f9ac916c686d93d93557593ef"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/after-retained.png": {
+        "bytes": 8667,
+        "sha256": "52cf7a30bb0892758592a5cc83be3d314b0c05799875ae31517ba22149f255eb"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/after.png": {
+        "bytes": 8667,
+        "sha256": "52cf7a30bb0892758592a5cc83be3d314b0c05799875ae31517ba22149f255eb"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/before-retained.png": {
+        "bytes": 8767,
+        "sha256": "f71be8b0a4e2f6c54a9fc422e0b1f7003777d463a22d2ab81f9ad71ac9f5003b"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/before.png": {
+        "bytes": 8767,
+        "sha256": "f71be8b0a4e2f6c54a9fc422e0b1f7003777d463a22d2ab81f9ad71ac9f5003b"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/project/cache/video-v2/video-import-1793623547560912200-3/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/project/project.json": {
+        "bytes": 99591,
+        "sha256": "31d98414682ee59f509d6605b107feded6f8a2f81b6130cd6ae420bcdf9156bf"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/redo.png": {
+        "bytes": 8667,
+        "sha256": "52cf7a30bb0892758592a5cc83be3d314b0c05799875ae31517ba22149f255eb"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/reopened.png": {
+        "bytes": 8667,
+        "sha256": "52cf7a30bb0892758592a5cc83be3d314b0c05799875ae31517ba22149f255eb"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/report.json": {
+        "bytes": 667,
+        "sha256": "0ec146163f5f5f4b9f4832b1b5b43071adf2a7ab555440738af0776f6fe8892a"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Lens/undo.png": {
+        "bytes": 8767,
+        "sha256": "f71be8b0a4e2f6c54a9fc422e0b1f7003777d463a22d2ab81f9ad71ac9f5003b"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/after-retained.png": {
+        "bytes": 7256,
+        "sha256": "e2ceedb5201acff67e3a5a581799328c65d564277b55c4b4a62ac96ce119944f"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/after.png": {
+        "bytes": 7256,
+        "sha256": "e2ceedb5201acff67e3a5a581799328c65d564277b55c4b4a62ac96ce119944f"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/before-retained.png": {
+        "bytes": 7254,
+        "sha256": "29907c0846339a0b87484f7a88f23ae2d62bbc5dfe5f43eae14713658591b0c5"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/before.png": {
+        "bytes": 7254,
+        "sha256": "29907c0846339a0b87484f7a88f23ae2d62bbc5dfe5f43eae14713658591b0c5"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/project/cache/video-v2/video-import-1793623545841278200-2/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/project/project.json": {
+        "bytes": 61235,
+        "sha256": "b3fd8ce6e31c6d12ee78f26997436ce73c44e15d2aec6cf31cc9097de3539db5"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/redo.png": {
+        "bytes": 7256,
+        "sha256": "e2ceedb5201acff67e3a5a581799328c65d564277b55c4b4a62ac96ce119944f"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/reopened.png": {
+        "bytes": 7256,
+        "sha256": "e2ceedb5201acff67e3a5a581799328c65d564277b55c4b4a62ac96ce119944f"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/report.json": {
+        "bytes": 820,
+        "sha256": "5169e34e70a9c09ee0390f717c460b27fafc20c1098f127f7c4d7d1865b7edbc"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Plane/undo.png": {
+        "bytes": 7254,
+        "sha256": "29907c0846339a0b87484f7a88f23ae2d62bbc5dfe5f43eae14713658591b0c5"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/after-retained.png": {
+        "bytes": 7255,
+        "sha256": "0046b915d9d392aa4274b8042c3ece4b07ccc85bd06c35362bfb38de55dce297"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/after.png": {
+        "bytes": 7255,
+        "sha256": "0046b915d9d392aa4274b8042c3ece4b07ccc85bd06c35362bfb38de55dce297"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/before-retained.png": {
+        "bytes": 7256,
+        "sha256": "1c7454e54c73865b2c0b4b09d67822dc0e966ac03c2882f1bf510428e6442e13"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/before.png": {
+        "bytes": 7256,
+        "sha256": "1c7454e54c73865b2c0b4b09d67822dc0e966ac03c2882f1bf510428e6442e13"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/project/cache/video-v2/video-import-1793623544504358200-1/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/project/project.json": {
+        "bytes": 34520,
+        "sha256": "0446b036cc8885dc0e4026e2400028a24adcc06fe6f321e15b764e68c13167f0"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/redo.png": {
+        "bytes": 7255,
+        "sha256": "0046b915d9d392aa4274b8042c3ece4b07ccc85bd06c35362bfb38de55dce297"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/reopened.png": {
+        "bytes": 7255,
+        "sha256": "0046b915d9d392aa4274b8042c3ece4b07ccc85bd06c35362bfb38de55dce297"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/report.json": {
+        "bytes": 819,
+        "sha256": "666ad78fd1a8da592fe9acc31e46a7a5e07f49c87df74d191cf2dfdec1e29053"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/Point/undo.png": {
+        "bytes": 7256,
+        "sha256": "1c7454e54c73865b2c0b4b09d67822dc0e966ac03c2882f1bf510428e6442e13"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/child-process.json": {
+        "bytes": 197,
+        "sha256": "8d012fcc1f3ca3b8abe4257fededea9209238961517fcfa3cbacc35daeab9e30"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/logs/motion-studio.log": {
+        "bytes": 42707,
+        "sha256": "802adb4307f6e005bbbcc0709e05e435e818a817ac06b61f1b62097d02875def"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/report.json": {
+        "bytes": 2564,
+        "sha256": "2a57bf5b050fe6cb26de6f72f6a0c21a4db48ed3ebcd98cad8a1aa9fef432396"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/stderr.log": {
+        "bytes": 3516,
+        "sha256": "fb855447c67bd07542846a0ab613bc619f1eb97ded434c81afb514555a664882"
+      },
+      "tracking88-lens-clock-current-v2/surface-bindings/stdout.log": {
+        "bytes": 286,
+        "sha256": "df815293dbb158801b3a3890aa5f017795e4c881252cbd180bb768df1f6f8d53"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/after-retained.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/after.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/before.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/child-process.json": {
+        "bytes": 196,
+        "sha256": "4f4c241351a9d5f0d406affd5d3dead8bdac96caf9eb4c44e739885b40d0d560"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/logs/motion-studio.log": {
+        "bytes": 15136,
+        "sha256": "ba13464595f53598b4973efbe6189f1e3a552984458d7adf329f871244866461"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/project/cache/video-v2/video-import-1793623555533213800-1/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/project/project.json": {
+        "bytes": 99128,
+        "sha256": "9ee428a70e9231e4c7b40a4f81ef2e37b3407df29435c6961be96844b5f136a5"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/redo.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/rejected-front.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/rejected.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/reopened.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/report.json": {
+        "bytes": 724,
+        "sha256": "eb9df8675b75fd4c6045fa5a6b402079612618f8d0be34cc4b86ca687e1f4863"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/retained.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/stderr.log": {
+        "bytes": 1512,
+        "sha256": "aa7fc0aa373a198792043e30bd10436d762f39a764bdd5c18a78b84659b251ed"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/stdout.log": {
+        "bytes": 271,
+        "sha256": "eaecd157dee663017dd77205dffc129992744625939f829f9f6c6be327658c6d"
+      },
+      "tracking88-lens-clock-current-v2/surface-camera/undo.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-lens-clock-current-v2/surface.stderr.log": {
+        "bytes": 13305,
+        "sha256": "1c9eb77cd1659db357d1d46db19b46f0d5f9a98a0d77c0142b0751d01b2984cf"
+      },
+      "tracking88-lens-clock-current-v2/surface.stdout.log": {
+        "bytes": 444,
+        "sha256": "6acdf7058cc1d791adce2ce7e9168a0f3f02792d15f0b99cca74d5669fe25ed6"
+      }
+    }
+  }
+}

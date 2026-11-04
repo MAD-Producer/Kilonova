@@ -206,7 +206,7 @@ struct GeometryVertex {
     position: [f32; 3],
     uv: [f32; 2],
 }
-/// Facts computed once at a static image upload, never by reading GPU pixels.
+/// Facts computed at a decoded image upload, never by reading GPU pixels.
 #[derive(Clone, Copy)]
 pub(crate) struct PlaneImageState {
     pub(crate) depth_image: Option<[u8; 32]>,
@@ -1167,6 +1167,7 @@ impl Renderer {
         let replacement = if self.images.get(&key).is_none_or(|i| {
             i.size != (width, height)
                 || i._texture.format() != format
+                || i.plane_image.is_some_and(|state| state.frozen)
                 || !i
                     ._texture
                     .usage()
@@ -1258,7 +1259,11 @@ impl Renderer {
             self.texture_bytes = self.texture_bytes - previous + bytes;
             self.effect_gpu.invalidate();
         }
-        self.images.get_mut(&key).unwrap().video_stamp = Some((source, pts));
+        let image = self.images.get_mut(&key).unwrap();
+        image.video_stamp = Some((source, pts));
+        // YUV420 conversion always produces opaque RGB. Geometry encodes freeze
+        // this exact revision; the next upload must allocate instead of mutate.
+        image.plane_image = Some(PlaneImageState { depth_image: None, opaque: true, frozen: false });
         self.invalidate_video_blend(object);
         self.video_uploads += 1;
         self.video_upload_bytes += frame.bytes() as u64;
@@ -1360,7 +1365,7 @@ impl Renderer {
         } else {
             rgba
         };
-        let plane_image = matches!(id, TextureKey::Static(_)).then(|| PlaneImageState {
+        let plane_image = matches!(id, TextureKey::Static(_) | TextureKey::Video(_)).then(|| PlaneImageState {
             depth_image: None,
             opaque: rgba.chunks_exact(4).all(|pixel| pixel[3] == 255),
             frozen: false,
