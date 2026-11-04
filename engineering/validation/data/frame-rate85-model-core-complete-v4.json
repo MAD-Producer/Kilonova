@@ -1,0 +1,886 @@
+{
+  "audit": {
+    "status": "complete_selected_model_core_passed",
+    "head": "2ca4e0a6eb2b3099e368843e98f476c5df9f8d32",
+    "passed": 890,
+    "failed": 0,
+    "originalIgnored": 1,
+    "filtered": 0,
+    "targets": 141,
+    "elapsedSeconds": 477.266,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-model",
+      "-p",
+      "motion-core",
+      "--no-fail-fast",
+      "--locked",
+      "--offline",
+      "--",
+      "--test-threads=1"
+    ],
+    "expectedTargets": [
+      [
+        "motion-core",
+        "motion_core",
+        "lib"
+      ],
+      [
+        "motion-core",
+        "acceptance",
+        "test"
+      ],
+      [
+        "motion-core",
+        "animation_presets",
+        "test"
+      ],
+      [
+        "motion-core",
+        "audio_levels",
+        "test"
+      ],
+      [
+        "motion-core",
+        "audio_references",
+        "test"
+      ],
+      [
+        "motion-core",
+        "camera_lens",
+        "test"
+      ],
+      [
+        "motion-core",
+        "camera_lens_time",
+        "test"
+      ],
+      [
+        "motion-core",
+        "camera_workflows",
+        "test"
+      ],
+      [
+        "motion-core",
+        "color_curves",
+        "test"
+      ],
+      [
+        "motion-core",
+        "command_registry",
+        "test"
+      ],
+      [
+        "motion-core",
+        "composition_candidate_graphs",
+        "test"
+      ],
+      [
+        "motion-core",
+        "composition_fps",
+        "test"
+      ],
+      [
+        "motion-core",
+        "composition_resources",
+        "test"
+      ],
+      [
+        "motion-core",
+        "compositions",
+        "test"
+      ],
+      [
+        "motion-core",
+        "curves",
+        "test"
+      ],
+      [
+        "motion-core",
+        "depth_calibration",
+        "test"
+      ],
+      [
+        "motion-core",
+        "effect_image_inputs",
+        "test"
+      ],
+      [
+        "motion-core",
+        "effects",
+        "test"
+      ],
+      [
+        "motion-core",
+        "expression_error_causes",
+        "test"
+      ],
+      [
+        "motion-core",
+        "expression_preparation",
+        "test"
+      ],
+      [
+        "motion-core",
+        "expression_references",
+        "test"
+      ],
+      [
+        "motion-core",
+        "expression_sample_time",
+        "test"
+      ],
+      [
+        "motion-core",
+        "expression_sandbox",
+        "test"
+      ],
+      [
+        "motion-core",
+        "expressions",
+        "test"
+      ],
+      [
+        "motion-core",
+        "format_version_boundaries",
+        "test"
+      ],
+      [
+        "motion-core",
+        "hot_path",
+        "test"
+      ],
+      [
+        "motion-core",
+        "imported_cameras",
+        "test"
+      ],
+      [
+        "motion-core",
+        "key_collisions",
+        "test"
+      ],
+      [
+        "motion-core",
+        "keyframe_clipboard",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_anchor_animation",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_clipboard",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_clips",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_dimensions",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_masks",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_switches",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_time",
+        "test"
+      ],
+      [
+        "motion-core",
+        "layer_time_clipboard",
+        "test"
+      ],
+      [
+        "motion-core",
+        "local_curve_clipboard",
+        "test"
+      ],
+      [
+        "motion-core",
+        "local_keyframes",
+        "test"
+      ],
+      [
+        "motion-core",
+        "media_assets",
+        "test"
+      ],
+      [
+        "motion-core",
+        "merge_dimensions",
+        "test"
+      ],
+      [
+        "motion-core",
+        "missing_resource",
+        "test"
+      ],
+      [
+        "motion-core",
+        "model_edit_errors",
+        "test"
+      ],
+      [
+        "motion-core",
+        "model_layers",
+        "test"
+      ],
+      [
+        "motion-core",
+        "multiple_cameras",
+        "test"
+      ],
+      [
+        "motion-core",
+        "native_particle_editor",
+        "test"
+      ],
+      [
+        "motion-core",
+        "node_resources",
+        "test"
+      ],
+      [
+        "motion-core",
+        "package_transactions",
+        "test"
+      ],
+      [
+        "motion-core",
+        "panic_transaction",
+        "test"
+      ],
+      [
+        "motion-core",
+        "parent_modes",
+        "test"
+      ],
+      [
+        "motion-core",
+        "parenting",
+        "test"
+      ],
+      [
+        "motion-core",
+        "path_clipboard",
+        "test"
+      ],
+      [
+        "motion-core",
+        "path_conversion",
+        "test"
+      ],
+      [
+        "motion-core",
+        "path_first_vertex",
+        "test"
+      ],
+      [
+        "motion-core",
+        "path_tangent_mode",
+        "test"
+      ],
+      [
+        "motion-core",
+        "plugin_editors",
+        "test"
+      ],
+      [
+        "motion-core",
+        "prepared_commands",
+        "test"
+      ],
+      [
+        "motion-core",
+        "preview_drag",
+        "test"
+      ],
+      [
+        "motion-core",
+        "project_format_contract",
+        "test"
+      ],
+      [
+        "motion-core",
+        "project_library",
+        "test"
+      ],
+      [
+        "motion-core",
+        "render_sampling",
+        "test"
+      ],
+      [
+        "motion-core",
+        "rotation_order",
+        "test"
+      ],
+      [
+        "motion-core",
+        "runtime_features",
+        "test"
+      ],
+      [
+        "motion-core",
+        "scoped_command_transport",
+        "test"
+      ],
+      [
+        "motion-core",
+        "selection_geometry",
+        "test"
+      ],
+      [
+        "motion-core",
+        "separate_dimensions",
+        "test"
+      ],
+      [
+        "motion-core",
+        "shy_layers",
+        "test"
+      ],
+      [
+        "motion-core",
+        "spatial_key_time",
+        "test"
+      ],
+      [
+        "motion-core",
+        "spatial_keyframes",
+        "test"
+      ],
+      [
+        "motion-core",
+        "spatial_paths",
+        "test"
+      ],
+      [
+        "motion-core",
+        "storage_failure_cleanup",
+        "test"
+      ],
+      [
+        "motion-core",
+        "storage_publication",
+        "test"
+      ],
+      [
+        "motion-core",
+        "subframe_clips",
+        "test"
+      ],
+      [
+        "motion-core",
+        "track_at",
+        "test"
+      ],
+      [
+        "motion-core",
+        "track_mattes",
+        "test"
+      ],
+      [
+        "motion-core",
+        "tracking_camera",
+        "test"
+      ],
+      [
+        "motion-core",
+        "tracking_plane",
+        "test"
+      ],
+      [
+        "motion-core",
+        "tracking_replacement",
+        "test"
+      ],
+      [
+        "motion-core",
+        "vector_group_keys",
+        "test"
+      ],
+      [
+        "motion-core",
+        "vector_groups",
+        "test"
+      ],
+      [
+        "motion-core",
+        "vector_layers",
+        "test"
+      ],
+      [
+        "motion-core",
+        "vector_path_ops",
+        "test"
+      ],
+      [
+        "motion-core",
+        "video_depth_calibration",
+        "test"
+      ],
+      [
+        "motion-core",
+        "video_input_limits",
+        "test"
+      ],
+      [
+        "motion-core",
+        "video_layers",
+        "test"
+      ],
+      [
+        "motion-core",
+        "viewer_guides",
+        "test"
+      ],
+      [
+        "motion-core",
+        "work_area",
+        "test"
+      ],
+      [
+        "motion-core",
+        "working_precision",
+        "test"
+      ],
+      [
+        "motion-core",
+        "motion_core",
+        "doc"
+      ],
+      [
+        "motion-model",
+        "motion_model",
+        "lib"
+      ],
+      [
+        "motion-model",
+        "animation_sampling_errors",
+        "test"
+      ],
+      [
+        "motion-model",
+        "arithmetic_policy",
+        "test"
+      ],
+      [
+        "motion-model",
+        "audio_plan_time_bounds",
+        "test"
+      ],
+      [
+        "motion-model",
+        "automatic_bezier",
+        "test"
+      ],
+      [
+        "motion-model",
+        "color_curve_failures",
+        "test"
+      ],
+      [
+        "motion-model",
+        "composition_boundaries",
+        "test"
+      ],
+      [
+        "motion-model",
+        "composition_candidate_oracle",
+        "test"
+      ],
+      [
+        "motion-model",
+        "composition_frame_mapping",
+        "test"
+      ],
+      [
+        "motion-model",
+        "composition_queries",
+        "test"
+      ],
+      [
+        "motion-model",
+        "dense_color_curves",
+        "test"
+      ],
+      [
+        "motion-model",
+        "dependency_boundaries",
+        "test"
+      ],
+      [
+        "motion-model",
+        "depth",
+        "test"
+      ],
+      [
+        "motion-model",
+        "depth_calibration",
+        "test"
+      ],
+      [
+        "motion-model",
+        "depth_of_field",
+        "test"
+      ],
+      [
+        "motion-model",
+        "depth_prepared",
+        "test"
+      ],
+      [
+        "motion-model",
+        "depth_saved",
+        "test"
+      ],
+      [
+        "motion-model",
+        "depth_surface",
+        "test"
+      ],
+      [
+        "motion-model",
+        "depth_video_track",
+        "test"
+      ],
+      [
+        "motion-model",
+        "dimension_conversion_errors",
+        "test"
+      ],
+      [
+        "motion-model",
+        "dimension_edit_errors",
+        "test"
+      ],
+      [
+        "motion-model",
+        "effect_parameter_errors",
+        "test"
+      ],
+      [
+        "motion-model",
+        "frame_rate",
+        "test"
+      ],
+      [
+        "motion-model",
+        "key_collisions",
+        "test"
+      ],
+      [
+        "motion-model",
+        "layer_time",
+        "test"
+      ],
+      [
+        "motion-model",
+        "layer_time_direction",
+        "test"
+      ],
+      [
+        "motion-model",
+        "layer_time_document",
+        "test"
+      ],
+      [
+        "motion-model",
+        "layer_time_projection",
+        "test"
+      ],
+      [
+        "motion-model",
+        "layer_time_stationary",
+        "test"
+      ],
+      [
+        "motion-model",
+        "layer_time_video",
+        "test"
+      ],
+      [
+        "motion-model",
+        "node_resources",
+        "test"
+      ],
+      [
+        "motion-model",
+        "observability",
+        "test"
+      ],
+      [
+        "motion-model",
+        "path_auto_tangents",
+        "test"
+      ],
+      [
+        "motion-model",
+        "path_tangent_sampling",
+        "test"
+      ],
+      [
+        "motion-model",
+        "photographed_lens",
+        "test"
+      ],
+      [
+        "motion-model",
+        "rational_project_clock",
+        "test"
+      ],
+      [
+        "motion-model",
+        "sample_time",
+        "test"
+      ],
+      [
+        "motion-model",
+        "shape_parameter_errors",
+        "test"
+      ],
+      [
+        "motion-model",
+        "spatial_hot_path",
+        "test"
+      ],
+      [
+        "motion-model",
+        "spatial_schedule",
+        "test"
+      ],
+      [
+        "motion-model",
+        "spatial_timing",
+        "test"
+      ],
+      [
+        "motion-model",
+        "spatial_track",
+        "test"
+      ],
+      [
+        "motion-model",
+        "spatial_velocity",
+        "test"
+      ],
+      [
+        "motion-model",
+        "timecode",
+        "test"
+      ],
+      [
+        "motion-model",
+        "timeline_errors",
+        "test"
+      ],
+      [
+        "motion-model",
+        "tracking_camera",
+        "test"
+      ],
+      [
+        "motion-model",
+        "tracking_lens",
+        "test"
+      ],
+      [
+        "motion-model",
+        "tracking_plane",
+        "test"
+      ],
+      [
+        "motion-model",
+        "tracking_point",
+        "test"
+      ],
+      [
+        "motion-model",
+        "vector_path_inputs",
+        "test"
+      ],
+      [
+        "motion-model",
+        "working_precision",
+        "test"
+      ],
+      [
+        "motion-model",
+        "motion_model",
+        "doc"
+      ]
+    ],
+    "invocations": [
+      "     Running unittests src\\lib.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\motion_core-0e169815b77a74f7.exe)",
+      "     Running tests\\acceptance.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\acceptance-7140550bcb78d7bf.exe)",
+      "     Running tests\\animation_presets.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\animation_presets-171b42b4d49f7897.exe)",
+      "     Running tests\\audio_levels.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\audio_levels-b0edca6338ffddfe.exe)",
+      "     Running tests\\audio_references.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\audio_references-f936f5f20ab22c0d.exe)",
+      "     Running tests\\camera_lens.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\camera_lens-e551fac73195a73c.exe)",
+      "     Running tests\\camera_lens_time.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\camera_lens_time-acc610a0aacb8cb5.exe)",
+      "     Running tests\\camera_workflows.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\camera_workflows-4c0a7d794e25f22f.exe)",
+      "     Running tests\\color_curves.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\color_curves-9be481890ca323e1.exe)",
+      "     Running tests\\command_registry.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\command_registry-ca0ba2656dd30e6e.exe)",
+      "     Running tests\\composition_candidate_graphs.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composition_candidate_graphs-1658a8293661ed6e.exe)",
+      "     Running tests\\composition_fps.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composition_fps-88817b834285405f.exe)",
+      "     Running tests\\composition_resources.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composition_resources-b235d1bdff87b59b.exe)",
+      "     Running tests\\compositions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\compositions-231e7d4e76d1dc9b.exe)",
+      "     Running tests\\curves.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\curves-df43ebc62723e3bb.exe)",
+      "     Running tests\\depth_calibration.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth_calibration-e4b5c813690400a7.exe)",
+      "     Running tests\\effect_image_inputs.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\effect_image_inputs-0249aeee328be7b7.exe)",
+      "     Running tests\\effects.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\effects-efc3b0f5a3101900.exe)",
+      "     Running tests\\expression_error_causes.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\expression_error_causes-b2c3091038e86c6d.exe)",
+      "     Running tests\\expression_preparation.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\expression_preparation-cc902e36bde4baf0.exe)",
+      "     Running tests\\expression_references.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\expression_references-77b758e728024db4.exe)",
+      "     Running tests\\expression_sample_time.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\expression_sample_time-16b4add5d4cc18ec.exe)",
+      "     Running tests\\expression_sandbox.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\expression_sandbox-9e1e64dd19ccb594.exe)",
+      "     Running tests\\expressions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\expressions-c378c14a9c84da33.exe)",
+      "     Running tests\\format_version_boundaries.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\format_version_boundaries-92437c8156fde4ad.exe)",
+      "     Running tests\\hot_path.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\hot_path-28f1ea9c9df0bcf6.exe)",
+      "     Running tests\\imported_cameras.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\imported_cameras-be105f404bbffe1d.exe)",
+      "     Running tests\\key_collisions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\key_collisions-dea31d836e7bd874.exe)",
+      "     Running tests\\keyframe_clipboard.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\keyframe_clipboard-07a2de71e6fc6f10.exe)",
+      "     Running tests\\layer_anchor_animation.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_anchor_animation-a76cf98318a36f62.exe)",
+      "     Running tests\\layer_clipboard.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_clipboard-40c5e1d4037dc8f0.exe)",
+      "     Running tests\\layer_clips.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_clips-fb79060d03937c4b.exe)",
+      "     Running tests\\layer_dimensions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_dimensions-3d72f81d77ae72ab.exe)",
+      "     Running tests\\layer_masks.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_masks-f11528d04968e50a.exe)",
+      "     Running tests\\layer_switches.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_switches-7eca003be60ac84d.exe)",
+      "     Running tests\\layer_time.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time-adf16eaded21029c.exe)",
+      "     Running tests\\layer_time_clipboard.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time_clipboard-23fd463fbf3ed1e2.exe)",
+      "     Running tests\\local_curve_clipboard.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\local_curve_clipboard-2c0b1089e76e9bcb.exe)",
+      "     Running tests\\local_keyframes.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\local_keyframes-873a51e41b5c622a.exe)",
+      "     Running tests\\media_assets.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\media_assets-5e0d50889136d51b.exe)",
+      "     Running tests\\merge_dimensions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\merge_dimensions-7f0f4fe40006c278.exe)",
+      "     Running tests\\missing_resource.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\missing_resource-332b02c0fb25c80f.exe)",
+      "     Running tests\\model_edit_errors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\model_edit_errors-6816df545c7aa6c3.exe)",
+      "     Running tests\\model_layers.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\model_layers-8790ee538493c29e.exe)",
+      "     Running tests\\multiple_cameras.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\multiple_cameras-65d0e8d5ab72991b.exe)",
+      "     Running tests\\native_particle_editor.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\native_particle_editor-c5be745171e3300a.exe)",
+      "     Running tests\\node_resources.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\node_resources-e26e20454029aa56.exe)",
+      "     Running tests\\package_transactions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\package_transactions-4354603fd8999704.exe)",
+      "     Running tests\\panic_transaction.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\panic_transaction-672a80fef6dac6a3.exe)",
+      "     Running tests\\parent_modes.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\parent_modes-848275767eb2ffc0.exe)",
+      "     Running tests\\parenting.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\parenting-d863074859684f63.exe)",
+      "     Running tests\\path_clipboard.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\path_clipboard-2b65b86913c14028.exe)",
+      "     Running tests\\path_conversion.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\path_conversion-4dd1eb81e2799f70.exe)",
+      "     Running tests\\path_first_vertex.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\path_first_vertex-127112e93e9d5b9a.exe)",
+      "     Running tests\\path_tangent_mode.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\path_tangent_mode-1858c7ae407e2259.exe)",
+      "     Running tests\\plugin_editors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\plugin_editors-4982c6a18b6b0349.exe)",
+      "     Running tests\\prepared_commands.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\prepared_commands-3920218744dd8cb1.exe)",
+      "     Running tests\\preview_drag.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\preview_drag-6f8e70f8aff428cf.exe)",
+      "     Running tests\\project_format_contract.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\project_format_contract-77c249b0efd70e01.exe)",
+      "     Running tests\\project_library.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\project_library-8613c3177fa2cd9c.exe)",
+      "     Running tests\\render_sampling.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\render_sampling-ef7bd2bc81b1f4ad.exe)",
+      "     Running tests\\rotation_order.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\rotation_order-4024370609088915.exe)",
+      "     Running tests\\runtime_features.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\runtime_features-0eec58533cb3a8fe.exe)",
+      "     Running tests\\scoped_command_transport.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\scoped_command_transport-188e8e7b08ebbd81.exe)",
+      "     Running tests\\selection_geometry.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\selection_geometry-673050e219d3817a.exe)",
+      "     Running tests\\separate_dimensions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\separate_dimensions-c55cd9ec7b829f94.exe)",
+      "     Running tests\\shy_layers.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\shy_layers-48dae67c61473cdc.exe)",
+      "     Running tests\\spatial_key_time.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_key_time-e8577345bb22c04a.exe)",
+      "     Running tests\\spatial_keyframes.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_keyframes-f8346f9b26e137eb.exe)",
+      "     Running tests\\spatial_paths.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_paths-a3dde522e70186a3.exe)",
+      "     Running tests\\storage_failure_cleanup.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\storage_failure_cleanup-9f81ef8355537a10.exe)",
+      "     Running tests\\storage_publication.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\storage_publication-12f91f10f0e4a62e.exe)",
+      "     Running tests\\subframe_clips.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\subframe_clips-2ceff1bd9ebaccaf.exe)",
+      "     Running tests\\track_at.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\track_at-59beeecac499d34c.exe)",
+      "     Running tests\\track_mattes.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\track_mattes-c818ffcaec2ac4ce.exe)",
+      "     Running tests\\tracking_camera.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tracking_camera-654d9cdfcb5f8247.exe)",
+      "     Running tests\\tracking_plane.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tracking_plane-f808f23a9a3ad224.exe)",
+      "     Running tests\\tracking_replacement.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tracking_replacement-d5b993a7297ed50d.exe)",
+      "     Running tests\\vector_group_keys.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\vector_group_keys-fc3fa0b69378445a.exe)",
+      "     Running tests\\vector_groups.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\vector_groups-2c0dc8b0763da9f8.exe)",
+      "     Running tests\\vector_layers.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\vector_layers-b53d03107432177c.exe)",
+      "     Running tests\\vector_path_ops.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\vector_path_ops-f1678c4afe43bca0.exe)",
+      "     Running tests\\video_depth_calibration.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\video_depth_calibration-8154afd900bfb63a.exe)",
+      "     Running tests\\video_input_limits.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\video_input_limits-fd461cc9c890e091.exe)",
+      "     Running tests\\video_layers.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\video_layers-32c94946596cffbe.exe)",
+      "     Running tests\\viewer_guides.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\viewer_guides-8f6654b4d25a2b82.exe)",
+      "     Running tests\\work_area.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\work_area-ba3ae52ec45db2dc.exe)",
+      "     Running tests\\working_precision.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\working_precision-762f3378d80cabf0.exe)",
+      "     Running unittests src\\lib.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\motion_model-c5c85766ec9ff44c.exe)",
+      "     Running tests\\animation_sampling_errors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\animation_sampling_errors-bce451e2cc32d9d3.exe)",
+      "     Running tests\\arithmetic_policy.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\arithmetic_policy-f3d043888fbd71fb.exe)",
+      "     Running tests\\audio_plan_time_bounds.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\audio_plan_time_bounds-da7f5f5912c08d2a.exe)",
+      "     Running tests\\automatic_bezier.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\automatic_bezier-38443086a574c515.exe)",
+      "     Running tests\\color_curve_failures.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\color_curve_failures-6a17c01bfe427a86.exe)",
+      "     Running tests\\composition_boundaries.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composition_boundaries-71b4077060d72b4d.exe)",
+      "     Running tests\\composition_candidate_oracle.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composition_candidate_oracle-cb4c1b65c742f63c.exe)",
+      "     Running tests\\composition_frame_mapping.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composition_frame_mapping-053a41c52ed07daf.exe)",
+      "     Running tests\\composition_queries.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composition_queries-ab3cdce514bc02b0.exe)",
+      "     Running tests\\dense_color_curves.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\dense_color_curves-3dad01fbc4d582d8.exe)",
+      "     Running tests\\dependency_boundaries.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\dependency_boundaries-bcac78e64146ef46.exe)",
+      "     Running tests\\depth.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth-86edc590b04b0aa4.exe)",
+      "     Running tests\\depth_calibration.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth_calibration-9a0cdd8abb20e20d.exe)",
+      "     Running tests\\depth_of_field.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth_of_field-848a49e6c89efa4e.exe)",
+      "     Running tests\\depth_prepared.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth_prepared-681eaf25ba3487ef.exe)",
+      "     Running tests\\depth_saved.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth_saved-d73f10ae9be1afb6.exe)",
+      "     Running tests\\depth_surface.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth_surface-246809eb0b039404.exe)",
+      "     Running tests\\depth_video_track.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\depth_video_track-81e82ad996e2a18c.exe)",
+      "     Running tests\\dimension_conversion_errors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\dimension_conversion_errors-4e6dc77c01064be0.exe)",
+      "     Running tests\\dimension_edit_errors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\dimension_edit_errors-3f30bad97fc92252.exe)",
+      "     Running tests\\effect_parameter_errors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\effect_parameter_errors-7979023d1dbf9948.exe)",
+      "     Running tests\\frame_rate.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\frame_rate-ea21c51f785ba406.exe)",
+      "     Running tests\\key_collisions.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\key_collisions-2c0b32676e09d6c4.exe)",
+      "     Running tests\\layer_time.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time-3bc87a9dcced9c65.exe)",
+      "     Running tests\\layer_time_direction.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time_direction-7541a144a224adff.exe)",
+      "     Running tests\\layer_time_document.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time_document-684d871b11683601.exe)",
+      "     Running tests\\layer_time_projection.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time_projection-893eaaa8e7660ed5.exe)",
+      "     Running tests\\layer_time_stationary.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time_stationary-2b29d5ce4e31e8da.exe)",
+      "     Running tests\\layer_time_video.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_time_video-669b7d8df6938769.exe)",
+      "     Running tests\\node_resources.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\node_resources-51e2aea156e0a593.exe)",
+      "     Running tests\\observability.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\observability-e1d6966ab598c515.exe)",
+      "     Running tests\\path_auto_tangents.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\path_auto_tangents-01476ec0d841f421.exe)",
+      "     Running tests\\path_tangent_sampling.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\path_tangent_sampling-cb730fe8454d2271.exe)",
+      "     Running tests\\photographed_lens.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\photographed_lens-74b5a647f22e4f92.exe)",
+      "     Running tests\\rational_project_clock.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\rational_project_clock-65454dea67aa3d0d.exe)",
+      "     Running tests\\sample_time.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\sample_time-5031f9d0e158ef08.exe)",
+      "     Running tests\\shape_parameter_errors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\shape_parameter_errors-44a0895827a8244a.exe)",
+      "     Running tests\\spatial_hot_path.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_hot_path-c6dac7ebed18d0d5.exe)",
+      "     Running tests\\spatial_schedule.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_schedule-7fd9faf2252d83bd.exe)",
+      "     Running tests\\spatial_timing.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_timing-63f2ee2dab095163.exe)",
+      "     Running tests\\spatial_track.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_track-c3508fa21e467758.exe)",
+      "     Running tests\\spatial_velocity.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\spatial_velocity-e3ce3e94ed614ba0.exe)",
+      "     Running tests\\timecode.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\timecode-e016f72b8ce40bc6.exe)",
+      "     Running tests\\timeline_errors.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\timeline_errors-d1c4fe0524c30bb6.exe)",
+      "     Running tests\\tracking_camera.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tracking_camera-a2f50607878517a5.exe)",
+      "     Running tests\\tracking_lens.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tracking_lens-8434ac929916d846.exe)",
+      "     Running tests\\tracking_plane.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tracking_plane-c7f792e5c3c52639.exe)",
+      "     Running tests\\tracking_point.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tracking_point-2ef260eb97df7fac.exe)",
+      "     Running tests\\vector_path_inputs.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\vector_path_inputs-496a50c7fdb41838.exe)",
+      "     Running tests\\working_precision.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\working_precision-f59093ebee7fa9b9.exe)",
+      "   Doc-tests motion_core",
+      "   Doc-tests motion_model"
+    ],
+    "limits": [
+      "Complete selected model/core packages on frozen parent 2ca4, not whole workspace or subsequent main e8ea491e",
+      "Original 20ms/100ms expression budgets and all assertions/ignores retained; no proof of original CI timeout root cause",
+      "Attempt v1 stopped before tests, exit unknown. Attempts v2/v3 failed before tests with LNK1285 corrupt test PDBs; original receipts retained",
+      "Specific diagnosed PDB and matching core test PDB family preserved reversibly with before/after hashes on E, no deletion; bulky PDB payloads remain private artifacts, hash manifests included",
+      "No Android, GPU or default desktop test compiler acceptance claimed"
+    ]
+  },
+  "archive": "frame-rate85-model-core-complete-v4.zip",
+  "bytes": 490369,
+  "sha256": "3aadd90fe5c2415cfeda62aa81095d0af7bce4c01f8c08fa74fec59d244c087b",
+  "members": 30
+}
