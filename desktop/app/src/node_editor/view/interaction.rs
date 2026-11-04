@@ -252,6 +252,36 @@ impl NodeEditor {
         true
     }
 
+    /// Settle a successful group double-click before allocating final cards.
+    /// The shared picker still gives front sockets priority over the header.
+    pub(super) fn enter_group_before_cards(&mut self, canvas: Rect, input: &Input, hit_view: CanvasView) -> bool {
+        let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, point)| canvas.contains(*point)) else {
+            return false;
+        };
+        if input.modifiers != Default::default() || self.editing() || self.parents.len() >= 16 {
+            return false;
+        }
+        let Some((id, time, previous)) = self.last_group_click.clone() else { return false; };
+        if time.elapsed().as_millis() > 400 || (point[0] - previous[0]).hypot(point[1] - previous[1]) > 5. {
+            return false;
+        }
+        let Some((front, rect)) = self.card_hit_at_view(canvas, point, hit_view) else { return false; };
+        if self.document.nodes[front].id != id || !(point[1] < rect.min[1] + HEADER * self.view.zoom)
+            || !self.document.nodes.iter().find(|node| node.id == id)
+                .is_some_and(|node| matches!(node.operation, NodeOp::Group { .. }))
+        {
+            return false;
+        }
+        let hit_cards = self.socket_hit_cards(canvas, hit_view, point, front);
+        if wires::socket_at(&hit_cards, canvas, point, self.view.zoom).is_some() {
+            return false;
+        }
+        let now = std::time::Instant::now();
+        if now.duration_since(time).as_millis() > 400 { return false; }
+        self.last_group_click = Some((id.clone(), now, point));
+        self.enter_group(&id)
+    }
+
     pub(super) fn canvas_actions(
         &mut self,
         cards: &[Card],

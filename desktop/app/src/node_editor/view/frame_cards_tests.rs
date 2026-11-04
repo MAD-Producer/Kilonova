@@ -10,6 +10,7 @@ mod canvas_geometry;
 mod restore_geometry;
 mod field_geometry;
 mod popup_geometry;
+mod group_geometry;
 mod viewport_geometry;
 
 #[derive(Default)]

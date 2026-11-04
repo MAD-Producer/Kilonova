@@ -535,10 +535,13 @@ impl NodeEditor {
             || self.settle_node_cancellation(layout.canvas, body_input);
         let hit_view = self.view;
         let canvas_ready = canvas_handled || self.prepare_canvas_input(layout.canvas, body_input);
-        let mut cards = self.cards_at_view(layout.canvas, hit_view);
-        let geometry = geometry_stamp(self, hit_view);
+        let entered_group = !canvas_handled && canvas_ready
+            && self.enter_group_before_cards(layout.canvas, body_input, hit_view);
+        let card_view = if entered_group { self.view } else { hit_view };
+        let mut cards = self.cards_at_view(layout.canvas, card_view);
+        let geometry = geometry_stamp(self, card_view);
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
-        let ports_unchanged = if canvas_handled || !canvas_ready {
+        let ports_unchanged = if canvas_handled || !canvas_ready || entered_group {
             true
         } else {
             self.canvas_actions(&cards, layout.canvas, body_input, language)

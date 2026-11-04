@@ -356,16 +356,21 @@ impl NodeEditor {
     /// Match the original frontmost card rectangle without building its sockets.
     /// Only candidates inside the horizontal extent need a height query.
     pub(super) fn inline_card_hit(&self, canvas: Rect, point: [f32; 2]) -> Option<(&str, Rect)> {
-        self.document.nodes.iter().rev().find_map(|node| {
-            let origin = self.view.world_to_screen(node.position, canvas);
-            let width = NODE_WIDTH * self.view.zoom;
+        self.card_hit_at_view(canvas, point, self.view)
+            .map(|(index, rect)| (self.document.nodes[index].id.as_str(), rect))
+    }
+
+    pub(super) fn card_hit_at_view(&self, canvas: Rect, point: [f32; 2], view: CanvasView) -> Option<(usize, Rect)> {
+        self.document.nodes.iter().enumerate().rev().find_map(|(index, node)| {
+            let origin = view.world_to_screen(node.position, canvas);
+            let width = NODE_WIDTH * view.zoom;
             if !(point[0] >= origin[0] && point[0] < origin[0] + width && point[1] >= origin[1]) {
                 return None;
             }
             #[cfg(test)]
             super::frame_cards_tests::record_inline_hit_height();
-            let rect = Rect::new(origin[0], origin[1], width, node_height(node, &self.document) * self.view.zoom);
-            rect.contains(point).then_some((node.id.as_str(), rect))
+            let rect = Rect::new(origin[0], origin[1], width, node_height(node, &self.document) * view.zoom);
+            rect.contains(point).then_some((index, rect))
         })
     }
 
