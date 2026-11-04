@@ -31,6 +31,30 @@ fn pixel(p: &Project, s: CameraSample, point: [f32; 3]) -> [f64; 2] {
     ]
 }
 #[test]
+fn rational_project_clock_keeps_calibrated_camera_projection_on_original_source_pts() {
+    for (numerator, denominator) in [(30_000, 1001), (60_000, 1001), (2997, 100), (24, 1)] {
+        let mut project = camera_fixture();
+        project.fps = FrameRate::new(numerator, denominator).unwrap();
+        project.validate().unwrap();
+        let frame = f64::from(numerator) / (48. * f64::from(denominator));
+        let camera = sample(&project, frame);
+        let actual = pixel(&project, camera, [75., -25., -200.]);
+        // Independent midpoint intrinsics and source-world pose, identical
+        // physical source time despite different composition frame indices.
+        let expected = [
+            (215. * 0.7 / 7. + 142.5) * 2.,
+            (182.5 * 0.225 / 7. + 129.5) * 2.,
+        ];
+        for i in 0..2 {
+            assert!((actual[i] - expected[i]).abs() < 0.0002,
+                "{numerator}/{denominator}: {actual:?} {expected:?}");
+        }
+        assert!((camera.pose.eye.x - 5.).abs() < 0.0001);
+        assert!((camera.pose.eye.y + 2.5).abs() < 0.0001);
+    }
+}
+
+#[test]
 fn off_centre_anisotropic_intrinsics_and_original_fractional_pts_reproject_known_world_points() {
     let p = camera_fixture();
     let s = sample(&p, 0.5);

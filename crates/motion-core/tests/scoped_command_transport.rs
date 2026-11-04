@@ -15,7 +15,7 @@ fn engine() -> (Engine, String) {
                     name: "Child".into(),
                     width: 64,
                     height: 64,
-                    fps: 30,
+                    fps: motion_core::FrameRate::integer(30).unwrap(),
                     frames: 120,
                     timing: "preserve_frames".into(),
                     shorten: "reject".into(),

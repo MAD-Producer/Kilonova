@@ -104,6 +104,23 @@ fn sampled(p: &Project, frame: f64) -> [f32; 3] {
 }
 
 #[test]
+fn rational_project_clock_keeps_point_interpolation_on_original_source_pts() {
+    for (numerator, denominator) in [(30_000, 1001), (60_000, 1001), (2997, 100), (24, 1)] {
+        let mut project = fixture();
+        project.fps = FrameRate::new(numerator, denominator).unwrap();
+        project.validate().unwrap();
+        // 1/48 second advances 1000 original source ticks, halfway from
+        // [-4000, (20,30)] to [-2000, (30,50)], with a 2x plate scale.
+        let frame = f64::from(numerator) / (48. * f64::from(denominator));
+        let actual = sampled(&project, frame);
+        for (value, expected) in actual.into_iter().zip([110., 100., 9.]) {
+            assert!((value - expected).abs() < 0.00001, "{numerator}/{denominator}: {actual:?}");
+        }
+        assert!(project.layers[0].transform.position.keys.is_empty());
+    }
+}
+
+#[test]
 fn original_vfr_pts_drive_fractional_frames_and_manual_corrections_without_baking() {
     let mut p = fixture();
     assert_eq!(sampled(&p, 0.), [100., 80., 9.]);

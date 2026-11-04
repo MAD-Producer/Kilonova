@@ -48,10 +48,9 @@ impl Request {
         let asset: motion_core::AudioAsset =
             serde_json::from_value(asset.clone()).map_err(|e| e.to_string())?;
         asset.validate().map_err(|e| e.to_string())?;
-        let fps = state["project"]["fps"]
-            .as_f64()
-            .filter(|v| *v > 0.)
-            .ok_or("waveform fps missing")?;
+        let fps = crate::project_clock::read(state)
+            .map_err(|cause| format!("waveform fps unavailable: {cause}"))?
+            .as_f64();
         let frames = state["project"]["frames"]
             .as_f64()
             .ok_or("waveform duration missing")?;
@@ -578,7 +577,7 @@ mod tests {
     fn audio_waveform_request_maps_video_audio_offset_subframe_clip_and_composition_identity() {
         let asset = serde_json::to_value(request(std::path::Path::new("."), 7).asset).unwrap();
         let state = serde_json::json!({"root":"project", "composition":"comp-two", "project": {
-            "fps":30,"frames":300,"audio_assets":[asset],"video_assets":[{"id":9,"audio_asset":8}] }});
+            "fps":{"numerator":30,"denominator":1},"frames":300,"audio_assets":[asset],"video_assets":[{"id":9,"audio_asset":8}] }});
         let layer = serde_json::json!({"id":7,"content":{"kind":"video","video":{"asset":9,"source_offset_us":250000}},
             "timeline":{"in_frame":15,"out_frame":90,"offset_frame":10},"subframe_range":{"in_frame":15.5,"out_frame":75.5}});
         let key = Request::from_state(&state, &layer, 4000).unwrap().unwrap();
@@ -587,4 +586,23 @@ mod tests {
         assert_eq!(key.composition, "comp-two");
         assert_eq!(key.columns, motion_media::MAX_WAVEFORM_COLUMNS);
     }
+    #[test]
+    fn rational_waveform_request_preserves_subframe_source_time_and_rejects_numeric_clocks() {
+        let asset = serde_json::to_value(request(std::path::Path::new("."), 7).asset).unwrap();
+        let mut state = serde_json::json!({"root":"project","composition":"fractional","project":{
+            "fps":{"numerator":30_000,"denominator":1001},"frames":300,"audio_assets":[asset]}});
+        let layer = serde_json::json!({"id":7,"content":{"kind":"audio","audio":{"asset":8,"source_offset_us":250000}},
+            "timeline":{"in_frame":15,"out_frame":90,"offset_frame":10},
+            "subframe_range":{"in_frame":15.5,"out_frame":75.5}});
+        let key = Request::from_state(&state,&layer,64).unwrap().unwrap();
+        assert!((key.begin-(0.25+5.5*1001./30_000.)).abs()<1e-12);
+        assert!((key.end-(0.25+65.5*1001./30_000.)).abs()<1e-12);
+        state["project"]["fps"]=serde_json::json!({"numerator":60_000,"denominator":2002});
+        let equivalent=Request::from_state(&state,&layer,64).unwrap().unwrap();
+        assert_eq!(equivalent.begin,key.begin);
+        assert_eq!(equivalent.end,key.end);
+        state["project"]["fps"]=serde_json::json!(30);
+        assert!(Request::from_state(&state,&layer,64).err().unwrap().contains("exactly numerator and denominator"));
+    }
+
 }

@@ -486,7 +486,7 @@ fn history_accounting_composition_routing_and_activation_keep_exact_payload_size
         name: "Child\n\"quoted\"".into(),
         width: 64,
         height: 64,
-        fps: 30,
+        fps: crate::FrameRate::integer(30).unwrap(),
         frames: 180,
         work_area: crate::WorkArea::full(180),
         guides: Vec::new(),

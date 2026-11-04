@@ -110,7 +110,7 @@ pub(crate) fn generate(
         .ok_or("particle history missing")?;
     let rate = read(history, "rate", 0.)?[0] as f64;
     let life = read(history, "lifetime", 0.)?[0] as f64;
-    let t = e.local_frame / scene.fps as f64;
+    let t = e.local_frame / f64::from(scene.fps);
     let mut stats = GeneratorStats::default();
     if rate == 0. || t < 0. {
         scratch.births.remove(&(e.layer, e.instance));

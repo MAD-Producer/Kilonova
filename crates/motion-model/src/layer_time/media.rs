@@ -4,8 +4,8 @@
 use super::{invalid, SourceTimeSample, TimeTraversal};
 use crate::{CompositionClip, Error, Result, VideoClip, MAX_COMPOSITION_FPS};
 
-fn frame_rate(fps: u32) -> Result<()> {
-    if fps == 0 || fps > MAX_COMPOSITION_FPS {
+fn frame_rate(fps: crate::FrameRate) -> Result<()> {
+    if !fps.is_between(1, MAX_COMPOSITION_FPS) {
         return Err(invalid(
             "media_frame_rate",
             "source frame rate is outside the composition contract",
@@ -24,14 +24,16 @@ fn source_offset(offset: u64) -> Result<()> {
 }
 
 impl SourceTimeSample {
-    /// Existing forward timestamp rounding stays exactly the same. Asset-range
-    /// checks and hold-first-picture behavior remain the decoder owner's job.
-    pub fn video_time_us(self, clip: &VideoClip, fps: u32) -> Result<i64> {
+    /// Round the exact binary frame to the nearest decoder microsecond, with
+    /// ties away from zero. Asset-range checks remain the decoder owner's job.
+    pub fn video_time_us(self, clip: &VideoClip, fps: crate::FrameRate) -> Result<i64> {
         self.validate()?;
         frame_rate(fps)?;
         source_offset(clip.source_offset_us)?;
-        let time = clip.source_time_us(self.frame, fps);
-        Ok(if self.traversal == TimeTraversal::Earlier { time - 1 } else { time })
+        let time = clip.source_time_us(self.frame, fps)?;
+        Ok(if self.traversal == TimeTraversal::Earlier {
+            time.checked_sub(1).ok_or(crate::RateError::NumericRange)?
+        } else { time })
     }
 
     /// Continuous native PCM position for the existing resampler. None is a
@@ -39,7 +41,7 @@ impl SourceTimeSample {
     /// Negative/out-of-range positions are retained for normal zero padding.
     pub fn pcm_position(
         self,
-        fps: u32,
+        fps: crate::FrameRate,
         sample_rate: u32,
         source_offset_us: u64,
     ) -> Result<Option<f64>> {
@@ -69,8 +71,8 @@ impl SourceTimeSample {
     pub fn through_composition(
         self,
         clip: &CompositionClip,
-        parent_fps: u32,
-        child_fps: u32,
+        parent_fps: crate::FrameRate,
+        child_fps: crate::FrameRate,
     ) -> Result<Self> {
         self.validate()?;
         frame_rate(parent_fps)?;
@@ -83,7 +85,7 @@ impl SourceTimeSample {
             })?;
         Self::with_traversal(
             frame,
-            self.rate * f64::from(child_fps) / f64::from(parent_fps),
+            parent_fps.map_frame(self.rate, child_fps)?,
             self.traversal,
         )
     }

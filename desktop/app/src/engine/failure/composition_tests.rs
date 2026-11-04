@@ -357,7 +357,7 @@ fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
             .iter_mut()
             .find(|c| c.id == child)
             .unwrap()
-            .fps = 0;
+            .fps = motion_core::FrameRate::new(1, 2).unwrap();
         let mut scene = motion_render::Scene::new(&project).unwrap();
         // Ordinary project loading rejects this state. Exercise the actual
         // public API failures with controlled origin context at the production
@@ -368,7 +368,7 @@ fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
                 .unwrap_err(),
             motion_render::image_resources::upcoming_assets(&project, 0.).unwrap_err(),
             motion_core::CompositionClip::new(child.into())
-                .source_frame(f64::NAN, 30, 60)
+                .source_frame(f64::NAN, motion_core::FrameRate::integer(30).unwrap(), motion_core::FrameRate::integer(60).unwrap())
                 .unwrap_err(),
         ];
         for (index, error) in errors.into_iter().enumerate() {
@@ -456,7 +456,7 @@ fn capacity_failure_reaches_reply_file_and_stderr_at_default_level() {
                 name: format!("Library {id}"),
                 width: 64,
                 height: 64,
-                fps: 30,
+                fps: motion_core::FrameRate::integer(30).unwrap(),
                 frames: 120,
                 work_area: motion_core::WorkArea::full(120),
                 guides: Vec::new(),

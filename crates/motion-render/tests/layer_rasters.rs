@@ -660,7 +660,7 @@ fn bgra_nested_and_intersecting_receiver_projections_match_existing_pixels() {
         name: "local child".into(),
         width: 64,
         height: 64,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 120,
         work_area: motion_core::WorkArea::full(120),
         guides: Vec::new(),

@@ -125,7 +125,7 @@ fn settings_and_precomposition_preserve_ranges_and_explicit_shrink_policy() {
                     name: "child".into(),
                     width: 64,
                     height: 64,
-                    fps: 48,
+                    fps: motion_core::FrameRate::integer(48).unwrap(),
                     frames,
                     timing: "preserve_seconds".into(),
                     shorten: shorten.into(),

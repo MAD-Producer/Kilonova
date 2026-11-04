@@ -130,7 +130,7 @@ mod types;
 
 use composition::render as composition;
 pub use helpers::timecode;
-use helpers::{button, clicked, label, last_frame, right_clicked};
+use helpers::{button, clicked, label, last_frame, project_rate, right_clicked};
 use menus::render as menus;
 use project::{finish_context_menu as finish_project_context_menu, render as project};
 use properties::render as properties;
@@ -2126,8 +2126,8 @@ mod tests {
     }
     #[test]
     fn timecodes_step_frames_without_rounding_fractional_time() {
-        assert_eq!(timecode(65.99, 30), "00:00:02:05");
-        assert_eq!(timecode(108000.0, 30), "01:00:00:00");
+        assert_eq!(timecode(65.99, Some(motion_core::FrameRate::integer(30).unwrap())), "00:00:02:05");
+        assert_eq!(timecode(108000.0, Some(motion_core::FrameRate::integer(30).unwrap())), "01:00:00:00");
     }
     #[test]
     fn composition_view_is_inside_window_at_small_sizes() {
@@ -2143,7 +2143,7 @@ mod tests {
         let mut atlas = TextAtlas::from_system(18.).unwrap();
         let layout = Node::dock(Panel::Timeline.dock());
         let size = [1280., 800.];
-        let state = serde_json::json!({"frame":21,"project":{"frames":120,"fps":30,"layers":[]}});
+        let state = serde_json::json!({"frame":21,"project":{"frames":120,"fps":{"numerator":30,"denominator":1},"layers":[]}});
         let point = [700., 200.];
         let opened = chrome(
             &mut PaintList::default(),
@@ -2180,7 +2180,7 @@ mod tests {
     }
     #[test]
     fn adjustment_layer_is_reachable_from_timeline_and_layer_menu() {
-        let state = serde_json::json!({"frame":21,"project":{"frames":120,"fps":30,"layers":[]}});
+        let state = serde_json::json!({"frame":21,"project":{"frames":120,"fps":{"numerator":30,"denominator":1},"layers":[]}});
         let mut atlas = TextAtlas::from_system(18.).unwrap();
         for locale in [Locale::Zh, Locale::En] {
             let mut panels = Panels {

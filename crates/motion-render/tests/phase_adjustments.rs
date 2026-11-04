@@ -544,7 +544,7 @@ fn nested_dependency_failure_is_not_bypassed_in_preview_and_valid_child_recovers
         name: "center dependency".into(),
         width: 64,
         height: 64,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 120,
         work_area: motion_core::WorkArea::full(120),
         guides: Vec::new(),

@@ -320,7 +320,7 @@ fn typed_transform_command_routes_only_to_the_requested_inactive_composition() {
                     name: "Child".into(),
                     width: 640,
                     height: 360,
-                    fps: 30,
+                    fps: motion_core::FrameRate::integer(30).unwrap(),
                     frames: 120,
                     timing: "preserve_seconds".into(),
                     shorten: "reject".into(),

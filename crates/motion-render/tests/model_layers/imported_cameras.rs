@@ -196,7 +196,7 @@ fn imported_camera_catalog_follows_nested_composition_fps_and_exposure_receiver_
         name: "Imported camera child".into(),
         width: 96,
         height: 64,
-        fps: 15,
+        fps: motion_core::FrameRate::integer(15).unwrap(),
         frames: 31,
         work_area: motion_core::WorkArea::full(31),
         guides: vec![],

@@ -23,7 +23,7 @@ fn precompose_capacity_error_reaches_structured_reply_without_session_changes() 
             name: format!("Library {id}"),
             width: 64,
             height: 64,
-            fps: 30,
+            fps: motion_core::FrameRate::integer(30).unwrap(),
             frames: 120,
             work_area: motion_core::WorkArea::full(120),
             guides: Vec::new(),
@@ -225,7 +225,7 @@ fn overflowing_audio_timebase() -> Project {
             name: format!("Nested {index}"),
             width: 64,
             height: 64,
-            fps: rates[index],
+            fps: motion_core::FrameRate::integer(rates[index]).unwrap(),
             frames: 240,
             work_area: motion_core::WorkArea::full(240),
             guides: Vec::new(),
@@ -361,6 +361,12 @@ fn portable_buffer_hint_and_physical_table_cover_more_than_eight_scratch_allocat
     let id = motion_host::session::open(directory.path().into(), project, Arc::new(Stub)).unwrap();
     let info = motion_host::ops::export::render_plan_info(id).unwrap();
     assert_eq!(info["version"], motion_render::effect_plan::PLAN_VERSION);
+    assert_eq!(info["composition_bundle_version"], 2);
+    assert_eq!(info["compositionClock"]["nodeBytes"], 80);
+    assert_eq!(info["compositionClock"]["frameOffset"], 56);
+    assert_eq!(info["compositionClock"]["numeratorOffset"], 64);
+    assert_eq!(info["compositionClock"]["denominatorOffset"], 68);
+    assert_eq!(info["compositionClock"]["shaderClockIsMediaTimebase"], false);
     assert_eq!(info["headerBytes"], 160);
     assert_eq!(info["scratchRecordBytes"], 32);
     assert_eq!(info["maxScratchPasses"], motion_render::effect_plan::MAX_SCRATCH_PASSES);

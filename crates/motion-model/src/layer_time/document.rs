@@ -71,12 +71,12 @@ impl Layer {
     }
     /// Final video timestamp, with reverse half-open quantization applied once.
     /// Property time and source-remapped time are separate coordinates.
-    pub fn video_source_time_us(&self, composition_frame: f64, fps: u32) -> Result<i64> {
+    pub fn video_source_time_us(&self, composition_frame: f64, fps: crate::FrameRate) -> Result<i64> {
         let input = SourceTimeSample::new(composition_frame, 1.)
             .map_err(|source| failure(self.id, "source_input", source))?;
         self.video_source_time_at(input, fps)
     }
-    pub fn video_source_time_at(&self, input: SourceTimeSample, fps: u32) -> Result<i64> {
+    pub fn video_source_time_at(&self, input: SourceTimeSample, fps: crate::FrameRate) -> Result<i64> {
         let Content::Video { video } = &self.content else {
             return Err(failure(
                 self.id,
@@ -93,7 +93,7 @@ impl Layer {
     pub fn video_picture_time_us(
         &self,
         composition_frame: f64,
-        fps: u32,
+        fps: crate::FrameRate,
         asset: &crate::VideoAsset,
     ) -> Result<i64> {
         let input = SourceTimeSample::new(composition_frame, 1.)
@@ -103,7 +103,7 @@ impl Layer {
     pub fn video_picture_time_at(
         &self,
         input: SourceTimeSample,
-        fps: u32,
+        fps: crate::FrameRate,
         asset: &crate::VideoAsset,
     ) -> Result<i64> {
         let Content::Video { video } = &self.content else {

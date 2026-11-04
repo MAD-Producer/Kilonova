@@ -11,25 +11,25 @@ use std::sync::Arc;
 struct Step {
     composition: String,
     object: u64,
-    fps: u32,
+    fps: crate::FrameRate,
     frames: u32,
     interval: ClipRange,
     offset: i32,
     clock: LayerClock,
     remap: Option<Arc<TimeRemap>>,
     levels: Option<AudioLevels>,
-    child: Option<(CompositionClip, u32)>,
+    child: Option<(CompositionClip, crate::FrameRate)>,
 }
 
 #[derive(Clone, Debug)]
 pub struct AudioTimePath {
     origin_sample: f64,
-    fps: u32,
+    fps: crate::FrameRate,
     steps: Vec<Arc<Step>>,
 }
 pub(super) struct Sample {
     source: SourceTimeSample,
-    fps: u32,
+    fps: crate::FrameRate,
     pub db: [f32; 2],
     pub balance: [f32; 2],
 }
@@ -47,7 +47,7 @@ impl AudioTimePath {
             .iter()
             .any(|step| step.levels.as_ref().is_some_and(AudioLevels::animated))
     }
-    pub(super) fn new(origin_sample: f64, fps: u32) -> Self {
+    pub(super) fn new(origin_sample: f64, fps: crate::FrameRate) -> Self {
         Self {
             origin_sample,
             fps,
@@ -58,9 +58,9 @@ impl AudioTimePath {
         mut self,
         layer: &Layer,
         composition: &str,
-        fps: u32,
+        fps: crate::FrameRate,
         frames: u32,
-        child: Option<(CompositionClip, u32)>,
+        child: Option<(CompositionClip, crate::FrameRate)>,
     ) -> Self {
         let mapping = layer.time_mapping.as_ref();
         self.steps.push(Arc::new(Step {

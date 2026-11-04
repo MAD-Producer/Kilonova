@@ -33,7 +33,7 @@ fn draw(
 #[test]
 fn clipboard_form_edits_keep_local_history_and_emit_only_the_final_validated_event() {
     for locale in [Locale::En, Locale::Zh] {
-        let state = serde_json::json!({"project":{"name":"Original", "width":200,"height":100,"fps":30,"frames":300}});
+        let state = serde_json::json!({"project":{"name":"Original", "width":200,"height":100,"fps":{"numerator":30,"denominator":1},"frames":300}});
         for mut dialog in [
             Dialog::text(vec![]),
             Dialog::settings(&state),
@@ -80,8 +80,37 @@ fn clipboard_form_edits_keep_local_history_and_emit_only_the_final_validated_eve
 }
 
 #[test]
+fn rational_composition_timing_menu_commits_its_choice_before_apply_in_both_locales() {
+    for locale in [Locale::En, Locale::Zh] {
+        let state = serde_json::json!({"project":{"name":"Rational", "width":200,"height":100,
+            "fps":{"numerator":30000,"denominator":1001},"frames":300}});
+        let mut dialog = Dialog::settings(&state);
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let cache = Arc::new(TextClipboard::default());
+        assert_eq!(dialog.fields[3], "30000/1001");
+        assert_eq!(dialog.timing_policy(), "preserve_seconds");
+        dialog.timing_dropdown.open = true;
+        assert!(draw(&mut dialog, &mut atlas, &key(&cache, Key::Escape, false), locale).is_none());
+        assert!(!dialog.timing_dropdown.open);
+        assert_eq!(dialog.timing_policy(), "preserve_seconds");
+        dialog.timing_dropdown.open = true;
+        assert!(draw(&mut dialog, &mut atlas, &key(&cache, Key::Down, false), locale).is_none());
+        assert!(dialog.timing_dropdown.open);
+        assert!(draw(&mut dialog, &mut atlas, &key(&cache, Key::Enter, false), locale).is_none(),
+            "committing the menu choice must not apply composition settings");
+        assert!(!dialog.timing_dropdown.open);
+        assert_eq!(dialog.timing_policy(), "preserve_frames");
+        let event = draw(&mut dialog, &mut atlas, &key(&cache, Key::Enter, false), locale).unwrap();
+        let Event::Settings(settings) = event else { panic!("expected settings event"); };
+        assert_eq!(settings["fps"], state["project"]["fps"]);
+        assert_eq!(settings["timing"], "preserve_frames");
+        assert_eq!(settings["frames"], 300);
+    }
+}
+
+#[test]
 fn clipboard_composition_width_undo_recomputes_locked_height_and_tab_keeps_field_ownership() {
-    let state = serde_json::json!({"project":{"name":"Original", "width":200,"height":100,"fps":30,"frames":300}});
+    let state = serde_json::json!({"project":{"name":"Original", "width":200,"height":100,"fps":{"numerator":30,"denominator":1},"frames":300}});
     let mut dialog = Dialog::settings(&state);
     dialog.aspect_locked = true;
     dialog.aspect = 2.;

@@ -164,7 +164,7 @@ fn frozen_imported_camera_mp4_restores_after_source_and_session_removal_at_all_p
             .unwrap();
         assert_eq!(
             (result.width, result.height, result.frames, result.fps),
-            (96, 64, 31, 30)
+            (96, 64, 31, motion_core::FrameRate::integer(30).unwrap())
         );
         assert!(result.bytes > 0);
         let probe = crate::av::probe(&path, None, None, &|| Ok(())).unwrap();

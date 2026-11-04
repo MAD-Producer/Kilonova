@@ -130,8 +130,69 @@ fn mapping(mode: &str) -> Option<LayerTimeMapping> {
     };
     Some(LayerTimeMapping { clock, remap })
 }
-fn cases(mode: &str, fps: u32) -> Vec<(f64, u64)> {
-    if fps == 48 {
+
+#[test]
+fn rational_composition_subframes_seek_original_vfr_pictures_in_both_directions() {
+    let root = tempfile::tempdir().unwrap();
+    let (base, reference) = project(root.path(), "variable.mp4");
+    for numerator in [24000, 30000, 60000] {
+        let mut p = base.clone();
+        p.fps = motion_core::FrameRate::new(numerator, 1001).unwrap();
+        p.layers[0].timeline.as_mut().unwrap().out_frame = 20;
+        p.validate().unwrap();
+        let mut scene = Scene::new(&p).unwrap();
+        let mut reader = VideoFrames::new(platform());
+        let mut inputs = PreviewInputReader::new(platform());
+        let mut oracle = Decoder::open(&root.path().join("assets/source.mp4"),
+            p.video_assets[0].clone(), reference.clone()).unwrap();
+        for (index, quarters) in [1u64, 4, 18, 55, 2, 18].into_iter().enumerate() {
+            let frame = 6. + quarters as f64 / 4.;
+            // Independent integer oracle for these exact dyadic coordinates.
+            let relative_us = (quarters * 1_000_000 * 1001 + 2 * u64::from(numerator))
+                / (4 * u64::from(numerator));
+            let expected = 250_000 + relative_us;
+            scene.sample(&p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
+            assert_eq!(scene.layers.iter().find(|layer| layer.id == 7).unwrap()
+                .video.as_ref().unwrap().source_time_us, expected);
+            assert_eq!(p.timeline_layers(frame).unwrap()[0].video.as_ref().unwrap()
+                .source_time_us, expected as i64);
+            let sequence = index as u64 + 1;
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                let state = reader.request(&p, root.path(), 7, frame, sequence).unwrap();
+                assert_ne!(state["state"], "failed", "{state}");
+                assert_eq!(state["source_time_us"], expected);
+                if state["state"] == "ready" { break; }
+                assert!(Instant::now() < deadline, "native VFR request pending: {state}");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            let actual = reader.frame(&p, 7, sequence).unwrap();
+            let expected_pts = reference[reference.partition_point(|pts| *pts <= expected) - 1];
+            assert_eq!(actual.pts, expected_pts, "rate={} frame={frame}", p.fps);
+            assert_eq!(actual.rgba().unwrap().as_ref(),
+                oracle.frame(expected, &|| Ok(())).unwrap().rgba().unwrap().as_ref());
+            let info = inputs.request(&p, root.path(), 1, InputRequest {
+                sequence, source: InputSource::Layer { composition: p.composition_id.clone(), object: 7 },
+                frame, max_edge: 256,
+            }).unwrap();
+            assert_eq!(info.clock.source_time_us, Some(expected as i64));
+            let packet = loop {
+                match inputs.poll(sequence, 1).unwrap() {
+                    InputPoll::Ready(packet) => break packet,
+                    InputPoll::Pending(_) => {
+                        assert!(Instant::now() < deadline, "original VFR input pending");
+                        std::thread::sleep(Duration::from_millis(1));
+                    }
+                }
+            };
+            let InputPixels::Video(original) = packet.pixels else { panic!("video input required") };
+            assert_eq!(original.pts, expected_pts);
+            assert_eq!(original.rgba().unwrap().as_ref(), actual.rgba().unwrap().as_ref());
+        }
+    }
+}
+fn cases(mode: &str, fps: motion_core::FrameRate) -> Vec<(f64, u64)> {
+    if fps == motion_core::FrameRate::integer(48).unwrap() {
         return match mode {
             "identity" => vec![(6., 250_000), (30., 750_000), (53.5, 1_239_583)],
             "stretch" => vec![(6., 250_000), (30., 583_333), (53.5, 909_722)],
@@ -150,7 +211,7 @@ fn cases(mode: &str, fps: u32) -> Vec<(f64, u64)> {
             _ => panic!("unknown fixture mode"),
         };
     }
-    assert_eq!(fps, 24);
+    assert_eq!(fps, motion_core::FrameRate::integer(24).unwrap());
     match mode {
         "identity" => vec![(6., 250_000), (30., 1_250_000), (53.5, 2_229_167)],
         "stretch" => vec![(6., 250_000), (30., 916_667), (53.5, 1_569_444)],
@@ -352,7 +413,8 @@ fn nested_cfr_vfr_native_export_and_gpu_exposure_match_flat_source_pixels() {
         let (base, _) = project(&project_dir, name);
         let child_fps = base.fps;
         let mut p = base.clone();
-        p.fps = child_fps / 2;
+        let [numerator, denominator] = child_fps.ratio();
+        p.fps = motion_core::FrameRate::new(numerator, denominator * 2).unwrap();
         p.compositions.push(Composition {
             id: "comp-child".into(),
             name: "source".into(),
@@ -408,7 +470,8 @@ fn nested_cfr_vfr_native_export_and_gpu_exposure_match_flat_source_pixels() {
                 }
             });
             p.validate().unwrap();
-            for (frame, expected_source) in match (child_fps, stationary) {
+            assert_eq!(child_fps.ratio()[1], 1, "integer oracle fixture");
+            for (frame, expected_source) in match (child_fps.ratio()[0], stationary) {
                 (24, false) => [(3., 1_999_999), (15., 999_999)],
                 (24, true) => [(3., 1_999_999), (15., 1_499_999)],
                 (48, false) => [(3., 1_124_999), (15., 624_999)],

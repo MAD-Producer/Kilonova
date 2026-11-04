@@ -180,6 +180,7 @@ fn audio_only_preview_output_failure_stops_with_original_cause_in_default_channe
 fn public_clock_rescales_device_samples_and_retains_latency_underrun_and_end_boundaries() {
     for rate in [44_100, 96_000] {
         for fps in [24, 30, 60] {
+            let fps = motion_core::FrameRate::integer(fps).unwrap();
             let output = output(rate, 48_000, 51_600);
             let shared = &output.shared;
             close(output.frame(fps), f64::from(fps));
@@ -249,9 +250,9 @@ fn shell_uses_audio_position_for_seek_and_stops_at_the_final_composition_frame()
         Some(crate::Locale::En),
     )
     .unwrap();
-    let fps = shell.state["project"]["fps"].as_u64().unwrap() as u32;
+    let fps: motion_core::FrameRate = serde_json::from_value(shell.state["project"]["fps"].clone()).unwrap();
     let frames = shell.state["project"]["frames"].as_u64().unwrap();
-    let total_samples = frames * 48_000 / u64::from(fps);
+    let total_samples = frames * 48_000 * u64::from(fps.ratio()[1]) / u64::from(fps.ratio()[0]);
     let output = output(44_100, total_samples - 4_800, total_samples);
     let shared = output.shared.clone();
     for _ in 0..4_410 {

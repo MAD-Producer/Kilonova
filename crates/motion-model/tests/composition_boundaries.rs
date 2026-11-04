@@ -9,7 +9,7 @@ fn project(total: usize) -> Project {
             name: format!("Library {id}"),
             width: 64,
             height: 64,
-            fps: 30,
+            fps: motion_model::FrameRate::integer(30).unwrap(),
             frames: 120,
             work_area: motion_model::WorkArea::full(120),
             guides: Vec::new(),
@@ -108,18 +108,22 @@ fn selection_and_range_errors_keep_their_precedence_at_capacity() {
 }
 
 #[test]
-fn zero_audio_frame_rate_returns_a_contextual_error_even_without_audio_layers() {
+fn invalid_audio_frame_rate_is_rejected_before_or_during_audio_planning_without_layers() {
     for nested in [false, true] {
         let mut project = project(2);
         if nested {
             project.activate_composition("comp-1").unwrap();
         }
-        project.fps = 0;
+        // A zero rate cannot inhabit FrameRate: reject it at the wire boundary.
+        let mut zero_wire = serde_json::to_value(&project).unwrap();
+        zero_wire["fps"] = serde_json::json!({"numerator":0,"denominator":1});
+        assert!(serde_json::from_value::<Project>(zero_wire).is_err());
+        project.fps = motion_model::FrameRate::new(1, 2).unwrap();
         let before = serde_json::to_vec(&project).unwrap();
         let error = composition_error(project.audio_voices().unwrap_err());
         assert_eq!(error.code, "invalid_frame_rate");
         assert_eq!(error.composition, project.composition_id);
-        assert_eq!(error.details["fps"], 0);
+        assert_eq!(error.details["fps"], serde_json::json!({"numerator":1,"denominator":2}));
         assert!(error.message.contains("frame rate"));
         assert_eq!(serde_json::to_vec(&project).unwrap(), before);
     }

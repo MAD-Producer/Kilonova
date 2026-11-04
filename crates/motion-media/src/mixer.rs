@@ -26,6 +26,7 @@ struct Source {
 /// seeking and edits cannot change an export mixer's samples or position.
 pub struct AudioMixer {
     project: Project,
+    total_frames: u64,
     root: PathBuf,
     sources: Vec<Source>,
     bytes: Vec<u8>,
@@ -36,6 +37,8 @@ pub struct AudioMixer {
 impl AudioMixer {
     pub fn new(project: Project, root: &Path) -> Result<Self> {
         project.validate().map_err(crate::Error::from)?;
+        let total_frames = project.fps.ticks_at_frame(i64::from(project.frames),
+            OUTPUT_RATE as u32, motion_model::ClockRounding::Floor)? as u64;
         let root = root.canonicalize().map_err(crate::Error::from)?;
         let mut sources = Vec::new();
         let voices=project.audio_voices().map_err(crate::Error::from)?;
@@ -84,6 +87,7 @@ impl AudioMixer {
         }
         Ok(Self {
             project,
+            total_frames,
             root,
             sources,
             bytes: Vec::with_capacity((MAX_BLOCK_FRAMES + 64) * 8),
@@ -93,7 +97,7 @@ impl AudioMixer {
         })
     }
     pub fn total_frames(&self) -> u64 {
-        u64::from(self.project.frames) * OUTPUT_RATE / u64::from(self.project.fps)
+        self.total_frames
     }
     pub fn mix(&mut self, start_sample: u64, out: &mut [f32]) -> Result<usize> {
         if out.len() % 2 != 0
@@ -216,7 +220,9 @@ impl AudioMixer {
             // a caller can publish this block to an audio backend.
             if value.is_nan() {
                 let sample = start_sample + (index / 2) as u64;
-                let frame = sample * u64::from(self.project.fps) / OUTPUT_RATE;
+                let [numerator, denominator] = self.project.fps.ratio();
+                let frame = u128::from(sample) * u128::from(numerator)
+                    / (u128::from(OUTPUT_RATE) * u128::from(denominator));
                 return Err(format!(
                     "audio mix produced NaN at sample {sample}, frame {frame}, channel {}; finite PCM overflow or cancellation during mixing",
                     index % 2

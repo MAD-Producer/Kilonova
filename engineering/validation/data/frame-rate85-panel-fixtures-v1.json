@@ -1,0 +1,30 @@
+{
+  "archive": "frame-rate85-panel-fixtures-v1.zip",
+  "sha256": "28b7c51a6028a057aba046cefb815ec0679364501d458ef43849031b21161053",
+  "bytes": 1784413,
+  "members": 112,
+  "status": "desktop_gate_failed_original_results_retained",
+  "totals": {
+    "passed": 1660,
+    "failed": 8,
+    "ignored": 68
+  },
+  "limits": [
+    "No existing assertions, ignore markers, runtime panel clock readers, styling or layout changed",
+    "V1 compiler process crashed with 0xc0000005 in rustc_driver.dll before test execution; later builds/passes are not a compiler fix",
+    "V1 native UI startup returned PermissionDenied; the exact filesystem operation was not identified",
+    "V2 isolates LOCALAPPDATA under E to avoid existing user configuration/logs; no user ACL changes or cleanup",
+    "Original professional_screen native heap corruption remains independently unresolved",
+    "Existing manual ignores are reported, not counted as executed; Android excluded"
+  ],
+  "runs": {
+    "professional-api86-desktop-fixtures-v1": {
+      "status": "failed_original_results_retained",
+      "elapsedSeconds": 269.938
+    },
+    "professional-api86-desktop-fixtures-v2": {
+      "status": "failed_original_results_retained",
+      "elapsedSeconds": 3571.125
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "status": "native_readback_visual_review_passed_scoped_only",
+  "archive": "frame-rate85-native-readouts-v1.zip",
+  "bytes": 797743,
+  "sha256": "8f0c5b4f13d027f147f7b7750c7e989c5f516aae0ffc935915abf7b3c5dc7ad8",
+  "members": 43,
+  "base": "c5aa7dfb0bd5e58d2397aca37eae30237d31c2aa",
+  "testPassed": 1,
+  "visualCasesPassed": 4,
+  "historicalFullRender": {
+    "passed": 957,
+    "failed": 0,
+    "ignored": 1,
+    "source": "162edfed"
+  },
+  "historicalFullDesktop": {
+    "passed": 1697,
+    "failed": 1,
+    "ignored": 69,
+    "source": "162edfed"
+  },
+  "limits": [
+    "One real GPU test renders four actual shells; four cases are not four independent tests",
+    "Empty projects verify clock chrome, not live media, menus or final full regression",
+    "Original two-color OS captures stay failed; no claim to fix their capture path or the native stack overflow",
+    "Historical full-gate failure and diagnostic pass are separate source-bound facts, not final acceptance"
+  ]
+}

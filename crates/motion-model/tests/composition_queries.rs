@@ -22,7 +22,7 @@ fn node(
         name: name.into(),
         width: size[0],
         height: size[1],
-        fps,
+        fps: motion_model::FrameRate::integer(fps).unwrap(),
         frames,
         work_area: motion_model::WorkArea::full(frames),
         guides: Vec::new(),
@@ -66,14 +66,14 @@ fn project() -> Project {
 
 fn expected() -> Vec<Value> {
     vec![
-        json!({"id":"comp-main","name":"Root","width":64,"height":64,"fps":30,"frames":120,
+        json!({"id":"comp-main","name":"Root","width":64,"height":64,"fps":{"numerator":30,"denominator":1},"frames":120,
             "main":true,"references":[],"children":[{"object":1,"composition":"comp-a"},{"object":2,"composition":"comp-a"}],"next_layer_id":4}),
-        json!({"id":"comp-b","name":"Empty","width":16,"height":16,"fps":60,"frames":240,
+        json!({"id":"comp-b","name":"Empty","width":16,"height":16,"fps":{"numerator":60,"denominator":1},"frames":240,
             "main":false,"references":[{"composition":"comp-a","object":9}],"children":[],"next_layer_id":1}),
-        json!({"id":"comp-a","name":"Sequence","width":128,"height":72,"fps":24,"frames":100,
+        json!({"id":"comp-a","name":"Sequence","width":128,"height":72,"fps":{"numerator":24,"denominator":1},"frames":100,
             "main":false,"references":[{"composition":"comp-main","object":1},{"composition":"comp-main","object":2}],
             "children":[{"object":9,"composition":"comp-b"}],"next_layer_id":10}),
-        json!({"id":"comp-c","name":"Unused","width":32,"height":32,"fps":30,"frames":60,
+        json!({"id":"comp-c","name":"Unused","width":32,"height":32,"fps":{"numerator":30,"denominator":1},"frames":60,
             "main":false,"references":[],"children":[],"next_layer_id":4}),
     ]
 }
@@ -131,8 +131,8 @@ fn lookup_keeps_borrowed_body_identity_and_native_missing_composition_error() {
             let view = project.composition_view(&body.id).unwrap();
             assert_eq!(view.name, body.name);
             assert_eq!(
-                [view.width, view.height, view.fps, view.frames],
-                [body.width, body.height, body.fps, body.frames]
+                (view.width, view.height, view.fps, view.frames),
+                (body.width, body.height, body.fps, body.frames)
             );
             assert!(std::ptr::eq(view.layers, body.layers.as_slice()));
         }

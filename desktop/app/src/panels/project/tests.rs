@@ -11,7 +11,7 @@ fn fixture() -> Value {
         name: "细节 Detail".into(),
         width: 640,
         height: 360,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 120,
         work_area: p.work_area.clone(),
         guides: vec![],

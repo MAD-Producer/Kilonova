@@ -100,6 +100,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    FrameRate(#[from] RateError),
     #[error("viewer_camera object={object} phase=selection: {source}")]
     CameraResolution { object:u64,#[source] source:std::sync::Arc<Error> },
     #[error("tracking_camera phase=binding object={object} asset={asset} track={track}: {source}")]

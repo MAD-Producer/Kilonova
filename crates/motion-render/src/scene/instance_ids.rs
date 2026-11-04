@@ -303,7 +303,7 @@ mod tests {
             name: id.into(),
             width: 16,
             height: 16,
-            fps: 30,
+            fps: motion_core::FrameRate::integer(30).unwrap(),
             frames: 60,
             work_area: motion_core::WorkArea::full(60),
             guides: Vec::new(),

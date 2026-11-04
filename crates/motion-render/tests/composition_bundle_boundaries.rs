@@ -1,4 +1,5 @@
-//! Byte-for-byte protocol and allocation checks against the pre-change writer.
+//! All byte and allocation checks against the pre-change writer, with only the
+//! declared version-2 clock fields transformed explicitly in the test oracle.
 #[path = "support/composition_bundle_legacy.rs"]
 mod legacy;
 
@@ -120,7 +121,7 @@ fn fixture() -> Project {
             name: id.into(),
             width: 64,
             height: 64,
-            fps,
+            fps: motion_core::FrameRate::integer(fps).unwrap(),
             frames: 600,
             work_area: motion_core::WorkArea::full(600),
             guides: Vec::new(),
@@ -150,6 +151,16 @@ fn long(bytes: &[u8], at: usize) -> u64 {
     u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap())
 }
 
+fn current_integer_clock_fields(bytes: &mut [u8]) {
+    assert_eq!(word(bytes, 4), 1);
+    bytes[4..8].copy_from_slice(&2u32.to_le_bytes());
+    for index in 0..word(bytes, 8) as usize {
+        let denominator = 32 + index * 80 + 68;
+        assert_eq!(word(bytes, denominator), 0);
+        bytes[denominator..denominator + 4].copy_from_slice(&1u32.to_le_bytes());
+    }
+}
+
 #[test]
 fn mixed_rate_shared_subtrees_keep_every_byte_parent_slot_and_video_binding() {
     let project = fixture();
@@ -158,9 +169,10 @@ fn mixed_rate_shared_subtrees_keep_every_byte_parent_slot_and_video_binding() {
     for frame in [0., 1.25, 17., 119., 3.5, 0.] {
         let scene = sample(&project, frame);
         legacy::build(&mut old, &scene, &project, &[0], &mut expected).unwrap();
+        current_integer_clock_fields(&mut expected);
         composition_plan::build(&mut new, &scene, &project, &[0], &mut actual).unwrap();
         assert_eq!(actual, expected, "frame={frame}");
-        assert_eq!((word(&actual, 0), word(&actual, 4)), (0x4243534d, 1));
+        assert_eq!((word(&actual, 0), word(&actual, 4)), (0x4243534d, 2));
         assert_eq!(word(&actual, 12) as usize, actual.len());
         assert_eq!((word(&actual, 8), word(&actual, 16)), (7, 6));
         assert_eq!(
@@ -186,7 +198,8 @@ fn mixed_rate_shared_subtrees_keep_every_byte_parent_slot_and_video_binding() {
             assert_eq!(long(bytes, at), reference);
             assert_eq!(word(bytes, at + 12) as i32, slot);
             assert_eq!(long(bytes, at + 56), scene.frame.to_bits());
-            assert_eq!(word(bytes, at + 64), scene.fps);
+            assert_eq!(word(bytes, at + 64), scene.fps.ratio()[0]);
+            assert_eq!(word(bytes, at + 68), scene.fps.ratio()[1]);
             let videos = scene
                 .layers
                 .iter()
@@ -226,6 +239,7 @@ fn warm_bundle_allocations_drop_without_changing_output() {
     let new_count = allocations(|| {
         composition_plan::build(&mut new, &scene, &project, &[0], &mut actual).unwrap();
     });
+    current_integer_clock_fields(&mut expected);
     assert_eq!(actual, expected);
     // Three non-leaf nodes and four video-containing leaves no longer create
     // temporary vectors. Other allocations in the plan builder remain in scope.

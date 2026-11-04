@@ -128,7 +128,7 @@ fn imported_camera_clipboard_retains_and_remaps_layer_and_nested_camera_sources(
                     name: "Camera source only".into(),
                     width: 96,
                     height: 64,
-                    fps: 30,
+                    fps: motion_core::FrameRate::integer(30).unwrap(),
                     frames: 61,
                     work_area: motion_core::WorkArea::full(61),
                     guides: vec![],

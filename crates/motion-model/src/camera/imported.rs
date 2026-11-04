@@ -46,7 +46,7 @@ pub trait CameraSampler {
         &self,
         camera: &Camera,
         frame: f64,
-        fps: u32,
+        fps: crate::FrameRate,
         size: [u32; 2],
         prefix: Mat4,
     ) -> Result<CameraSample>;
@@ -63,7 +63,7 @@ impl CameraSampler for AuthoredCameraSampler {
         &self,
         camera: &Camera,
         frame: f64,
-        _fps: u32,
+        _fps: crate::FrameRate,
         [width, height]: [u32; 2],
         prefix: Mat4,
     ) -> Result<CameraSample> {

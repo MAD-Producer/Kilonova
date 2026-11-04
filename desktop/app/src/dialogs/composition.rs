@@ -1,6 +1,10 @@
 use super::*;
 use motion_ui::widgets::{Checkbox, DropdownItem};
 impl Dialog {
+    pub(super) fn timing_policy(&self) -> &'static str {
+        if self.timing_index == 0 { "preserve_seconds" } else { "preserve_frames" }
+    }
+
     pub(super) fn composition_ui(
         &mut self,
         list: &mut PaintList,
@@ -12,7 +16,8 @@ impl Dialog {
         let sheet = list.styles();
         let colors = sheet.colors();
         let zh = locale == Locale::Zh;
-        if input.key_presses().any(|(k, _, _)| k == Key::Escape) && !input.composing {
+        let dropdown_was_open = self.preset_dropdown.open || self.timing_dropdown.open;
+        if !dropdown_was_open && input.key_presses().any(|(k, _, _)| k == Key::Escape) && !input.composing {
             return Some(Event::Cancelled);
         }
         let card = Rect::new((size[0] - 640.) * 0.5, (size[1] - 510.) * 0.5, 640., 510.);
@@ -47,6 +52,7 @@ impl Dialog {
             true,
         )
         .clicked
+            && !dropdown_was_open
         {
             return Some(Event::Cancelled);
         }
@@ -83,7 +89,7 @@ impl Dialog {
                 },
                 Align::Center,
             );
-            if input.pressed.is_some_and(|(_, p)| rect.contains(p)) {
+            if !dropdown_was_open && input.pressed.is_some_and(|(_, p)| rect.contains(p)) {
                 self.settings_tab = i;
             }
         }
@@ -157,11 +163,10 @@ impl Dialog {
                         rect,
                         sheet.resolve("field", states).unwrap(),
                     );
-                    let fps = self.fields[3].parse::<u32>().unwrap_or(30).max(1);
                     let shown = if i == 4 && self.fields[4].parse::<u32>().is_ok() {
-                        crate::panels::timecode(self.fields[4].parse::<u32>().unwrap() as f64, fps)
+                        display_duration(&self.fields[4], &self.fields[3])
                     } else if i == 3 && self.focus != 3 {
-                        format!("{}.00", self.fields[3])
+                        display_rate(&self.fields[3])
                     } else {
                         self.fields[i].clone()
                     };
@@ -177,7 +182,7 @@ impl Dialog {
                             Align::Left,
                         );
                     }
-                    if input.pressed.is_some_and(|(_, p)| rect.contains(p)) {
+                    if !dropdown_was_open && input.pressed.is_some_and(|(_, p)| rect.contains(p)) {
                         self.focus = i;
                         self.replace = true;
                         self.text_editor.cancel();
@@ -199,10 +204,24 @@ impl Dialog {
                             None,
                         )
                         .clicked
+                            && !dropdown_was_open
                         {
                             self.aspect_locked = !self.aspect_locked;
                             self.aspect = self.fields[1].parse::<f64>().unwrap_or(1920.)
                                 / self.fields[2].parse::<f64>().unwrap_or(1080.);
+                        }
+                    }
+                    if index == 5 && matches!(self.kind, Kind::Settings) {
+                        let x = rect.max[0] + sheet.metric("auxiliary.gap", 6.);
+                        let right = card.max[0] - sheet.metric("preferences.margin", 16.);
+                        let items = [
+                            DropdownItem { label: if zh { "保持秒时间" } else { "Keep time (seconds)" }, enabled:true },
+                            DropdownItem { label: if zh { "保持帧位置" } else { "Keep frame positions" }, enabled:true },
+                        ];
+                        if let Some(index) = self.timing_dropdown.draw(&mut overlays, atlas,
+                            Rect::new(x, rect.min[1], right-x, rect.height()), card, &items,
+                            self.timing_index, input, !self.preset_dropdown.open, false) {
+                            self.timing_index = index;
                         }
                     }
                 } else if index == 1 {
@@ -232,7 +251,7 @@ impl Dialog {
                         &items,
                         self.preset_index,
                         input,
-                        true,
+                        !self.timing_dropdown.open,
                         false,
                     ) {
                         self.preset_index = index;
@@ -282,7 +301,7 @@ impl Dialog {
                 }
                 y += 36.;
             }
-            if !self.preset_dropdown.open {
+            if !dropdown_was_open && !self.preset_dropdown.open && !self.timing_dropdown.open {
                 self.edit_text(input);
                 if self.aspect_locked && matches!(self.focus, 1 | 2) {
                     if let Ok(value) = self.fields[self.focus].parse::<f64>() {
@@ -301,9 +320,9 @@ impl Dialog {
         } else {
             let text = if self.settings_tab == 1 {
                 if zh {
-                    "帧率变更时保持动画的秒数。缩短时保留超出范围的内容，并校验合成设置。"
+                    "帧率变更采用“基本”页选择的时间策略。关键帧冲突或内容超出缩短后的范围时拒绝修改。"
                 } else {
-                    "Frame rate changes preserve animation time. Composition settings are validated before applying."
+                    "Frame rate changes use the timing policy selected in Basic. Keyframe collisions or content outside a shortened composition are rejected."
                 }
             } else {
                 if zh {
@@ -355,6 +374,7 @@ impl Dialog {
             true,
         )
         .clicked
+            && !dropdown_was_open
         {
             return Some(Event::Cancelled);
         }
@@ -381,7 +401,8 @@ impl Dialog {
             "button.primary",
         )
         .clicked
-            || (!self.preset_dropdown.open
+            && !dropdown_was_open
+            || (!dropdown_was_open && !self.preset_dropdown.open && !self.timing_dropdown.open
                 && !input.composing
                 && !input.ime_consumed
                 && input.key_presses().any(|(k, _, _)| k == Key::Enter));
@@ -395,7 +416,7 @@ impl Dialog {
                     .parse::<u32>()
                     .map_err(|_| word(locale, "高度无效", "Invalid height"))?;
                 let fps = self.fields[3]
-                    .parse::<u32>()
+                    .parse::<motion_core::FrameRate>()
                     .map_err(|_| word(locale, "帧率无效", "Invalid frame rate"))?;
                 let frames = parse_duration(&self.fields[4], fps)
                     .map_err(|_| word(locale, "持续时间无效", "Invalid duration"))?;
@@ -404,7 +425,7 @@ impl Dialog {
                     || height < 4
                     || width > 16384
                     || height > 16384
-                    || !(1..=240).contains(&fps)
+                    || !fps.is_between(1, 240)
                     || frames == 0
                 {
                     return Err(word(
@@ -414,7 +435,7 @@ impl Dialog {
                     ));
                 }
                 Ok(
-                    serde_json::json!({"name":self.fields[0],"width":width,"height":height,"fps":fps,"frames":frames,"timing":"preserve_seconds","shorten":"reject"}),
+                    serde_json::json!({"name":self.fields[0],"width":width,"height":height,"fps":fps,"frames":frames,"timing":self.timing_policy(),"shorten":"reject"}),
                 )
             })();
             match result {
@@ -432,31 +453,40 @@ impl Dialog {
     }
 }
 
-fn parse_duration(text: &str, fps: u32) -> Result<u32, ()> {
-    if fps == 0 {
-        return Err(());
+fn display_rate(text: &str) -> String {
+    match text.parse::<motion_core::FrameRate>() {
+        Ok(rate) if rate.ratio()[1] == 1 => format!("{}.00", rate.ratio()[0]),
+        Ok(rate) => rate.to_string(),
+        Err(_) => text.into(),
     }
-    if !text.contains(':') {
+}
+
+fn display_duration(text: &str, rate: &str) -> String {
+    let formatted = (|| {
+        let frame = text.parse::<u32>().ok()?;
+        let fps = rate.parse::<motion_core::FrameRate>().ok()?;
+        fps.format_timecode(i64::from(frame), motion_core::TimecodeMode::NonDrop).ok()
+    })();
+    // An incomplete rate or a custom rate without a nominal timecode clock
+    // keeps the exact frame count visible instead of borrowing a 30 fps clock.
+    formatted.unwrap_or_else(|| text.into())
+}
+
+fn parse_duration(text: &str, fps: motion_core::FrameRate) -> Result<u32, ()> {
+    if !text.contains(':') && !text.contains(';') {
         return text.parse().map_err(|_| ());
     }
-    let parts: Vec<u32> = text
-        .split(':')
-        .map(str::parse)
-        .collect::<Result<_, _>>()
-        .map_err(|_| ())?;
-    if parts.len() != 4 || parts[1] >= 60 || parts[2] >= 60 || parts[3] >= fps {
-        return Err(());
-    }
-    parts[0]
-        .checked_mul(3600)
-        .and_then(|v| v.checked_add(parts[1] * 60 + parts[2]))
-        .and_then(|v| v.checked_mul(fps))
-        .and_then(|v| v.checked_add(parts[3]))
-        .ok_or(())
+    let mode = if text.contains(';') { motion_core::TimecodeMode::Drop }
+        else { motion_core::TimecodeMode::NonDrop };
+    u32::try_from(fps.parse_timecode(text, mode).map_err(|_| ())?).map_err(|_| ())
 }
 #[cfg(test)]
 mod duration_tests {
-    use super::parse_duration;
+    // Keep the original integer controls verbatim through an explicit typed
+    // fixture adapter; this is not a product wire-format compatibility path.
+    fn parse_duration(text: &str, fps: u32) -> Result<u32, ()> {
+        super::parse_duration(text, motion_core::FrameRate::integer(fps).map_err(|_| ())?)
+    }
     #[test]
     fn duration_accepts_frames_and_validated_timecode() {
         assert_eq!(parse_duration("300", 30), Ok(300));
@@ -465,5 +495,27 @@ mod duration_tests {
             assert!(parse_duration(input, 30).is_err());
         }
         assert!(parse_duration("1", 0).is_err());
+    }
+    #[test]
+    fn rational_duration_accepts_explicit_drop_and_non_drop_without_decimal_aliases() {
+        let fps = motion_core::FrameRate::new(30000, 1001).unwrap();
+        assert_eq!(super::parse_duration("00:01:00;02", fps), Ok(1800));
+        assert_eq!(super::parse_duration("01:00:00;00", fps), Ok(107892));
+        assert_eq!(super::parse_duration("01:00:00:00", fps), Ok(108000));
+        assert!(super::parse_duration("00:01:00;00", fps).is_err());
+        assert!(super::parse_duration("01:00:00;00", "29.97".parse().unwrap()).is_err());
+    }
+
+    #[test]
+    fn composition_fields_keep_exact_rates_and_do_not_borrow_a_fallback_clock() {
+        assert_eq!(super::display_rate("30"), "30.00");
+        assert_eq!(super::display_rate("30000/1001"), "30000/1001");
+        assert_eq!(super::display_rate("29.97"), "2997/100");
+        assert_eq!(super::display_rate("30000/"), "30000/");
+        assert_eq!(super::display_duration("2400", "24000/1001"), "00:01:40:00");
+        assert_eq!(super::display_duration("108000", "30000/1001"), "01:00:00:00");
+        assert_eq!(super::display_duration("108000", "29.97"), "108000");
+        assert_eq!(super::display_duration("300", "30000/"), "300");
+        assert_eq!(super::display_duration("00:01:00;02", "30000/1001"), "00:01:00;02");
     }
 }

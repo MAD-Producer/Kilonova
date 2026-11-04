@@ -1,0 +1,46 @@
+{
+  "review": {
+    "status": "compiler_allocation_failed_before_tests_controller_terminal_unavailable",
+    "head": "a45bbe94e418be68c2ed996bbf2f0eb17db5d7bc",
+    "main": "77f6145256a6acc0aebe7d29ab4a645322621771",
+    "reviewedUtc": "2026-11-04T02:03:57.448355+00:00",
+    "sourceUnchanged": true,
+    "allTargetCheck": {
+      "name": "check",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-desktop",
+        "-p",
+        "motion-ui",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "pid": 43988,
+      "exitCode": 0,
+      "elapsedSeconds": 103.422,
+      "summaries": []
+    },
+    "executedTests": 0,
+    "compilerDiagnostic": "memory allocation of 34603024 bytes failed",
+    "compilerReportedExit": "0xc0000409, STATUS_STACK_BUFFER_OVERRUN",
+    "controllerReportStatus": "running",
+    "controllerSession": 21238,
+    "limits": [
+      "Original controller and cargo processes no longer exist; session lookup returned unknown; controller terminal code cannot be recovered",
+      "Original running exit.json retained unchanged, with an additive review rather than a manufactured cargo/controller exit code",
+      "No test executable ran; no test failure/pass count or full regression acceptance is claimed",
+      "Compiler allocation diagnostic is distinct from earlier product stack-overflow and heap-corruption failures; their causes remain unresolved",
+      "No retry, assertion/ignore/budget/stack-size change, cache deletion or Android test"
+    ]
+  },
+  "archive": {
+    "path": "frame-rate85-desktop-compiler-v1.zip",
+    "bytes": 131583,
+    "sha256": "1f4991f500d52ea4b42ca616fc8b683bdc720a1407e86fb17e055326f6600700",
+    "members": 10
+  }
+}

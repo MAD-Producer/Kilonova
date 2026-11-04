@@ -28,6 +28,7 @@ mod layer_clipboard;
 mod panels;
 mod animation_presets;
 mod project_lifecycle;
+mod project_clock;
 mod preview_playback;
 mod project_preview;
 mod plugin_check;
@@ -1202,8 +1203,8 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 #[cfg(test)]
-fn playback_frame(origin: f64, elapsed: Duration, fps: u32, frames: u32) -> f64 {
-    (origin + elapsed.as_secs_f64() * f64::from(fps.max(1))).rem_euclid(f64::from(frames.max(1)))
+fn playback_frame(origin: f64, elapsed: Duration, fps: motion_core::FrameRate, frames: u32) -> f64 {
+    (origin + elapsed.as_secs_f64() * f64::from(fps)).rem_euclid(f64::from(frames.max(1)))
 }
 fn mouse_wheel_delta(delta: MouseScrollDelta, scale: f32) -> [f32; 2] {
     // UI scrolling uses positive offsets towards the end of a list.
@@ -1636,9 +1637,9 @@ mod tests {
     }
     #[test]
     fn playback_wraps_without_sampling_the_invalid_end_frame() {
-        assert_eq!(playback_frame(29.0, Duration::from_secs(1), 30, 30), 29.0);
+        assert_eq!(playback_frame(29.0, Duration::from_secs(1), motion_core::FrameRate::integer(30).unwrap(), 30), 29.0);
         for ms in [0, 33, 1000, 100000] {
-            let f = playback_frame(179.0, Duration::from_millis(ms), 60, 180);
+            let f = playback_frame(179.0, Duration::from_millis(ms), motion_core::FrameRate::integer(60).unwrap(), 180);
             assert!((0.0..180.0).contains(&f));
         }
     }

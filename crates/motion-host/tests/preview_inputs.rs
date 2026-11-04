@@ -13,6 +13,8 @@ use std::{
 mod source_memory;
 #[path = "preview_inputs/command_timing.rs"]
 mod command_timing;
+#[path = "preview_inputs/rational_clock.rs"]
+mod rational_clock;
 struct PlatformStub;
 impl Platform for PlatformStub {
     fn name(&self) -> &'static str {
@@ -335,7 +337,7 @@ fn inactive_image_input_never_opens_missing_source_and_other_composition_clock_i
                 name: "Child".into(),
                 width: 320,
                 height: 180,
-                fps: 60,
+                fps: motion_core::FrameRate::integer(60).unwrap(),
                 frames: 120,
                 timing: "preserve_seconds".into(),
                 shorten: "reject".into(),
@@ -366,7 +368,7 @@ fn inactive_image_input_never_opens_missing_source_and_other_composition_clock_i
             ),
         )
         .unwrap();
-    assert_eq!(info.clock.fps, 60);
+    assert_eq!(info.clock.fps, motion_core::FrameRate::integer(60).unwrap());
     assert!((info.clock.seconds - 30.5 / 60.).abs() < 1e-12);
     ready(&mut reader, 1, 0);
     assert_eq!(project, before);

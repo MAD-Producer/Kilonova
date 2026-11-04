@@ -269,7 +269,7 @@ pub(super) fn render(
                 Rect::new(left + width * 0.55, y, width * 0.45, row),
                 &timecode(
                     state["frame"].as_f64().unwrap_or(0.),
-                    state["project"]["fps"].as_u64().unwrap_or(30) as u32,
+                    project_rate(state),
                 ),
                 colors.TEXT,
                 Align::Right,
@@ -282,7 +282,8 @@ pub(super) fn render(
                 &mut y,
                 &format!(
                     "{} × {}  ·  {} fps",
-                    state["project"]["width"], state["project"]["height"], state["project"]["fps"]
+                    state["project"]["width"], state["project"]["height"],
+                    project_rate(state).map(|rate| rate.to_string()).unwrap_or_else(|| "—".into())
                 ),
                 true,
             );
@@ -667,7 +668,7 @@ mod tests {
         for locale in [Locale::En,Locale::Zh] { for floating in [false,true] {
             let mut p = Panels::default(); p.locale = locale;
             let mut atlas = TextAtlas::from_system(12.).unwrap();
-            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":30,"layers":[]}});
+            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":{"numerator":30,"denominator":1},"layers":[]}});
             let mut draw = |panel,p: &mut Panels,i: &Input| if floating {
                 super::super::floating_chrome(&mut PaintList::default(),&mut atlas,panel,[300.,420.],p,&state,i)
             } else {
@@ -691,7 +692,7 @@ mod tests {
         for locale in [Locale::En,Locale::Zh] { for floating in [false,true] {
             let mut panels = Panels::default(); panels.locale = locale;
             let mut atlas = TextAtlas::from_system(12.).unwrap();
-            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":30,"layers":[]}});
+            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":{"numerator":30,"denominator":1},"layers":[]}});
             let mut draw = |p: &mut Panels,i: &Input| if floating {
                 super::super::floating_chrome(&mut PaintList::default(),&mut atlas,Panel::Preview,[300.,420.],p,&state,i)
             } else {
@@ -750,7 +751,7 @@ mod tests {
         for floating in [false, true] {
             let mut panels = Panels::default();
             let mut atlas = TextAtlas::from_system(12.).unwrap();
-            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":30,"layers":[]}});
+            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":{"numerator":30,"denominator":1},"layers":[]}});
             let mut draw = |panels: &mut Panels, input: &Input| {
                 if floating {
                     super::super::floating_chrome(

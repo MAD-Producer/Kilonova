@@ -47,11 +47,11 @@ impl WorkArea {
 
     /// Integer conversion of absolute edges avoids losing fractional samples
     /// by multiplying a rounded samples-per-frame or rounding the duration.
-    pub fn sample_bounds(self, fps: u32, sample_rate: u32) -> Result<std::ops::Range<u64>> {
-        ensure(fps > 0 && sample_rate > 0, "invalid work area audio clock")?;
+    pub fn sample_bounds(self, fps: crate::FrameRate, sample_rate: u32) -> Result<std::ops::Range<u64>> {
+        ensure(sample_rate > 0, "invalid work area audio clock")?;
         ensure(self.in_frame < self.out_frame, "empty work area")?;
-        let edge = |frame| u64::from(frame) * u64::from(sample_rate) / u64::from(fps);
-        Ok(edge(self.in_frame)..edge(self.out_frame))
+        let edge = |frame| -> Result<u64> { Ok(fps.ticks_at_frame(i64::from(frame), sample_rate, crate::ClockRounding::Floor)? as u64) };
+        Ok(edge(self.in_frame)?..edge(self.out_frame)?)
     }
 
     /// Preserve a full-range selection when the composition grows. A custom
@@ -60,29 +60,30 @@ impl WorkArea {
     pub(crate) fn resized(
         self,
         old_frames: u32,
-        old_fps: u32,
+        old_fps: crate::FrameRate,
         frames: u32,
-        fps: u32,
+        fps: crate::FrameRate,
         seconds: bool,
     ) -> Result<Self> {
         ensure(
-            old_fps > 0 && fps > 0 && frames > 0,
+            old_fps.is_between(1, crate::MAX_COMPOSITION_FPS)
+                && fps.is_between(1, crate::MAX_COMPOSITION_FPS)
+                && frames > 0,
             "invalid work area resize clock or duration",
         )?;
         self.validate(old_frames)?;
         if self == Self::full(old_frames) {
             return Ok(Self::full(frames));
         }
-        let edge = |frame| {
+        let edge = |frame| -> Result<u32> {
             if seconds {
-                ((u64::from(frame) * u64::from(fps) + u64::from(old_fps) / 2) / u64::from(old_fps))
-                    .min(u64::from(frames)) as u32
+                Ok(old_fps.rescale_frame(i64::from(frame), fps, crate::ClockRounding::NearestTiesAwayFromZero)?.min(i64::from(frames)) as u32)
             } else {
-                frame
+                Ok(frame)
             }
         };
-        let in_frame = edge(self.in_frame).min(frames - 1);
-        let out_frame = edge(self.out_frame).clamp(in_frame + 1, frames);
+        let in_frame = edge(self.in_frame)?.min(frames - 1);
+        let out_frame = edge(self.out_frame)?.clamp(in_frame + 1, frames);
         Ok(Self {
             in_frame,
             out_frame,

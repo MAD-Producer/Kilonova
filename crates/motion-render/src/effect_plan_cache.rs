@@ -22,7 +22,7 @@ pub(crate) struct PreviewInputs {
     registry: Registry,
     errors: BTreeMap<u32, String>,
     camera: motion_model::CameraPose,
-    dimensions: [u32; 5],
+    dimensions: [u32; 6],
     composition: String,
     device_dimension: u32,
     assets: Vec<u64>,
@@ -92,7 +92,7 @@ impl PreviewInputs {
             registry: registry.clone(),
             errors: errors.clone(),
             camera: scene.camera,
-            dimensions: [scene.width, scene.height, scene.fps, width, height],
+            dimensions: [scene.width, scene.height, scene.fps.ratio()[0], scene.fps.ratio()[1], width, height],
             composition: scene.composition_id.clone(),
             device_dimension,
             assets: assets.to_vec(),
@@ -111,7 +111,7 @@ impl PreviewInputs {
         registry: &Registry,
         errors: &BTreeMap<u32, String>,
     ) -> bool {
-        self.dimensions == [scene.width, scene.height, scene.fps, width, height]
+        self.dimensions == [scene.width, scene.height, scene.fps.ratio()[0], scene.fps.ratio()[1], width, height]
             && self.composition == scene.composition_id
             && self.device_dimension == device_dimension
             && self.assets == assets

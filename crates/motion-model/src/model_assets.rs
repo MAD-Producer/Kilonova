@@ -74,10 +74,10 @@ impl ModelAnimation {
         )
     }
 
-    pub fn sample_seconds(&self, local_frame: f64, fps: u32) -> Result<f64> {
+    pub fn sample_seconds(&self, local_frame: f64, fps: crate::FrameRate) -> Result<f64> {
         self.validate()?;
         ensure(
-            local_frame.is_finite() && fps != 0,
+            local_frame.is_finite(),
             "invalid model animation sample time",
         )?;
         let seconds = self.offset_seconds + local_frame / f64::from(fps) * self.speed;

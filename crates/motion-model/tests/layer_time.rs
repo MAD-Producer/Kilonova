@@ -90,9 +90,10 @@ fn identity_matches_the_actual_unmapped_layer_and_media_clock_bit_for_bit() {
             assert_eq!(mapped.frame.to_bits(), legacy.to_bits());
             assert_eq!(mapped.rate, 1.);
             for fps in [24, 25, 30, 60, 240] {
+                let fps = motion_model::FrameRate::integer(fps).unwrap();
                 assert_eq!(
-                    clip.source_time_us(mapped.frame, fps),
-                    clip.source_time_us(legacy, fps)
+                    clip.source_time_us(mapped.frame, fps).unwrap(),
+                    clip.source_time_us(legacy, fps).unwrap()
                 );
             }
         }
@@ -500,7 +501,7 @@ fn reverse_media_uses_each_native_quantum_instead_of_losing_a_comp_frame() {
             .unwrap()
             .through(mapping, 0, None)
             .unwrap();
-        let position = source.pcm_position(30, 48_000, 0).unwrap().unwrap();
+        let position = source.pcm_position(motion_model::FrameRate::integer(30).unwrap(), 48_000, 0).unwrap().unwrap();
         assert!(
             (position - f64::from(47_999 - sample)).abs() < 1e-8,
             "sample={sample} position={position}"
@@ -514,8 +515,8 @@ fn reverse_media_uses_each_native_quantum_instead_of_losing_a_comp_frame() {
         .unwrap()
         .through(mapping, 0, None)
         .unwrap();
-    assert_eq!(head.video_time_us(&clip, 30).unwrap(), 999_999);
-    assert_eq!(head.pcm_position(30, 192_000, 0).unwrap(), Some(191_999.));
+    assert_eq!(head.video_time_us(&clip, motion_model::FrameRate::integer(30).unwrap()).unwrap(), 999_999);
+    assert_eq!(head.pcm_position(motion_model::FrameRate::integer(30).unwrap(), 192_000, 0).unwrap(), Some(191_999.));
 }
 
 #[test]
@@ -524,16 +525,17 @@ fn forward_video_conversion_preserves_existing_rounding_and_source_offsets() {
     for offset in [0, 31, 17_431, 3_600_000_000] {
         clip.source_offset_us = offset;
         for fps in [24, 25, 30, 60, 240] {
+                let fps = motion_model::FrameRate::integer(fps).unwrap();
             for frame in [-0.5, 0., 0.125, 10. / 3., 47.9, 10_000.] {
                 let source = SourceTimeSample::new(frame, 1.).unwrap();
                 assert_eq!(
                     source.video_time_us(&clip, fps).unwrap(),
-                    clip.source_time_us(frame, fps)
+                    clip.source_time_us(frame, fps).unwrap()
                 );
                 let reverse = SourceTimeSample::new(frame, -1.).unwrap();
                 assert_eq!(
                     reverse.video_time_us(&clip, fps).unwrap(),
-                    clip.source_time_us(frame, fps) - 1
+                    clip.source_time_us(frame, fps).unwrap() - 1
                 );
                 assert_eq!(
                     reverse.pcm_position(fps, 48_000, offset).unwrap().unwrap(),
@@ -548,13 +550,13 @@ fn forward_video_conversion_preserves_existing_rounding_and_source_offsets() {
 fn freeze_keeps_picture_and_explicitly_requests_silence_with_no_pcm_dc() {
     let source = SourceTimeSample::new(15., 0.).unwrap();
     let clip = VideoClip::new(1);
-    assert_eq!(source.video_time_us(&clip, 30).unwrap(), 500_000);
+    assert_eq!(source.video_time_us(&clip, motion_model::FrameRate::integer(30).unwrap()).unwrap(), 500_000);
     for rate in [8_000, 44_100, 48_000, 192_000] {
-        assert_eq!(source.pcm_position(30, rate, 0).unwrap(), None);
+        assert_eq!(source.pcm_position(motion_model::FrameRate::integer(30).unwrap(), rate, 0).unwrap(), None);
     }
-    assert!(source.pcm_position(0, 48_000, 0).is_err());
-    assert!(source.pcm_position(30, 0, 0).is_err());
-    assert!(source.pcm_position(30, 48_000, u64::MAX).is_err());
+    assert!(source.pcm_position(motion_model::FrameRate::new(1, 2).unwrap(), 48_000, 0).is_err());
+    assert!(source.pcm_position(motion_model::FrameRate::integer(30).unwrap(), 0, 0).is_err());
+    assert!(source.pcm_position(motion_model::FrameRate::integer(30).unwrap(), 48_000, u64::MAX).is_err());
 }
 
 #[test]
@@ -563,13 +565,13 @@ fn nested_frame_rate_conversion_keeps_seconds_and_quantizes_only_at_the_leaf() {
     composition.source_start_frame = 6;
     let source = SourceTimeSample::new(15., -1.)
         .unwrap()
-        .through_composition(&composition, 30, 24)
+        .through_composition(&composition, motion_model::FrameRate::integer(30).unwrap(), motion_model::FrameRate::integer(24).unwrap())
         .unwrap();
     assert_eq!(
         source,
         SourceTimeSample::new(18., -0.8).unwrap()
     );
-    assert_eq!(source.pcm_position(24, 48_000, 0).unwrap(), Some(35_999.));
+    assert_eq!(source.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap(), Some(35_999.));
     let twice_reversed = source
         .through(clock(1, 1, TimeDirection::Reverse), 0, None)
         .unwrap();
@@ -578,16 +580,16 @@ fn nested_frame_rate_conversion_keeps_seconds_and_quantizes_only_at_the_leaf() {
         SourceTimeSample::new(-18., 0.8).unwrap()
     );
     assert_eq!(
-        twice_reversed.pcm_position(24, 48_000, 0).unwrap(),
+        twice_reversed.pcm_position(motion_model::FrameRate::integer(24).unwrap(), 48_000, 0).unwrap(),
         Some(-36_000.)
     );
     // Reversing each intermediate media request would incorrectly subtract two
     // source samples. Only the final signed rate selects the native endpoint.
     let original = SourceTimeSample::new(3.25, 1.).unwrap();
-    let child = original.through_composition(&composition, 30, 24).unwrap();
+    let child = original.through_composition(&composition, motion_model::FrameRate::integer(30).unwrap(), motion_model::FrameRate::integer(24).unwrap()).unwrap();
     assert_eq!(
         child.frame.to_bits(),
-        composition.source_frame(3.25, 30, 24).unwrap().to_bits()
+        composition.source_frame(3.25, motion_model::FrameRate::integer(30).unwrap(), motion_model::FrameRate::integer(24).unwrap()).unwrap().to_bits()
     );
 }
 
@@ -596,20 +598,26 @@ fn media_boundaries_return_typed_errors_for_invalid_rates_offsets_and_coordinate
     let source = SourceTimeSample::new(0., 1.).unwrap();
     let mut clip = VideoClip::new(1);
     for fps in [0, 241, u32::MAX] {
-        assert!(source.video_time_us(&clip, fps).is_err());
-        assert!(source.pcm_position(fps, 48_000, 0).is_err());
+        match motion_model::FrameRate::integer(fps) {
+            Err(_) => assert!(fps == 0 || fps > motion_model::MAX_RATE_COMPONENT),
+            Ok(fps) => {
+                assert!(source.video_time_us(&clip, fps).is_err());
+                assert!(source.pcm_position(fps, 48_000, 0).is_err());
+            }
+        }
     }
     for rate in [0, 7_999, 192_001, u32::MAX] {
-        assert!(source.pcm_position(30, rate, 0).is_err());
+        assert!(source.pcm_position(motion_model::FrameRate::integer(30).unwrap(), rate, 0).is_err());
     }
     clip.source_offset_us = u64::MAX;
-    let error = source.video_time_us(&clip, 30).unwrap_err();
+    let error = source.video_time_us(&clip, motion_model::FrameRate::integer(30).unwrap()).unwrap_err();
     assert!(error.to_string().contains("phase=media_offset"));
     assert!(error.source().unwrap().to_string().contains("one hour"));
     let invalid = SourceTimeSample { frame: f64::NAN, rate: 1., traversal: motion_model::layer_time::TimeTraversal::Later };
-    assert!(invalid.pcm_position(30, 48_000, 0).is_err());
-    assert!(invalid.video_time_us(&VideoClip::new(1), 30).is_err());
+    assert!(invalid.pcm_position(motion_model::FrameRate::integer(30).unwrap(), 48_000, 0).is_err());
+    assert!(invalid.video_time_us(&VideoClip::new(1), motion_model::FrameRate::integer(30).unwrap()).is_err());
     let composition = motion_model::CompositionClip::new("comp-child".into());
-    assert!(source.through_composition(&composition, 0, 30).is_err());
-    assert!(source.through_composition(&composition, 30, 0).is_err());
+    let invalid = motion_model::FrameRate::new(1, 2).unwrap();
+    assert!(source.through_composition(&composition, invalid, motion_model::FrameRate::integer(30).unwrap()).is_err());
+    assert!(source.through_composition(&composition, motion_model::FrameRate::integer(30).unwrap(), invalid).is_err());
 }

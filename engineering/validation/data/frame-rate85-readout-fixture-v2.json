@@ -1,0 +1,63 @@
+{
+  "status": "approved_fixture_actual_hover_default_logs_and_original_assertions_passed",
+  "headBeforeFixtureCommit": "545840a2193638bc50bfaa9c1ace0102fe988d0a",
+  "fixtureSha256": "2b67e7597a3edf3414884f6bd4963d466fd738ecd76afafb9e04ebe3ddf17304",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-desktop",
+    "--bin",
+    "motion-studio",
+    "--locked",
+    "--offline",
+    "panels::graph_ranges::tests::faults::effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoning_the_curve",
+    "--",
+    "--exact",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "passed": 1,
+  "failed": 0,
+  "ignored": 0,
+  "elapsedSeconds": 120.922,
+  "review": {
+    "originalSession": 6892,
+    "terminalConsumed": true,
+    "exitCode": 0,
+    "unchangedAssertMacros": 43,
+    "originalFailedSession": 61424,
+    "originalFailedTerminalConsumed": true,
+    "originalExitCode": 1,
+    "baselineDisposition": "DESIGN section0.7 rows retained: only this approved failure fixture changed; no layout/style/hit-area/product edits"
+  },
+  "outputs": [
+    {
+      "child": "first-process",
+      "defaultLevel": true,
+      "fileRecords": 5,
+      "errorStderrRecords": 2,
+      "stdoutIsolated": true
+    },
+    {
+      "child": "reset-process",
+      "defaultLevel": true,
+      "fileRecords": 5,
+      "errorStderrRecords": 2,
+      "stdoutIsolated": true
+    }
+  ],
+  "archive": {
+    "path": "frame-rate85-readout-fixture-v2.zip",
+    "bytes": 274371,
+    "sha256": "705243d149f673fdcdcea34ba7f16c9f5275c58df99d731af4198f70a89b7a6d",
+    "members": 30
+  },
+  "limits": [
+    "Two fresh real CPU render/hover processes, original first/59/60/120 checkpoints and recovery assertions unchanged",
+    "Finite large slope is shared by healthy cached data and fault snapshot; valid30/1 yields finite velocity and valid240/1 overflows f32",
+    "Provider snapshot deliberately shortens composition before authored keys; not a legal saved-project fixture",
+    "Original failed cached-track attempt retained, not a retry passing without a source correction",
+    "No production panel/layout/style/hit area or observation threshold changes; full regression and CI remain pending"
+  ]
+}

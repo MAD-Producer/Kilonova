@@ -25,7 +25,7 @@ pub enum CompositionPlanError {
 }
 
 pub const MAGIC: u32 = 0x4243534d;
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 pub const HEADER: usize = 32;
 pub const NODE: usize = 80;
 pub const VIDEO: usize = 40;
@@ -98,7 +98,9 @@ fn word(out: &mut [u8], offset: usize, v: u32) {
 fn long(out: &mut [u8], offset: usize, v: u64) {
     out[offset..offset + 8].copy_from_slice(&v.to_le_bytes());
 }
-/// Write the existing version-1 bundle, retaining typed plan failures.
+/// Write the current bundle with an exact rate numerator at node+64 and
+/// denominator at node+68. Version 1's integer clock is not accepted implicitly.
+/// Retain typed plan failures.
 /// On error, callers must discard the output, which may contain a partial node.
 pub fn build(
     builder: &mut PlanBuilder,
@@ -157,7 +159,8 @@ pub fn build(
         word(out, d + 48, (start + size) as u32);
         word(out, d + 52, videos as u32);
         long(out, d + 56, e.scene.frame.to_bits());
-        word(out, d + 64, e.scene.fps);
+        word(out, d + 64, e.scene.fps.ratio()[0]);
+        word(out, d + 68, e.scene.fps.ratio()[1]);
         for (j, (l, s)) in e
             .scene
             .layers

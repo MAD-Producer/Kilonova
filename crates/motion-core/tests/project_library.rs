@@ -18,7 +18,7 @@ fn fixture() -> Project {
             name: "第二个合成".into(),
             width: 32,
             height: 32,
-            fps: 24,
+            fps: motion_core::FrameRate::integer(24).unwrap(),
             frames: 96,
             timing: "preserve_seconds".into(),
             shorten: "reject".into(),

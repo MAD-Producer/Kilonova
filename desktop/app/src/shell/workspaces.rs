@@ -6,6 +6,8 @@ impl Shell {
             return Ok(());
         }
         let p = &self.state["project"];
+        let fps = crate::project_clock::read(&self.state)
+            .map_err(|error| format!("remember project frame rate: {error}"))?;
         self.workspace.recent_projects.retain(|r| r.root != root);
         self.workspace.recent_projects.insert(
             0,
@@ -14,7 +16,7 @@ impl Shell {
                 name: p["name"].as_str().unwrap_or("Untitled").into(),
                 width: p["width"].as_u64().unwrap_or(1920) as u32,
                 height: p["height"].as_u64().unwrap_or(1080) as u32,
-                fps: p["fps"].as_u64().unwrap_or(30) as u32,
+                fps: fps.as_f64(),
             },
         );
         self.workspace.recent_projects.truncate(24);

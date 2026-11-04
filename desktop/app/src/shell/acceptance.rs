@@ -388,9 +388,14 @@ impl Shell {
         // Owned acceptance-only source, sufficient for the complete composition.
         let root = PathBuf::from(self.state["root"].as_str().ok_or("missing smoke root")?);
         let frames = self.state["project"]["frames"].as_u64().unwrap_or(300);
-        let fps = self.state["project"]["fps"].as_u64().unwrap_or(30);
-        let samples = frames * 48_000 / fps;
-        let data_len = u32::try_from(samples * 4).map_err(|e| e.to_string())?;
+        let fps = crate::project_clock::read(&self.state)
+            .map_err(|e| format!("audio panel smoke frame rate: {e}"))?;
+        let frames = i64::try_from(frames).map_err(|e| format!("audio panel smoke frame count: {e}"))?;
+        let samples = fps.ticks_at_frame(frames, 48_000, motion_core::ClockRounding::Floor)
+            .map_err(|e| format!("audio panel smoke sample boundary: {e}"))?;
+        let samples = u64::try_from(samples).map_err(|e| format!("audio panel smoke sample count: {e}"))?;
+        let data_len = samples.checked_mul(4).and_then(|bytes| u32::try_from(bytes).ok())
+            .filter(|bytes| *bytes <= u32::MAX - 36).ok_or("audio panel smoke exceeds WAV size limit")?;
         let mut wave = Vec::with_capacity(data_len as usize + 44);
         wave.extend(b"RIFF"); wave.extend((36+data_len).to_le_bytes()); wave.extend(b"WAVEfmt ");
         wave.extend(16u32.to_le_bytes()); wave.extend(1u16.to_le_bytes()); wave.extend(2u16.to_le_bytes());

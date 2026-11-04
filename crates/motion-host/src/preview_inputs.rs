@@ -30,7 +30,7 @@ pub struct InputClock {
     pub composition_frame: f64,
     pub local_frame: f64,
     pub seconds: f64,
-    pub fps: u32,
+    pub fps: motion_core::FrameRate,
     pub source_time_us: Option<i64>,
 }
 #[derive(Clone, Debug, Serialize)]
@@ -229,8 +229,7 @@ impl PreviewInputReader {
             snapshot
                 .activate_composition(composition)?;
         }
-        if snapshot.fps == 0
-            || snapshot.fps > motion_core::MAX_COMPOSITION_FPS
+        if !snapshot.fps.is_between(1, motion_core::MAX_COMPOSITION_FPS)
             || snapshot.frames == 0
         {
             return Err("invalid preview composition clock".into());

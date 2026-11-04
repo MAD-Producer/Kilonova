@@ -23,7 +23,7 @@ fn settings(frames: u32, fps: u32, timing: &str) -> Command {
                 name: "Work area".into(),
                 width: 64,
                 height: 64,
-                fps,
+                fps: motion_core::FrameRate::integer(fps).unwrap(),
                 frames,
                 timing: timing.into(),
                 shorten: "trim".into(),
@@ -121,7 +121,7 @@ fn composition_switches_and_scoped_commands_keep_independent_ranges() {
                     name: "Child".into(),
                     width: 64,
                     height: 64,
-                    fps: 60,
+                    fps: motion_core::FrameRate::integer(60).unwrap(),
                     frames: 200,
                     timing: "preserve_frames".into(),
                     shorten: "reject".into(),
@@ -211,24 +211,27 @@ fn required_serialized_range_rejects_missing_invalid_and_unknown_fields() {
 #[test]
 fn audio_sample_edges_are_absolute_and_contiguous_at_fractional_rates() {
     for fps in [24, 30, 59, 60, 144, 240] {
-        let whole = area(7, 111).sample_bounds(fps, 48_000).unwrap();
-        let left = area(7, 53).sample_bounds(fps, 48_000).unwrap();
-        let right = area(53, 111).sample_bounds(fps, 48_000).unwrap();
+        let rate = motion_core::FrameRate::integer(fps).unwrap();
+        let whole = area(7, 111).sample_bounds(rate, 48_000).unwrap();
+        let left = area(7, 53).sample_bounds(rate, 48_000).unwrap();
+        let right = area(53, 111).sample_bounds(rate, 48_000).unwrap();
         assert_eq!(left.start, whole.start);
         assert_eq!(left.end, right.start);
         assert_eq!(right.end, whole.end);
         assert_eq!(whole.start, 7 * 48_000 / u64::from(fps));
         assert_eq!(whole.end, 111 * 48_000 / u64::from(fps));
     }
-    assert!(area(0, 1).sample_bounds(0, 48_000).is_err());
-    assert!(area(0, 1).sample_bounds(30, 0).is_err());
-    assert!(area(3, 3).sample_bounds(30, 48_000).is_err());
+    // Zero is rejected before it can inhabit a typed composition clock.
+    assert_eq!(motion_core::FrameRate::integer(0), Err(motion_core::RateError::Zero));
+    let rate = motion_core::FrameRate::integer(30).unwrap();
+    assert!(area(0, 1).sample_bounds(rate, 0).is_err());
+    assert!(area(3, 3).sample_bounds(rate, 48_000).is_err());
 }
 
 #[test]
 fn invalid_owner_clock_returns_an_error_without_panicking_or_mutating_settings() {
     let mut project = Project::new(64, 64, 30, 120).unwrap();
-    project.fps = 0;
+    project.fps = motion_core::FrameRate::new(1, 2).unwrap();
     let original = project.clone();
     let Command::Composition { action } = settings(120, 30, "preserve_frames") else {
         unreachable!()

@@ -473,7 +473,10 @@ impl VideoJobs {
             // offset_us, and Project::validate bounds source_offset_us + clip length
             // by duration_us. With no offset this is exactly main's length.
             let audio_window_us = p.probe.asset.duration_us.saturating_sub(offset_us);
-            let frames = (audio_window_us * u64::from(project.fps)).div_ceil(1_000_000);
+            let window_ticks = i64::try_from(audio_window_us)
+                .map_err(|_| motion_model::RateError::NumericRange)?;
+            let frames = project.fps.frame_at_tick(window_ticks, 1_000_000,
+                motion_model::ClockRounding::Ceil)? as u64;
             let out = (u64::from(at) + frames).min(u64::from(project.frames)) as u32;
             let stem = p
                 .stage

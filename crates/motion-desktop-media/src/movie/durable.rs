@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 
-const VERSION: u32 = 2;
+const VERSION: u32 = 3;
 const MANIFEST: &str = "snapshot.json";
 const DEPTH: &str = "depth.snapshot";
 // 2 GiB temporal file planes + 192 MiB resident planes + 8 MiB metadata/header.
@@ -21,7 +21,7 @@ pub struct SnapshotInfo {
     pub name: String,
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
+    pub fps: motion_core::FrameRate,
     pub frames: u32,
     pub range: motion_core::WorkArea,
     pub revision: u64,

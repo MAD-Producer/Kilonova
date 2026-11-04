@@ -20,7 +20,8 @@ pub struct RecentProject {
     pub name: String,
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
+    /// Approximate display metadata only; the project owns the exact rate.
+    pub fps: f64,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Workspace {

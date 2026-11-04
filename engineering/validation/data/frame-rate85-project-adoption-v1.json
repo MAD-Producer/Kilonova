@@ -1,0 +1,13 @@
+{
+  "archive": "frame-rate85-project-adoption-v1.zip",
+  "sha256": "051b626fd799af856404e5f2ef058fcd045b65b2e02fcbfd62925d2a6264ad82",
+  "bytes": 442104,
+  "members": 50,
+  "scope": "Partial rational project adoption evidence, including unsuccessful gates; not issue closure or complete desktop acceptance",
+  "limits": [
+    "Existing manual performance/large-source ignores are retained",
+    "Runtime gates failed overall; per-step receipts identify actual passes and failures",
+    "The final desktop compile log has no controller-enforced frozen-source receipt",
+    "Panels, interactive acceptance, actual UI images, full desktop/workspace regression, and integration CI remain pending"
+  ]
+}

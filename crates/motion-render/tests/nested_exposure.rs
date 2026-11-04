@@ -22,7 +22,7 @@ fn composition(id: &str, fps: u32, layers: Vec<Layer>) -> Composition {
         name: "independent clocks".into(),
         width: 64,
         height: 64,
-        fps,
+        fps: FrameRate::integer(fps).unwrap(),
         frames: 90,
         work_area: motion_core::WorkArea::full(90),
         guides: Vec::new(),
@@ -326,7 +326,7 @@ fn recursive_mixed_rates_parent_shutters_and_repeated_refs_match_independent_rea
 fn child_clip_can_enter_its_shutter_while_center_is_empty_and_green_stays_at_center() {
     let mut project = fixture(false);
     let child = &mut project.compositions[0];
-    child.fps = 30;
+    child.fps = motion_core::FrameRate::integer(30).unwrap();
     child.layers[0].timeline = Some(LayerTimeline {
         in_frame: 10,
         out_frame: 40,

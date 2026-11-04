@@ -17,7 +17,7 @@ fn node(index: usize, targets: &[usize]) -> Composition {
         name: format!("Composition {index}"),
         width: 64,
         height: 64,
-        fps: 30,
+        fps: motion_core::FrameRate::integer(30).unwrap(),
         frames: 120,
         work_area: motion_core::WorkArea::full(120),
         guides: Vec::new(),

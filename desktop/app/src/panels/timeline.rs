@@ -745,7 +745,7 @@ pub(super) fn render(
     }
     paint::rect(list, area, colors.PANEL);
     let total = last_frame(state) + 1.0;
-    let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
+    let fps = project_rate(state);
     let graph_mode = panels.timeline.graph_mode;
     let all_rows = row_cache::get(&mut panels.timeline.rows_cache, state, || rows(state));
     let query = panels.timeline.timeline_query.to_lowercase();
@@ -885,7 +885,7 @@ pub(super) fn render(
         Rect::new(area.min[0] + 10.0, area.min[1], gutter - 20.0, 30.0),
         &timecode(
             state["frame"].as_f64().unwrap_or(0.0),
-            state["project"]["fps"].as_u64().unwrap_or(30) as u32,
+            fps,
         ),
         motion_ui::style::ResolvedStyle {
             foreground: colors.ACCENT,
@@ -1150,7 +1150,7 @@ pub(super) fn render(
     );
     let band_height = styles.metric("timeline.work_area.height", 14.);
     if let (Some(start), Some(end)) = (state["project"]["work_area"]["in_frame"].as_f64(), state["project"]["work_area"]["out_frame"].as_f64()) {
-        let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
+        let fps = project_rate(state);
         label(list, atlas, Rect::new(area.min[0] + styles.metric("padding.panel", 8.), ruler.max[1] - band_height,
             gutter - styles.metric("padding.panel", 8.) * 2., band_height),
             &format!("{}  {} .. {}", auxiliary::localized(panels.locale, "工作范围", "Work area"), timecode(start, fps), timecode(end - 1., fps)), true);
@@ -1908,7 +1908,7 @@ pub(super) fn render(
             input.mouse,
             format!(
                 "{}  ({:+.0} f)",
-                timecode(frame, fps as u32),
+                timecode(frame, fps),
                 frame - state["frame"].as_f64().unwrap_or(0.)
             ),
         ));
@@ -1918,7 +1918,7 @@ pub(super) fn render(
             input.mouse,
             format!(
                 "{}  ({:+} f)",
-                timecode(moving.last as f64, fps as u32),
+                timecode(moving.last as f64, fps),
                 moving.last - moving.initial
             ),
         ));
@@ -1928,7 +1928,7 @@ pub(super) fn render(
             input.mouse,
             format!(
                 "{}  ({:+.2} f)",
-                timecode(*last, fps as u32),
+                timecode(*last, fps),
                 last - if *head { *start } else { *end }
             ),
         ));
@@ -2056,7 +2056,7 @@ mod reorder_tests {
 mod property_tests {
     use super::*;
     fn fixture() -> Value {
-        serde_json::json!({"frame":21,"project":{"frames":120,"fps":30,"layers":[{"id":7,"name":"Layer","visible":true,"three_d":true}]},"sampledLayers":[{"id":7,"position":[10,20,30],"rotation":[0,0,0],"scale":[100,100,100],"opacity":1}],"timeline_layers":[{"object":7,"properties":{"position":{"separated":true,"axes":{"x":{"keys":[{"frame":0},{"frame":60}]},"y":{"keys":[{"frame":15},{"frame":90}]},"z":{"keys":[]}}}}}]})
+        serde_json::json!({"frame":21,"project":{"frames":120,"fps":{"numerator":30,"denominator":1},"layers":[{"id":7,"name":"Layer","visible":true,"three_d":true}]},"sampledLayers":[{"id":7,"position":[10,20,30],"rotation":[0,0,0],"scale":[100,100,100],"opacity":1}],"timeline_layers":[{"object":7,"properties":{"position":{"separated":true,"axes":{"x":{"keys":[{"frame":0},{"frame":60}]},"y":{"keys":[{"frame":15},{"frame":90}]},"z":{"keys":[]}}}}}]})
     }
     #[test]
     fn playhead_never_snaps_to_itself_and_repaint_drops_stale_guide() {
@@ -2658,24 +2658,26 @@ pub(super) fn render_time_ruler(
         panels.timeline.scrubbing = false;
         panels.timeline.last_seek = None;
     }
-    let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
-    let step = super::timeline_layout::ruler_step(ppf, fps);
-    let mut f = (offset / step).ceil() * step;
-    while x_of(f as f64) < track.max[0] {
-        let x = x_of(f as f64);
-        paint::rect(
-            list,
-            Rect::new(x, ruler.min[1] + 1., 1.0, 5.0),
-            colors.TEXT_MUTED,
-        );
-        label(
-            list,
-            atlas,
-            Rect::new(x + 3.0, ruler.min[1], 52.0, 14.0),
-            &format!("{:.0}s", f / fps),
-            true,
-        );
-        f += step;
+    let fps = project_rate(state);
+    if let Some(fps) = fps.map(|rate| rate.as_f64() as f32) {
+        let step = super::timeline_layout::ruler_step(ppf, fps);
+        let mut f = (offset / step).ceil() * step;
+        while x_of(f as f64) < track.max[0] {
+            let x = x_of(f as f64);
+            paint::rect(
+                list,
+                Rect::new(x, ruler.min[1] + 1., 1.0, 5.0),
+                colors.TEXT_MUTED,
+            );
+            label(
+                list,
+                atlas,
+                Rect::new(x + 3.0, ruler.min[1], 52.0, 14.0),
+                &format!("{:.0}s", f / fps),
+                true,
+            );
+            f += step;
+        }
     }
     let band_height = list.styles().metric("timeline.work_area.height", 14.);
     let marker_ruler = Rect { max: [ruler.max[0], ruler.max[1] - band_height], ..ruler };

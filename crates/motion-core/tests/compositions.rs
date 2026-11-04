@@ -59,7 +59,7 @@ fn child(engine: &mut Engine, name: &str, fps: u32) -> String {
     let result = edit(
         engine,
         MAIN_COMPOSITION,
-        json!({"kind":"create","settings":{"name":name,"width":64,"height":64,"fps":fps,"frames":120}}),
+        json!({"kind":"create","settings":{"name":name,"width":64,"height":64,"fps":motion_core::FrameRate::integer(fps).unwrap(),"frames":120,"timing":"preserve_frames"}}),
     );
     let EditResult::Composition { result } = &result[0] else {
         panic!()
@@ -301,13 +301,13 @@ fn settings_preview_candidate_keeps_content_and_retimes_keys_or_rejects_truncati
         .unwrap();
     let mut e = Engine::new(p).unwrap();
     let before = e.snapshot();
-    let settings = json!({"kind":"settings","settings":{"name":"60fps","width":64,"height":64,"fps":60,"frames":240,"timing":"preserve_seconds"}});
+    let settings = json!({"kind":"settings","settings":{"name":"60fps","width":64,"height":64,"fps":{"numerator":60,"denominator":1},"frames":240,"timing":"preserve_seconds"}});
     edit(&mut e, MAIN_COMPOSITION, settings);
     assert_eq!(e.project().layers[0].transform.rotation.keys[0].frame, 30);
     assert_eq!(e.project().layers.len(), 3);
     assert!(e.undo().unwrap());
     assert_eq!(e.snapshot(), before);
-    let settings = json!({"kind":"settings","settings":{"name":"short","width":64,"height":64,"fps":30,"frames":10,"shorten":"reject"}});
+    let settings = json!({"kind":"settings","settings":{"name":"short","width":64,"height":64,"fps":{"numerator":30,"denominator":1},"frames":10,"timing":"preserve_frames","shorten":"reject"}});
     assert!(e
         .apply_batch(
             parse_commands(&json!({"op":"composition","action":settings}).to_string()).unwrap()
@@ -317,7 +317,7 @@ fn settings_preview_candidate_keeps_content_and_retimes_keys_or_rejects_truncati
     edit(
         &mut e,
         MAIN_COMPOSITION,
-        json!({"kind":"settings","settings":{"name":"short","width":64,"height":64,"fps":30,"frames":10,"shorten":"trim"}}),
+        json!({"kind":"settings","settings":{"name":"short","width":64,"height":64,"fps":{"numerator":30,"denominator":1},"frames":10,"timing":"preserve_frames","shorten":"trim"}}),
     );
     assert!(e
         .project()

@@ -38,7 +38,7 @@ fn project(edges: &[Vec<usize>]) -> Project {
             name: format!("Node {source}"),
             width: 32,
             height: 32,
-            fps: 30,
+            fps: motion_model::FrameRate::integer(30).unwrap(),
             frames: 60,
             work_area: motion_model::WorkArea::full(60),
             guides: Vec::new(),

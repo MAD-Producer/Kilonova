@@ -783,7 +783,7 @@ fn explicit_composition_routing_edits_only_the_child_and_retains_one_step_histor
     apply(
         &mut engine,
         json!({"op":"composition","action":{"kind":"create","settings":{
-        "name":"Child","width":64,"height":64,"fps":24,"frames":60,"timing":"preserve_frames","shorten":"reject"}}}),
+        "name":"Child","width":64,"height":64,"fps":{"numerator":24,"denominator":1},"frames":60,"timing":"preserve_frames","shorten":"reject"}}}),
     );
     let child = engine.project().compositions[0].id.clone();
     apply(

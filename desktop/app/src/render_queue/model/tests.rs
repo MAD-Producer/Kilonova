@@ -9,7 +9,7 @@ fn job(id: u64, output: PathBuf) -> Job {
             name: "中英文".into(),
             width: 64,
             height: 32,
-            fps: 30,
+            fps: motion_core::FrameRate::integer(30).unwrap(),
             frames: 6,
             range: motion_core::WorkArea::full(6),
             revision: 7,

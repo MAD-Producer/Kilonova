@@ -84,7 +84,7 @@ fn fixture() -> Project {
             name: "Authored child".into(),
             width: 32,
             height: 32,
-            fps: 30,
+            fps: motion_core::FrameRate::integer(30).unwrap(),
             frames: 180,
             work_area: motion_core::WorkArea::full(180),
             guides: Vec::new(),

@@ -61,7 +61,7 @@ fn malformed_audio_keeps_symphonia_source_and_probe_phase() {
 fn invalid_project_keeps_model_failure_before_touching_cache_files() {
     let root = tempfile::tempdir().unwrap();
     let mut project = motion_model::Project::new(64, 64, 30, 30).unwrap();
-    project.fps = 0;
+    project.fps = motion_core::FrameRate::new(1, 2).unwrap();
     let expected = project.validate().unwrap_err().to_string();
     let error = match AudioMixer::new(project, root.path()) {
         Ok(_) => panic!("invalid project was accepted"),

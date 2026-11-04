@@ -30,7 +30,7 @@ fn panels(locale: Locale) -> Panels {
             name: "Frozen composition".into(),
             width: 32,
             height: 24,
-            fps: 30,
+            fps: motion_core::FrameRate::integer(30).unwrap(),
             frames: 2,
             range: motion_core::WorkArea::full(2),
             revision: 7,

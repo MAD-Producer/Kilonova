@@ -8,6 +8,31 @@ use crate::session::Session;
 use motion_render::PreviewMode;
 use serde_json::{json, Value};
 
+fn composition_clock_capabilities() -> Value {
+    let presets: Vec<Value> = [
+        (24, 1), (24000, 1001), (25, 1), (30, 1), (30000, 1001),
+        (50, 1), (60, 1), (60000, 1001), (90, 1), (120, 1), (144, 1), (240, 1),
+    ].into_iter().map(|(numerator, denominator)| json!({"numerator":numerator,"denominator":denominator})).collect();
+    json!({
+        "fps_range":[1,motion_core::MAX_COMPOSITION_FPS],
+        "fps_presets":presets,
+        "fps_type":"rational",
+        "frame_rate_wire_version":2,
+        "fps_fields":["numerator","denominator"],
+        "fps_canonical":"reduced_positive_ratio",
+        "decimal_aliases":false,
+        "timing_required":true,
+        "timing_modes":["preserve_frames","preserve_seconds"],
+        "timecode":{"non_drop":"integer_or_exact_integer_div_1_001",
+            "drop_rates":[{"numerator":30000,"denominator":1001},{"numerator":60000,"denominator":1001}],
+            "drop_pictures":false,"wrap_24_hours":false},
+        "frame_pts":"nearest_microsecond_ties_away_from_zero",
+        "audio_edges":{"work_area":"absolute_floor_sample","integer_clips":"reduced_rational_floor_sample",
+            "precise_active_intervals":"ceil_output_sample"},
+        "nested_frames":"unrounded_fractional"
+    })
+}
+
 impl Session {
     /// Explicit diagnostic query. Ordinary snapshots and per-frame sampling do
     /// not enumerate CPU allocations or acquire video cache observation locks.
@@ -405,7 +430,7 @@ impl Session {
                 "planar_intersections":{"supported":true,"method":"bsp","geometry_api":"sampleGeometryInto","max_batches":8192,"max_vertices":65536},
                 "separate_dimensions":{"supported":true,"activation":"explicit",
                 "layer_properties":["position","rotation","scale"],"camera_properties":camera_properties,"axes":["x","y","z"]},
-                "composition":{"fps_range":[1,motion_core::MAX_COMPOSITION_FPS],"fps_presets":[24,25,30,50,60,90,120,144,240],"fps_type":"integer"},
+                "composition":composition_clock_capabilities(),
                 "project_package":crate::ops::media::package_limits(),"multiple_compositions":true,"precompose":true,"composition_api":{"version":1,"project_format":motion_core::CURRENT_PROJECT_VERSION,"max_compositions":motion_core::composition::MAX_COMPOSITIONS,"max_depth":motion_core::composition::MAX_COMPOSITION_DEPTH,"depth_includes_root":true,"max_instances":motion_core::composition::MAX_COMPOSITION_INSTANCES,"max_render_instances":motion_core::composition::MAX_RENDER_COMPOSITION_INSTANCES,"reference_3d":true,"collapse_transformations":false,"precompose_modes":["move_all_attributes"],"precompose_range":["composition"],"precompose_contiguous":true,"precompose_3d":false,"history_scope":"project"},"video_import":true,"audio_import":true,"model_import":false,"prerender":false,
                 "layer_masks":{"version":1,"supported":true,"space":"source_pixels_y_down","stage":"before_image_effects","max_masks":16,"max_nodes":2048,"modes":["none","add","subtract","intersect","lighten","darken","difference"],"animated":["path","opacity","feather","expansion"],"variable_feather":false,"adjustment_masks":false},
                 "video":self.video_capabilities(),

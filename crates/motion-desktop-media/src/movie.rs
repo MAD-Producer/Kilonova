@@ -214,7 +214,7 @@ mod tests {
         l.sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:2.,samples:8});
         if nested {
             p.compositions.push(motion_core::Composition {id:"comp-movie-shutter".into(),name:"60 fps child".into(),
-                width:64,height:64,fps:60,work_area: motion_core::WorkArea::full(12), guides: Vec::new(), frames:12,background:[0.;4],camera:motion_core::Camera::new(64,64),
+                width:64,height:64,fps:motion_core::FrameRate::integer(60).unwrap(),work_area: motion_core::WorkArea::full(12), guides: Vec::new(), frames:12,background:[0.;4],camera:motion_core::Camera::new(64,64),
                 layers:vec![l],expressions:vec![]});
             let mut parent=Layer::solid(1,"parent shutter",[64.;2],[32.,32.,0.],[1.;4]);
             parent.content=Content::Composition {clip:motion_core::CompositionClip::new("comp-movie-shutter".into())};
@@ -280,7 +280,7 @@ mod tests {
         }
     }
     fn source_movie(path: &Path) {
-        let mut encode = crate::encode::Mp4Encoder::new(path, 64, 64, 30).unwrap();
+        let mut encode = crate::encode::Mp4Encoder::new(path, 64, 64, motion_core::FrameRate::integer(30).unwrap()).unwrap();
         for frame in 0..6 {
             let color = if frame < 3 {
                 [255, 0, 0, 255]
@@ -663,7 +663,7 @@ pub struct MovieResult {
     pub width: u32,
     pub height: u32,
     pub frames: u32,
-    pub fps: u32,
+    pub fps: motion_core::FrameRate,
     pub revision: u64,
     pub video_encoder: String,
     pub audio_codec: &'static str,
@@ -1142,7 +1142,12 @@ impl FrozenMovie {
                     };
                     control.check()?;
                     encoder.video_frame(&pixels, frame - self.range.in_frame)?;
-                    let until = (u64::from(frame + 1) * motion_media::OUTPUT_RATE / u64::from(p.fps))
+                    let until = u64::try_from(p.fps.ticks_at_frame(
+                        i64::from(frame) + 1,
+                        motion_media::OUTPUT_RATE as u32,
+                        motion_core::ClockRounding::Floor,
+                    ).map_err(|error| format!("export audio boundary frame={frame}: {error}"))?)
+                        .map_err(|error| format!("export audio boundary frame={frame}: {error}"))?
                         .min(total_samples);
                     while sample < until {
                         control.check()?;

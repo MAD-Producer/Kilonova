@@ -38,7 +38,7 @@ fn saved_camera_aperture_samples_its_own_clock_and_rejects_unbounded_values() {
     assert_eq!(restored, camera);
     for (frame, focus) in [(0., 100.), (10., 200.)] {
         let sample = AuthoredCameraSampler
-            .sample(&restored, frame, 30, [1920, 1080], glam::Mat4::IDENTITY)
+            .sample(&restored, frame, motion_model::FrameRate::integer(30).unwrap(), [1920, 1080], glam::Mat4::IDENTITY)
             .unwrap();
         assert_eq!(sample.depth_of_field.unwrap().focus_distance, focus);
     }
@@ -55,7 +55,7 @@ fn saved_camera_aperture_samples_its_own_clock_and_rejects_unbounded_values() {
     assert!(bad.validate_local().is_err());
     let pinhole = Camera::new(1920, 1080);
     assert!(AuthoredCameraSampler
-        .sample(&pinhole, 0., 30, [1920, 1080], glam::Mat4::IDENTITY)
+        .sample(&pinhole, 0., motion_model::FrameRate::integer(30).unwrap(), [1920, 1080], glam::Mat4::IDENTITY)
         .unwrap()
         .depth_of_field
         .is_none());

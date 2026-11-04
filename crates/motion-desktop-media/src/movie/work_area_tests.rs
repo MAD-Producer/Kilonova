@@ -96,7 +96,7 @@ fn selected_work_area_uses_absolute_source_frames_pcm_and_relative_output_timest
         .export(&file, &control, |value| progress.push(value))
         .unwrap();
     assert_eq!(result.frames, 6);
-    assert_eq!(result.fps, 59);
+    assert_eq!(result.fps, motion_core::FrameRate::integer(59).unwrap());
     assert_eq!(result.revision, 73);
     assert!(progress.windows(2).all(|pair| pair[0] <= pair[1]));
     assert_eq!(progress.last(), Some(&1.));
@@ -121,7 +121,7 @@ fn selected_work_area_uses_absolute_source_frames_pcm_and_relative_output_timest
         in_frame: 5,
         out_frame: 11,
     }
-    .sample_bounds(59, 48_000)
+    .sample_bounds(motion_core::FrameRate::integer(59).unwrap(), 48_000)
     .unwrap();
     let expected = (bounds.end - bounds.start) as usize;
     let (samples, rms) = super::tests::decoded_audio_rms(&file);

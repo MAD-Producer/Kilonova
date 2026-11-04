@@ -117,7 +117,10 @@ pub fn build(
         word(out, d + 48, (start + size) as u32);
         word(out, d + 52, videos.len() as u32);
         long(out, d + 56, e.scene.frame.to_bits());
-        word(out, d + 64, e.scene.fps);
+        // This reference emits the original integer-only version-1 wire.
+        // A fractional rate must never be truncated into this old oracle.
+        assert_eq!(e.scene.fps.ratio()[1], 1);
+        word(out, d + 64, e.scene.fps.ratio()[0]);
         for (j, (l, s)) in videos.iter().enumerate() {
             let v = start + size + j * VIDEO;
             long(out, v, l.id);

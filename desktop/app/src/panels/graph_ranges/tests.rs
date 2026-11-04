@@ -581,3 +581,23 @@ fn a_full_locked_cache_keeps_old_locks_and_opens_a_readonly_menu_until_another_v
         .iter()
         .all(|entry| entry.y.locked()));
 }
+
+#[test]
+fn rational_rate_changes_reset_graph_ranges_but_equivalent_ratios_preserve_navigation() {
+    let (_, mut state, _) = fixture();
+    state["project"]["fps"] = serde_json::json!({"numerator":30000,"denominator":1001});
+    let original = state.clone();
+    let mut controls = Controls::default();
+    let automatic = options().displayed;
+    assert_eq!(controls.displayed(&state, &id(), automatic), automatic);
+    assert!(controls.navigate_y(&id(), automatic.y, 2., 50.));
+    let navigated = controls.displayed(&state, &id(), automatic);
+    assert_ne!(navigated.y, automatic.y);
+    let mut equivalent = state.clone();
+    equivalent["project"]["fps"] = serde_json::json!({"numerator":60000,"denominator":2002});
+    assert_eq!(controls.displayed(&equivalent, &id(), automatic), navigated);
+    let mut changed = state.clone();
+    changed["project"]["fps"] = serde_json::json!({"numerator":2997,"denominator":100});
+    assert_eq!(controls.displayed(&changed, &id(), automatic), automatic);
+    assert_eq!(state, original);
+}

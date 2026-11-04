@@ -42,7 +42,7 @@ fn source_limits_allow_uhd_dci_portrait_fractional_and_high_frame_rates() {
         let reopened: Project = serde_json::from_str(&saved).unwrap();
         reopened.validate().unwrap();
         assert_eq!(p.video_assets, reopened.video_assets);
-        assert_eq!(reopened.fps, 24);
+        assert_eq!(reopened.fps, motion_core::FrameRate::integer(24).unwrap());
     }
     for a in [
         asset(4096, 2161, 60.0),
@@ -66,8 +66,8 @@ fn composition_rates_do_not_rewrite_the_source_clock() {
     for fps in [1, 24, 25, 30, 50, 60, 90, 120, 144, 240] {
         let p = Project::new(3840, 2160, fps, fps * 2).unwrap();
         let clip = VideoClip::new(1);
-        assert_eq!(clip.source_time_us(f64::from(fps) / 2.0, p.fps), 500_000);
-        assert_eq!(clip.source_time_us(f64::from(fps) / 4.0, p.fps), 250_000);
+        assert_eq!(clip.source_time_us(f64::from(fps) / 2.0, p.fps).unwrap(), 500_000);
+        assert_eq!(clip.source_time_us(f64::from(fps) / 4.0, p.fps).unwrap(), 250_000);
     }
     assert!(Project::new(64, 64, 0, 1).is_err());
     assert!(Project::new(64, 64, 241, 1).is_err());

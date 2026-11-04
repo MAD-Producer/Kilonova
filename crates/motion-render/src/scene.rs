@@ -14,8 +14,8 @@ const MAX_CURVE_SOURCE_BYTES: usize = 32 * 1024 * 1024;
 pub(crate) fn composition_source_frame(
     clip: &motion_model::CompositionClip,
     local_frame: f64,
-    parent_fps: u32,
-    child_fps: u32,
+    parent_fps: motion_model::FrameRate,
+    child_fps: motion_model::FrameRate,
     parent: &str,
     reference: u64,
     phase: &str,
@@ -130,7 +130,7 @@ pub struct Scene {
     pub(crate) curve_sources: Vec<motion_model::SampledColorCurve>,
     pub frame: f64,
     pub(crate) source_time: SourceTimeSample,
-    pub fps: u32,
+    pub fps: motion_model::FrameRate,
     pub sprite_assets: std::collections::HashMap<u64, [u32;2]>,
     pub composition_id: String,
     pub nested: Vec<NestedScene>,
@@ -244,7 +244,7 @@ impl Scene {
         context.source_objects = self.source_objects.clone();
         context
     }
-    fn empty(camera: CameraPose, background: [f32; 4], width: u32, height: u32, fps: u32, composition_id: String) -> Self {
+    fn empty(camera: CameraPose, background: [f32; 4], width: u32, height: u32, fps: motion_model::FrameRate, composition_id: String) -> Self {
         Self {
             camera,
             camera_viewport: [0., 0., width as f32, height as f32],
@@ -515,7 +515,7 @@ impl Scene {
                 let source_frame=composition_source_frame(clip,local.frame,project.fps,child.fps,
                     &project.composition_id,layer.id,"scene_sample")?;
                 let source=SourceTimeSample::with_traversal(source_frame,
-                    local.rate*f64::from(child.fps)/f64::from(project.fps),local.traversal)?;
+                    project.fps.map_frame(local.rate, child.fps)?,local.traversal)?;
                 if !source.in_interval(0., f64::from(child.frames)) {continue;}
                 let mut node = if let Some(index) = previous_nested.iter().position(|n| n.layer == layer.id && n.composition == clip.composition) {
                     previous_nested.swap_remove(index)
