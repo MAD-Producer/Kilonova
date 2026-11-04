@@ -1,0 +1,73 @@
+{
+  "archive_sha256": "1374c06bdff942ee626b836e1f992b4c7a667c61e72e68673321c73e62ff5778",
+  "members": {
+    "initial-glyph-index.stdout": {
+      "sha256": "8348787c8c8f3dfd08359edc49a339d8640f3894914732a0da8595e20d9437c3",
+      "bytes": 163899
+    },
+    "initial-glyph-index.stderr": {
+      "sha256": "f861f098bcaf7bdaae7555aac6e23eb5b14c57d68cdceb3fb39d01200a64857e",
+      "bytes": 743
+    },
+    "initial-glyph-index-result.json": {
+      "sha256": "bf90d1d504a32f6020f9d2eb57ab4f0a4b3d514f5e3ecc1ff76fe40319c8462b",
+      "bytes": 74
+    },
+    "glyph-index.stdout": {
+      "sha256": "37f52864b584d9bf9948fc42f082109bbe5ec08b7af227b90232b0e6e9955c6c",
+      "bytes": 164104
+    },
+    "glyph-index.stderr": {
+      "sha256": "cac04429a0fb3de9d765cf0501c1a478250265bd47755c79672e240d40a539e1",
+      "bytes": 296
+    },
+    "glyph-index-result.json": {
+      "sha256": "507927314d0f7e61fb062173ba62036c3a872a934ac2c2effe36281860b6a30e",
+      "bytes": 72
+    },
+    "indexed-raster-ui.stdout": {
+      "sha256": "ab58f259ec2eaae80e4a4375c3ac8f5b239bb348f90b6519d677f24aab0fd654",
+      "bytes": 178315
+    },
+    "indexed-raster-ui.stderr": {
+      "sha256": "920229bb9e9a4aa7321de8634ed86e6b143c77e5685a300beb434548c2fe8d9c",
+      "bytes": 1096
+    },
+    "indexed-raster-ui-result.json": {
+      "sha256": "db55d1ac43d3cfdf451f5e6820eb26b4d424652e7360868ff734085e065dd5a7",
+      "bytes": 72
+    },
+    "source/desktop/ui/src/text.rs": {
+      "sha256": "4113013f77bc3d0aac0ea37006b35ba68abd7c584da2078a240a9a441c532c34",
+      "bytes": 27488
+    },
+    "source/desktop/ui/src/text/glyph_index.rs": {
+      "sha256": "e6de6d59af7085b7f3ddd82e9db5f6b5159e60e67b030608ec068b6ca8d295dc",
+      "bytes": 13168
+    },
+    "source/desktop/ui/src/text/shaping.rs": {
+      "sha256": "cff03b581cd6dd88800e599e6153375dc99d179a80d3f6627f8ad313b8fc5a00",
+      "bytes": 4481
+    },
+    "source/desktop/ui/tests/text_bounds.rs": {
+      "sha256": "14c0f79fc8db38ff40fa192e908e8b253cf0177808ff1f46ccb66856caf2f046",
+      "bytes": 7312
+    },
+    "source/desktop/ui/tests/text_shaping.rs": {
+      "sha256": "2cd499d7f6c302e9a78c783c0ef06b89d4b6727c725f736b45ec88684e69ffcf",
+      "bytes": 3306
+    },
+    "source/desktop/ui/Cargo.toml": {
+      "sha256": "3e120dbeaf4c1ede2fc410d781b24b107433a24b2478fec8383c50b6d57dfecb",
+      "bytes": 819
+    },
+    "source/Cargo.lock": {
+      "sha256": "bbc6d132108a970e2ec34b371736a9a06c6fcd9091bb875ca45eac5d0015b9d6",
+      "bytes": 147203
+    },
+    "receipt.json": {
+      "sha256": "3730b7755b37a204b6e3c2eeedf8f4388595895eb535fa0a22aad64ebc8529a1",
+      "bytes": 3322
+    }
+  }
+}

@@ -5,6 +5,7 @@
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
 use unicode_segmentation::UnicodeSegmentation;
 pub mod shaping;
+pub mod glyph_index;
 
 struct SharedFontBytes(FontArc);
 impl AsRef<[u8]> for SharedFontBytes {
@@ -83,6 +84,7 @@ pub struct TextAtlas {
     max_dimension: u32,
     pixels: Vec<u8>,
     entries: std::collections::HashMap<(char, u32, u32), GlyphEntry>,
+    indexed_entries: std::collections::HashMap<(glyph_index::FontSlot, u16, u32, u32), GlyphEntry>,
     pixel_ratio: f32,
     pub selected_family: String,
     #[cfg(target_os = "windows")]
@@ -188,6 +190,7 @@ impl TextAtlas {
             max_dimension: MAX_ATLAS_DIMENSION,
             pixels,
             entries: std::collections::HashMap::new(),
+            indexed_entries: std::collections::HashMap::new(),
             pixel_ratio: 1.,
             selected_family: "custom".into(),
             #[cfg(target_os = "windows")]
@@ -220,6 +223,7 @@ impl TextAtlas {
 
     fn clear(&mut self) {
         self.entries.clear();
+        self.indexed_entries.clear();
         self.pixels.fill(0);
         self.cursor = [0.0, 0.0];
         self.row_height = 0;
@@ -254,7 +258,7 @@ impl TextAtlas {
                 .zip(pixels.chunks_exact_mut(new_width as usize * 4)) {
                 to[..from.len()].copy_from_slice(from);
             }
-            for entry in self.entries.values_mut() {
+            for entry in self.entries.values_mut().chain(self.indexed_entries.values_mut()) {
                 for i in 0..4 {
                     entry.uv[i] *= if i % 2 == 0 { old.width as f32 / new_width as f32 }
                         else { old.height as f32 / new_height as f32 };
@@ -361,20 +365,41 @@ impl TextAtlas {
             self.entries.insert(key, blank);
             return blank;
         }
-        let mut glyph = font.scaled_glyph(character);
-        glyph.scale = PxScale::from(font.scale.y * ratio * self.pixel_ratio);
-        let Some(outlined) = font.outline_glyph(glyph) else {
-            self.entries.insert(key, blank);
+        let primary = self.font.glyph_id(character).0 != 0;
+        let font = font.clone();
+        let Some(entry) = self.rasterize_glyph(font, id.0, size, blank, primary, character) else {
             return blank;
+        };
+        self.entries.insert(key, entry);
+        entry
+    }
+
+    fn rasterize_glyph(
+        &mut self,
+        font: PxScaleFont<FontArc>,
+        id: u16,
+        size: f32,
+        blank: GlyphEntry,
+        primary: bool,
+        character: char,
+    ) -> Option<GlyphEntry> {
+        #[cfg(not(target_os = "windows"))]
+        let _ = primary;
+        let mut glyph = ab_glyph::Glyph {
+            id: ab_glyph::GlyphId(id), scale: font.scale, position: ab_glyph::point(0., 0.),
+        };
+        glyph.scale = PxScale::from(font.scale.y * (size / self.font_size) * self.pixel_ratio);
+        let Some(outlined) = font.outline_glyph(glyph) else {
+            return Some(blank);
         };
         // Pixel bounds are integers and exactly match what `draw` reports, so
         // the atlas rectangle and the draw coordinates agree without rounding.
         let bounds = outlined.px_bounds();
         #[cfg(target_os = "windows")]
-        let hinted = if self.font.glyph_id(character).0 != 0 {
+        let hinted = if primary {
             self.hinted
                 .as_mut()
-                .and_then(|r| r.glyph(id.0, size * self.pixel_ratio))
+                .and_then(|r| r.glyph(id, size * self.pixel_ratio))
         } else {
             None
         };
@@ -395,13 +420,12 @@ impl TextAtlas {
         );
         if width == 0 || height == 0 {
             // Whitespace advances without a bitmap.
-            self.entries.insert(key, blank);
-            return blank;
+            return Some(blank);
         }
         let padding = self.config.padding;
         if !self.reserve(width, height) {
             self.observe_capacity(character, size);
-            return blank;
+            return None;
         }
         let x = self.cursor[0] as u32;
         let y = self.cursor[1] as u32;
@@ -437,12 +461,12 @@ impl TextAtlas {
             ],
             // Atlas rows advance downward; glyph space advances upward.
             offset: offset.map(|v| v / self.pixel_ratio),
-            advance,
+            advance: blank.advance,
         };
-        self.entries.insert(key, entry);
         self.dirty = true;
-        entry
+        Some(entry)
     }
+
 
     fn observe_missing_glyph(&self, character: char, size: f32) {
         self.observations.record("text.missing_glyph", &format!("U+{:04X}", character as u32),
