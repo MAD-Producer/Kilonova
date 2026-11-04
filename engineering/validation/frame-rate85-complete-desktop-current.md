@@ -25,6 +25,8 @@ commands, environment, source hashes, target inventory and a verified manifest.
 All recorded source hashes still match. No retry or modification of assertions,
 ignore markers, budgets or stack size was used to turn the failure green.
 
-Full desktop/UI acceptance remains pending, as do final CI and the separately
-retained earlier native product stack-overflow and heap-corruption failures.
-This report does not diagnose or resolve those failures. Android is excluded.
+This local attempt remains a compilation failure before test execution. Later
+[source-bound CI results](frame-rate85-86-green-ci-current.md) record successful
+desktop runs on their own checkout commits and feature sets. They do not
+rewrite this attempt or resolve the separately retained earlier native product
+stack-overflow and heap-corruption failures. Android is excluded.

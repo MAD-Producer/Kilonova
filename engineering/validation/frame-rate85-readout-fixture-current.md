@@ -37,4 +37,7 @@ also consumed. The [receipt](data/frame-rate85-readout-fixture-v2.json) and
 [archive](data/frame-rate85-readout-fixture-v2.zip) retain both outputs, exact
 before/after source, patch, command, environment, source closure and a read-back
 verified per-member manifest. Complete integrated desktop/UI regression and
-final CI remain required. Earlier native crashes remain unresolved.
+final CI remained required at that recording. The subsequent
+[source-bound CI receipt](frame-rate85-86-green-ci-current.md) records successful
+jobs for the exact later heads and the FFmpeg feature gap. Earlier native
+crashes remain unresolved.
