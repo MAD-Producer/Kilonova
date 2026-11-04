@@ -76,3 +76,12 @@ executed complete host-library and seven renderer-target gates, actual Surface,
 original-video clock and current-main prefetch controls. It explicitly includes
 main e2347558. Historical full model/core results refer to identical crate trees;
 no new full desktop/workspace or final-head CI pass is claimed.
+
+
+## Post-merge current-main validation
+
+The [new source-bound integration](tracking88-lens-current-main-v2.md) covers
+parent 52b26fda and main 0790404f after #583 merged. Its 281 passes include
+seven complete renderer targets, the complete host library and actual native
+Surface, prefetch and original-clock controls. Earlier counts retain their
+original scope; this is not full desktop/workspace or final CI acceptance.

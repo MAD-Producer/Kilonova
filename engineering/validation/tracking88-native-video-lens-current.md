@@ -136,3 +136,12 @@ This consolidation changes documentation/evidence only. It does not execute
 new runtime tests, upgrade historical results to a new source snapshot, prove
 photographic tracking quality or complete issue #88 or the 3D route. The latest
 PR checks must be inspected separately; Android remains outside acceptance.
+
+
+## Post-merge current-main validation
+
+The [new source-bound integration](tracking88-lens-current-main-v2.md) covers
+parent 52b26fda and main 0790404f after #583 merged. Its 281 passes include
+seven complete renderer targets, the complete host library and actual native
+Surface, prefetch and original-clock controls. Earlier counts retain their
+original scope; this is not full desktop/workspace or final CI acceptance.
