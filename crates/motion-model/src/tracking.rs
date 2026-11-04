@@ -3,6 +3,7 @@
 pub mod asset;
 pub mod colmap;
 pub mod decode;
+pub mod document;
 pub mod encode;
 pub mod plate;
 pub mod point;

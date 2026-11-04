@@ -86,7 +86,7 @@ impl Write for Output {
         Ok(())
     }
 }
-fn bounded_json(value: &impl Serialize, limit: usize) -> Result<Vec<u8>, Error> {
+pub(super) fn bounded_json(value: &impl Serialize, limit: usize) -> Result<Vec<u8>, Error> {
     let mut out = Output {
         bytes: Vec::new(),
         limit,

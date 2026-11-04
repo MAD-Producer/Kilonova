@@ -35,11 +35,16 @@ UTF-8 bytes without whitespace/control characters. Duplicate identifiers or
 names, dangling camera references, invalid metadata, malformed feature triples,
 truncated records and unsupported models fail the entire conversion.
 
-Remaining: managed project attachment of both vendor originals and options,
+Remaining at this initial recording: managed project attachment of both vendor originals and options,
 transactional source verification/import, actual exported reconstruction
 acceptance and independent held-out reprojection. Existing canonical
 camera/lens binding acceptance does not prove these new adapter boundaries.
 No panels or other UI files change. Android remains excluded.
+
+The later [managed-import increment](tracking88-colmap-managed-current.md)
+implements original/map/options persistence through the existing transaction,
+with actual native MCP, history and fresh-process reopen evidence. Photographed
+reconstruction qualification and final source-bound CI remain separate.
 
 ## Executed evidence
 

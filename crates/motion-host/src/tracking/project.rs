@@ -3,7 +3,7 @@
 use super::{asset::Asset, decode, source};
 use motion_core::{
     media_assets::{self, AssetRef, MediaAsset},
-    Project, TrackingAsset, TrackingFormat,
+    Project, TrackingAsset,
 };
 use std::{fmt, io::Read, path::Path};
 
@@ -11,6 +11,7 @@ use std::{fmt, io::Read, path::Path};
 pub enum Error {
     Project(motion_core::Error),
     Decode(decode::Error),
+    Document(super::document::Error),
     Runtime(super::encode::Error),
     Source(source::Error),
     Binding(&'static str),
@@ -20,6 +21,7 @@ impl fmt::Display for Error {
         match self {
             Self::Project(cause) => write!(f, "tracking project attachment: {cause}"),
             Self::Decode(cause) => write!(f, "tracking original document: {cause}"),
+            Self::Document(cause) => write!(f, "tracking original document: {cause}"),
             Self::Runtime(cause) => write!(f, "tracking runtime admission: {cause}"),
             Self::Source(cause) => write!(f, "tracking bound source: {cause}"),
             Self::Binding(cause) => write!(f, "tracking binding: {cause}"),
@@ -31,9 +33,19 @@ impl std::error::Error for Error {
         match self {
             Self::Project(cause) => Some(cause),
             Self::Decode(cause) => Some(cause),
+            Self::Document(cause) => Some(cause),
             Self::Runtime(cause) => Some(cause),
             Self::Source(cause) => Some(cause),
             Self::Binding(_) => None,
+        }
+    }
+}
+
+impl From<super::document::Error> for Error {
+    fn from(cause: super::document::Error) -> Self {
+        match cause {
+            super::document::Error::Canonical(cause) => Self::Decode(cause),
+            cause => Self::Document(cause),
         }
     }
 }
@@ -73,7 +85,7 @@ fn check_source(
     Ok(())
 }
 
-/// Owns byte-exact imported JSON including whitespace and original number spelling.
+/// Owns byte-exact imported JSON, including vendor text and conversion metadata.
 /// Conversion helpers never replace these bytes with a normalized/repaired solve.
 pub struct Attachment {
     descriptor: TrackingAsset,
@@ -90,7 +102,9 @@ impl Attachment {
         proof: source::VerifiedSource,
     ) -> Result<Self, Error> {
         project.validate().map_err(Error::Project)?;
-        let solve = decode::from_slice(original).map_err(Error::Decode)?;
+        let decoded = super::document::from_slice(original)?;
+        let format = decoded.format;
+        let solve = decoded.asset;
         if proof.sha256() != solve.source_sha256 {
             return Err(Error::Binding(
                 "verification belongs to a different solve/source",
@@ -103,7 +117,7 @@ impl Attachment {
             path: format!("assets/tracking/{id}-{sha256}.mstrack"),
             bytes: original.len() as u64,
             sha256,
-            format: TrackingFormat::MotionTrackingJsonV1,
+            format,
             source,
             source_sha256: solve
                 .source_sha256
@@ -161,7 +175,7 @@ pub fn load_original(
     }
     let original =
         motion_core::storage::read_tracking_resource(root, descriptor).map_err(Error::Project)?;
-    let solve = decode::from_slice(&original).map_err(Error::Decode)?;
+    let solve = super::document::from_slice(&original)?.asset;
     let declared: String = solve
         .source_sha256
         .iter()

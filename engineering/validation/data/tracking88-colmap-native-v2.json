@@ -1,0 +1,30 @@
+{
+  "audit": {
+    "status": "native_stdio_vendor_import_default_channels_history_and_reopen_passed",
+    "sourceBase": "5c3e0ff85feeb67ad8a5cbce10ed99870edd31a6",
+    "binarySha256": "3b4bbd28774e82425058529827782c9da03013d52261a0586d17320bbceef0ff",
+    "normalDevBuildExit": 0,
+    "normalDevBuildSeconds": 190.234,
+    "runtimeSeconds": 13.407,
+    "actualReplyCount": 18,
+    "checks": [
+      "actual_tool_catalogue_describes_vendor_envelope",
+      "actual_nonunit_pose_and_wrong_encoded_source_refuse_without_author_or_disk_publication",
+      "native_import_verifies_plate_preserves_vendor_bytes_exact_clock_and_leaves_camera_authorship_untouched",
+      "one_undo_redo_and_saved_original_survive_external_document_removal",
+      "default_info_start_and_original_error_file_stderr_are_visible_without_payload_leak_or_non_json_stdout",
+      "fresh_readonly_process_reopens_normalized_pose_and_exact_original_vendor_text_mapping_and_options"
+    ],
+    "originalObserverExit": 1,
+    "originalObserverCause": "Windows CRLF fixture write compared against reconstructed LF bytes; v2 explicitly writes LF and retains all 40 original observer assertions",
+    "limits": [
+      "Actual executable stdio and original synthetic image only; no photographed reconstruction, motion solve or pixel-quality claim",
+      "No automatic camera binding or ordinary camera-key baking",
+      "Android excluded; source-bound CI and remaining issue acceptance separate"
+    ]
+  },
+  "archive": "tracking88-colmap-native-v2.zip",
+  "bytes": 563286,
+  "sha256": "524fa3d461dd209bb3cdeb3cee1da8367f5e98eb5d06a7e8be9ff891aad38c7e",
+  "members": 39
+}
