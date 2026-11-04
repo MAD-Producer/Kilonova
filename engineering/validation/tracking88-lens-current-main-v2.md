@@ -59,3 +59,11 @@ earlier native product crashes are not resolved by this scoped pass. No retry
 or relaxed assertion is presented as a fix. Fresh final-head CI, full #88/3D
 acceptance and photographed tracking quality remain pending. Android is retired
 and excluded. No issue closure is implied.
+
+After #584 merged, this branch was aligned to main `b4133761`. The
+[source comparison](data/tracking88-lens-main-base-v1.json) confirms every
+product/test/Cargo byte remains identical to validated head `22c3da3d`.
+The three add/add conflicts retain the already validated Surface registration
+and documentation supersets over the squashed parent versions. No tests were
+repeated for unchanged sources. Retargeting the PR to main requires fresh
+checks for its final head; the 281-pass record retains its original scope.

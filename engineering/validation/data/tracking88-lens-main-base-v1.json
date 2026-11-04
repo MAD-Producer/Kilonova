@@ -1,0 +1,19 @@
+{
+  "status": "main_synchronization_preserves_validated_product_test_sources",
+  "validatedHead": "22c3da3d65761d40027abd60657dd267b2356833",
+  "main": "b4133761df4bed5341d104740ebbe9820ad14554",
+  "sourceDiffBytes": 0,
+  "paths": [
+    "crates",
+    "desktop",
+    "Cargo.toml",
+    "Cargo.lock"
+  ],
+  "conflicts": [
+    "desktop/app/src/engine/tracking_video_surface_tests.rs",
+    "engineering/validation/tracking88-acceptance-map-current.md",
+    "engineering/validation/tracking88-surface-current.md"
+  ],
+  "resolution": "Keep validated586 three-line Surface binding registration and documentation supersets over newly squashed584 versions; no other conflict.",
+  "limits": "No test rerun for identical sources; refreshed new-head CI still required; original281-pass evidence retains its scoped limits"
+}
