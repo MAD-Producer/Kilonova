@@ -1,0 +1,16 @@
+{
+  "head": "cc301c040fb40e69481f414646097781af2d4a72",
+  "binarySha256": "9fa52e74147b67db70437dfb01d7bddab4cdcbb4f77c54e532f8beb48950337a",
+  "replyCount": 6,
+  "actualFailure": "expression {\"kind\":\"property\",\"object\":0,\"property\":\"position\"} at frame 0: expression cancelled or execution budget exceeded (phase=execution cause=execution_deadline elapsed_us=21201 frame_remaining_at_entry_us=99890)",
+  "limits": [
+    "Actual default Info file/Error stderr and JSONRPC isolation through native worker, refusal atomicity, valid recovery and undo",
+    "First wire attempt stopped on an empty fixture layer list before any edit. Corrected observer fixture uses native legacy camera object0; no product/assertion changes",
+    "Normal dev binary build, no codegen override; this does not prove original default TEST compiler AV or CI timeout fixed",
+    "Full31target desktop/UI gate is frozen2a5 before this observation increment. This workflow is sourcecc301 based on mainb413, before later586merge"
+  ],
+  "archive": "expression-budget-native-v2.zip",
+  "bytes": 503295,
+  "sha256": "0fe4d4af32a27806d5589879847b0ffc0fd319ce009b027b152e5ba2cd364226",
+  "members": 21
+}
