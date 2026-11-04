@@ -4,6 +4,24 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 
 #[test]
 fn fractional_project_clocks_render_native_readouts_in_both_locales() {
+    const CHILD: &str = "MOTION_RATIONAL_CLOCK_UI_CHILD";
+    const NAME: &str = "shell::rational_clock_native_tests::fractional_project_clocks_render_native_readouts_in_both_locales";
+    // winit permits one event loop per process, even after it is dropped.
+    // Other native tests may already have consumed the parent process's loop.
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
     let temporary = tempfile::tempdir().unwrap();
     let root = std::env::var_os("MOTION_RATIONAL_CLOCK_UI_ARTIFACTS")
         .map(PathBuf::from).unwrap_or_else(|| temporary.path().to_path_buf());
