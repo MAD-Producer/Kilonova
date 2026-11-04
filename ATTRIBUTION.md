@@ -252,3 +252,13 @@ crate SHA-256 865dcc4105d51c323d8fedbb2d75b5e9c8ecddf5613f74c82f851d0afbc97114�
 ef666662f5985965bbbb726c4f77d15481831a1b），来源
 https://github.com/googlefonts/fontations ，MIT OR Apache-2.0，本次按 MIT 使用，
 许可原文保留于 NOTICE；未修改上游源码。确切 crate 校验值保留在 Cargo.lock。
+
+
+## Unicode 双向文本算法（UI 布局接入中）
+
+作者：The Servo Project Developers；上游 LICENSE-MIT 版权行为 The Rust Project Developers。
+来源：https://github.com/servo/unicode-bidi ，固定版本 0.3.18，revision 580b9c6c68fdb689916017e61d5052be3ed349b5，
+crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5。MIT OR Apache-2.0，本次按 MIT 使用，
+原许可和 COPYRIGHT 说明保留于 NOTICE。上游源码未修改；仅调用双向级别与运行
+排序 API，与项目独立编写的字素/字体/脚本分段和塑形布局组合。不新增或分发字体
+及第三方界面资产；接入模块不代表产品绘制或整个 #129 已完成。

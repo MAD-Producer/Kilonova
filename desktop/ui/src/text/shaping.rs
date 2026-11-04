@@ -6,7 +6,7 @@
 use harfrust::{Buffer, ClusterLevel, Font, ShapeOptions, ShaperFont};
 use std::{fmt, sync::Arc};
 
-pub use harfrust::{Direction, GlyphInfo, GlyphPosition};
+pub use harfrust::{Direction, GlyphInfo, GlyphPosition, Script};
 
 /// Reject oversized runs before allocating shaping scratch storage.
 pub const MAX_RUN_BYTES: usize = 16 * 1024;
@@ -101,6 +101,15 @@ impl RunShaper {
     /// into suitable runs. Length and direction checks happen before clearing
     /// the last buffer; engine errors propagate without scalar substitution.
     pub fn shape(&mut self, text: &str, direction: Direction) -> Result<ShapedRun<'_>, ShapeError> {
+        self.shape_script(text, direction, None)
+    }
+
+    pub fn shape_script(
+        &mut self,
+        text: &str,
+        direction: Direction,
+        script: Option<Script>,
+    ) -> Result<ShapedRun<'_>, ShapeError> {
         if text.len() > MAX_RUN_BYTES {
             return Err(ShapeError::RunTooLong {
                 bytes: text.len(),
@@ -115,6 +124,7 @@ impl RunShaper {
         self.buffer
             .set_cluster_level(ClusterLevel::MonotoneGraphemes);
         self.buffer.set_direction(direction);
+        self.buffer.set_script(script);
         self.buffer.guess_segment_properties();
         harfrust::shape(
             &ShaperFont::new(&self.font),

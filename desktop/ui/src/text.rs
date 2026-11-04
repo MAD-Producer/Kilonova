@@ -6,6 +6,7 @@ use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
 use unicode_segmentation::UnicodeSegmentation;
 pub mod shaping;
 pub mod glyph_index;
+pub mod layout;
 
 struct SharedFontBytes(FontArc);
 impl AsRef<[u8]> for SharedFontBytes {
@@ -85,6 +86,7 @@ pub struct TextAtlas {
     pixels: Vec<u8>,
     entries: std::collections::HashMap<(char, u32, u32), GlyphEntry>,
     indexed_entries: std::collections::HashMap<(glyph_index::FontSlot, u16, u32, u32), GlyphEntry>,
+    layouts: layout::LayoutCache,
     pixel_ratio: f32,
     pub selected_family: String,
     #[cfg(target_os = "windows")]
@@ -191,6 +193,7 @@ impl TextAtlas {
             pixels,
             entries: std::collections::HashMap::new(),
             indexed_entries: std::collections::HashMap::new(),
+            layouts: Default::default(),
             pixel_ratio: 1.,
             selected_family: "custom".into(),
             #[cfg(target_os = "windows")]
@@ -224,6 +227,7 @@ impl TextAtlas {
     fn clear(&mut self) {
         self.entries.clear();
         self.indexed_entries.clear();
+        self.layouts.clear();
         self.pixels.fill(0);
         self.cursor = [0.0, 0.0];
         self.row_height = 0;
