@@ -277,12 +277,16 @@ pub(in crate::expressions) fn evaluate_linked(
         let clock = execution_deadline.clone();
         let mark = expired.clone();
         let cancellation = cancel.clone();
+        let trace = Arc::new(BudgetTrace::new(frame_deadline));
+        let interrupt_trace = trace.clone();
         engine.runtime.set_interrupt_handler(Some(Box::new(move || {
             let now = Instant::now();
-            let stop = cancellation.load(Ordering::Relaxed)
+            let cancelled = cancellation.load(Ordering::Relaxed);
+            let stop = cancelled
                 || now >= frame_deadline
                 || clock.get().is_some_and(|deadline| now >= *deadline);
             if stop {
+                interrupt_trace.record(now, cancelled, now >= frame_deadline);
                 mark.store(true, Ordering::Relaxed);
             }
             stop
@@ -290,10 +294,13 @@ pub(in crate::expressions) fn evaluate_linked(
         let result = (|| {
             let context = evaluation_context(&engine.runtime)?;
             context.with(|ctx| {
+                trace.phase(Phase::Bindings);
                 let _path = session.enter(&expression.target)?;
                 let function = load(ctx, programs, session.clone(), expression, frame)?;
                 let deadline = frame_deadline.min(Instant::now() + Duration::from_millis(20));
                 if cancel.load(Ordering::Relaxed) || Instant::now() >= deadline {
+                    let now = Instant::now();
+                    trace.record(now, cancel.load(Ordering::Relaxed), now >= frame_deadline);
                     expired.store(true, Ordering::Relaxed);
                     return Err(Error::Invalid(
                         "expression cancelled or execution budget exceeded".into(),
@@ -302,6 +309,7 @@ pub(in crate::expressions) fn evaluate_linked(
                 execution_deadline.set(deadline).map_err(|_| {
                     Error::Invalid("execution deadline was already initialized".into())
                 })?;
+                trace.phase(Phase::Execution);
                 value(function).and_then(|values| session.checked(expression, frame, values))
             })
         })();
@@ -311,9 +319,7 @@ pub(in crate::expressions) fn evaluate_linked(
             return Err(cause);
         }
         if expired.load(Ordering::Relaxed) {
-            return Err(Error::Invalid(
-                "expression cancelled or execution budget exceeded".into(),
-            ));
+            return Err(trace.error());
         }
         result
     });

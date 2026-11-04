@@ -14,6 +14,8 @@ use std::{
     rc::Rc,
 };
 mod references;
+mod budget_trace;
+use budget_trace::{BudgetTrace, Phase};
 pub(super) use references::evaluate_linked;
 
 const MEMORY: usize = 64 * 1024 * 1024;
@@ -86,16 +88,23 @@ impl JsEngine {
         let execution_clock = execution_deadline.clone();
         let mark = expired.clone();
         let cancellation = cancel.clone();
+        let trace = Arc::new(BudgetTrace::new(frame_deadline));
+        let interrupt_trace = trace.clone();
         self.runtime.set_interrupt_handler(Some(Box::new(move || {
             let now = Instant::now();
-            let stop = cancellation.load(Ordering::Relaxed) || now >= frame_deadline
+            let cancelled = cancellation.load(Ordering::Relaxed);
+            let stop = cancelled || now >= frame_deadline
                 || execution_clock.get().is_some_and(|deadline| now >= *deadline);
-            if stop { mark.store(true, Ordering::Relaxed); }
+            if stop {
+                interrupt_trace.record(now, cancelled, now >= frame_deadline);
+                mark.store(true, Ordering::Relaxed);
+            }
             stop
         })));
         let result = (|| {
             let context = evaluation_context(&self.runtime)?;
             context.with(|ctx| {
+                trace.phase(Phase::Bindings);
                 let operation = || -> rquickjs::Result<Vec<f32>> {
                     ctx.globals().set("__msData", data)?;
                     ctx.globals().set("__msSample", Function::new(ctx.clone(), move |time: f64| -> rquickjs::Result<String> {
@@ -119,6 +128,8 @@ impl JsEngine {
                     // allowance here, still capped by the whole-frame deadline.
                     let deadline = frame_deadline.min(Instant::now() + Duration::from_millis(20));
                     if cancel.load(Ordering::Relaxed) || Instant::now() >= deadline {
+                        let now = Instant::now();
+                        trace.record(now, cancel.load(Ordering::Relaxed), now >= frame_deadline);
                         expired.store(true, Ordering::Relaxed);
                         return Err(rquickjs::Error::Exception);
                     }
@@ -127,6 +138,7 @@ impl JsEngine {
                             "execution deadline", "expression", "execution deadline was already initialized",
                         )
                     })?;
+                    trace.phase(Phase::Execution);
                     let result: Value = function.call(())?;
                     if let Some(n) = result.as_number() { return Ok(vec![n as f32]); }
                     if let Some(a) = result.as_array() {
@@ -142,9 +154,7 @@ impl JsEngine {
         self.runtime.set_interrupt_handler(None);
         self.runtime.run_gc();
         if expired.load(Ordering::Relaxed) {
-            return Err(Error::Invalid(
-                "expression cancelled or execution budget exceeded".into(),
-            ));
+            return Err(trace.error());
         }
         let result = result?;
         if result.iter().any(|v| !v.is_finite()) {

@@ -101,3 +101,21 @@ fn prepared_sources_keep_cancellation_and_execution_limits() {
     .join()
     .unwrap();
 }
+
+#[test]
+fn actual_execution_budget_failure_reports_phase_cause_and_elapsed() {
+    std::thread::spawn(|| {
+        let infinite = project("while (true) {}\n[500,0,0]");
+        prepare_expression_sources(&infinite).unwrap();
+        let before = infinite.clone();
+        let error = infinite.evaluated_at(0.).unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("budget exceeded"), "{message}");
+        assert!(message.contains("phase="), "{message}");
+        assert!(message.contains("cause=execution_deadline") || message.contains("cause=frame_deadline"), "{message}");
+        assert!(message.contains("elapsed_us="), "{message}");
+        assert!(message.contains("frame_remaining_at_entry_us="), "{message}");
+        assert_eq!(before, infinite);
+        assert_eq!(project("[5,0,0]").evaluated_at(0.).unwrap().layers[0].transform.position.value, [5.,0.,0.]);
+    }).join().unwrap();
+}
