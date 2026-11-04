@@ -1,0 +1,90 @@
+{
+  "status": "passed_pair_published_ack_and_unwind_policy_real_disk_controls",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-host",
+    "--lib",
+    "ops::media::tracked_replacement::tests::",
+    "--locked",
+    "--offline",
+    "--",
+    "--test-threads=1"
+  ],
+  "exitCode": 0,
+  "startedUtc": "2026-11-02T04:30:34.287465+00:00",
+  "completedUtc": "2026-11-02T04:31:12.432421+00:00",
+  "hostUnitRegression": {
+    "status": "passed_full_host_unit_regression_with_pair_publication_controls",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-host",
+      "--lib",
+      "--locked",
+      "--offline",
+      "--",
+      "--test-threads=1"
+    ],
+    "exitCode": 0,
+    "startedUtc": "2026-11-02T04:32:03.592819+00:00",
+    "completedUtc": "2026-11-02T04:34:45.926904+00:00"
+  },
+  "source": {
+    "crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "validatedRawSha256": "6db79169e7394a72f5367914bd2d4c8344e4d59042245eda8e85a0629f058431",
+      "gitLfSha256": "6db79169e7394a72f5367914bd2d4c8344e4d59042245eda8e85a0629f058431"
+    },
+    "crates/motion-host/src/ops/media/tracked_replacement_tests.rs": {
+      "validatedRawSha256": "f3b4b1d0fe63489af1614e9270e8eda47956f5184918ec827c10be3f997d5152",
+      "gitLfSha256": "f3b4b1d0fe63489af1614e9270e8eda47956f5184918ec827c10be3f997d5152"
+    }
+  },
+  "baseCommit": "8bc5cfa1059760f25e4a711a66d9fef631182f72",
+  "members": {
+    "source/crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "bytes": 13577,
+      "sha256": "6db79169e7394a72f5367914bd2d4c8344e4d59042245eda8e85a0629f058431"
+    },
+    "source/crates/motion-host/src/ops/media/tracked_replacement_tests.rs": {
+      "bytes": 7197,
+      "sha256": "f3b4b1d0fe63489af1614e9270e8eda47956f5184918ec827c10be3f997d5152"
+    },
+    "stdout.log": {
+      "bytes": 372,
+      "sha256": "a703817c1ff8faf9ebcf4f408151e17f941f042324460cdad366d50d183103e4"
+    },
+    "stderr.log": {
+      "bytes": 1412,
+      "sha256": "c9db768e52be1bcb23c8bcaf68b05803df988d3d8a3ba424bad8625015c1fd97"
+    },
+    "controller.py": {
+      "bytes": 1805,
+      "sha256": "b04e6b102e880859453a5cd0b1abfd675cf2abcdc8f1b48194752c41eff219a2"
+    },
+    "host-regression/stdout.log": {
+      "bytes": 18548,
+      "sha256": "260fa7c8dcc69bf5c55679da1cfa4d18b6617d6553b85ef813dc7b7e28c95419"
+    },
+    "host-regression/stderr.log": {
+      "bytes": 1033,
+      "sha256": "a0d48d58ad40dcfd0a462340aeb2e8e241443de7ec8d88bf2e280ca6223428f9"
+    },
+    "host-regression/controller.py": {
+      "bytes": 1769,
+      "sha256": "551721fe6599e139add965bb6a313b779c6c8235d974dcf93e09491d16ebae5c"
+    }
+  },
+  "limits": [
+    "PairSink save/history and actual owned-original retention policy only; enclosing VideoJobs/cache/worker panic recovery not injected",
+    "Originals prepared through actual PNG decoding; video envelopes exercise model persistence, not native video decode",
+    "Earlier native FFmpeg/GPU replacement tests establish native admission separately; final full regression/CI still pending"
+  ],
+  "archive": {
+    "path": "engineering/validation/data/tracking88-pair-publication-v1.zip",
+    "sha256": "45e17fb37924fef6f6a58021f0d85f9b1130ef0fbbdbd02c01ffa4841b6240c9",
+    "bytes": 15628
+  }
+}

@@ -131,7 +131,7 @@ fn text_style_png_movie_and_independent_reopen_preserve_authored_pixels() {
             .unwrap();
         scores.push(serde_json::json!({"frame":index,"pts":frame.pts,"styled_iou":positive,"original_iou":negative}));
     }
-    let child = std::process::Command::new(std::env::current_exe().unwrap())
+    let (child, process) = crate::test_process::capture(std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
             NAME,
@@ -139,14 +139,13 @@ fn text_style_png_movie_and_independent_reopen_preserve_authored_pixels() {
             "--nocapture",
             "--test-threads=1",
         ])
-        .env(REOPEN, &root)
-        .output()
+        .env(REOPEN, &root), &root.join("reopen.process.json"))
         .unwrap();
     std::fs::write(root.join("reopen.stdout.log"), &child.stdout).unwrap();
     std::fs::write(root.join("reopen.stderr.log"), &child.stderr).unwrap();
     assert!(
         child.status.success(),
-        "{}\n{}",
+        "child={process}\n{}\n{}",
         String::from_utf8_lossy(&child.stdout),
         String::from_utf8_lossy(&child.stderr)
     );
