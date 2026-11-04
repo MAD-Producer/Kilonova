@@ -83,9 +83,12 @@ pub(super) fn slider_rect(row: Rect) -> Rect {
     Rect::new(row.min[0] + 36., row.max[1] - 5., row.width() - 36., 5.)
 }
 pub(super) fn screen_rect(local: Rect, card: &Card, zoom: f32) -> Rect {
+    screen_rect_at(local, card.rect.min, zoom)
+}
+pub(super) fn screen_rect_at(local: Rect, origin: [f32; 2], zoom: f32) -> Rect {
     Rect::new(
-        card.rect.min[0] + local.min[0] * zoom,
-        card.rect.min[1] + local.min[1] * zoom,
+        origin[0] + local.min[0] * zoom,
+        origin[1] + local.min[1] * zoom,
         local.width() * zoom,
         local.height() * zoom,
     )
@@ -350,9 +353,29 @@ impl NodeEditor {
         }
     }
 
+    /// Match the original frontmost card rectangle without building its sockets.
+    /// Only candidates inside the horizontal extent need a height query.
+    pub(super) fn inline_card_hit(&self, canvas: Rect, point: [f32; 2]) -> Option<(&str, Rect)> {
+        self.card_hit_at_view(canvas, point, self.view)
+            .map(|(index, rect)| (self.document.nodes[index].id.as_str(), rect))
+    }
+
+    pub(super) fn card_hit_at_view(&self, canvas: Rect, point: [f32; 2], view: CanvasView) -> Option<(usize, Rect)> {
+        self.document.nodes.iter().enumerate().rev().find_map(|(index, node)| {
+            let origin = view.world_to_screen(node.position, canvas);
+            let width = NODE_WIDTH * view.zoom;
+            if !(point[0] >= origin[0] && point[0] < origin[0] + width && point[1] >= origin[1]) {
+                return None;
+            }
+            #[cfg(test)]
+            super::frame_cards_tests::record_inline_hit_height();
+            let rect = Rect::new(origin[0], origin[1], width, node_height(node, &self.document) * view.zoom);
+            rect.contains(point).then_some((index, rect))
+        })
+    }
+
     pub(super) fn inline_input(
         &mut self,
-        cards: &mut Option<Vec<Card>>,
         canvas: Rect,
         input: &Input,
         language: Language,
@@ -362,9 +385,8 @@ impl NodeEditor {
             return true;
         }
         if let Some(edit) = &self.inline.number {
-            let cards = cards.get_or_insert_with(|| self.cards(canvas));
-            let spec = cards.iter().find(|c| c.id == edit.owner).and_then(|card| {
-                let node = self.document.nodes.iter().find(|n| n.id == card.id)?;
+            let spec = self.document.nodes.iter().find(|node| node.id == edit.owner).and_then(|node| {
+                let origin = self.view.world_to_screen(node.position, canvas);
                 control_rows(node, &self.document, Language::English)
                     .into_iter()
                     .find_map(|(row, control)| {
@@ -384,9 +406,9 @@ impl NodeEditor {
                                 let mut options = input_number_options();
                                 options.speed /= self.view.zoom.max(1e-6) as f64;
                                 return Some((
-                                    screen_rect(
+                                    screen_rect_at(
                                         input_value_rect(row, styles),
-                                        card,
+                                        origin,
                                         self.view.zoom,
                                     ),
                                     value.components()[0],
@@ -412,7 +434,7 @@ impl NodeEditor {
                                     number_rect(row, slider)
                                 };
                                 return Some((
-                                    screen_rect(local, card, self.view.zoom),
+                                    screen_rect_at(local, origin, self.view.zoom),
                                     value,
                                     options,
                                 ));
@@ -439,20 +461,19 @@ impl NodeEditor {
         if input.modifiers.alt || input.modifiers.control && input.modifiers.shift {
             return false;
         }
-        let cards = cards.get_or_insert_with(|| self.cards(canvas));
-        let Some(card) = cards.iter().rev().find(|card| card.rect.contains(point)) else {
+        let Some((id, card)) = self.inline_card_hit(canvas, point) else {
             return false;
         };
         let node = self
             .document
             .nodes
             .iter()
-            .find(|node| node.id == card.id)
+            .find(|node| node.id == id)
             .unwrap()
             .clone();
         let collapse = Rect::new(
-            card.rect.max[0] - 28. * self.view.zoom,
-            card.rect.min[1] + 2. * self.view.zoom,
+            card.max[0] - 28. * self.view.zoom,
+            card.min[1] + 2. * self.view.zoom,
             25. * self.view.zoom,
             (HEADER - 4.) * self.view.zoom,
         );
@@ -463,12 +484,12 @@ impl NodeEditor {
         }
         let Some((row, control)) = control_rows(&node, &self.document, language)
             .into_iter()
-            .find(|(row, _)| screen_rect(*row, card, self.view.zoom).contains(point))
+            .find(|(row, _)| screen_rect_at(*row, card.min, self.view.zoom).contains(point))
         else {
             return false;
         };
         if let Control::InputDefault { connected, .. } = &control {
-            if !screen_rect(input_value_rect(row, styles), card, self.view.zoom).contains(point) {
+            if !screen_rect_at(input_value_rect(row, styles), card.min, self.view.zoom).contains(point) {
                 return false;
             }
             if *connected {
@@ -505,7 +526,7 @@ impl NodeEditor {
                     options.speed /= self.view.zoom.max(1e-6) as f64;
                     self.update_inline_number(
                         input,
-                        screen_rect(input_value_rect(row, styles), card, self.view.zoom),
+                        screen_rect_at(input_value_rect(row, styles), card.min, self.view.zoom),
                         value,
                         options,
                     );
@@ -550,7 +571,7 @@ impl NodeEditor {
                 ..
             } => {
                 let sliding =
-                    slider && screen_rect(slider_rect(row), card, self.view.zoom).contains(point);
+                    slider && screen_rect_at(slider_rect(row), card.min, self.view.zoom).contains(point);
                 self.inline.number = Some(NumericEdit {
                     owner: node.id,
                     binding,
@@ -562,13 +583,13 @@ impl NodeEditor {
                 if !sliding {
                     options.speed /= self.view.zoom.max(1e-6) as f64;
                 }
-                let rect = screen_rect(
+                let rect = screen_rect_at(
                     if sliding {
                         slider_rect(row)
                     } else {
                         number_rect(row, slider)
                     },
-                    card,
+                    card.min,
                     self.view.zoom,
                 );
                 self.update_inline_number(input, rect, value, options);

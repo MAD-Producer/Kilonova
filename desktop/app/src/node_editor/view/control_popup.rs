@@ -119,17 +119,15 @@ impl NodeEditor {
                 mut selected,
                 mut scroll,
             } => {
-                if escape || !self.document.nodes.iter().any(|n| n.id == node) {
+                if escape {
                     return;
                 }
-                let Some(card) = self
-                    .cards(self.last_canvas)
-                    .into_iter()
-                    .find(|card| card.id == node)
+                let Some(owner) = self.document.nodes.iter().find(|owner| owner.id == node)
                 else {
                     return;
                 };
-                let anchor = controls::screen_rect(field, &card, self.view.zoom);
+                let origin = self.view.world_to_screen(owner.position, self.last_canvas);
+                let anchor = controls::screen_rect_at(field, origin, self.view.zoom);
                 if !intersects(anchor, area) {
                     return;
                 }

@@ -43,6 +43,9 @@ impl<'a> SocketIndex<'a> {
 pub(super) fn socket_radius(zoom: f32) -> f32 {
     (4.5 * zoom).max(2.5)
 }
+pub(super) fn socket_hit_radius(zoom: f32) -> f32 {
+    9f32.max(socket_radius(zoom) + 1.)
+}
 pub(super) fn socket_at(
     cards: &[Card],
     canvas: Rect,
@@ -53,7 +56,7 @@ pub(super) fn socket_at(
         return None;
     }
     let visible = socket_radius(zoom) + 1.;
-    let radius = 9f32.max(visible);
+    let radius = socket_hit_radius(zoom);
     // An opaque front card blocks sockets belonging to cards underneath it.
     let front = cards
         .iter()

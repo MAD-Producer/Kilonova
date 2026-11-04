@@ -1,0 +1,453 @@
+{
+  "main_base": "0790404fab0328c99ffcc525ca4b56084a383951",
+  "runtime_source": "ae83440117bd49f35ab4667fb04854ea683cd4e8",
+  "runtime_main_difference_paths": [
+    "desktop/app/src/node_editor/view/canvas.rs",
+    "desktop/app/src/node_editor/view/controls.rs",
+    "desktop/app/src/node_editor/view/frame_cards_tests.rs",
+    "desktop/app/src/node_editor/view/frame_cards_tests/canvas_geometry.rs",
+    "desktop/app/src/node_editor/view/frame_cards_tests/field_geometry.rs",
+    "desktop/app/src/node_editor/view/frame_cards_tests/inline_geometry.rs",
+    "desktop/app/src/node_editor/view/frame_cards_tests/restore_geometry.rs",
+    "desktop/app/src/node_editor/view/frame_cards_tests/viewport_geometry.rs",
+    "desktop/app/src/node_editor/view/interaction.rs",
+    "desktop/app/src/node_editor/view/mod.rs"
+  ],
+  "binary_sha256": "98a80dc955a38cf08e5dc343d2c56e626c47f4b47e9f59ec6ca77076e7890594",
+  "before_source_sha256": "e06e5a0375d09fe5e6f9238c31bce9f244473d7ec0b8eb560ecbf9e0891a9cb1",
+  "after_source_sha256": "791a85dbc33a5104fbbdfdafc2397fc25fde6a82756fa4ccdcdee3aabff139ec",
+  "actual_native_verifier": {
+    "before": "intended inventory failure",
+    "after": "complete existing verify_mcp passed",
+    "missing": "existing tool removal rejected",
+    "extra": "unknown tool injection rejected"
+  },
+  "regressions": {
+    "ran": 35,
+    "passed": 34,
+    "skipped": 1,
+    "failures": 0,
+    "initial_invocation": "two loader errors; zero product tests executed"
+  },
+  "assertions_and_timeouts": "unchanged; only add already-published import_tracking to expected set",
+  "stderr": "Epic Vulkan overlay JSON files missing; original native stderr retained, not empty",
+  "remaining": "Linux/current-main workflow and AAC comparison not fixed or verified by this change",
+  "archive_sha256": "89db7fef267520588f7591a49d8e8f5f649144aa47926695265129f65d42e7f4",
+  "records": [
+    {
+      "path": "source-before/tools/ci_desktop.py",
+      "bytes": 28115,
+      "sha256": "e06e5a0375d09fe5e6f9238c31bce9f244473d7ec0b8eb560ecbf9e0891a9cb1"
+    },
+    {
+      "path": "source-after/tools/ci_desktop.py",
+      "bytes": 28134,
+      "sha256": "791a85dbc33a5104fbbdfdafc2397fc25fde6a82756fa4ccdcdee3aabff139ec"
+    },
+    {
+      "path": "raw/initial-unit-import-failure.json",
+      "bytes": 492,
+      "sha256": "5dbe2be1c820e77c10b11ec1791b6d38a283f7ea0f237e4bc0313412dec0267a"
+    },
+    {
+      "path": "raw/run-native-mcp.py",
+      "bytes": 3473,
+      "sha256": "1dcca100caa13021c0fa5cc5b37afbe46e3a8e85a45aa034c85b60a40791803b"
+    },
+    {
+      "path": "raw/run-tool-regressions.py",
+      "bytes": 1445,
+      "sha256": "52a5b6bd4895b44ec329572b18b8037e08ab0eda5d37dc87bbad0bc2e03719cf"
+    },
+    {
+      "path": "raw/summary.json",
+      "bytes": 1824,
+      "sha256": "36494d31ccd9409e566820c2c4cfa34a0cdc72e20069aef65fbc222904d3085e"
+    },
+    {
+      "path": "raw/unit-receipt.json",
+      "bytes": 418,
+      "sha256": "8b5a6913cfe54a6119c1674226f307b0408705b208dc5bd4885161c935cea707"
+    },
+    {
+      "path": "raw/unit.stderr",
+      "bytes": 152,
+      "sha256": "99c89ee190bc6d41dddff095e0f38881e945beada4275ad0a38509095032b117"
+    },
+    {
+      "path": "raw/unit.stdout",
+      "bytes": 258,
+      "sha256": "55fff276a6bd8b31c14c84de99c7b6dd6c2d4276fa4fe0ab816e83b889199170"
+    },
+    {
+      "path": "before/LOCALAPPDATA/MotionStudio/diagnostics/last-stalls.json",
+      "bytes": 3323,
+      "sha256": "9e8826ac7b8fcc74d5d52800dfb3f804314459e7fe8c082d74711ff38c8ebfa6"
+    },
+    {
+      "path": "before/LOCALAPPDATA/MotionStudio/logs/motion-studio.log",
+      "bytes": 2151,
+      "sha256": "d2c2f52a17ba43eada7e0b1e13bcc1aff270777c58337d766ca5b4ea4f21d0f6"
+    },
+    {
+      "path": "before/mcp-ui.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "before/receipt.json",
+      "bytes": 547,
+      "sha256": "9807c7aa7f8051e168c1a14f858120ac1257b097af9443f77b2a7efe42d165b0"
+    },
+    {
+      "path": "before/verifier-error.txt",
+      "bytes": 525,
+      "sha256": "6935b01a745416c9c06ca1c1386acfeebcab55d8eacbb55e86b485b582a8c824"
+    },
+    {
+      "path": "final/LOCALAPPDATA/MotionStudio/diagnostics/last-stalls.json",
+      "bytes": 112321,
+      "sha256": "8496c91d8323e8c0d8d64af13b6b46f3a02bb83480d9ce128aadf500d0b9d577"
+    },
+    {
+      "path": "final/LOCALAPPDATA/MotionStudio/logs/motion-studio.log",
+      "bytes": 22548,
+      "sha256": "150f23cfc9d61b1d01893b755e0e65b8e229c8fa05c7c34fd864250dc36b18fa"
+    },
+    {
+      "path": "final/mcp-ui-smoke.camera-properties.png",
+      "bytes": 35159,
+      "sha256": "d5c079174d7a8df9b500d3a0294ffacb2dea4f035d80984d52682e4ad836f15d"
+    },
+    {
+      "path": "final/mcp-ui-smoke.character-panel-narrow.png",
+      "bytes": 18297,
+      "sha256": "d07c090cf46e7d2f1e680b23203900204022abf5185a1480915ed5028538af8a"
+    },
+    {
+      "path": "final/mcp-ui-smoke.character-panel.png",
+      "bytes": 23398,
+      "sha256": "596626ca1680e23ec19822fedc0c4723141ce584fe93c69414a1c2ef2b6a4bc8"
+    },
+    {
+      "path": "final/mcp-ui-smoke.composition-settings.png",
+      "bytes": 65769,
+      "sha256": "24ddbef193f02bc70cc62dd9e5354a1fbbf73081d92b7a67326a08d85c2b2ea2"
+    },
+    {
+      "path": "final/mcp-ui-smoke.effect-controls-bottom.png",
+      "bytes": 11963,
+      "sha256": "74a48556f639d30ded868a81bfbb54a96bbfc2309d6d7200d9294282d64276cf"
+    },
+    {
+      "path": "final/mcp-ui-smoke.effect-controls-narrow.png",
+      "bytes": 30285,
+      "sha256": "60ec2def2c374f557c9051f721bfacf915f93cd92392f2312e27e49b5b7e373d"
+    },
+    {
+      "path": "final/mcp-ui-smoke.effect-controls.png",
+      "bytes": 31728,
+      "sha256": "46e6360fa0527446e6f97e72839e8edfda754c0935ab3d9c6ec7fc62e834102c"
+    },
+    {
+      "path": "final/mcp-ui-smoke.effect-curve-inline.png",
+      "bytes": 20726,
+      "sha256": "8472f686e369db2d558767659ce6918cc2c74f313af79e195f793553674028b3"
+    },
+    {
+      "path": "final/mcp-ui-smoke.effect-library.png",
+      "bytes": 178942,
+      "sha256": "315530d5fa2d02013450726f25d865a52df5e922d7bb3e1570be8ce5a7ecca73"
+    },
+    {
+      "path": "final/mcp-ui-smoke.expression-inline-disabled-narrow.png",
+      "bytes": 39042,
+      "sha256": "f7e137982fe17645173268f3ab93a2c28a3b89e34579cae4491a23f5ab486e50"
+    },
+    {
+      "path": "final/mcp-ui-smoke.expression-inline-disabled.png",
+      "bytes": 70240,
+      "sha256": "03152bb27167555d7592fae8a67d6c3951eda99ab7a834eca5de8520a4210b36"
+    },
+    {
+      "path": "final/mcp-ui-smoke.expression-inline-enabled-narrow.png",
+      "bytes": 39125,
+      "sha256": "10097387565f33d26b951eaa6039d1d612c795c05df1ef13b953af8d59904d2b"
+    },
+    {
+      "path": "final/mcp-ui-smoke.expression-inline-enabled.png",
+      "bytes": 70838,
+      "sha256": "85e060aa574dea4e0315877a0ad03c61505e1d0651dcc1d0fdbf0d5f0594a391"
+    },
+    {
+      "path": "final/mcp-ui-smoke.expression-inline-locked-narrow.png",
+      "bytes": 38724,
+      "sha256": "0ef1d2f37f8e559d90eaef6bafb1891f0931aa2b78870578ad7d2c33c1e3d3b8"
+    },
+    {
+      "path": "final/mcp-ui-smoke.expression-inline-locked.png",
+      "bytes": 70279,
+      "sha256": "8d6ad175ec1259befe334a0e7260c91489dd5ed6fb4f691b16ebc8e7247e10ce"
+    },
+    {
+      "path": "final/mcp-ui-smoke.home.png",
+      "bytes": 64008,
+      "sha256": "ceb11cfe9f8cd530abb97e2ce88ea9d2d270420471f5e4c0a7883f02ad9be003"
+    },
+    {
+      "path": "final/mcp-ui-smoke.info-panel-narrow.png",
+      "bytes": 13894,
+      "sha256": "57cd03600df173c6094a232e2969a4d2f2359d922c7495a05c2ca50adc1108ad"
+    },
+    {
+      "path": "final/mcp-ui-smoke.info-panel.png",
+      "bytes": 16354,
+      "sha256": "15475951fc276539ece8975fbd9398e45013b07147c6748193368ffdb450970d"
+    },
+    {
+      "path": "final/mcp-ui-smoke.json",
+      "bytes": 16590,
+      "sha256": "695a592dfab3fdd406d157a8a2c28551fcc320f9bdfe542bc25f7bdd4db69bd8"
+    },
+    {
+      "path": "final/mcp-ui-smoke.layer-anchor-animation.png",
+      "bytes": 24751,
+      "sha256": "94bbb5dd0060c345ec3923af04242b34b6a094cf9ef535b3a54213e662b2cc17"
+    },
+    {
+      "path": "final/mcp-ui-smoke.layer-context-menu.png",
+      "bytes": 187808,
+      "sha256": "946558343bc0bef481b10a0ddfebbbc714e50a295473747f01702d330a5b9972"
+    },
+    {
+      "path": "final/mcp-ui-smoke.layer-properties-effects.png",
+      "bytes": 33420,
+      "sha256": "53ab415454594240d27d404a20b76db34e98379647906ac626e8a5e4f10a776b"
+    },
+    {
+      "path": "final/mcp-ui-smoke.layer-properties-tree.png",
+      "bytes": 24822,
+      "sha256": "96f8f54d8c3e7c1c1aba7d8223b6988d9aea169ca34c2d60851c7d34342a5a73"
+    },
+    {
+      "path": "final/mcp-ui-smoke.maximize-3-restored.png",
+      "bytes": 178891,
+      "sha256": "9a1672bb8f94de67ca0efb28bea0900087a11ed9ca4ee95f9adc9c5f1f845bb3"
+    },
+    {
+      "path": "final/mcp-ui-smoke.maximize-3.png",
+      "bytes": 59536,
+      "sha256": "95931d76a3c5ecb9dfff98ad3a9288582bd2dd8ca3627f34e4ab7e9b8fe70f21"
+    },
+    {
+      "path": "final/mcp-ui-smoke.maximize-4-restored.png",
+      "bytes": 178839,
+      "sha256": "559575fa4eba76698c5b10c70a3cdc0cb395791d1c497795fa55805777b0daeb"
+    },
+    {
+      "path": "final/mcp-ui-smoke.maximize-4.png",
+      "bytes": 101616,
+      "sha256": "b9b8a66a5b223b7885a869f6b72c0f956eb63f310e99e5eca3e887efbfb09d26"
+    },
+    {
+      "path": "final/mcp-ui-smoke.panel-3-backquote.png",
+      "bytes": 18526,
+      "sha256": "abbfcb32fbd4e9af756fca379fc7deb899e2a0dcfb1ef4ecee5a09a67ac849e0"
+    },
+    {
+      "path": "final/mcp-ui-smoke.path-hover-incoming.png",
+      "bytes": 46399,
+      "sha256": "f94304d0fd9246ea059724850f26db3ad6904a28f79a9621adfda83ee53afa0e"
+    },
+    {
+      "path": "final/mcp-ui-smoke.path-hover-locked.png",
+      "bytes": 46286,
+      "sha256": "4a2602075736ee58316a8ba85278127ad47db0a4f7c7fd1dee22cf10c630fbb8"
+    },
+    {
+      "path": "final/mcp-ui-smoke.path-hover-outgoing.png",
+      "bytes": 46379,
+      "sha256": "edfaf2675d673e15c03c3aee4624bb9c578f88ee5e5512a88d2d7eb8708225db"
+    },
+    {
+      "path": "final/mcp-ui-smoke.png",
+      "bytes": 178839,
+      "sha256": "559575fa4eba76698c5b10c70a3cdc0cb395791d1c497795fa55805777b0daeb"
+    },
+    {
+      "path": "final/mcp-ui-smoke.preview-panel-narrow.png",
+      "bytes": 21177,
+      "sha256": "f9887ad30f3038e9d9225d1ec6cf3654ff8f1200d6d571210861d85ae3157dca"
+    },
+    {
+      "path": "final/mcp-ui-smoke.preview-panel.png",
+      "bytes": 24275,
+      "sha256": "4d8166e767f0c8f8648704255e2f21d19a82245c66c1a1429db9fc0b9f575e8b"
+    },
+    {
+      "path": "final/mcp-ui-smoke.project-open-error.png",
+      "bytes": 78256,
+      "sha256": "2a8ccc48bf7e35d227adb8d5cec6d0f7d193b61f46fcaeb8e66e4a67844b199e"
+    },
+    {
+      "path": "final/mcp-ui-smoke.speed-graph.png",
+      "bytes": 197178,
+      "sha256": "ee51c9f66e0c5a8164fa5f37602af93f78fe6246520f46c0b6873ad828cb7cb7"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-anchor-animation.png",
+      "bytes": 50687,
+      "sha256": "7bc2eb5ce4d6563cfcd198aef1e29d373105a2baa74cf368f006143cd5fa79e9"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-anchor-graph.png",
+      "bytes": 64695,
+      "sha256": "ece6e40973157f8e7d845dfc179bdfe8eafc064d10bdc519e794a8e236d79f5f"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-blend-menu.png",
+      "bytes": 164646,
+      "sha256": "90b0f7a06de55dbc8c83aae84c1846e8df4c53cb10baa6ad61c5f926f34dac10"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-cameras.png",
+      "bytes": 49224,
+      "sha256": "aa583f102144e87a1542df1fcb1882a06382c6680cdd4b33f47b480097c23481"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-graph.png",
+      "bytes": 196263,
+      "sha256": "77b742e767774519908b748d790b24d9a782127bc7e7b91b44176aae24659ea0"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-navigation-drag.png",
+      "bytes": 86357,
+      "sha256": "ec0264c5e6badf0a4a6c7d94e858d49109c93ca0e55c17ff4d1841dc7473a228"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-navigation-end.png",
+      "bytes": 73955,
+      "sha256": "e51fdbe2f6432c6f2d38f349cd80933b8a19cf09fa1e6839268927705d0f132b"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-navigation-graph.png",
+      "bytes": 86692,
+      "sha256": "616c14e1491f33df98610ed74fa323a9564e307d3c0fcaec778d1956f2f99bfd"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-navigation-hover.png",
+      "bytes": 86702,
+      "sha256": "807444a54b4bd8484f90aecff0f65455bdb551d4477a56debef0b57691921f21"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-navigation.png",
+      "bytes": 74445,
+      "sha256": "ca03973164fcaa734b7a5f91fba97cf520a42618b2554a47065a0630de99ad1a"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-parent-menu.png",
+      "bytes": 166146,
+      "sha256": "affba6e2e234fb9c86be805f32e98614d45ec15ecf3b75d0d695cbf795a11442"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-properties-tree.png",
+      "bytes": 52577,
+      "sha256": "a4553b1a776708f785ac2f0d4415e5c74cf8060cca21e70492f0536d362ecfc6"
+    },
+    {
+      "path": "final/mcp-ui-smoke.timeline-translated.png",
+      "bytes": 77255,
+      "sha256": "7638a700d12f39168f931080d3d7b4f64b3e5de1be8d9b32b444c31bfd3c472a"
+    },
+    {
+      "path": "final/mcp-ui-smoke.value-graph.png",
+      "bytes": 195495,
+      "sha256": "cfa964082cc6fff3f74a6cbbb15b0bd8937b7494a5e57d76e0ec03ebeb04ab8a"
+    },
+    {
+      "path": "final/mcp-ui-smoke.viewer-fit.png",
+      "bytes": 178256,
+      "sha256": "46e9c72474123775f4cdc9d904da9eaea9be45aceec5ef1ab71e0509e72a5a84"
+    },
+    {
+      "path": "final/mcp-ui-smoke.viewer-pan.png",
+      "bytes": 180782,
+      "sha256": "9217ac4ac7db9d68a03d5f0b936beecfd298f076b838457435bcfde48d4d8b03"
+    },
+    {
+      "path": "final/mcp-ui-smoke.viewer-zoom.png",
+      "bytes": 181036,
+      "sha256": "1be0f985e1c88dd8fb4555b630e470b5260db5a4c589a7b3eab7c0892137cd51"
+    },
+    {
+      "path": "final/mcp-ui-smoke.workspace-manager.png",
+      "bytes": 74134,
+      "sha256": "970f672f780d99111e783f513e5b1f792de84bab7adac8c26eec88ddf2f67e9c"
+    },
+    {
+      "path": "final/mcp-ui.stderr.log",
+      "bytes": 586,
+      "sha256": "6c2b721c0d37a83b138c463f67bfafd752ee8f1198d258912624e2a5eab10241"
+    },
+    {
+      "path": "final/receipt.json",
+      "bytes": 431,
+      "sha256": "7d8fa17fae60713ca913cc8cd216cf2be75b00932462349ec3d75fd09cc99101"
+    },
+    {
+      "path": "missing/LOCALAPPDATA/MotionStudio/diagnostics/last-stalls.json",
+      "bytes": 3324,
+      "sha256": "e19a5310a46777e8d94149da635932ce63872200d7c6e844d5a1d54f1d5a33b0"
+    },
+    {
+      "path": "missing/LOCALAPPDATA/MotionStudio/logs/motion-studio.log",
+      "bytes": 2155,
+      "sha256": "28722946bde71fb7d79267fa522213d1db50baaca26016ab8065a05f025c7071"
+    },
+    {
+      "path": "missing/mcp-ui.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "missing/receipt.json",
+      "bytes": 1190,
+      "sha256": "3682e02f87ff5dad7c698e02e6f67686508b81e064a7274cb65ab4618dd18f11"
+    },
+    {
+      "path": "missing/verifier-error.txt",
+      "bytes": 521,
+      "sha256": "56fb33837141e6c1610f86d55d4e17a90653eec50def74311ba9115fa866d1d8"
+    },
+    {
+      "path": "extra/LOCALAPPDATA/MotionStudio/diagnostics/last-stalls.json",
+      "bytes": 3325,
+      "sha256": "1a50849198691ab9d85cbae67cec9fdf39b183461de1fccb8a0c370712604823"
+    },
+    {
+      "path": "extra/LOCALAPPDATA/MotionStudio/logs/motion-studio.log",
+      "bytes": 2147,
+      "sha256": "59d39e7f3587f12eb31486b559b743c3149058d616b24502ef17e0a1b6b430de"
+    },
+    {
+      "path": "extra/mcp-ui.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "extra/receipt.json",
+      "bytes": 1254,
+      "sha256": "8ba2e2b2c855425112b8967a334a9f544b5b46cc603acb86da977702bc5db995"
+    },
+    {
+      "path": "extra/verifier-error.txt",
+      "bytes": 530,
+      "sha256": "73ad5ec2db87837358c0b59ac5abf9adaed6529292a83aeff43e8c0186279bca"
+    },
+    {
+      "path": "README.txt",
+      "bytes": 775,
+      "sha256": "27570d5ec9dc2978e456bbb83fccdd74ceaade450bba69a6d9dde49fb752f080"
+    }
+  ]
+}

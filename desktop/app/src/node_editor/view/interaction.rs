@@ -169,13 +169,67 @@ impl NodeEditor {
             }
         }
     }
+    /// Settle only a lost-button node drag before allocating its final cards.
+    /// New presses and explicit releases still follow the normal canvas order.
+    pub(super) fn settle_node_cancellation(&mut self, canvas: Rect, input: &Input) -> bool {
+        if input.held == Some(MouseButton::Left)
+            || input.released.is_some_and(|(button, _)| button == MouseButton::Left)
+            || input.pressed.is_some_and(|(_, point)| canvas.contains(point))
+            || !matches!(self.drag, Some(Drag::Nodes { .. }))
+        {
+            return false;
+        }
+        if let Some(Drag::Nodes { origin, positions, before }) = self.drag.take() {
+            self.update_node_drag(origin, positions, before, canvas, input);
+            return true;
+        }
+        false
+    }
+
+    fn update_node_drag(&mut self, origin: [f32; 2], positions: Vec<(String, [f32; 2])>, before: History, canvas: Rect, input: &Input) {
+        let point = self.view.screen_to_world(input.mouse, canvas);
+        for (id, start) in &positions {
+            if let Some(node) = self.document.nodes.iter_mut().find(|n| n.id == *id) {
+                node.position = [
+                    (start[0] + point[0] - origin[0]).clamp(-1.0e6, 1.0e6),
+                    (start[1] + point[1] - origin[1]).clamp(-1.0e6, 1.0e6),
+                ];
+            }
+        }
+        if input.held == Some(MouseButton::Left) {
+            self.drag = Some(Drag::Nodes { origin, positions, before });
+        } else if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
+            if self.document != before.document {
+                self.finish_edit(before);
+            }
+        } else {
+            self.restore_node_drag(before);
+        }
+    }
+
+    /// Whether this call leaves node operations and public port metadata intact.
+    /// Edges, preview selection and positions do not change port specifications;
+    /// field commits and group navigation may. The caller must still validate
+    /// the epoch and every source identity before reusing the cards.
+    #[cfg(test)]
     pub(super) fn canvas_input(
         &mut self,
         cards: &[Card],
         canvas: Rect,
         input: &Input,
         language: Language,
-    ) {
+    ) -> bool {
+        let before = (self.epoch, self.revision, self.preview_revision);
+        if !self.prepare_canvas_input(canvas, input) {
+            return false;
+        }
+        let ports_unchanged = before == (self.epoch, self.revision, self.preview_revision);
+        self.canvas_actions(cards, canvas, input, language) && ports_unchanged
+    }
+
+    /// Preserve wheel-before-commit history without first allocating cards for
+    /// the document that the field commit is about to replace.
+    pub(super) fn prepare_canvas_input(&mut self, canvas: Rect, input: &Input) -> bool {
         if canvas.contains(input.mouse) && self.drag.is_none() && input.wheel != [0.; 2] {
             if input.modifiers.control && !input.modifiers.alt && !input.modifiers.shift {
                 self.view.zoom_at(
@@ -190,12 +244,54 @@ impl NodeEditor {
                 self.view.pan[1] -= input.wheel[1];
             }
         }
+        if input.pressed.is_some_and(|(_, point)| canvas.contains(point)) {
+            if self.commit_field().is_err() {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Settle a successful group double-click before allocating final cards.
+    /// The shared picker still gives front sockets priority over the header.
+    pub(super) fn enter_group_before_cards(&mut self, canvas: Rect, input: &Input, hit_view: CanvasView) -> bool {
+        let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, point)| canvas.contains(*point)) else {
+            return false;
+        };
+        if input.modifiers != Default::default() || self.editing() || self.parents.len() >= 16 {
+            return false;
+        }
+        let Some((id, time, previous)) = self.last_group_click.clone() else { return false; };
+        if time.elapsed().as_millis() > 400 || (point[0] - previous[0]).hypot(point[1] - previous[1]) > 5. {
+            return false;
+        }
+        let Some((front, rect)) = self.card_hit_at_view(canvas, point, hit_view) else { return false; };
+        if self.document.nodes[front].id != id || !(point[1] < rect.min[1] + HEADER * self.view.zoom)
+            || !self.document.nodes.iter().find(|node| node.id == id)
+                .is_some_and(|node| matches!(node.operation, NodeOp::Group { .. }))
+        {
+            return false;
+        }
+        let hit_cards = self.socket_hit_cards(canvas, hit_view, point, front);
+        if wires::socket_at(&hit_cards, canvas, point, self.view.zoom).is_some() {
+            return false;
+        }
+        let now = std::time::Instant::now();
+        if now.duration_since(time).as_millis() > 400 { return false; }
+        self.last_group_click = Some((id.clone(), now, point));
+        self.enter_group(&id)
+    }
+
+    pub(super) fn canvas_actions(
+        &mut self,
+        cards: &[Card],
+        canvas: Rect,
+        input: &Input,
+        language: Language,
+    ) -> bool {
         let zoom = self.view.zoom;
         let socket = |point: [f32; 2]| wires::socket_at(cards, canvas, point, zoom).cloned();
         if let Some((button, point)) = input.pressed.filter(|(_, p)| canvas.contains(*p)) {
-            if self.commit_field().is_err() {
-                return;
-            }
             match button {
                 MouseButton::Middle => {
                     self.drag = Some(Drag::Pan {
@@ -279,7 +375,7 @@ impl NodeEditor {
                             );
                             self.last_group_click = Some((card.id.clone(), now, point));
                             if double && self.enter_group(&card.id) {
-                                return;
+                                return false;
                             }
                         } else {
                             self.last_group_click = None;
@@ -447,28 +543,7 @@ impl NodeEditor {
                     positions,
                     before,
                 } => {
-                    let point = self.view.screen_to_world(input.mouse, canvas);
-                    for (id, start) in &positions {
-                        if let Some(node) = self.document.nodes.iter_mut().find(|n| n.id == *id) {
-                            node.position = [
-                                (start[0] + point[0] - origin[0]).clamp(-1.0e6, 1.0e6),
-                                (start[1] + point[1] - origin[1]).clamp(-1.0e6, 1.0e6),
-                            ];
-                        }
-                    }
-                    if input.held == Some(MouseButton::Left) {
-                        self.drag = Some(Drag::Nodes {
-                            origin,
-                            positions,
-                            before,
-                        });
-                    } else if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
-                        if self.document != before.document {
-                            self.finish_edit(before);
-                        }
-                    } else {
-                        self.restore_node_drag(before);
-                    }
+                    self.update_node_drag(origin, positions, before, canvas, input);
                 }
                 drag @ (Drag::Wire { .. } | Drag::WireInput { .. }) => {
                     if let Some((MouseButton::Left, point)) = input.released {
@@ -481,5 +556,6 @@ impl NodeEditor {
                 }
             }
         }
+        true
     }
 }
