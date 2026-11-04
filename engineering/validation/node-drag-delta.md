@@ -36,3 +36,21 @@ DLL 放入独立验收目录后成功启动，才得到上述真实断言失败�
 原始输出和源码收据归档在 `node-drag-delta-evidence/evidence.zip`，
 逐成员哈希在同目录 manifest.json。尚不宣称整帧性能、原生物理输入、GPU
 或整个 #134 完成；本批没有继承父 PR 的远程绿色结论。
+
+
+## 正式 release 构建的未通过结果
+
+85ae6868 使用现有正式 release 配置和 FFmpeg 构建，未改优化、LTO、codegen、
+调试信息或断言。cargo 终态退出 1，motion-model 的 rustc 以 0xc0000005 崩溃。
+Windows Application/WER 确认模块 rustc_driver-e41b336de1bfe42c.dll，偏移 0x4938abc。
+检查时系统仍有约 4 GiB 可用物理内存；这不足以确定根因，也不证明与内存无关。
+WER 临时 dump 已不存在，未臆造调用栈或对相同命令添加自动重试。
+
+原始编译输出及事件归档在 node-current-release-evidence。没有生成该源码的正式
+release 程序，因此双语原生节点验收未执行。237 项定向回归和 dev 启动成功仅
+保留各自范围，较早版本的 release 成功不能替代本次失败。
+后续 UI 测试及文档提交未改变 crates、desktop/app、desktop/ui/src 或 Cargo 文件，
+Git 差异为空；也不能据此把未执行的 release 原生验收记为完成。
+
+首次证据打包假定空状态查询也会生成 source-status.txt，因文件不存在中止。
+该缺失如实记录，没有事后伪造构建开始时的状态文件；修正打包后逐成员回读通过。
