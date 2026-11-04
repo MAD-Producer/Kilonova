@@ -4,6 +4,7 @@
 
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
 use unicode_segmentation::UnicodeSegmentation;
+pub mod shaping;
 // Fits the minimum texture dimension supported by the desktop's downlevel
 // devices. RGBA coverage is bounded to 16 MiB on both CPU and GPU.
 const MAX_ATLAS_DIMENSION: u32 = 2048;
