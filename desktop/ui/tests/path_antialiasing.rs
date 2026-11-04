@@ -298,6 +298,48 @@ fn joined_transparent_lines_and_closed_paths_do_not_double_blend_or_leak_through
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
+fn outside_lines_leave_no_edge_pixels_and_clamped_centerlines_are_a_negative_control() {
+    let (device, queue) = gpu();
+    let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    let clip = Rect::new(8., 8., 48., 48.);
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        for points in [
+            vec![[-8., 12.], [-8., 52.]],
+            vec![[72., 12.], [72., 52.]],
+            vec![[12., -8.], [52., -8.]],
+            vec![[12., 72.], [52., 72.]],
+        ] {
+            for width in [1., 4.] {
+                let make = |points: Vec<[f32; 2]>| {
+                    let mut list = PaintList::default();
+                    if width == 1. {
+                        paint::line(&mut list, points, Color::grey(255));
+                    } else {
+                        paint::line_with_width(&mut list, points, Color::grey(255), width);
+                    }
+                    list.clip_to(Rect::new(4., 4., 56., 56.));
+                    list.clip_to(clip);
+                    list
+                };
+                let actual = capture(&device, &queue, &mut painter, &make(points.clone()), [64.; 2], ratio);
+                assert!(actual.chunks_exact(4).all(|p| p[3] == 0),
+                    "outside line left edge pixels: dpi={ratio}, width={width}, points={points:?}");
+                // Reproduce the original defect: clamping centerline coordinates
+                // moves a wholly hidden line onto the clipping boundary.
+                let clamped = points.iter().map(|p| [
+                    p[0].clamp(clip.min[0], clip.max[0]),
+                    p[1].clamp(clip.min[1], clip.max[1]),
+                ]).collect();
+                let control = capture(&device, &queue, &mut painter, &make(clamped), [64.; 2], ratio);
+                assert!(control.chunks_exact(4).any(|p| p[3] > 0),
+                    "negative control must expose clamping: dpi={ratio}, width={width}, points={points:?}");
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn diamonds_and_subpixel_anchor_boxes_have_covered_edges_and_emit_preview_artifact() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
