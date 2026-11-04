@@ -4,6 +4,7 @@ mod media_asset_tests;
 pub mod library_media;
 pub(crate) mod model;
 pub(crate) mod library_image;
+pub(crate) mod tracked_video;
 use motion_core::{Asset, Command, Content, Layer, LayerTimeline};
 use motion_host::Session;
 use serde_json::Value;

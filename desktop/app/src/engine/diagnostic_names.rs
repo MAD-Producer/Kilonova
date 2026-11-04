@@ -77,6 +77,7 @@ impl Command {
             ColorCurveGraph { .. } => "color_curve_graph",
             Composition { .. } => "composition",
             Media { .. } => "media",
+            TrackedVideoReplacement { request, .. } => request.operation(),
             MediaPackageLimits(_) => "media_package_limits",
             Capture { .. } => "capture",
             Pack(_) => "pack",
