@@ -8,6 +8,9 @@ use motion_render::Scene;
 #[path = "../../../motion-model/tests/support/tracking_camera.rs"]
 mod fixture;
 
+#[path = "video.rs"]
+mod video;
+
 pub(super) fn project(rotation: Rotation, k: f64) -> Project {
     let mut p = fixture::camera_fixture();
     let mut raw = (*p.tracking_assets[0].data).clone();

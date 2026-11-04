@@ -5,12 +5,19 @@ use std::cell::RefCell;
 mod drag_geometry;
 mod collapse_geometry;
 mod input_geometry;
+mod inline_geometry;
+mod canvas_geometry;
+mod restore_geometry;
+mod field_geometry;
+mod popup_geometry;
+mod group_geometry;
 mod viewport_geometry;
 
 #[derive(Default)]
 struct Probe {
     builds: usize,
     port_resolutions: usize,
+    inline_hit_heights: usize,
     painted: Option<String>,
 }
 thread_local! {
@@ -28,6 +35,13 @@ pub(super) fn record_port_resolution() {
     PROBE.with(|state| {
         if let Some(probe) = state.borrow_mut().as_mut() {
             probe.port_resolutions = probe.port_resolutions.saturating_add(1);
+        }
+    });
+}
+pub(super) fn record_inline_hit_height() {
+    PROBE.with(|state| {
+        if let Some(probe) = state.borrow_mut().as_mut() {
+            probe.inline_hit_heights = probe.inline_hit_heights.saturating_add(1);
         }
     });
 }

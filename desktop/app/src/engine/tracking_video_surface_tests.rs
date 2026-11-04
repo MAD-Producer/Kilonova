@@ -2,6 +2,9 @@
 use super::*;
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
 
+#[path = "tracking_surface_binding_tests.rs"]
+mod bindings;
+
 fn ui(extent: [u32; 2]) -> UiFrame {
     UiFrame {
         views: None,

@@ -416,13 +416,11 @@ impl NodeEditor {
         }
         layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;
-        let geometry_stamp = |editor: &Self| {
-            (editor.epoch, editor.revision, editor.preview_revision, editor.view.pan, editor.view.zoom)
+        let geometry_stamp = |editor: &Self, view: CanvasView| {
+            (editor.epoch, editor.revision, editor.preview_revision, view.pan, view.zoom)
         };
-        // Inline controls need pre-edit hit geometry only when they actually read
-        // it. Other regions can finish their edits before the first card build.
-        let mut cards = None;
-        let mut geometry = geometry_stamp(self);
+        // Inline controls query only their pre-edit origin/row or hit rectangle.
+        // Build sockets once after toolbar, library and inspector edits finish.
         let numeric_file = if self.inline.popup.is_none()
             && self
                 .inline
@@ -455,7 +453,6 @@ impl NodeEditor {
             && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles))
         {
             self.inline_input(
-                &mut cards,
                 layout.canvas,
                 commit_input.as_ref().unwrap_or(input),
                 language,
@@ -532,30 +529,29 @@ impl NodeEditor {
         if let Some(inspector) = layout.inspector {
             self.inspector(list, atlas, inspector, body_input, language);
         }
-        let current = geometry_stamp(self);
-        let mut cards = match cards {
-            Some(mut cards) => {
-                if current != geometry
-                    && ((current.0, current.2) != (geometry.0, geometry.2)
-                        || !self.refresh_card_positions(&mut cards, layout.canvas))
-                {
-                    cards = self.cards(layout.canvas);
-                }
-                cards
-            }
-            None => self.cards(layout.canvas),
-        };
-        geometry = current;
+        // A cancelled drag restores the document. Finish it before building
+        // geometry, then keep its sample consumed so the wheel stays suppressed.
+        let canvas_handled = self.minimap_input(layout.canvas, body_input, &styles)
+            || self.settle_node_cancellation(layout.canvas, body_input);
+        let hit_view = self.view;
+        let canvas_ready = canvas_handled || self.prepare_canvas_input(layout.canvas, body_input);
+        let entered_group = !canvas_handled && canvas_ready
+            && self.enter_group_before_cards(layout.canvas, body_input, hit_view);
+        let card_view = if entered_group { self.view } else { hit_view };
+        let mut cards = self.cards_at_view(layout.canvas, card_view);
+        let geometry = geometry_stamp(self, card_view);
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
-        if !self.minimap_input(layout.canvas, body_input, &styles) {
-            self.canvas_input(&cards, layout.canvas, body_input, language);
-        }
-        let current = geometry_stamp(self);
+        let ports_unchanged = if canvas_handled || !canvas_ready || entered_group {
+            true
+        } else {
+            self.canvas_actions(&cards, layout.canvas, body_input, language)
+        };
+        let current = geometry_stamp(self, self.view);
         if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. })) || current != geometry {
-            // Presentation-only commits preserve port metadata. A replacement
-            // document (including cancellation or group socket renaming) must
-            // still pass every node identity check before anything is updated.
-            let same_metadata = current.0 == geometry.0 && current.2 == geometry.2;
+            // Canvas connections and preview changes preserve port metadata too.
+            // Fields are already committed. Group navigation requires a fresh
+            // build; replacement documents must still pass all identity checks.
+            let same_metadata = current.0 == geometry.0 && ports_unchanged;
             if !same_metadata || !self.refresh_card_positions(&mut cards, layout.canvas) {
                 cards = self.cards(layout.canvas);
             }

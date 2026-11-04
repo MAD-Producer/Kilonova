@@ -183,8 +183,8 @@ pub(super) fn prepare(
         }
         if plane.texture.as_ref().is_some_and(|view| {
             let texture = view.texture();
-            (if plane.working_material { texture.format() != format }
-                else { texture.format() != wgpu::TextureFormat::Rgba8UnormSrgb })
+            (if plane.working_material { view.format != format }
+                else { view.format != wgpu::TextureFormat::Rgba8UnormSrgb })
                 || texture.dimension() != wgpu::TextureDimension::D2
                 || texture.depth_or_array_layers() != 1
                 || texture.sample_count() != 1

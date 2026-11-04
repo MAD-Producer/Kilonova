@@ -1,0 +1,65 @@
+{
+  "scope": "PR587 supersession audit against its updated PR586 base; candidate merge changes no product code or tests relative to that base",
+  "originalPr": 587,
+  "basePr": 586,
+  "originalHead": "18579d815fc4a674e474b3ce1bd366e040a8a664",
+  "baseHead": "599c35e30f4f2c88e8e6b78e5dd8a9b3d2a2edcb",
+  "candidateTree": "a9c056e41010226e2cc49bd80385d2ff2d7bcd49",
+  "codeTrees": {
+    "crates": {
+      "base": "63d2e99b5752c02447d5bcb4b898428495f66283",
+      "candidate": "63d2e99b5752c02447d5bcb4b898428495f66283"
+    },
+    "desktop": {
+      "base": "364589761b8a7372e87bfc6e66acb188473b8b4e",
+      "candidate": "364589761b8a7372e87bfc6e66acb188473b8b4e"
+    },
+    "tools": {
+      "base": "a0411663aba96a4ae80c29ea7c3124c4a9aa2e5c",
+      "candidate": "a0411663aba96a4ae80c29ea7c3124c4a9aa2e5c"
+    },
+    ".github": {
+      "base": "8658e88345d424ccb1830d98afed739e5ff5a9e7",
+      "candidate": "8658e88345d424ccb1830d98afed739e5ff5a9e7"
+    }
+  },
+  "differingPaths": [
+    "engineering/validation/data/tracking88-main-render-native-v1.json",
+    "engineering/validation/data/tracking88-main-render-native-v1.zip",
+    "engineering/validation/data/tracking88-main-time-v1.json",
+    "engineering/validation/data/tracking88-main-time-v1.zip",
+    "engineering/validation/tracking88-acceptance-map-current.md",
+    "engineering/validation/tracking88-layer-time-integration-current.md"
+  ],
+  "files": {
+    "engineering/validation/data/tracking88-main-render-native-v1.json": {
+      "bytes": 250875,
+      "sha256": "9605914f9194110d8e8967d34eccdc7bad72df9a63c861dd1c0f8905013f85a6"
+    },
+    "engineering/validation/data/tracking88-main-render-native-v1.zip": {
+      "bytes": 275102,
+      "sha256": "f26cbeddab4f5465b3b568882ea589d5da4b5e2a52dcc56ec99f6772308e9120"
+    },
+    "engineering/validation/data/tracking88-main-time-v1.json": {
+      "bytes": 18412,
+      "sha256": "0682bcfed6b8e902330b358cdb8c992e874a18dcf48fd1a438e84458beb24d08"
+    },
+    "engineering/validation/data/tracking88-main-time-v1.zip": {
+      "bytes": 590788,
+      "sha256": "bbf6d4b0bd65b9a19014f856df828b2dcb9d501d0d1d33e8f43116ead9185989"
+    },
+    "engineering/validation/tracking88-acceptance-map-current.md": {
+      "bytes": 6674,
+      "sha256": "938e66fd6e3b0149bfeca55d0f1d9fe6a30a26bb1f994d9bef702009a0aa6968"
+    },
+    "engineering/validation/tracking88-layer-time-integration-current.md": {
+      "bytes": 4861,
+      "sha256": "dc94d9ad63117a47848b2735defd00c3a3d806c115fa3b5fe1310417a5312407"
+    }
+  },
+  "limits": [
+    "Tree identity proves source inclusion, not new runtime or cross-platform acceptance",
+    "Original PR587 evidence remains bound to its original source snapshot; it must not be relabeled as a new combined-source execution",
+    "No issue closure, Android acceptance or full 3D route completion is established"
+  ]
+}
