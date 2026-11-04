@@ -416,8 +416,8 @@ impl NodeEditor {
         }
         layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;
-        let geometry_stamp = |editor: &Self| {
-            (editor.epoch, editor.revision, editor.preview_revision, editor.view.pan, editor.view.zoom)
+        let geometry_stamp = |editor: &Self, view: CanvasView| {
+            (editor.epoch, editor.revision, editor.preview_revision, view.pan, view.zoom)
         };
         // Inline controls query only their pre-edit origin/row or hit rectangle.
         // Build sockets once after toolbar, library and inspector edits finish.
@@ -533,19 +533,21 @@ impl NodeEditor {
         // geometry, then keep its sample consumed so the wheel stays suppressed.
         let canvas_handled = self.minimap_input(layout.canvas, body_input, &styles)
             || self.settle_node_cancellation(layout.canvas, body_input);
-        let mut cards = self.cards(layout.canvas);
-        let geometry = geometry_stamp(self);
+        let hit_view = self.view;
+        let canvas_ready = canvas_handled || self.prepare_canvas_input(layout.canvas, body_input);
+        let mut cards = self.cards_at_view(layout.canvas, hit_view);
+        let geometry = geometry_stamp(self, hit_view);
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
-        let ports_unchanged = if canvas_handled {
+        let ports_unchanged = if canvas_handled || !canvas_ready {
             true
         } else {
-            self.canvas_input(&cards, layout.canvas, body_input, language)
+            self.canvas_actions(&cards, layout.canvas, body_input, language)
         };
-        let current = geometry_stamp(self);
+        let current = geometry_stamp(self, self.view);
         if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. })) || current != geometry {
             // Canvas connections and preview changes preserve port metadata too.
-            // Field commits/group navigation require a fresh build; replacement
-            // documents must still pass all identity checks before any update.
+            // Fields are already committed. Group navigation requires a fresh
+            // build; replacement documents must still pass all identity checks.
             let same_metadata = current.0 == geometry.0 && ports_unchanged;
             if !same_metadata || !self.refresh_card_positions(&mut cards, layout.canvas) {
                 cards = self.cards(layout.canvas);

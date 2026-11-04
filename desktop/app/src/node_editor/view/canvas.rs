@@ -4,6 +4,13 @@ use node_index::NodeIndex;
 
 impl NodeEditor {
     pub(super) fn cards(&self, canvas: Rect) -> Vec<Card> {
+        self.cards_at_view(canvas, self.view)
+    }
+
+    /// Resolve the current document once, retaining the input sample's hit view.
+    /// A same-event wheel is applied before committing text/history, but hits
+    /// still use the geometry from before that wheel, as in the original path.
+    pub(super) fn cards_at_view(&self, canvas: Rect, view: CanvasView) -> Vec<Card> {
         #[cfg(test)]
         super::frame_cards_tests::record_build();
         self.document
@@ -25,12 +32,12 @@ impl NodeEditor {
                 } else {
                     expanded_node_height(node, &self.document, expanded_rows)
                 };
-                let point = self.view.world_to_screen(node.position, canvas);
+                let point = view.world_to_screen(node.position, canvas);
                 let rect = Rect::new(
                     point[0],
                     point[1],
-                    NODE_WIDTH * self.view.zoom,
-                    height * self.view.zoom,
+                    NODE_WIDTH * view.zoom,
+                    height * view.zoom,
                 );
                 let mut sockets = vec![];
                 if let Ok(ports) = ports {
@@ -48,7 +55,7 @@ impl NodeEditor {
                                 spec,
                                 point: [
                                     if output { rect.max[0] } else { rect.min[0] },
-                                    rect.min[1] + visible_row * self.view.zoom,
+                                    rect.min[1] + visible_row * view.zoom,
                                 ],
                                 row_y,
                             });

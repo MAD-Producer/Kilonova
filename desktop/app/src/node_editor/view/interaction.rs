@@ -211,6 +211,7 @@ impl NodeEditor {
     /// Edges, preview selection and positions do not change port specifications;
     /// field commits and group navigation may. The caller must still validate
     /// the epoch and every source identity before reusing the cards.
+    #[cfg(test)]
     pub(super) fn canvas_input(
         &mut self,
         cards: &[Card],
@@ -218,7 +219,17 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) -> bool {
-        let mut ports_unchanged = true;
+        let before = (self.epoch, self.revision, self.preview_revision);
+        if !self.prepare_canvas_input(canvas, input) {
+            return false;
+        }
+        let ports_unchanged = before == (self.epoch, self.revision, self.preview_revision);
+        self.canvas_actions(cards, canvas, input, language) && ports_unchanged
+    }
+
+    /// Preserve wheel-before-commit history without first allocating cards for
+    /// the document that the field commit is about to replace.
+    pub(super) fn prepare_canvas_input(&mut self, canvas: Rect, input: &Input) -> bool {
         if canvas.contains(input.mouse) && self.drag.is_none() && input.wheel != [0.; 2] {
             if input.modifiers.control && !input.modifiers.alt && !input.modifiers.shift {
                 self.view.zoom_at(
@@ -233,14 +244,24 @@ impl NodeEditor {
                 self.view.pan[1] -= input.wheel[1];
             }
         }
-        let zoom = self.view.zoom;
-        let socket = |point: [f32; 2]| wires::socket_at(cards, canvas, point, zoom).cloned();
-        if let Some((button, point)) = input.pressed.filter(|(_, p)| canvas.contains(*p)) {
-            let before = (self.epoch, self.revision, self.preview_revision);
+        if input.pressed.is_some_and(|(_, point)| canvas.contains(point)) {
             if self.commit_field().is_err() {
                 return false;
             }
-            ports_unchanged = before == (self.epoch, self.revision, self.preview_revision);
+        }
+        true
+    }
+
+    pub(super) fn canvas_actions(
+        &mut self,
+        cards: &[Card],
+        canvas: Rect,
+        input: &Input,
+        language: Language,
+    ) -> bool {
+        let zoom = self.view.zoom;
+        let socket = |point: [f32; 2]| wires::socket_at(cards, canvas, point, zoom).cloned();
+        if let Some((button, point)) = input.pressed.filter(|(_, p)| canvas.contains(*p)) {
             match button {
                 MouseButton::Middle => {
                     self.drag = Some(Drag::Pan {
@@ -505,6 +526,6 @@ impl NodeEditor {
                 }
             }
         }
-        ports_unchanged
+        true
     }
 }
