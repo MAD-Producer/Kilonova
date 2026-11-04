@@ -6,6 +6,9 @@ use motion_ui::{
 #[path = "path_antialiasing/width.rs"]
 mod width;
 
+#[path = "path_antialiasing/checkerboard.rs"]
+mod checkerboard;
+
 fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
