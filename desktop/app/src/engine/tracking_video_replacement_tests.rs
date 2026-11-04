@@ -134,9 +134,18 @@ fn tracked_video_replacement_refuses_changed_plate_and_preserves_identical_sourc
     };
     layer.timeline = Some(motion_core::LayerTimeline {
         in_frame: 0,
-        out_frame: ((probe.asset.video_end_us - probe.asset.video_start_us)
-            * u64::from(project.fps)
-            / 1_000_000) as i32,
+        out_frame: project
+            .fps
+            .frame_at_tick(
+                (probe.asset.video_end_us - probe.asset.video_start_us)
+                    .try_into()
+                    .unwrap(),
+                1_000_000,
+                motion_core::ClockRounding::Floor,
+            )
+            .unwrap()
+            .try_into()
+            .unwrap(),
         offset_frame: 0,
     });
     project.layers.push(layer);
