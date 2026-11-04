@@ -5,6 +5,17 @@
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
 use unicode_segmentation::UnicodeSegmentation;
 pub mod shaping;
+
+struct SharedFontBytes(FontArc);
+impl AsRef<[u8]> for SharedFontBytes {
+    fn as_ref(&self) -> &[u8] {
+        self.0.font_data()
+    }
+}
+fn shaper_for(font: &FontArc, index: u32) -> Result<shaping::RunShaper, String> {
+    shaping::RunShaper::from_source(std::sync::Arc::new(SharedFontBytes(font.clone())), index)
+        .map_err(|cause| cause.to_string())
+}
 // Fits the minimum texture dimension supported by the desktop's downlevel
 // devices. RGBA coverage is bounded to 16 MiB on both CPU and GPU.
 const MAX_ATLAS_DIMENSION: u32 = 2048;
@@ -65,6 +76,8 @@ pub struct TextAtlas {
     font: PxScaleFont<FontArc>,
     /// Font size in pixels per em, as used by the design and stylesheet.
     font_size: f32,
+    shaper: shaping::RunShaper,
+    fallback_shaper: Option<shaping::RunShaper>,
     fallback: Option<PxScaleFont<FontArc>>,
     config: AtlasConfig,
     max_dimension: u32,
@@ -88,8 +101,8 @@ pub struct TextAtlas {
 impl TextAtlas {
     /// Build an atlas from the system UI font at `scale` logical pixels.
     pub fn from_system(scale: f32) -> Result<Self, String> {
-        let (font, families, family) = load_system_font(false)?;
-        let mut atlas = Self::new(font, scale, families);
+        let (font, families, family, index) = load_system_font(false)?;
+        let mut atlas = Self::new(font, index, scale, families)?;
         atlas.configure_family(family);
         Ok(atlas)
     }
@@ -98,12 +111,13 @@ impl TextAtlas {
         Self::from_family("system-ui", scale, chinese)
     }
     pub fn from_family(family: &str, scale: f32, chinese: bool) -> Result<Self, String> {
-        let (font, families, selected) = load_preferred_font(chinese, Some(family))?;
-        let mut atlas = Self::new(font, scale, families);
+        let (font, families, selected, index) = load_preferred_font(chinese, Some(family))?;
+        let mut atlas = Self::new(font, index, scale, families)?;
         atlas.configure_family(selected);
         if atlas.font.font.glyph_id('中').0 == 0 {
             match load_system_font(true) {
-                Ok((fallback, _, _)) => {
+                Ok((fallback, _, _, index)) => {
+                    atlas.fallback_shaper = Some(shaper_for(&fallback, index)?);
                     atlas.fallback = Some(PxScaleFont { scale: em_scale(&fallback, scale), font: fallback });
                 }
                 Err(error) => {
@@ -135,9 +149,27 @@ impl TextAtlas {
         }
     }
     pub fn supports(&self, character: char) -> bool {
-        self.face(character).glyph_id(character).0 != 0
+        self.shaping_face(character).nominal_glyph(character).is_some()
     }
-    pub fn new(font: FontArc, scale: f32, families: Vec<String>) -> Self {
+    fn shaping_face(&self, character: char) -> &shaping::RunShaper {
+        if self.shaper.nominal_glyph(character).is_none() {
+            if let Some(fallback) = &self.fallback_shaper {
+                if fallback.nominal_glyph(character).is_some() {
+                    return fallback;
+                }
+            }
+        }
+        &self.shaper
+    }
+    /// Bind the same collection face used to construct `font` to the shaper.
+    /// A font the shaping reader cannot open is returned to the caller as an error.
+    pub fn new(
+        font: FontArc,
+        face_index: u32,
+        scale: f32,
+        families: Vec<String>,
+    ) -> Result<Self, String> {
+        let shaper = shaper_for(&font, face_index)?;
         let font = PxScaleFont {
             scale: em_scale(&font, scale),
             font,
@@ -146,8 +178,10 @@ impl TextAtlas {
         let ascent = font.ascent();
         let config = AtlasConfig::default();
         let pixels = vec![0u8; (config.width * config.height * 4) as usize];
-        Self {
+        Ok(Self {
             font,
+            shaper,
+            fallback_shaper: None,
             font_size: scale,
             fallback: None,
             config,
@@ -165,7 +199,7 @@ impl TextAtlas {
             dirty: true,
             families,
             observations: Default::default(),
-        }
+        })
     }
 
     /// Scale the rasterisation size, for example after a display scale change.
@@ -465,13 +499,13 @@ fn em_scale(font: &FontArc, pixels: f32) -> PxScale {
 }
 
 /// Prefer a platform UI face, then fall back to any installed font.
-fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>, String), String> {
+fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>, String, u32), String> {
     load_preferred_font(chinese, None)
 }
 fn load_preferred_font(
     chinese: bool,
     family: Option<&str>,
-) -> Result<(FontArc, Vec<String>, String), String> {
+) -> Result<(FontArc, Vec<String>, String, u32), String> {
     let mut database = fontdb::Database::new();
     database.load_system_fonts();
     let families: Vec<String> = database
@@ -525,8 +559,8 @@ fn load_preferred_font(
     );
     candidates.extend(database.faces().map(|face| face.id));
     let prefer_chinese = chinese && family.is_none_or(|name| name == "system-ui");
-    if let Some((font, family)) = select_candidate(&database, candidates, prefer_chinese) {
-        return Ok((font, families, family));
+    if let Some((font, family, index)) = select_candidate(&database, candidates, prefer_chinese) {
+        return Ok((font, families, family, index));
     }
     Err("no usable system font was found".into())
 }
@@ -535,23 +569,24 @@ fn select_candidate(
     database: &fontdb::Database,
     candidates: impl IntoIterator<Item = fontdb::ID>,
     prefer_chinese: bool,
-) -> Option<(FontArc, String)> {
+) -> Option<(FontArc, String, u32)> {
     let mut fallback = None;
     for id in candidates {
         let font = database.with_face_data(id, |data, index| {
-            ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), index).map(FontArc::new)
+            ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), index)
+                .map(|font| (FontArc::new(font), index))
         });
-        if let Some(Ok(font)) = font {
+        if let Some(Ok((font, index))) = font {
             let family = database
                 .face(id)
                 .and_then(|f| f.families.first())
                 .map(|f| f.0.clone())
                 .unwrap_or_else(|| "unknown".into());
             if prefer_chinese && font.glyph_id('中').0 == 0 {
-                fallback.get_or_insert((font, family));
+                fallback.get_or_insert((font, family, index));
                 continue;
             }
-            return Some((font, family));
+            return Some((font, family, index));
         }
     }
     fallback

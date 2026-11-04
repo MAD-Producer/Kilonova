@@ -73,14 +73,28 @@ pub struct RunShaper {
 
 impl RunShaper {
     pub fn new(data: Arc<[u8]>, face_index: u32) -> Result<Self, ShapeError> {
-        let bytes = data.len();
         let source: Arc<dyn AsRef<[u8]> + Send + Sync> = Arc::new(data);
+        Self::from_source(source, face_index)
+    }
+
+    /// Share the exact font bytes and collection index used by rasterization.
+    pub fn from_source(
+        source: Arc<dyn AsRef<[u8]> + Send + Sync>,
+        face_index: u32,
+    ) -> Result<Self, ShapeError> {
+        let bytes = source.as_ref().as_ref().len();
         let font =
             Font::new(source, face_index).ok_or(ShapeError::InvalidFont { face_index, bytes })?;
         Ok(Self {
             font,
             buffer: Buffer::new(),
         })
+    }
+
+    pub fn nominal_glyph(&self, character: char) -> Option<u32> {
+        ShaperFont::new(&self.font)
+            .nominal_glyph(character as u32)
+            .map(|id| id.to_u32())
     }
 
     /// The caller supplies a resolved direction and splits mixed-script text
