@@ -6,6 +6,9 @@ use motion_ui::{
 #[path = "path_antialiasing/width.rs"]
 mod width;
 
+#[path = "path_antialiasing/checkerboard.rs"]
+mod checkerboard;
+
 fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -291,6 +294,85 @@ fn joined_transparent_lines_and_closed_paths_do_not_double_blend_or_leak_through
                         .all(|(a, b)| a.abs_diff(*b) <= 1),
                     "clipping changed distance coordinates at {ratio}x: {pixel:?}"
                 );
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
+fn outside_lines_leave_no_edge_pixels_and_clamped_centerlines_are_a_negative_control() {
+    let (device, queue) = gpu();
+    let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    let clip = Rect::new(8., 8., 48., 48.);
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        for points in [
+            vec![[-8., 12.], [-8., 52.]],
+            vec![[72., 12.], [72., 52.]],
+            vec![[12., -8.], [52., -8.]],
+            vec![[12., 72.], [52., 72.]],
+            vec![[-8., 12.], [-12., 32.], [-8., 52.]],
+            vec![[72., 12.], [76., 32.], [72., 52.]],
+            vec![[12., -8.], [32., -12.], [52., -8.]],
+            vec![[12., 72.], [32., 76.], [52., 72.]],
+            vec![[128., 48.], [128., 96.], [-32., 96.]],
+        ] {
+            for width in [1., 4.] {
+                let make = |points: Vec<[f32; 2]>| {
+                    let mut list = PaintList::default();
+                    if width == 1. {
+                        paint::line(&mut list, points, Color::grey(255));
+                    } else {
+                        paint::line_with_width(&mut list, points, Color::grey(255), width);
+                    }
+                    list.clip_to(Rect::new(4., 4., 56., 56.));
+                    list.clip_to(clip);
+                    list
+                };
+                let actual = capture(&device, &queue, &mut painter, &make(points.clone()), [64.; 2], ratio);
+                assert!(actual.chunks_exact(4).all(|p| p[3] == 0),
+                    "outside line left edge pixels: dpi={ratio}, width={width}, points={points:?}");
+                // Reproduce the original defect: clamping centerline coordinates
+                // moves a wholly hidden line onto the clipping boundary.
+                let clamped = points.iter().map(|p| [
+                    p[0].clamp(clip.min[0], clip.max[0]),
+                    p[1].clamp(clip.min[1], clip.max[1]),
+                ]).collect();
+                let control = capture(&device, &queue, &mut painter, &make(clamped), [64.; 2], ratio);
+                assert!(control.chunks_exact(4).any(|p| p[3] > 0),
+                    "negative control must expose clamping: dpi={ratio}, width={width}, points={points:?}");
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
+fn clipping_panel_backgrounds_preserves_the_intersection_instead_of_discarding_crossing_quads() {
+    let (device, queue) = gpu();
+    let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    let clip = Rect::new(8., 8., 48., 48.);
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        for area in [
+            Rect::new(-20., -20., 120., 120.), // No original vertex is inside.
+            Rect::new(-20., 16., 60., 24.),
+            Rect::new(24., 16., 60., 24.),
+            Rect::new(16., -20., 24., 60.),
+            Rect::new(16., 24., 24., 60.),
+        ] {
+            for color in [Color::grey(90), Color::rgba(90, 130, 180, 0.5)] {
+                let mut actual = PaintList::default();
+                paint::rect(&mut actual, area, color);
+                actual.clip_to(Rect::new(4., 4., 56., 56.));
+                actual.clip_to(clip);
+                let mut expected = PaintList::default();
+                // Independently construct the rectangle that the old background
+                // clamp retained, without applying any clipping to the oracle.
+                paint::rect(&mut expected, area.intersection(clip), color);
+                let actual = capture(&device, &queue, &mut painter, &actual, [64.; 2], ratio);
+                let expected = capture(&device, &queue, &mut painter, &expected, [64.; 2], ratio);
+                assert!(expected.chunks_exact(4).any(|p| p[3] > 0));
+                assert_eq!(actual, expected, "background intersection: dpi={ratio}, area={area:?}");
             }
         }
     }

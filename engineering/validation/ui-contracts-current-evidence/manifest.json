@@ -1,0 +1,333 @@
+{
+  "archive_sha256": "04ce1994295d22644eed7e3f16ad8cc56ad29dbd09c28b9d2144373c91d33ea4",
+  "members": {
+    "ui-input-contracts/result.json": {
+      "sha256": "743a7d503f89f7dcd1605a5d411881b83ada3b30b11a1dc4f430a04543d689c0",
+      "bytes": 72
+    },
+    "ui-input-contracts/run.ps1": {
+      "sha256": "399f5d922f8e0df620f06b55e83d803a4dab516daee27c4e633013bb008703ad",
+      "bytes": 783
+    },
+    "ui-input-contracts/source-head.txt": {
+      "sha256": "06b5c4345823512c654916cf042b67deacfdc0a8a096b1742a7fbf33d2c61734",
+      "bytes": 41
+    },
+    "ui-input-contracts/tests.stderr": {
+      "sha256": "f16b5a04b8480d75b2caafe87f22d30084b5c81c98840d084b5f51b833c38b08",
+      "bytes": 708
+    },
+    "ui-input-contracts/tests.stdout": {
+      "sha256": "5ece50c5ecf37e3f632ecca5fcf24607dd1d179152366095a09d1f6722e50072",
+      "bytes": 160317
+    },
+    "ui-remaining-contracts/result.json": {
+      "sha256": "5129583998b44700567e2fad56364bd320fdd95a28ed1ef69365a645df6fc20d",
+      "bytes": 72
+    },
+    "ui-remaining-contracts/run.ps1": {
+      "sha256": "2ea146464fb873fc4fff84aba890e96207f44de5f66da4ff002282defb82048a",
+      "bytes": 813
+    },
+    "ui-remaining-contracts/source-head.txt": {
+      "sha256": "06b5c4345823512c654916cf042b67deacfdc0a8a096b1742a7fbf33d2c61734",
+      "bytes": 41
+    },
+    "ui-remaining-contracts/tests.stderr": {
+      "sha256": "4bb8f7545587016b3495136c00b914b568ea31d0c4d7df645a59c758f246f981",
+      "bytes": 988
+    },
+    "ui-remaining-contracts/tests.stdout": {
+      "sha256": "c1416999c520a7a3aa720777a8f5e74beff650e83702a709ed9b308d7f4b3c56",
+      "bytes": 162453
+    },
+    "ui-atlas-bounds/result.json": {
+      "sha256": "b52808fceef6155d21ae1c4e1cb4f46bfb77911412e697b3695e9d67abccdaf3",
+      "bytes": 72
+    },
+    "ui-atlas-bounds/run.ps1": {
+      "sha256": "4bb5a76edfaced9b5665bc95396d57d56dc940a82ca65c3874be7321fff23480",
+      "bytes": 697
+    },
+    "ui-atlas-bounds/tests.stderr": {
+      "sha256": "af1b0c295cc023c9b95159d93cd3b7c3f95a70bed86674858344479ec186c876",
+      "bytes": 547
+    },
+    "ui-atlas-bounds/tests.stdout": {
+      "sha256": "85793b2e635988cb3948f8f34c83105ef5920ec252d062937d28f4d9cfa4b3a5",
+      "bytes": 157582
+    },
+    "source/desktop/ui/tests/atlas_bounds.rs": {
+      "sha256": "16b3fddfe7119a9418e9adfc94b82cdc5767c3474c6d33c24f4e5fe7525b4d01",
+      "bytes": 3580
+    },
+    "source/desktop/ui/tests/borrowed_input.rs": {
+      "sha256": "db099650f371e588501ba98b3e78e3aa3769eb5e02a28d47b0b5a6b5580b785d",
+      "bytes": 13342
+    },
+    "source/desktop/ui/tests/failure_boundaries.rs": {
+      "sha256": "eb356650efcaa53212b5a24f46b2ee0dc10051c9f14d505a5f768ace15afd2c5",
+      "bytes": 3293
+    },
+    "source/desktop/ui/tests/framework.rs": {
+      "sha256": "5ec8a7d4b78e7e52f48b335adeaa32ae70cc31dd03324d021793b351c706d972",
+      "bytes": 15639
+    },
+    "source/desktop/ui/tests/input_ownership.rs": {
+      "sha256": "1b14ee23920df4a1f1dd2508f013e3c71af06a05084112ee69d4be85186a7a33",
+      "bytes": 16195
+    },
+    "source/desktop/ui/tests/text_bounds.rs": {
+      "sha256": "14c0f79fc8db38ff40fa192e908e8b253cf0177808ff1f46ccb66856caf2f046",
+      "bytes": 7312
+    },
+    "source/desktop/ui/tests/paint_clip_buffers.rs": {
+      "sha256": "470db47bdd4c0d65d40bff405c7502673619a38ac4a6ca92d17da6532f5b0bf9",
+      "bytes": 16188
+    },
+    "source/desktop/ui/tests/icon_geometry.rs": {
+      "sha256": "089e830653284ed9720a030a059b28f1c02c9f9f3209482a256ac3a0c4940918",
+      "bytes": 4955
+    },
+    "source/desktop/ui/tests/dock_constraints.rs": {
+      "sha256": "f8e8d6f9ac3734894791331e4314f398939a5fe6c9a52fdf5750268cad326c71",
+      "bytes": 7699
+    },
+    "source/desktop/ui/tests/grapheme_editing.rs": {
+      "sha256": "7ee8f3b57e57d6706fdb5349879edc3377394e19014c62eed8caced409c5c3e9",
+      "bytes": 4585
+    },
+    "source/desktop/ui/tests/diamond_bounds.rs": {
+      "sha256": "298bf2b6d611c7bb8bb124be4c82328eb24dc52ccf30c1183d6ce5c5fad27986",
+      "bytes": 3530
+    },
+    "source/desktop/ui/tests/tabs.rs": {
+      "sha256": "320dc2627d6eda782220b15b4ee02656a88a7c30b62f0c2bbb928a27909dec55",
+      "bytes": 4529
+    },
+    "source/desktop/ui/src/cursor.rs": {
+      "sha256": "86e25cd2b02ca33d81c54be209c73aee492eb3954a452683c9a6c25cf95f9239",
+      "bytes": 1356
+    },
+    "source/desktop/ui/src/dock.rs": {
+      "sha256": "09064b7d7979dc43dfde1dbe9d7d8974ea549e47b9262515de7e8108d1f4c1e7",
+      "bytes": 21048
+    },
+    "source/desktop/ui/src/icons.rs": {
+      "sha256": "96fd3b945e2ae08de73d062533a44b5f1bf8a1efc6f73e41085de86a47f85f63",
+      "bytes": 10740
+    },
+    "source/desktop/ui/src/input.rs": {
+      "sha256": "c13f6f5f99853e60634868abbd4a44fd7ee4faed21497276937e270497d3a13d",
+      "bytes": 15318
+    },
+    "source/desktop/ui/src/interaction.rs": {
+      "sha256": "27e0a45123788b15fddf0e9ab7a8c663ff9f1dc79bdd6aa47f1292b199ab843a",
+      "bytes": 6258
+    },
+    "source/desktop/ui/src/lib.rs": {
+      "sha256": "e9736d4c862d3ed3cc09f43774cbde4462fece42c4f3ab70d4037f74aecb861f",
+      "bytes": 1332
+    },
+    "source/desktop/ui/src/motion.rs": {
+      "sha256": "6f73014134094cd9565ce2f2b2e2678d8e2c8d0bce69f6d24265e1e5bfb9d84d",
+      "bytes": 5419
+    },
+    "source/desktop/ui/src/observability.rs": {
+      "sha256": "d1189b0a1d768c72b4d3b349f8281190bcb4729c6e67f04ed0a38f112fd10c07",
+      "bytes": 2110
+    },
+    "source/desktop/ui/src/overlay.rs": {
+      "sha256": "7ca586097892cd725dd01547e33bd7bc29ab69ce61769ce98e5ffb0d5905fdd9",
+      "bytes": 1649
+    },
+    "source/desktop/ui/src/paint.rs": {
+      "sha256": "368020b532a7fe06fe279e3cd8cecf174f4ae600ed2ff0f25fa11a6f3beada17",
+      "bytes": 60478
+    },
+    "source/desktop/ui/src/panel.rs": {
+      "sha256": "a8679367e819216702843c70a8a339070c9e5f65241fe3b207aeb7286c95772f",
+      "bytes": 5186
+    },
+    "source/desktop/ui/src/registry.rs": {
+      "sha256": "8df171b03d9fe24557871bae052ef0ae2b47b031866283df997a8a2411855834",
+      "bytes": 2307
+    },
+    "source/desktop/ui/src/snap.rs": {
+      "sha256": "7794250914862ac7256afdf9895e521191056b889591cdef12918eccea73088c",
+      "bytes": 1416
+    },
+    "source/desktop/ui/src/style.rs": {
+      "sha256": "d52b95fc53e5ba13e62ea34d879253d8af8350a556aa1ab53e296c82b8960441",
+      "bytes": 18291
+    },
+    "source/desktop/ui/src/tabs.rs": {
+      "sha256": "02f3e4ff8438f9c257e3c87724c5701d381cda32d6567ebac8843a39214caf11",
+      "bytes": 6078
+    },
+    "source/desktop/ui/src/text.rs": {
+      "sha256": "58e7107e2a6fbbcad0d7419b27ebba11c96332a8fb489aaa87ab67f9699548d2",
+      "bytes": 24548
+    },
+    "source/desktop/ui/src/text_clipboard.rs": {
+      "sha256": "ad0fd1b6789aa6d04107283f2f7d45df5da2a7b635085a267a91916bfc247b6a",
+      "bytes": 4248
+    },
+    "source/desktop/ui/src/theme.rs": {
+      "sha256": "70b82c68161f9fa14ce40038e7d76e61a15ea45ad22c85ce0e82f6abf4e40bb2",
+      "bytes": 3636
+    },
+    "source/desktop/ui/src/ui.rs": {
+      "sha256": "79459b310a1174513fdd10d22e39611a4fda71001dda3e0e496dbc46e3be0610",
+      "bytes": 30440
+    },
+    "source/desktop/ui/src/widgets.rs": {
+      "sha256": "4b2206cf773ab9d2f68082505047c836ae270cfb888bcdc00fe5b985ef5aa461",
+      "bytes": 22629
+    },
+    "source/desktop/ui/src/workspace.rs": {
+      "sha256": "38046e47940702e883fd4dc20f834129ebb87fc0b299a31284f3947c4da96572",
+      "bytes": 16879
+    },
+    "source/desktop/ui/src/dock/solve_cache.rs": {
+      "sha256": "f50cd78b19e435354b9e71b74f4f957f1e2d1125ba917072c494a2b5c17f8411",
+      "bytes": 8191
+    },
+    "source/desktop/ui/src/dock/solve_cache_tests.rs": {
+      "sha256": "65a6b4c66a7ce067b88570e71c6723497a555447838327c9cef0249b51b8af53",
+      "bytes": 7879
+    },
+    "source/desktop/ui/src/icons/geometry_tests.rs": {
+      "sha256": "ed467116041568195a3ae669a35f3870f678c6145081129eb615707a28eea4e0",
+      "bytes": 13436
+    },
+    "source/desktop/ui/src/paint/admission_tests.rs": {
+      "sha256": "075c9f2a30c576db625bb1cc70ae6ae5b53f3b0a81072486289e529f315ca37f",
+      "bytes": 19346
+    },
+    "source/desktop/ui/src/paint/allocation.rs": {
+      "sha256": "e644afd9d961b6d8316a176763100a2381630a24395b2e839fee4ea415a8a1f4",
+      "bytes": 1699
+    },
+    "source/desktop/ui/src/paint/bindings_tests.rs": {
+      "sha256": "c1aa89e7415b04d12251c6a876791bf41717a865d75edc9d67a7cd43b8ca95fa",
+      "bytes": 6366
+    },
+    "source/desktop/ui/src/paint/bitmaps.rs": {
+      "sha256": "8e3550d7613d997d31e9f2b63ab0fc160e84bac7d7c74a3be44a3ba800d14b63",
+      "bytes": 13697
+    },
+    "source/desktop/ui/src/paint/buffer_tests.rs": {
+      "sha256": "5318b9bfa7624077dd273093b449c502e7ffaf53c0c8451a2aac7e572b163f9c",
+      "bytes": 12846
+    },
+    "source/desktop/ui/src/paint/memory.rs": {
+      "sha256": "947749590fd41b4dd0b284a2db1e8c41165524116526922738bc9c23463eb32b",
+      "bytes": 7254
+    },
+    "source/desktop/ui/src/paint/observation.rs": {
+      "sha256": "03b356e640ffd8ab77a8fe37cdaec27dbaeb32b171963289ec78e5dc28e0cab3",
+      "bytes": 1992
+    },
+    "source/desktop/ui/src/paint/static_mesh.rs": {
+      "sha256": "463df5119f96af63ddd0dd293387c66901e481d96870f812ce1ff326014623f8",
+      "bytes": 2917
+    },
+    "source/desktop/ui/src/paint/strokes.rs": {
+      "sha256": "72ed258beb5066fa1ecfdad251dbff070c9f56335edbf342376b056ac6e78d6c",
+      "bytes": 8446
+    },
+    "source/desktop/ui/src/paint/triangle_clip_tests.rs": {
+      "sha256": "8b99f97bcb1426d9445d141db4c5330c83796a12a54959964c6904209cf8dc3e",
+      "bytes": 3101
+    },
+    "source/desktop/ui/src/shaders/panel.wgsl": {
+      "sha256": "b8110d6b4afaec41eeb656228e5c0bfaf40857aceda4b6550f28e6635267cc1b",
+      "bytes": 6244
+    },
+    "source/desktop/ui/src/text/font_selection_tests.rs": {
+      "sha256": "44d91273bf2e58812dae4bcdd363da6820fb9dbc02beb88d7db329f61145b9c6",
+      "bytes": 3988
+    },
+    "source/desktop/ui/src/text/format_controls_tests.rs": {
+      "sha256": "000b8eb1ae90ba5192d559cdc1de4edfa7fcae243c777ed47322c06cd5f71c7d",
+      "bytes": 6840
+    },
+    "source/desktop/ui/src/text/lifetime_tests.rs": {
+      "sha256": "55bcc4d5bc384b5ee902066bbf57e5fc5e2ad235d3edbe3dcf57976aaa701e39",
+      "bytes": 3347
+    },
+    "source/desktop/ui/src/text/observation_tests.rs": {
+      "sha256": "b85a8bb4f94e3a4d46a9a2c5d1aa6a4534680f1fbfec137d4c618171b6f92a1a",
+      "bytes": 11288
+    },
+    "source/desktop/ui/src/text/windows.rs": {
+      "sha256": "c380be84e560f8e2f26eda47d9d215928109775e168c49a690ba593a54b39af4",
+      "bytes": 5165
+    },
+    "source/desktop/ui/src/widgets/composite.rs": {
+      "sha256": "4879610c8144aaa1e4989e71a9881142dd64750411982f57aaa1798c5fee8a18",
+      "bytes": 30852
+    },
+    "source/desktop/ui/src/widgets/inspector.rs": {
+      "sha256": "b140f1890cf7866391a3366984a91ca19bad93e1146b233ab90a74a968240b06",
+      "bytes": 4608
+    },
+    "source/desktop/ui/src/widgets/menu.rs": {
+      "sha256": "6d79f4ac9eface93dfe1e423d52c633c367c2d452568bd19420c17ae3ff2e1fd",
+      "bytes": 13213
+    },
+    "source/desktop/ui/src/widgets/multiline.rs": {
+      "sha256": "9dddc7f6f90cdd7d31d41846e0c25d10d6fcd87a208a143078ff92d4236cc8ba",
+      "bytes": 21573
+    },
+    "source/desktop/ui/src/widgets/numeric_behavior.rs": {
+      "sha256": "7f5631a13eefbb383bd912152f82a88f4b9d7cc99f6a8d12858915d7a8bb0ab9",
+      "bytes": 915
+    },
+    "source/desktop/ui/src/widgets/property_layout.rs": {
+      "sha256": "ed9747ecf67d1a0ab08d60d955ad1aef4b679ac1fc6ae38ba491e3f7e24d2d5d",
+      "bytes": 1695
+    },
+    "source/desktop/ui/src/widgets/text_commands.rs": {
+      "sha256": "92d3ed47bb2677d4edc2eb7228b6ccf9b89146389fc0d9b3090ead92f1ed5331",
+      "bytes": 2339
+    },
+    "source/desktop/ui/src/widgets/text_history.rs": {
+      "sha256": "ba8a31900e1f35fd7b58e1f11b3e6d5e5403d4645a3c29398d2c8bb0f4cdfe42",
+      "bytes": 2732
+    },
+    "source/desktop/ui/src/widgets/text_input.rs": {
+      "sha256": "9c793e178cd147ca3b0cebf58880cc9b33531dfdfc3445f7f452c724741459a2",
+      "bytes": 5245
+    },
+    "source/desktop/ui/src/widgets/menu/tests.rs": {
+      "sha256": "1d6ff752198bb1ffea97a938dc8215e0a89bea33b2ea586d2964c82bb7e0206e",
+      "bytes": 6996
+    },
+    "source/desktop/ui/src/widgets/multiline/tests.rs": {
+      "sha256": "322f7f5fc26bdc5a4ba6d52bee654abc107405c079af72157bac09147cc3ba5c",
+      "bytes": 5755
+    },
+    "source/desktop/ui/src/workspace/observation.rs": {
+      "sha256": "c4f59d67afb2adf6c219b2df3ed104e919296d05dd63d95e1c4d1612f332aed4",
+      "bytes": 1385
+    },
+    "source/desktop/ui/tests/text_bounds/gpu.rs": {
+      "sha256": "3ac7adee9263e1d63b12402241000f40b01a1d1661b670eab15ef3113e3ea969",
+      "bytes": 12508
+    },
+    "source/desktop/ui/tests/text_bounds/grapheme.rs": {
+      "sha256": "63d5f285c51bdd6706173f20ae9375906313f3f82e55da8d2eab02e3ec02156b",
+      "bytes": 6883
+    },
+    "source-receipt.json": {
+      "sha256": "924c6e5e2a28c0c63349239d7b6ffbf11cba5f3fabad9ba92fe069a0ac9d6bf6",
+      "bytes": 14329
+    },
+    "archive.py": {
+      "sha256": "7e6f00349542c9e6b01e330d11c7e59a27d086863ea3720a483f5756b38a06de",
+      "bytes": 3630
+    }
+  }
+}

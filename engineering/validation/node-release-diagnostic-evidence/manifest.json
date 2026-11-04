@@ -1,0 +1,113 @@
+{
+  "archive_sha256": "c32ab373a21d79ac2251b33cc8b058aa3d48818df7d717f009156a659fe07dd5",
+  "members": {
+    "build.ps1": {
+      "sha256": "f890d89bd8d5387b4d2b55f92ba9bd9fad6f8e9f6f45701f1a1ba7fad52289d7",
+      "bytes": 1482
+    },
+    "compiler-events.json": {
+      "sha256": "c8b05957ef5310ae8fb8ac5da14ae079ef5444d3832c0329c7ea38d08b00fcfd",
+      "bytes": 2335
+    },
+    "memory-before.json": {
+      "sha256": "9cdec9e75c0795df44c21ef8f0a70e10af4f43aeceef4491395fb73ad1ce5ea5",
+      "bytes": 78
+    },
+    "release-build.jsonl": {
+      "sha256": "261567bd176e8c67350599b2356ccce75ed08446f86980bb05a87934d054fe21",
+      "bytes": 258182
+    },
+    "release-build.stderr": {
+      "sha256": "75cb538af3ccbb3122d3c522cdf629be7d28f9f4ef8814da509f3f473e9dc65b",
+      "bytes": 1704
+    },
+    "result.json": {
+      "sha256": "ebd122e9f9812ddcfe66f56caab45cf44b895f0e553b9246f5f85b05100b6ebd",
+      "bytes": 208
+    },
+    "runtime-source-diff.patch": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "source-head.txt": {
+      "sha256": "94c2905cfe7ee4f2b0a7749f4e3a2d71cad890c24a679fdf19df4e832b44fc89",
+      "bytes": 41
+    },
+    "source-status.txt": {
+      "sha256": "67e4368307ce670c62d1087ff5cb989e3aefa03c5a4c0c513a9082e563efe306",
+      "bytes": 97
+    },
+    "symbolized-offsets.txt": {
+      "sha256": "2d94f0856f82a0e3a28a9c410fa69bc5c6d90058c0aa73f7cf136c3fc32ca07f",
+      "bytes": 1013
+    },
+    "debugger/build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "debugger/build.stdout": {
+      "sha256": "f09defa73a8f1794597607a37ccda194c5d0d0b515a9ff28180a031ca8fe187b",
+      "bytes": 20
+    },
+    "debugger/clean-control.stderr": {
+      "sha256": "521c80e12dd7a73f551ed90ff40bb4fbad51a4c67a411349b6cb72376822e049",
+      "bytes": 171
+    },
+    "debugger/clean-control.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "debugger/control-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "debugger/control-build.stdout": {
+      "sha256": "8e84da71e4e6ed173ab67482f2ede97f207abda77b03b99f46d06a2eaf49b485",
+      "bytes": 13
+    },
+    "debugger/control.cpp": {
+      "sha256": "fda0e22c8bf5d2db43832f0882fda190c7ceaaaa6a6959de0fb71fae13bb5f00",
+      "bytes": 460
+    },
+    "debugger/controls.json": {
+      "sha256": "fdf921b95b76a69447fff561234a313d35a180f01c06d3aeba37c82e584e3b1f",
+      "bytes": 121
+    },
+    "debugger/fatal-control.stderr": {
+      "sha256": "25ed1c44586a4b7d4eb8e2f073e35c2904a1171b83c259fd0716de65da301241",
+      "bytes": 412
+    },
+    "debugger/fatal-control.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "debugger/in-flight.json": {
+      "sha256": "878cf9180c4baacd5c99d45634717c961c5bb0603475d4747b2ee75ec2978fb6",
+      "bytes": 112
+    },
+    "debugger/run.py": {
+      "sha256": "de80b804225229edb04c253df0e7ca8274b04752afb817042b309483d17688c4",
+      "bytes": 2241
+    },
+    "debugger/rustc-command.txt": {
+      "sha256": "07fd347324bc8c50a3e0c1e02a9a39028a181a0e301e0b73b9d68f8e0e9867e2",
+      "bytes": 1457
+    },
+    "debugger/rustc-debugger.cpp": {
+      "sha256": "d36214a0830bc89e2847cafb69c245d167301b43dd33db19d175f199cbfe7b1b",
+      "bytes": 4867
+    },
+    "debugger/rustc-result.json": {
+      "sha256": "674c6d19b7c2a04d4f8c8c54ef76aefbcd925ca79c7f1c58e682b1129d7169f5",
+      "bytes": 1992
+    },
+    "debugger/rustc.stderr": {
+      "sha256": "288b64e6d3a89c84b487361e6590739118d5bd9a1a0e3ef472c22828f0991c21",
+      "bytes": 785
+    },
+    "debugger/rustc.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  }
+}

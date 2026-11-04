@@ -1,0 +1,117 @@
+{
+  "archive_sha256": "52160c308d45be6a23da23e5ecfc69d2f14dd5bdb86bb8f889f8ee5a3afe7b1a",
+  "members": {
+    "archive.py": {
+      "sha256": "effa4d384c9376a8ed4d76c9ff7ee491f559739cbe35a170a1ae283b496b4e36",
+      "bytes": 2831
+    },
+    "buffer.stderr": {
+      "sha256": "38ca2436f94ffbb9735638e38db8ec12ddb8df3283399100da40a604b0e252bf",
+      "bytes": 683
+    },
+    "buffer.stdout": {
+      "sha256": "94e1a039d6f6fba2ed9ac95755b4d52e83185ca7a0c85c97ef86891b5101ff01",
+      "bytes": 154617
+    },
+    "default-temp-probe.json": {
+      "sha256": "ad0dddf1f383a9cfe8823286c1bdf2f464f8fc411a0f0cfb53d5496deefcb043",
+      "bytes": 292
+    },
+    "final-results.json": {
+      "sha256": "2e715126475ab44a3c4c65d14c06468b82fd4682814f572c997b89bf3cf2c6cd",
+      "bytes": 99
+    },
+    "issue-after.md": {
+      "sha256": "27461ff589c086361c386c6c8362e2e93581c75b4246149c38b6062bea5121fc",
+      "bytes": 14157
+    },
+    "issue-before.md": {
+      "sha256": "e746447e8d1af77c0e6bc6333667d2d7a13ca6c18a2de10fd5a5e8d330dec52c",
+      "bytes": 13016
+    },
+    "path-final.stderr": {
+      "sha256": "a81d9ca2a0814cdaa76be520b128d1b554ae7ee8b4b829a08a168ba815ae1e20",
+      "bytes": 303
+    },
+    "path-final.stdout": {
+      "sha256": "a1577d844f27142fece21ef88492fa8186e174828cbe08bb2291af6225acb92f",
+      "bytes": 156011
+    },
+    "path.stderr": {
+      "sha256": "fcac8e49e707178274d6f71d0817556c450b99af839a792949ce7e3648248503",
+      "bytes": 303
+    },
+    "path.stdout": {
+      "sha256": "8b0dd6dee58bd23517d9269343484b206d93bb39a2dac75ccfd46dd2e5f322cf",
+      "bytes": 156013
+    },
+    "results.json": {
+      "sha256": "e0cf02ddb4e9873d70de33a5aefe067bcb7d4aabfade19307418008bdc043fae",
+      "bytes": 98
+    },
+    "run-library.py": {
+      "sha256": "55472be10689e5ad1e458635c9de7bb71925a1a7fcaf5a1a1c344d1bd44363f0",
+      "bytes": 1403
+    },
+    "run.ps1": {
+      "sha256": "6f3cb0707dfe70f41140efd8fc74f3c4b622d24708710dab1dea90c591dd3093",
+      "bytes": 1414
+    },
+    "source-head.txt": {
+      "sha256": "94c2905cfe7ee4f2b0a7749f4e3a2d71cad890c24a679fdf19df4e832b44fc89",
+      "bytes": 41
+    },
+    "source-receipt.json": {
+      "sha256": "5ba5d2c214f2e259d64de8230a94a35127720cc16c37378f52bf6ffa5745a2cd",
+      "bytes": 2064
+    },
+    "source.patch": {
+      "sha256": "1aac5da85a4a29c7bccde11e6dc1f4a95c9449113668ae78c6ab66fa210be425",
+      "bytes": 433
+    },
+    "ui-library-writable-temp.json": {
+      "sha256": "48ca2e96f4b396dde74757bb6c0b88b63bdd329e00b93d571eecfa5ecbac9fe2",
+      "bytes": 438
+    },
+    "ui-library-writable-temp.stderr": {
+      "sha256": "cfc797332c1cb6833649643ade5835304807268a5e1516a2fe3c4ae4f040a687",
+      "bytes": 264
+    },
+    "ui-library-writable-temp.stdout": {
+      "sha256": "fc3f2f59b1768f0f2a775a9bf8bbb920aea24b89f8268c2c2c665420a44cb8a8",
+      "bytes": 8675
+    },
+    "ui-library.json": {
+      "sha256": "1dbbe35bfe8c74da0e2a28e7b487188b23a5a0a88272f3f32ed7fffca7c65e5d",
+      "bytes": 320
+    },
+    "ui-library.stderr": {
+      "sha256": "0ea385143194b4ffce1ba1ba1bf738ce528560d1d2a987465176d879b816f392",
+      "bytes": 1438
+    },
+    "ui-library.stdout": {
+      "sha256": "b535952cff47113bdfcfaa5aca32ce12f17ef9ce545eb8294ac047c461a2d9fb",
+      "bytes": 9134
+    },
+    "source/desktop/ui/tests/path_antialiasing.rs": {
+      "sha256": "414eaab0eccb5e84abbfd90ce4d4bd09866dd114f5dfef8d870cec29b8adfe10",
+      "bytes": 18659
+    },
+    "source/desktop/ui/tests/path_antialiasing/checkerboard.rs": {
+      "sha256": "635e4c0b3b8501cb0af479f50d3ec85744376ed55f67c5399517b009a94e89a4",
+      "bytes": 4893
+    },
+    "source/desktop/ui/src/paint/buffer_tests.rs": {
+      "sha256": "5318b9bfa7624077dd273093b449c502e7ffaf53c0c8451a2aac7e572b163f9c",
+      "bytes": 12846
+    },
+    "source/desktop/ui/src/paint.rs": {
+      "sha256": "368020b532a7fe06fe279e3cd8cecf174f4ae600ed2ff0f25fa11a6f3beada17",
+      "bytes": 60478
+    },
+    "source/desktop/ui/src/shaders/panel.wgsl": {
+      "sha256": "b8110d6b4afaec41eeb656228e5c0bfaf40857aceda4b6550f28e6635267cc1b",
+      "bytes": 6244
+    }
+  }
+}

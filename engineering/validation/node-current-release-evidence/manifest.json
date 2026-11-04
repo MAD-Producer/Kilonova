@@ -1,0 +1,30 @@
+{
+  "members": {
+    "release-build.jsonl": {
+      "bytes": 258453,
+      "sha256": "6ca39a6bc3a7a8073b17c061b5a4a35219767a4a7bce167a455df4632631dbfc"
+    },
+    "release-build.stderr": {
+      "bytes": 9121,
+      "sha256": "8b36649e0dfa1cf4562562e80f3b75d265924b86eda5911781cc0613bbaf481c"
+    },
+    "compiler-events.json": {
+      "bytes": 2333,
+      "sha256": "7051f14022a14049f6a37c6e3841835648de76671d9bdbe4c3a5a45e14775259"
+    },
+    "failure-receipt.json": {
+      "bytes": 291,
+      "sha256": "abec9937ea53f95662eadc4c1cb38203419c3ff100c3eb7f8a77066b06525991"
+    },
+    "source-head.txt": {
+      "bytes": 42,
+      "sha256": "1a00697ba9784e009a4befe5baeaafc2d7bc93ea516accdd452c6d3d48f0d79f"
+    },
+    "build-release.ps1": {
+      "bytes": 777,
+      "sha256": "8aec9c5164e82987ac1ea09a659b779fccc05f8a69148439b337badc4d2a5872"
+    }
+  },
+  "zip_sha256": "df08d1189c703ad3b3707967710f1d564a5514f80ce0b58fe31dd2ea48152e5e",
+  "missing_capture": "source-status.txt was not created by an empty PowerShell pipeline; no retrospective file fabricated"
+}

@@ -1,0 +1,170 @@
+{
+  "base": "a9763370ac7b6bdb4e5325f4ef25546f14c2d031",
+  "files": {
+    "before/actual-tests.json": {
+      "bytes": 129,
+      "sha256": "09566f72c53bebabb5dbc7fd94cc52e73f67d81bcfe9ab185fc88555b1953c27"
+    },
+    "before/actual-tests.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/actual-tests.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/app-build.jsonl": {
+      "bytes": 473851,
+      "sha256": "cf9e32048a43c8a35cdc5306965ca96e80f60a7986b67636222183c8c3dd5418"
+    },
+    "before/app-build.stderr": {
+      "bytes": 166,
+      "sha256": "a5224cb9316c5908aae94683605ce5e32db6f7e5bdce2c5295334aa08a4b0602"
+    },
+    "before/red-cwd.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/red-cwd.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/red-isolated.log": {
+      "bytes": 6022,
+      "sha256": "76810c3683ab296031dfa146238ff2a4d300b2047cd4fd15d7a2922d58373583"
+    },
+    "before/red-runtime.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/red-runtime.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/red.json": {
+      "bytes": 243,
+      "sha256": "6205610826c36b179321d18379e146eacce2900ccc32d65e844b20b69f4b5144"
+    },
+    "before/red.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/red.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/tests-with-runtime.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before/tests.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after/app-build.jsonl": {
+      "bytes": 473851,
+      "sha256": "900c716b28ad8c40f26136d00704e2654abe139fdca51c974dcafd728889fe99"
+    },
+    "after/app-build.stderr": {
+      "bytes": 166,
+      "sha256": "9afde0dc35d3d503a3ac87440cf1553137accfdc3f484c4d7572694fc429b02e"
+    },
+    "after/production-build.jsonl": {
+      "bytes": 487440,
+      "sha256": "71c1809c0f31fb3e2583e0f2ec1daef3d8f2d87be398ff57405f174670a89ec6"
+    },
+    "after/production-build.stderr": {
+      "bytes": 165,
+      "sha256": "1a91d7c4a9e9dd53b6305865590a5f17bd77ea535aa81830d444a51986983fc7"
+    },
+    "after/receipt.json": {
+      "bytes": 537,
+      "sha256": "0f9ee281e3e6cb65dc255bfc98b7b950a2d7c62f5640bcc9eadc1c90f8057904"
+    },
+    "after/regression-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after/regression-0.stdout": {
+      "bytes": 25700,
+      "sha256": "25a15de2f157f400d5807262c74a3a72036bcefb9ddaff1ff6456fd0170d0382"
+    },
+    "after/regression-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after/regression-1.stdout": {
+      "bytes": 579,
+      "sha256": "dd232d50bc06f2a762eb8ce0ef4482aec2da9c7a822c946fe36a429dbcd3ae68"
+    },
+    "after/regression-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after/regression-2.stdout": {
+      "bytes": 1258,
+      "sha256": "c9b4b8aeb6edcb673e99c897f8c6c15e94c0ee9b94cd85918c561aae82eee983"
+    },
+    "after/regression-3.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after/regression-3.stdout": {
+      "bytes": 987,
+      "sha256": "24cfe1a47e274883ae16e20f2f6bd44eca9f1144e40f06c650d3cbeaa565012d"
+    },
+    "after/regression-4.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after/regression-4.stdout": {
+      "bytes": 604,
+      "sha256": "f114ec40b2f92e08fbb84a9ffbe3b17dd7d454035bdb3fa7159c72a783bc3826"
+    },
+    "after/regression.json": {
+      "bytes": 1403,
+      "sha256": "298d10ac50411f8fa9eef430404eeaf7e2c8700bd294610c8ea137e7220a85a4"
+    },
+    "after/startup.json": {
+      "bytes": 133,
+      "sha256": "aaafb7a9c87eb71b212b67fbd9c13e19b95114e09a1dfba6a1b9aada88512c33"
+    },
+    "after/startup.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after/startup.stdout": {
+      "bytes": 61852,
+      "sha256": "418c03d5be959192058fa1240503d333ecfe0d6d7776b00d534c88ec2338896a"
+    },
+    "fixture-compile-failure/app-build.jsonl": {
+      "bytes": 438932,
+      "sha256": "658cee22a87d6b541414ceda90dd33da05b97713c2d2e9fe7d9ec5bb21256478"
+    },
+    "fixture-compile-failure/app-build.stderr": {
+      "bytes": 207,
+      "sha256": "0d206d1488caeef8539dc25517773cc0c64bc06e88d0fe5f49360278ca4f8a8c"
+    },
+    "dependencies.txt": {
+      "bytes": 1234,
+      "sha256": "6214ac640b313c5a84725a2bdcca78336b670e7c3bcf47cb62bff194d1273a4c"
+    },
+    "regressions.py": {
+      "bytes": 1098,
+      "sha256": "681ad5738864f27472d337251cad4172076865f8f19873e5b9213c631dab2408"
+    },
+    "build-before.ps1": {
+      "bytes": 1365,
+      "sha256": "ef86aca6fc3f8b6ff2317815bcc536c95e59a870335a1e158325d4f608d5dd3d"
+    },
+    "build-after.ps1": {
+      "bytes": 1365,
+      "sha256": "47517628f3a7e9336881a59003135682c0ca414048f7ec435d90548a2ea686ae"
+    },
+    "build-production.ps1": {
+      "bytes": 1369,
+      "sha256": "6fd3b66a3885370dd05db56a2c2eaeab1d609f55d0e8371105185a8d4c3f4bc4"
+    }
+  },
+  "zip_sha256": "0ceb93de50929db8962a1afefa4456d765b53446de4b2d452536aa44bf8d81d4"
+}

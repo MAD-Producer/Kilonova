@@ -1,0 +1,45 @@
+{
+  "members": {
+    "build.json": {
+      "sha256": "06e89c053537f92aa39d5dfb23e01518f83cbffd856ef767bdbefe72cbf24b5d",
+      "bytes": 1840
+    },
+    "build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "source-receipt.json": {
+      "sha256": "5e9d1b2c850a8e0ec6926ff3fb84c1462023b68a2e735c89248836adb414b956",
+      "bytes": 295
+    },
+    "tests.json": {
+      "sha256": "77e295e897fd8581f43027297a32b3d9baa0b52e5dcb19cbc285d934e3b30d5a",
+      "bytes": 260
+    },
+    "tests.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "tests.stdout": {
+      "sha256": "137b07bc27d208032109cbf80ecc468a748c2ca42c837c148f00938c6c463626",
+      "bytes": 1065
+    },
+    "initial-command-error/build.json": {
+      "sha256": "41147a7253e820d4b4b34e9e4aedcd25dd15311fe81962b34ea523970d5631d3",
+      "bytes": 1811
+    },
+    "initial-command-error/build.stderr": {
+      "sha256": "e9a113bf29ef248b61a83fce4afdab196c72e437eaaaa45d8d0a88eff7f2d348",
+      "bytes": 150
+    },
+    "initial-command-error/build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "zip_sha256": "094180580f769f10cb448c66c8658a114dc5742879f2e9113673bf2457f0f315"
+}

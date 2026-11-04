@@ -1,6 +1,9 @@
 use super::*;
 use crate::shortcuts::{Command, Scope};
 
+#[cfg(test)]
+mod drag_delta_tests;
+
 impl NodeEditor {
     #[cfg(test)]
     pub(super) fn keyboard(&mut self, input: &Input, actions: &mut Vec<Action>) {
@@ -188,11 +191,14 @@ impl NodeEditor {
 
     fn update_node_drag(&mut self, origin: [f32; 2], positions: Vec<(String, [f32; 2])>, before: History, canvas: Rect, input: &Input) {
         let point = self.view.screen_to_world(input.mouse, canvas);
+        // Subtract before adding the stored position so a stationary pointer
+        // has an exact zero delta instead of introducing rounding-only edits.
+        let delta = [point[0] - origin[0], point[1] - origin[1]];
         for (id, start) in &positions {
             if let Some(node) = self.document.nodes.iter_mut().find(|n| n.id == *id) {
                 node.position = [
-                    (start[0] + point[0] - origin[0]).clamp(-1.0e6, 1.0e6),
-                    (start[1] + point[1] - origin[1]).clamp(-1.0e6, 1.0e6),
+                    (start[0] + delta[0]).clamp(-1.0e6, 1.0e6),
+                    (start[1] + delta[1]).clamp(-1.0e6, 1.0e6),
                 ];
             }
         }
