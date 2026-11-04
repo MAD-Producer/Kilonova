@@ -19,6 +19,7 @@ pub enum LayoutError {
     MissingFace,
     InvalidCluster { offset: usize, bytes: usize },
     Shape(shaping::ShapeError),
+    FontFallback(Arc<super::fallback::FallbackError>),
 }
 impl fmt::Display for LayoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -38,6 +39,7 @@ impl fmt::Display for LayoutError {
                 "UI shaping returned invalid source cluster: offset={offset} bytes={bytes}"
             ),
             Self::Shape(cause) => write!(f, "UI line shaping: {cause}"),
+            Self::FontFallback(cause) => write!(f, "UI line font selection: {cause}"),
         }
     }
 }
@@ -45,6 +47,7 @@ impl std::error::Error for LayoutError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Shape(cause) => Some(cause),
+            Self::FontFallback(cause) => Some(cause.as_ref()),
             _ => None,
         }
     }
@@ -150,7 +153,7 @@ struct Run {
 fn strong(script: Script) -> bool {
     !matches!(script, Script::COMMON | Script::INHERITED | Script::UNKNOWN)
 }
-fn coverage(face: &shaping::RunShaper, text: &str) -> bool {
+pub(super) fn coverage(face: &shaping::RunShaper, text: &str) -> bool {
     text.chars()
         .filter(|c| !c.is_control() && !super::is_sequence_control(*c))
         .all(|c| face.nominal_glyph(c).is_some())
@@ -201,31 +204,23 @@ impl TextAtlas {
                 if hard_break {
                     paragraph += 1;
                 }
-                let face = if coverage(&self.shaper, grapheme) {
-                    FontSlot::Primary
-                } else if self
-                    .fallback_shaper
-                    .as_ref()
-                    .is_some_and(|face| coverage(face, grapheme))
-                {
-                    FontSlot::Fallback
-                } else {
-                    FontSlot::Primary
-                };
+                let face = self
+                    .font_for_grapheme(grapheme)
+                    .map_err(LayoutError::FontFallback)?;
                 let script = grapheme
                     .chars()
                     .map(|c| harfrust::unicode::script(c as u32))
                     .find(|s| strong(*s))
                     .unwrap_or(Script::COMMON);
-                Cluster {
+                Ok(Cluster {
                     range: start..start + grapheme.len(),
                     script,
                     face,
                     paragraph: segment,
                     hard_break,
-                }
+                })
             })
-            .collect();
+            .collect::<Result<_, LayoutError>>()?;
         let boundaries = clusters
             .iter()
             .map(|c| c.range.start)
@@ -327,6 +322,14 @@ impl TextAtlas {
                     .fallback_shaper
                     .as_mut()
                     .ok_or(LayoutError::MissingFace)?,
+                FontSlot::System(index) => {
+                    &mut self
+                        .system_fallback
+                        .as_mut()
+                        .and_then(|pool| pool.faces.get_mut(index as usize))
+                        .ok_or(LayoutError::MissingFace)?
+                        .shaper
+                }
             };
             let direction = if run.level.is_rtl() {
                 Direction::RightToLeft
@@ -605,5 +608,34 @@ mod tests {
             atlas.layout_line(text),
             Err(LayoutError::MultipleLines)
         ));
+    }
+
+    #[test]
+    fn default_language_fonts_render_installed_arabic_without_missing_glyphs() {
+        // Establish actual installed coverage independently of the default UI
+        // family. The product must discover this face without a custom font.
+        let reference = arabic_atlas();
+        assert!(coverage(&reference.shaper, "سلام"));
+        for chinese in [false, true] {
+            let mut atlas = TextAtlas::from_system_language(16., chinese).unwrap();
+            let line = atlas.layout_line("cafe\u{301} · سلام 123 · 位置").unwrap();
+            assert_eq!(
+                line.missing_glyphs, 0,
+                "chinese={chinese} family={:?}",
+                atlas.selected_family
+            );
+            let arabic: Vec<_> = line
+                .glyphs
+                .iter()
+                .filter(|g| ('\u{600}'..='\u{6ff}').contains(&g.source))
+                .collect();
+            assert!(!arabic.is_empty());
+            for glyph in arabic {
+                let bitmap = atlas
+                    .glyph_by_id(glyph.face, glyph.id, 16., glyph.source)
+                    .unwrap();
+                assert!(bitmap.uv[2] > bitmap.uv[0] && bitmap.uv[3] > bitmap.uv[1]);
+            }
+        }
     }
 }

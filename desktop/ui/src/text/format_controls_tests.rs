@@ -74,7 +74,7 @@ fn ordinary_base_glyphs_keep_their_positions_around_an_unsupported_selector() {
     }
 }
 
-struct Capture(Mutex<File>);
+pub(super) struct Capture(pub(super) Mutex<File>);
 impl log::Log for Capture {
     fn enabled(&self, m: &log::Metadata<'_>) -> bool {
         m.level() <= log::Level::Info

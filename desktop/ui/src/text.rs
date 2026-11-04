@@ -7,6 +7,8 @@ pub mod shaping;
 pub mod glyph_index;
 pub mod layout;
 mod fitting;
+mod fallback;
+pub use fallback::FallbackError;
 pub use fitting::FittedLine;
 
 struct SharedFontBytes(FontArc);
@@ -82,6 +84,7 @@ pub struct TextAtlas {
     shaper: shaping::RunShaper,
     fallback_shaper: Option<shaping::RunShaper>,
     fallback: Option<PxScaleFont<FontArc>>,
+    system_fallback: Option<fallback::FontFallback>,
     config: AtlasConfig,
     max_dimension: u32,
     pixels: Vec<u8>,
@@ -110,6 +113,7 @@ impl TextAtlas {
         let (font, families, family, index) = load_system_font(false)?;
         let mut atlas = Self::new(font, index, scale, families)?;
         atlas.configure_family(family);
+        atlas.system_fallback = Some(fallback::FontFallback::new(fallback::system_catalog()));
         Ok(atlas)
     }
 
@@ -120,6 +124,7 @@ impl TextAtlas {
         let (font, families, selected, index) = load_preferred_font(chinese, Some(family))?;
         let mut atlas = Self::new(font, index, scale, families)?;
         atlas.configure_family(selected);
+        atlas.system_fallback = Some(fallback::FontFallback::new(fallback::system_catalog()));
         if atlas.font.font.glyph_id('中').0 == 0 {
             match load_system_font(true) {
                 Ok((fallback, _, _, index)) => {
@@ -158,11 +163,17 @@ impl TextAtlas {
         self.shaping_face(character).nominal_glyph(character).is_some()
     }
     fn shaping_face(&self, character: char) -> &shaping::RunShaper {
-        if self.shaper.nominal_glyph(character).is_none() {
-            if let Some(fallback) = &self.fallback_shaper {
-                if fallback.nominal_glyph(character).is_some() {
-                    return fallback;
-                }
+        if self.shaper.nominal_glyph(character).is_some() {
+            return &self.shaper;
+        }
+        if let Some(fallback) = &self.fallback_shaper {
+            if fallback.nominal_glyph(character).is_some() {
+                return fallback;
+            }
+        }
+        if let Some(pool) = &self.system_fallback {
+            if let Some(face) = pool.faces.iter().find(|f| f.shaper.nominal_glyph(character).is_some()) {
+                return &face.shaper;
             }
         }
         &self.shaper
@@ -190,6 +201,7 @@ impl TextAtlas {
             fallback_shaper: None,
             font_size: scale,
             fallback: None,
+            system_fallback: None,
             config,
             max_dimension: MAX_ATLAS_DIMENSION,
             pixels,
@@ -221,6 +233,9 @@ impl TextAtlas {
         self.font.scale = em_scale(&self.font.font, scale);
         if let Some(fallback) = &mut self.fallback {
             fallback.scale = em_scale(&fallback.font, scale);
+        }
+        if let Some(pool) = &mut self.system_fallback {
+            for face in &mut pool.faces { face.font.scale = em_scale(&face.font.font, scale); }
         }
         self.ascent = self.font.ascent();
         self.line_height = self.font.height().max(scale);
@@ -307,11 +322,17 @@ impl TextAtlas {
     /// Unmapped code points take a fixed width so a layout never collapses when
     /// a label contains a character the system font lacks.
     fn face(&self, character: char) -> &PxScaleFont<FontArc> {
-        if self.font.glyph_id(character).0 == 0 {
-            if let Some(fallback) = &self.fallback {
-                if fallback.glyph_id(character).0 != 0 {
-                    return fallback;
-                }
+        if self.font.glyph_id(character).0 != 0 {
+            return &self.font;
+        }
+        if let Some(fallback) = &self.fallback {
+            if fallback.glyph_id(character).0 != 0 {
+                return fallback;
+            }
+        }
+        if let Some(pool) = &self.system_fallback {
+            if let Some(face) = pool.faces.iter().find(|f| f.font.glyph_id(character).0 != 0) {
+                return &face.font;
             }
         }
         &self.font
@@ -559,8 +580,8 @@ fn load_preferred_font(
     chinese: bool,
     family: Option<&str>,
 ) -> Result<(FontArc, Vec<String>, String, u32), String> {
-    let mut database = fontdb::Database::new();
-    database.load_system_fonts();
+    let catalog = fallback::system_catalog();
+    let database = &catalog.database;
     let families: Vec<String> = database
         .faces()
         .filter_map(|face| face.families.first().map(|(name, _)| name.clone()))

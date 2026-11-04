@@ -11,6 +11,8 @@ const MAX_INDEXED_ENTRIES: usize = 8192;
 pub enum FontSlot {
     Primary,
     Fallback,
+    /// Stable index in this atlas's bounded installed-font fallback pool.
+    System(u16),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +72,9 @@ impl TextAtlas {
                 .fallback
                 .as_ref()
                 .ok_or_else(|| error(RasterFailure::MissingFace))?,
+            FontSlot::System(index) => &self.system_fallback.as_ref()
+                .and_then(|pool| pool.faces.get(index as usize))
+                .ok_or_else(|| error(RasterFailure::MissingFace))?.font,
         };
         let id = u16::try_from(glyph)
             .ok()
