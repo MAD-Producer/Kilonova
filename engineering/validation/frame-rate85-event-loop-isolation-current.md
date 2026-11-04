@@ -34,5 +34,7 @@ assertion relaxation, changed ignore marker or increased budget was used.
 
 The separate [complete local attempt](frame-rate85-complete-desktop-current.md)
 failed during compilation before tests, with an allocation diagnostic. Complete
-desktop/UI acceptance and refreshed cross-platform CI remain pending. Earlier
+desktop/UI acceptance and refreshed cross-platform CI remained pending at that
+recording. The subsequent [source-bound CI receipt](frame-rate85-86-green-ci-current.md)
+records the actual successful jobs and their feature limits. Earlier
 native product crashes are unresolved; Android is excluded.

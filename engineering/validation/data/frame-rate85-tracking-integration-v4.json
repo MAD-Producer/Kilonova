@@ -1,0 +1,240 @@
+{
+  "status": "combined_clock_parameters_and_current_main_tracking_controls_passed",
+  "head": "6135221460639e18450e91d395e5459648049391",
+  "main": "0790404fab0328c99ffcc525ca4b56084a383951",
+  "sourceUnchanged": true,
+  "priorSuccessfulSteps": [
+    {
+      "phase": "check",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-host",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "pid": 16012,
+      "exitCode": 0,
+      "summaries": []
+    },
+    {
+      "phase": "core",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-core",
+        "--test",
+        "tracking_replacement",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "pid": 38648,
+      "exitCode": 0,
+      "summaries": [
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "phase": "host",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--lib",
+        "--locked",
+        "--offline",
+        "ops::media::tracked_replacement::tests::",
+        "--",
+        "--test-threads=1"
+      ],
+      "pid": 31288,
+      "exitCode": 0,
+      "summaries": [
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "171"
+        ]
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "phase": "paired",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 34248,
+      "exitCode": 0,
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1797"
+        ]
+      ]
+    },
+    {
+      "phase": "original",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::tracked_video_replacement_refuses_changed_plate_and_preserves_identical_source",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 44432,
+      "exitCode": 0,
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1797"
+        ]
+      ]
+    },
+    {
+      "phase": "mapped",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::mapped_time::mapped_original_video_keeps_native_picture_and_authored_clock_across_replacement",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 42884,
+      "exitCode": 0,
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1797"
+        ]
+      ]
+    }
+  ],
+  "loaderProof": {
+    "status": "app_local_runtime_list_probe",
+    "command": [
+      "E:\\Dev\\aem\\target\\rational-rate85-contract\\debug\\deps\\motion_studio-9968776b45b485e1.exe",
+      "engine::tracking_video_replacement_tests::paired::",
+      "--list"
+    ],
+    "exitCode": 0,
+    "binarySha256": "fdb3a9a5d8bb81c3c07b6c1146ccf9b2ce37407b0ae61a330079c99fbe36d6a8",
+    "binaryUnchanged": true,
+    "stagedFiles": [
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\avutil-60.dll",
+        "destination": "E:\\Dev\\aem\\target\\rational-rate85-contract\\debug\\deps\\avutil-60.dll",
+        "sha256": "b6c508c38d82c5b7866ccd35b9ada912ff33da92f7ec5d0d22c103aa9eea8bc9"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\swresample-6.dll",
+        "destination": "E:\\Dev\\aem\\target\\rational-rate85-contract\\debug\\deps\\swresample-6.dll",
+        "sha256": "131aa0b9c1be3b4e40fecf26f336e1a0cdda16aced1d93c326504e59b9f03fc8"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\swscale-9.dll",
+        "destination": "E:\\Dev\\aem\\target\\rational-rate85-contract\\debug\\deps\\swscale-9.dll",
+        "sha256": "b279b677869dd191345afbed87f8a318f4dddb97fe1869dc871ae5eeac781fae"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\avcodec-62.dll",
+        "destination": "E:\\Dev\\aem\\target\\rational-rate85-contract\\debug\\deps\\avcodec-62.dll",
+        "sha256": "e382d899f08c836dd642de7750c1bf3e6175095ecdecb5ceebae3941faa8773f"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\avformat-62.dll",
+        "destination": "E:\\Dev\\aem\\target\\rational-rate85-contract\\debug\\deps\\avformat-62.dll",
+        "sha256": "5cebb6d78bd863f48faa4ade77e7bac535b44f921c46d7a15f64f8e932ed381b"
+      }
+    ],
+    "limits": "List only; no functional test or GPU work executed; existing LGPL runtime files copied to rebuildable E target beside test binary, no source, DLL bytes or operating-system loader policy changed"
+  },
+  "audioPassed": 1,
+  "audioGate": "clock85-3d-current-main-v3",
+  "elapsedSeconds": 138.968,
+  "archive": "frame-rate85-tracking-integration-v4.zip",
+  "archiveBytes": 522757,
+  "archiveSha256": "5e905cb3e7884eccfa41e613c9eb69ff4fa043cafe5db46e33d462cba774e454",
+  "members": 55,
+  "originalFailure": {
+    "head": "2d5dfc03ed649ad854aea96026ad206a251d91dd",
+    "status": "failed_original_outputs_retained",
+    "exitCode": 101,
+    "compileErrors": 2,
+    "testsExecuted": 0
+  },
+  "scope": "17 distinct scoped tests; complete core tracking_replacement target, filtered host and native targets; not a full desktop/workspace run",
+  "limits": [
+    "No assertion, threshold, ignore or timeout changes; all source outside two frame-boundary initializers byte-equivalent",
+    "PR CI omits FFmpeg; historical green heads cannot establish this feature combination or new-head checks",
+    "First native invocation failed in Windows loader before tests (0xc0000135); app-local DLL assembly fixed listing without changing test executable",
+    "Combined native invocation passed audio but second test failed at global logger initialization; remaining three run separately without changing code or assertions; neither thirteen prior successes nor passed audio repeated",
+    "Earlier native product stack/heap failures, full issue acceptance and Android are not resolved by this run"
+  ]
+}

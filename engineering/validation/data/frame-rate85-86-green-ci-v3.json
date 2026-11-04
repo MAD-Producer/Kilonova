@@ -1,0 +1,192 @@
+{
+  "status": "historical_exact_head_ci_logs_verified",
+  "archive": "frame-rate85-86-green-ci-v3.zip",
+  "bytes": 1024797,
+  "sha256": "441f25809af43d20ab4f8fb374cbfd64cfc7c9b3b3269cc661546ac69237ea1c",
+  "members": 24,
+  "prs": [
+    {
+      "number": 597,
+      "head": "757f060760301efc9dd0595993ebf78de7072946",
+      "jobs": [
+        {
+          "name": "Dependency audit",
+          "run": "41759265665",
+          "job": "126342776346",
+          "logFile": "597-126342776346.log",
+          "sha256": "707253faa3397c17c941d49cac2b0256649a86a41109c22d161b2ed9c08e70b2",
+          "bytes": 35070,
+          "status": "success",
+          "summaryCount": 0,
+          "desktopBinarySummaries": []
+        },
+        {
+          "name": "Rust and GPU",
+          "run": "41759265665",
+          "job": "126342776478",
+          "logFile": "597-126342776478.log",
+          "sha256": "4130a631671022e599eed83bcbcc1c3f87c446aae480ec16a6ec471be5af8eb3",
+          "bytes": 746018,
+          "status": "success",
+          "summaryCount": 336,
+          "desktopBinarySummaries": []
+        },
+        {
+          "name": "Desktop build (ubuntu-24.04, linux-x86_64, motion-studio, x86_64-unknown-linux-gnu)",
+          "run": "41759265665",
+          "job": "126342776512",
+          "logFile": "597-126342776512.log",
+          "sha256": "d8246ceb09a813e31019a09e97c63b9e99d75208c8f3d900e6b45b402b891119",
+          "bytes": 943975,
+          "status": "success",
+          "summaryCount": 62,
+          "desktopBinarySummaries": [
+            [
+              "ok",
+              "1653",
+              "0",
+              "4",
+              "0",
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "Desktop build (windows-2022, windows-x86_64, motion-studio.exe, x86_64-pc-windows-msvc)",
+          "run": "41759265665",
+          "job": "126342776590",
+          "logFile": "597-126342776590.log",
+          "sha256": "f91048c543227152e4806298d37d52a01b7854bb8972ca58381337100e60bde3",
+          "bytes": 1121044,
+          "status": "success",
+          "summaryCount": 63,
+          "desktopBinarySummaries": [
+            [
+              "ok",
+              "1700",
+              "0",
+              "69",
+              "0",
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "Desktop build (macos-15-intel, macos-x86_64, motion-studio, x86_64-apple-darwin)",
+          "run": "41759265665",
+          "job": "126342776462",
+          "logFile": "597-126342776462.log",
+          "sha256": "68b51684031cc0f6586c0242af74d11789893cac8542fbc63546ec9ef0f41675",
+          "bytes": 892913,
+          "status": "success",
+          "summaryCount": 62,
+          "desktopBinarySummaries": [
+            [
+              "ok",
+              "1653",
+              "0",
+              "4",
+              "0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "number": 599,
+      "head": "b38e4275828ffc0377ffe305b2cab05a68032fbe",
+      "jobs": [
+        {
+          "name": "Dependency audit",
+          "run": "41759370292",
+          "job": "126343123260",
+          "logFile": "599-126343123260.log",
+          "sha256": "fc36b53ed83fa145735a745f1a58db52f1ab1dc11b564f0d4f5681a992041be1",
+          "bytes": 25404,
+          "status": "success",
+          "summaryCount": 0,
+          "desktopBinarySummaries": []
+        },
+        {
+          "name": "Rust and GPU",
+          "run": "41759370292",
+          "job": "126343122908",
+          "logFile": "599-126343122908.log",
+          "sha256": "e5aa6781a9fe7915af42155677344526b992aaea1eb00ce1a6e13a8897dc50b3",
+          "bytes": 513446,
+          "status": "success",
+          "summaryCount": 335,
+          "desktopBinarySummaries": []
+        },
+        {
+          "name": "Desktop build (ubuntu-24.04, linux-x86_64, motion-studio, x86_64-unknown-linux-gnu)",
+          "run": "41759370292",
+          "job": "126343123289",
+          "logFile": "599-126343123289.log",
+          "sha256": "01e08dd98f5f5d801201f08861458f839a146ebcffb9da52c6974d06da59ea34",
+          "bytes": 505426,
+          "status": "success",
+          "summaryCount": 67,
+          "desktopBinarySummaries": [
+            [
+              "ok",
+              "1652",
+              "0",
+              "4",
+              "0",
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "Desktop build (windows-2022, windows-x86_64, motion-studio.exe, x86_64-pc-windows-msvc)",
+          "run": "41759370292",
+          "job": "126343123344",
+          "logFile": "599-126343123344.log",
+          "sha256": "98f7f53db03e53593cb328bc6533dedfecccc13049cf469c7c02e5d817aa9e57",
+          "bytes": 511246,
+          "status": "success",
+          "summaryCount": 68,
+          "desktopBinarySummaries": [
+            [
+              "ok",
+              "1699",
+              "0",
+              "69",
+              "0",
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "Desktop build (macos-15-intel, macos-x86_64, motion-studio, x86_64-apple-darwin)",
+          "run": "41759370292",
+          "job": "126343123295",
+          "logFile": "599-126343123295.log",
+          "sha256": "fc5c4f70b0e8a9c137bc023112b899abb22a4d25d6f755397494388f140a34c3",
+          "bytes": 490372,
+          "status": "success",
+          "summaryCount": 67,
+          "desktopBinarySummaries": [
+            [
+              "ok",
+              "1652",
+              "0",
+              "4",
+              "0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "These results belong to the recorded old PR heads and checkout merge commits, not later local commits or refreshed checks.",
+    "PR tests omit FFmpeg by policy; actual feature-enabled integration exposed two E0277 fixture errors after main alignment.",
+    "Original ignores and earlier local compilation allocation/native product failures are retained; green CI does not diagnose or repair their causes.",
+    "No Android or macOS arm64 validation is claimed."
+  ],
+  "detailLocation": "All original metadata, steps and summaries are retained in the archive; this receipt is the compact index."
+}
