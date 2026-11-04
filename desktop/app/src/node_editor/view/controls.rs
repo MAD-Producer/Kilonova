@@ -85,7 +85,7 @@ pub(super) fn slider_rect(row: Rect) -> Rect {
 pub(super) fn screen_rect(local: Rect, card: &Card, zoom: f32) -> Rect {
     screen_rect_at(local, card.rect.min, zoom)
 }
-fn screen_rect_at(local: Rect, origin: [f32; 2], zoom: f32) -> Rect {
+pub(super) fn screen_rect_at(local: Rect, origin: [f32; 2], zoom: f32) -> Rect {
     Rect::new(
         origin[0] + local.min[0] * zoom,
         origin[1] + local.min[1] * zoom,
