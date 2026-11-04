@@ -1,6 +1,7 @@
 //! Canonical tracking documents and source-clock geometry, shared by editing and rendering.
 //! Pixel coordinates are continuous right/down from the upper-left source edge.
 pub mod asset;
+pub mod colmap;
 pub mod decode;
 pub mod encode;
 pub mod plate;

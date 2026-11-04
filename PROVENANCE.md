@@ -1,5 +1,12 @@
 # Motion Studio 来源说明 / Provenance
 
+The COLMAP camera text adapter references the public format and coordinate
+conventions at a pinned upstream revision. Its parser, pose conversion boundary
+and numerical fixtures are independently authored. It does not embed COLMAP or
+copy upstream code or datasets. Reference author, revision, license and scope
+are recorded in ATTRIBUTION.md.
+
+
 The external #88 camera calibration qualification uses pinned OpenCV sample
 photographs under Apache-2.0, with unmodified license/copyright and file hashes
 retained. Derived corner measurements and independently authored replacement

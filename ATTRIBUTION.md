@@ -1,5 +1,22 @@
 # 第三方归属说明 / Third-party attribution
 
+## COLMAP camera text interchange reference
+
+- Authors: ETH Zurich, UNC Chapel Hill and the COLMAP contributors
+- Sources: [public output format](https://colmap.github.io/format.html) and
+  [pixel-coordinate FAQ](https://colmap.github.io/faq.html), pinned to
+  [revision d0a411f2a9af139b5ea8118d64e5da5b70c6a890](https://github.com/colmap/colmap/tree/d0a411f2a9af139b5ea8118d64e5da5b70c6a890)
+  (4.3.0.dev0, 2026-11-01), accessed 2026-11-04
+- License: the pinned [upstream LICENSE](https://github.com/colmap/colmap/blob/d0a411f2a9af139b5ea8118d64e5da5b70c6a890/LICENSE)
+  states the new BSD license with three conditions; upstream dependencies have
+  their own licenses and are not used by this adapter
+- Scope: independently authored bounded text parser, pose/calibration conversion
+  and numerical fixtures; no upstream code, documentation prose, photographs,
+  reconstruction, executable or extra dependency is copied or distributed
+- The compatibility name identifies an interchange format, with no affiliation
+  or endorsement claim. Unsupported camera models are rejected explicitly
+
+
 ## External photographed camera calibration acceptance data
 
 - Authors: OpenCV contributors; the sample photographs are distributed in the
