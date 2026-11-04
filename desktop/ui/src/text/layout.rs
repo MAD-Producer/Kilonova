@@ -4,7 +4,7 @@
 use super::{glyph_index::FontSlot, shaping, TextAtlas};
 use shaping::{Direction, Script};
 use std::{collections::HashMap, fmt, ops::Range, sync::Arc};
-use unicode_bidi::{BidiInfo, Level};
+use unicode_bidi::{BidiInfo, Level, ParagraphBidiInfo};
 use unicode_segmentation::UnicodeSegmentation;
 
 const MAX_CACHE_ENTRIES: usize = 128;
@@ -137,12 +137,15 @@ struct Cluster {
     range: Range<usize>,
     script: Script,
     face: FontSlot,
+    paragraph: usize,
+    hard_break: bool,
 }
 struct Run {
     range: Range<usize>,
     script: Script,
     face: FontSlot,
     level: Level,
+    paragraph: usize,
 }
 fn strong(script: Script) -> bool {
     !matches!(script, Script::COMMON | Script::INHERITED | Script::UNKNOWN)
@@ -166,16 +169,38 @@ impl TextAtlas {
         if text.contains(['\n', '\r', '\u{2028}', '\u{2029}']) {
             return Err(LayoutError::MultipleLines);
         }
+        self.layout_label(text)
+    }
+
+    /// Labels occupy one visual row. Paragraph separators remain whole source
+    /// graphemes but occupy no glyph or advance; they still separate joining and
+    /// bidi runs. Multiline editors already draw their individual source lines.
+    pub(crate) fn layout_label(&mut self, text: &str) -> Result<Arc<LineLayout>, LayoutError> {
+        if text.len() > shaping::MAX_RUN_BYTES {
+            return Err(LayoutError::TooLong {
+                bytes: text.len(),
+                limit: shaping::MAX_RUN_BYTES,
+            });
+        }
         if let Some(layout) = self.layouts.get(text) {
             return Ok(layout);
         }
         let bidi = BidiInfo::new(text, None);
-        if bidi.paragraphs.len() > 1 {
-            return Err(LayoutError::MultipleLines);
-        }
+        let mut paragraph = 0;
         let mut clusters: Vec<_> = text
             .grapheme_indices(true)
             .map(|(start, grapheme)| {
+                let hard_break = grapheme.chars().all(|c| {
+                    matches!(
+                        c,
+                        '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{85}' | '\u{1c}'
+                            ..='\u{1e}' | '\u{2028}' | '\u{2029}'
+                    )
+                });
+                let segment = paragraph;
+                if hard_break {
+                    paragraph += 1;
+                }
                 let face = if coverage(&self.shaper, grapheme) {
                     FontSlot::Primary
                 } else if self
@@ -196,6 +221,8 @@ impl TextAtlas {
                     range: start..start + grapheme.len(),
                     script,
                     face,
+                    paragraph: segment,
+                    hard_break,
                 }
             })
             .collect();
@@ -204,16 +231,32 @@ impl TextAtlas {
             .map(|c| c.range.start)
             .chain([text.len()])
             .collect();
-        let levels = bidi
-            .paragraphs
-            .first()
-            .map(|para| bidi.reordered_levels(para, para.range.clone()))
-            .unwrap_or_default();
+        let levels = if bidi.paragraphs.len() <= 1 {
+            bidi.paragraphs
+                .first()
+                .map(|para| bidi.reordered_levels(para, para.range.clone()))
+                .unwrap_or_default()
+        } else {
+            // Reordering the full BidiInfo once per paragraph would clone the
+            // whole label repeatedly. Local paragraph views keep this linear
+            // in the source length, even for many hard breaks.
+            bidi.paragraphs
+                .iter()
+                .flat_map(|para| {
+                    let source = &text[para.range.clone()];
+                    ParagraphBidiInfo::new(source, None).reordered_levels(0..source.len())
+                })
+                .collect()
+        };
         // Common/inherited characters take an adjacent strong script at the
         // same bidi level. Never merge strong scripts merely because they use
         // the same font, or shape each grapheme independently.
         let mut previous = None;
         for cluster in &mut clusters {
+            if cluster.hard_break {
+                previous = None;
+                continue;
+            }
             let level = levels[cluster.range.start];
             if strong(cluster.script) {
                 previous = Some((cluster.script, level));
@@ -225,6 +268,10 @@ impl TextAtlas {
         }
         let mut next = None;
         for cluster in clusters.iter_mut().rev() {
+            if cluster.hard_break {
+                next = None;
+                continue;
+            }
             let level = levels[cluster.range.start];
             if strong(cluster.script) {
                 next = Some((cluster.script, level));
@@ -236,9 +283,16 @@ impl TextAtlas {
         }
         let mut runs: Vec<Run> = Vec::new();
         for cluster in clusters {
+            if cluster.hard_break {
+                continue;
+            }
             let level = levels[cluster.range.start];
             if let Some(last) = runs.last_mut().filter(|last| {
-                last.face == cluster.face && last.script == cluster.script && last.level == level
+                last.face == cluster.face
+                    && last.script == cluster.script
+                    && last.level == level
+                    && last.range.end == cluster.range.start
+                    && last.paragraph == cluster.paragraph
             }) {
                 last.range.end = cluster.range.end;
             } else {
@@ -247,10 +301,19 @@ impl TextAtlas {
                     script: cluster.script,
                     face: cluster.face,
                     level,
+                    paragraph: cluster.paragraph,
                 });
             }
         }
-        let order = BidiInfo::reorder_visual(&runs.iter().map(|run| run.level).collect::<Vec<_>>());
+        let mut order = Vec::new();
+        let mut offset = 0;
+        for paragraph in runs.chunk_by(|a, b| a.paragraph == b.paragraph) {
+            let local = BidiInfo::reorder_visual(
+                &paragraph.iter().map(|run| run.level).collect::<Vec<_>>(),
+            );
+            order.extend(local.into_iter().map(|index| index + offset));
+            offset += paragraph.len();
+        }
         let mut glyphs = Vec::new();
         let mut pen = [0., 0.];
         let mut missing = 0;
@@ -518,5 +581,29 @@ mod tests {
         assert!(atlas.layouts.entries.len() < 8);
         assert!(atlas.layouts.entries.len() < MAX_CACHE_ENTRIES);
         assert!(atlas.layout_line("Healthy").unwrap().advance > 0.);
+    }
+
+    #[test]
+    fn labels_keep_crlf_source_boundaries_without_rejecting_or_reordering_paragraphs() {
+        let mut atlas = arabic_atlas();
+        let text = "سلام\r\nسلام";
+        let a = atlas.layout_line("سلام").unwrap();
+        let b = atlas.layout_label(text).unwrap();
+        assert!((b.advance - 2. * a.advance).abs() < 0.00001);
+        assert_eq!(b.glyphs.len(), 2 * a.glyphs.len());
+        let break_offset = text.find('\r').unwrap();
+        assert!(b.grapheme_boundaries.contains(&break_offset));
+        assert!(!b.grapheme_boundaries.contains(&(break_offset + 1)));
+        assert!(b.glyphs[..a.glyphs.len()]
+            .iter()
+            .all(|g| g.cluster < break_offset));
+        assert!(b.glyphs[a.glyphs.len()..]
+            .iter()
+            .all(|g| g.cluster > break_offset + 1));
+        assert_eq!(b.missing_glyphs, 0);
+        assert!(matches!(
+            atlas.layout_line(text),
+            Err(LayoutError::MultipleLines)
+        ));
     }
 }

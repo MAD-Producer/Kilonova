@@ -1,4 +1,75 @@
 use super::*;
+
+#[test]
+#[cfg_attr(
+    not(feature = "gpu-tests"),
+    ignore = "requires gpu-tests; run with --features gpu-tests"
+)]
+fn composed_and_decomposed_marks_produce_identical_nonempty_gpu_pixels() {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
+    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default())).unwrap();
+    let mut painter = motion_ui::paint::Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
+    let foreground = default_stylesheet().color("text");
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        atlas.set_pixel_ratio(ratio);
+        for size in [12., 18., 28.] {
+            for align in [Align::Left, Align::Center, Align::Right] {
+                let area = Rect::new(10., 8., 240., 60.);
+                let mut canonical = PaintList::default();
+                let mut decomposed = PaintList::default();
+                ui::text_sized(
+                    &mut canonical,
+                    &mut atlas,
+                    area,
+                    "café Åñ",
+                    foreground,
+                    align,
+                    size,
+                );
+                ui::text_sized(
+                    &mut decomposed,
+                    &mut atlas,
+                    area,
+                    "cafe\u{301} A\u{30a}n\u{303}",
+                    foreground,
+                    align,
+                    size,
+                );
+                assert!(!canonical.glyphs.is_empty());
+                assert!(!decomposed.glyphs.is_empty());
+                painter
+                    .upload_atlas(
+                        &device,
+                        &queue,
+                        atlas.pixel_data(),
+                        atlas.config().width,
+                        atlas.config().height,
+                    )
+                    .expect("canonical mark atlas upload");
+                let expected = gpu::capture(
+                    &device,
+                    &queue,
+                    &mut painter,
+                    &canonical,
+                    [260., 76.],
+                    ratio,
+                );
+                let actual = gpu::capture(
+                    &device,
+                    &queue,
+                    &mut painter,
+                    &decomposed,
+                    [260., 76.],
+                    ratio,
+                );
+                assert!(expected.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                assert_eq!(actual, expected, "ratio={ratio} size={size}");
+            }
+        }
+    }
+}
 use unicode_segmentation::UnicodeSegmentation;
 
 // Independent strings exercise extended clusters, including unsupported-font
@@ -98,7 +169,10 @@ fn warmed_cluster_labels_keep_plain_and_styled_drawing_allocation_free() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
+#[cfg_attr(
+    not(feature = "gpu-tests"),
+    ignore = "requires gpu-tests; run with --features gpu-tests"
+)]
 fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
@@ -126,13 +200,15 @@ fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
                 };
                 let actual = draw(&mut atlas, "A🇯🇵BBBBBBBB");
                 let expected = draw(&mut atlas, "A…");
-                painter.upload_atlas(
-                    &device,
-                    &queue,
-                    atlas.pixel_data(),
-                    atlas.config().width,
-                    atlas.config().height,
-                ).unwrap();
+                painter
+                    .upload_atlas(
+                        &device,
+                        &queue,
+                        atlas.pixel_data(),
+                        atlas.config().width,
+                        atlas.config().height,
+                    )
+                    .unwrap();
                 let actual_pixels =
                     gpu::capture(&device, &queue, &mut painter, &actual, [160., 64.], ratio);
                 let expected_pixels =

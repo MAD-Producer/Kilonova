@@ -1,6 +1,8 @@
 //! Atlas insertion for glyph IDs produced by the shaping engine.
 use super::{is_sequence_control, GlyphEntry, TextAtlas};
-use ab_glyph::{Font, ScaleFont};
+#[cfg(test)]
+use ab_glyph::Font;
+use ab_glyph::ScaleFont;
 use std::fmt;
 // Bounds retained keys even when a glyph does not occupy any atlas texels.
 const MAX_INDEXED_ENTRIES: usize = 8192;

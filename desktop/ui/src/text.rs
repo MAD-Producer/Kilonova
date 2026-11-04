@@ -1,12 +1,13 @@
 //! Glyph atlas for shell chrome. Windows uses grid-fitted grayscale glyphs
-//! from the selected installed face. Rasterization is per glyph; complex-script
-//! shaping and bidirectional layout are not yet supported.
+//! from the selected installed face. Measurement, clipping prefixes and painting
+//! share positioned, grapheme-aware glyphs and resolved bidirectional runs.
 
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
-use unicode_segmentation::UnicodeSegmentation;
 pub mod shaping;
 pub mod glyph_index;
 pub mod layout;
+mod fitting;
+pub use fitting::FittedLine;
 
 struct SharedFontBytes(FontArc);
 impl AsRef<[u8]> for SharedFontBytes {
@@ -22,9 +23,9 @@ fn shaper_for(font: &FontArc, index: u32) -> Result<shaping::RunShaper, String> 
 // devices. RGBA coverage is bounded to 16 MiB on both CPU and GPU.
 const MAX_ATLAS_DIMENSION: u32 = 2048;
 
-// The chrome atlas does not shape variation sequences or joining forms.
-// Their scalar fallback is invisible and non-advancing, independent of cmap
-// support. This does not implement substitution, bidi or mark positioning.
+// The legacy scalar API cannot shape sequence controls. Its fallback remains
+// invisible and non-advancing; the label layout path handles these controls
+// inside their original grapheme and shapes joining forms before rasterization.
 // https://unicode.org/faq/unsup_char.html
 fn is_sequence_control(character: char) -> bool {
     matches!(character,
@@ -87,6 +88,7 @@ pub struct TextAtlas {
     entries: std::collections::HashMap<(char, u32, u32), GlyphEntry>,
     indexed_entries: std::collections::HashMap<(glyph_index::FontSlot, u16, u32, u32), GlyphEntry>,
     layouts: layout::LayoutCache,
+    fitted_layouts: fitting::FitCache,
     pixel_ratio: f32,
     pub selected_family: String,
     #[cfg(target_os = "windows")]
@@ -194,6 +196,7 @@ impl TextAtlas {
             entries: std::collections::HashMap::new(),
             indexed_entries: std::collections::HashMap::new(),
             layouts: Default::default(),
+            fitted_layouts: Default::default(),
             pixel_ratio: 1.,
             selected_family: "custom".into(),
             #[cfg(target_os = "windows")]
@@ -228,6 +231,7 @@ impl TextAtlas {
         self.entries.clear();
         self.indexed_entries.clear();
         self.layouts.clear();
+        self.fitted_layouts.clear();
         self.pixels.fill(0);
         self.cursor = [0.0, 0.0];
         self.row_height = 0;
@@ -480,11 +484,17 @@ impl TextAtlas {
 
     /// Total advance width of a string in logical pixels.
     pub fn measure(&mut self, text: &str) -> f32 {
-        text.chars().map(|c| self.advance(c)).sum()
+        match self.layout_label(text) {
+            Ok(layout) => layout.advance * self.font_size,
+            Err(cause) => {
+                self.report_layout_failure("shape", format_args!("bytes={} cause={cause}", text.len()));
+                0.
+            }
+        }
     }
 
     /// Truncate at an extended grapheme boundary to fit `width`, appending an
-    /// ellipsis when characters are lost. This does not add script shaping.
+    /// ellipsis when characters are lost, using the same layout as drawing.
     pub fn ellipsize(&mut self, text: &str, width: f32) -> String {
         let (prefix, ellipsis) = self.fitted_text(text, width);
         let mut result = prefix.to_owned();
@@ -496,25 +506,40 @@ impl TextAtlas {
 
     /// Borrow the visible prefix and report whether to emit an ellipsis.
     /// Drawing can iterate this pair without allocating an intermediate string.
-    pub(crate) fn fitted_text<'a>(&self, text: &'a str, width: f32) -> (&'a str, bool) {
-        if text.chars().map(|c| self.advance(c)).sum::<f32>() <= width {
-            return (text, false);
-        }
-        let ellipsis_width = self.advance('\u{2026}');
-        if !width.is_finite() || width < ellipsis_width {
-            return ("", false);
-        }
-        let mut end = 0;
-        let mut used = 0.0;
-        for (index, cluster) in text.grapheme_indices(true) {
-            let advance = cluster.chars().map(|c| self.advance(c)).sum::<f32>();
-            if used + advance + ellipsis_width > width {
-                break;
+    pub(crate) fn fitted_text<'a>(&mut self, text: &'a str, width: f32) -> (&'a str, bool) {
+        match self.fit_line(text, width / self.font_size) {
+            Ok(fit) => (&text[..fit.prefix_end], fit.ellipsis),
+            Err(cause) => {
+                self.report_layout_failure("fit", format_args!("bytes={} cause={cause}", text.len()));
+                ("", false)
             }
-            end = index + cluster.len();
-            used += advance;
         }
-        (&text[..end], true)
+    }
+
+    /// Inherited atlas-lifetime observations: bounded keys, one Warn then one
+    /// Error at call 60, reset only by replacing the atlas, not by cache eviction.
+    pub(crate) fn report_layout_failure(&self, key: &str, cause: std::fmt::Arguments<'_>) {
+        self.observations.record("text.layout", key, cause);
+    }
+
+    pub(crate) fn layout_bitmap(&mut self, glyph: &layout::PositionedGlyph, size: f32) -> Option<GlyphEntry> {
+        if glyph.id == 0 {
+            self.observations.record("text.shaped_missing", &format!("U+{:04X}", glyph.source as u32),
+                format_args!("face={:?} glyph=0 cluster_source=U+{:04X} size={size} pixel_ratio={}", glyph.face, glyph.source as u32, self.pixel_ratio));
+            return None;
+        }
+        match self.glyph_by_id(glyph.face, glyph.id, size, glyph.source) {
+            Ok(entry) => Some(entry),
+            Err(cause) => {
+                // AtlasFull already records text.atlas_capacity in the common
+                // rasterizer. Do not count the same failure twice here.
+                if cause.failure != glyph_index::RasterFailure::AtlasFull {
+                    self.observations.record("text.shaped_raster", &format!("{:?}", cause.failure),
+                        format_args!("{cause} cluster_source=U+{:04X} size={size} pixel_ratio={}", glyph.source as u32, self.pixel_ratio));
+                }
+                None
+            }
+        }
     }
 }
 

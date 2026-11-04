@@ -77,3 +77,32 @@ fn cached_layouts_for_one_or_two_hundred_controls_allocate_nothing() {
         }
     }
 }
+
+#[test]
+fn cached_fitted_layouts_keep_complete_graphemes_without_per_control_allocations() {
+    let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
+    for label in [
+        "Position / 中文 long label",
+        "cafe\u{301} long label",
+        "ABC سلام 123",
+        "A🇯🇵👩\u{200d}💻 long label",
+    ] {
+        for width in [2., 6., 100.] {
+            let initial = atlas.fit_line(label, width).unwrap();
+            assert!(initial.layout.advance <= width);
+            for count in [1, 200] {
+                assert_eq!(
+                    allocations(|| {
+                        for _ in 0..count {
+                            let actual = atlas.fit_line(label, width).unwrap();
+                            assert!(Arc::ptr_eq(&initial.layout, &actual.layout));
+                            std::hint::black_box(actual);
+                        }
+                    }),
+                    0,
+                    "fitted layout cache hits may not allocate per control"
+                );
+            }
+        }
+    }
+}
