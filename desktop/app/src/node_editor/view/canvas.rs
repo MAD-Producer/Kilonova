@@ -4,68 +4,90 @@ use node_index::NodeIndex;
 
 impl NodeEditor {
     pub(super) fn cards(&self, canvas: Rect) -> Vec<Card> {
+        self.cards_at_view(canvas, self.view)
+    }
+
+    /// Resolve the current document once, retaining the input sample's hit view.
+    /// A same-event wheel is applied before committing text/history, but hits
+    /// still use the geometry from before that wheel, as in the original path.
+    pub(super) fn cards_at_view(&self, canvas: Rect, view: CanvasView) -> Vec<Card> {
         #[cfg(test)]
         super::frame_cards_tests::record_build();
         self.document
             .nodes
             .iter()
-            .map(|node| {
-                #[cfg(test)]
-                super::frame_cards_tests::record_port_resolution();
-                let ports = self.observed(
-                    "canvas.sockets",
-                    &node.id,
-                    motion_graph::node_port_specs(node, &self.document.public_parameters),
-                );
-                let expanded_rows = ports.as_ref()
-                    .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
-                    .unwrap_or(1);
-                let height = if node.collapsed {
-                    HEADER
-                } else {
-                    expanded_node_height(node, &self.document, expanded_rows)
-                };
-                let point = self.view.world_to_screen(node.position, canvas);
-                let rect = Rect::new(
-                    point[0],
-                    point[1],
-                    NODE_WIDTH * self.view.zoom,
-                    height * self.view.zoom,
-                );
-                let mut sockets = vec![];
-                if let Ok(ports) = ports {
-                    let inputs = ports.inputs.len();
-                    for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
-                        for (index, (port, spec)) in entries.into_iter().enumerate() {
-                            let row_y = HEADER
-                                + ROW * (port_row_index(node, inputs, output, index) as f32 + 0.5);
-                            let visible_row = if node.collapsed { HEADER * 0.5 } else { row_y };
-                            sockets.push(Socket {
-                                connectable: !node.collapsed,
-                                port: PortRef::new(&node.id, port),
-                                output,
-                                ty: spec.value_type,
-                                spec,
-                                point: [
-                                    if output { rect.max[0] } else { rect.min[0] },
-                                    rect.min[1] + visible_row * self.view.zoom,
-                                ],
-                                row_y,
-                            });
-                        }
-                    }
-                }
-                Card {
-                    source_node: node,
-                    id: node.id.clone(),
-                    rect,
-                    world_height: height,
-                    expanded_rows,
-                    collapsed: node.collapsed,
-                    sockets,
-                }
-            })
+            .map(|node| self.card_at_view(node, canvas, view))
             .collect()
+    }
+
+    /// A group-header hit only needs sockets near this pointer and at or above
+    /// the opaque front card. Keep their order for the shared socket picker.
+    pub(super) fn socket_hit_cards(
+        &self, canvas: Rect, view: CanvasView, point: [f32; 2], front: usize,
+    ) -> Vec<Card> {
+        let radius = wires::socket_hit_radius(self.view.zoom);
+        self.document.nodes.iter().skip(front).filter(|node| {
+            let left = view.world_to_screen(node.position, canvas)[0];
+            let right = left + NODE_WIDTH * view.zoom;
+            (point[0] - left).abs() <= radius || (point[0] - right).abs() <= radius
+        }).map(|node| self.card_at_view(node, canvas, view)).collect()
+    }
+
+    fn card_at_view(&self, node: &Node, canvas: Rect, view: CanvasView) -> Card {
+        #[cfg(test)]
+        super::frame_cards_tests::record_port_resolution();
+        let ports = self.observed(
+            "canvas.sockets",
+            &node.id,
+            motion_graph::node_port_specs(node, &self.document.public_parameters),
+        );
+        let expanded_rows = ports.as_ref()
+            .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
+            .unwrap_or(1);
+        let height = if node.collapsed {
+            HEADER
+        } else {
+            expanded_node_height(node, &self.document, expanded_rows)
+        };
+        let point = view.world_to_screen(node.position, canvas);
+        let rect = Rect::new(
+            point[0],
+            point[1],
+            NODE_WIDTH * view.zoom,
+            height * view.zoom,
+        );
+        let mut sockets = vec![];
+        if let Ok(ports) = ports {
+            let inputs = ports.inputs.len();
+            for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
+                for (index, (port, spec)) in entries.into_iter().enumerate() {
+                    let row_y = HEADER
+                        + ROW * (port_row_index(node, inputs, output, index) as f32 + 0.5);
+                    let visible_row = if node.collapsed { HEADER * 0.5 } else { row_y };
+                    sockets.push(Socket {
+                        connectable: !node.collapsed,
+                        port: PortRef::new(&node.id, port),
+                        output,
+                        ty: spec.value_type,
+                        spec,
+                        point: [
+                            if output { rect.max[0] } else { rect.min[0] },
+                            rect.min[1] + visible_row * view.zoom,
+                        ],
+                        row_y,
+                    });
+                }
+            }
+        }
+        Card {
+            source_node: node,
+            id: node.id.clone(),
+            rect,
+            world_height: height,
+            expanded_rows,
+            collapsed: node.collapsed,
+            sockets,
+        }
     }
 
     /// Reproject this draw's metadata after viewport or presentation-only changes.

@@ -261,7 +261,7 @@ def verify_mcp(binary: Path, output: Path) -> None:
                 send("initialize", {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "motion-ci", "version": "1"}})
                 send("notifications/initialized", notification=True)
                 tools = send("tools/list")["tools"]
-                expected_tools = {"motion_state", "motion_edit", "motion_seek", "motion_history", "motion_save", "command_list", "command_run", "command_batch", "render_preview", "import_model"}
+                expected_tools = {"motion_state", "motion_edit", "motion_seek", "motion_history", "motion_save", "command_list", "command_run", "command_batch", "render_preview", "import_model", "import_tracking"}
                 actual_tools = {tool["name"] for tool in tools}
                 if actual_tools != expected_tools:
                     raise RuntimeError(f"MCP catalogue differs: missing={sorted(expected_tools - actual_tools)}, unexpected={sorted(actual_tools - expected_tools)}")

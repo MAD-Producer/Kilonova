@@ -16,7 +16,7 @@ not evidence that every later acceptance boundary is closed.
 | I4: saved manual corrections/failure states and traceable original solve | Asset roundtrip, independent corrections, managed original bytes, paired history, reopen, and [MCP workflow](tracking88-mcp-replacement-current.md) | File acquisition verification is not a continuing lease against external workspace mutation |
 | A1: known synthetic camera roundtrip and real calibration, measured independently | Held-out OpenCV photographs, native measured-corner residuals and independent GPU ray oracles | Static photographs do not establish continuous photographed camera-motion solving; optional real-video tracker quality remains failed |
 | A2: mismatched fps, crop/rotation, distortion and axis conversions | [Exact source clock tests](tracking88-time-mapping-current.md), [pose conversion](tracking88-pose-conversion-current.md), all four rotations and nonzero radial/tangential native lens controls | Source-time arithmetic does not complete the still-open project rational-rate issue #85 |
-| A3: aligned output, relink, undo and cache invalidation | Native original-video decode, deliberate wrong-source rejection, atomic picture/audio/solve replacement, GPU capture, history/save/reopen, actual stdio MCP and [actual camera/video Surface front](tracking88-surface-current.md) | The new Surface case does not cover every lens or point/plane binding, the prototype's real-footage quality, or arbitrary external workspace mutation |
+| A3: aligned output, relink, undo and cache invalidation | Native original-video decode, deliberate wrong-source rejection, atomic picture/audio/solve replacement, GPU capture, history/save/reopen, actual stdio MCP, [camera/video Surface front](tracking88-surface-current.md) and [point/plane/nonlinear video Surface and queued input oracles](tracking88-native-video-lens-current.md) | These bounded Surface cases do not cover every codec/lens/binding, the prototype's real-footage quality, or arbitrary external workspace mutation |
 
 ## Regression and delivery
 
@@ -43,6 +43,17 @@ The original prerequisites #85 and #86 remain open. Android is retired and
 excluded by the user's maintenance scope. Neither a documented disposition nor
 a green subset completes #88, its prerequisites, or the full 3D route.
 
+## Historical layer-clock integration
+
+The [layer-clock integration](tracking88-layer-time-integration-current.md)
+combines main `9d085c0f` with the video/lens fix: complete model/core packages
+passed 859 tests with one existing manual ignore; seven complete renderer
+targets passed 100 tests; two actual Windows Surface controls passed. These
+source-bound results supersede the old-main boundary for those selected gates,
+not the full workspace, entire desktop binary, photographed tracker or final CI.
+
+This is evidence for the original integration source, not a new execution on
+the combined branch after synchronizing the later video prefetch baseline.
 
 ## Layer-time baseline synchronization
 
@@ -56,3 +67,21 @@ one actual Surface test, and ten actual executable stdio controls. Five complete
 crate trees are identical to #583, with their Git identities recorded. These
 results do not constitute a new full desktop/workspace run or final-head
 cross-platform CI pass. The full 3D route and issue #88 remain incomplete.
+
+
+## Current-main prefetch and nonlinear-video synchronization
+
+The [latest combined-source record](tracking88-lens-clock-current.md) adds freshly
+executed complete host-library and seven renderer-target gates, actual Surface,
+original-video clock and current-main prefetch controls. It explicitly includes
+main e2347558. Historical full model/core results refer to identical crate trees;
+no new full desktop/workspace or final-head CI pass is claimed.
+
+
+## Post-merge current-main validation
+
+The [new source-bound integration](tracking88-lens-current-main-v2.md) covers
+parent 52b26fda and main 0790404f after #583 merged. Its 281 passes include
+seven complete renderer targets, the complete host library and actual native
+Surface, prefetch and original-clock controls. Earlier counts retain their
+original scope; this is not full desktop/workspace or final CI acceptance.

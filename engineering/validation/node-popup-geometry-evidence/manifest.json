@@ -1,0 +1,479 @@
+{
+  "base": "5d56e61bc854662239a719f67049f4c09683cfd6",
+  "raw_directory": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry",
+  "distinct_passing_tests": 232,
+  "exact_complete_frames": 3240,
+  "new_complete_frames": 320,
+  "original_double_build_frames": 224,
+  "final_builds_per_new_frame": 1,
+  "comparison_normalization": false,
+  "test_executable_sha256": "e258ca42987438f3be68e62eb21cd952c8b97b1059d1b78eadd2d0288f7b76ca",
+  "production_startup": {
+    "command": [
+      "E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\motion-studio.exe",
+      "--command-list"
+    ],
+    "exit": 0,
+    "executable_sha256": "04405d7e2821b490a114bc1d122a40c5db9ca6098a00b648d11281d492e5e8f4",
+    "controlled_local_appdata": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\startup-appdata",
+    "rust_min_stack_overridden": false
+  },
+  "original_records": [
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-field-geometry\\before-paint.json",
+      "sha256": "d560ddf05c2e217bf5b7b743e22d5c8d632c8cd8e13e1ef84b179bfa9c84e6f9",
+      "frames": 816
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-restore-geometry\\before-paint.json",
+      "sha256": "3e1820c8c39154c0828856686c56ad0232b183f9509492aa1d3de92593d33855",
+      "frames": 320
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-viewport-geometry\\before-paint.json",
+      "sha256": "f187091a71e7cdde04a38960843f06ad6d08f9e0f289902c5d6a78be38cef7a6",
+      "frames": 312
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-input-geometry\\before-paint.json",
+      "sha256": "ced683219a9b6268546a88180bfcb4f731f7d70fe95a8f3861e14f84f93b58cb",
+      "frames": 64
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-collapse-geometry\\before-paint.json",
+      "sha256": "fdb28e12c8db031c3ed19c2200bdec0fe89169dfe2d3ee8f89478ae048972c44",
+      "frames": 216
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-frame-input\\before-paint.json",
+      "sha256": "7888cf02c94f6f650a6f109b5efc1933fa379fdd6b0045ff43e7d1b0f3c47596",
+      "frames": 744
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-canvas-geometry\\before-paint.json",
+      "sha256": "aae62d7c1843399ed50dfa53b2b53031c16fdc18c0f00f294fdfb2d3df289bbd",
+      "frames": 448
+    }
+  ],
+  "unarchived_prior_final_records": [
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\canvas-final-paint.json",
+      "bytes": 28583731,
+      "sha256": "aae62d7c1843399ed50dfa53b2b53031c16fdc18c0f00f294fdfb2d3df289bbd",
+      "reason": "prior complete record retained in raw; existing original archive reused"
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\collapse-final-paint.json",
+      "bytes": 25676719,
+      "sha256": "fdb28e12c8db031c3ed19c2200bdec0fe89169dfe2d3ee8f89478ae048972c44",
+      "reason": "prior complete record retained in raw; existing original archive reused"
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\field-final-paint.json",
+      "bytes": 54485822,
+      "sha256": "d560ddf05c2e217bf5b7b743e22d5c8d632c8cd8e13e1ef84b179bfa9c84e6f9",
+      "reason": "prior complete record retained in raw; existing original archive reused"
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\inline-final-paint.json",
+      "bytes": 49652355,
+      "sha256": "7888cf02c94f6f650a6f109b5efc1933fa379fdd6b0045ff43e7d1b0f3c47596",
+      "reason": "prior complete record retained in raw; existing original archive reused"
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\input-final-paint.json",
+      "bytes": 6214508,
+      "sha256": "ced683219a9b6268546a88180bfcb4f731f7d70fe95a8f3861e14f84f93b58cb",
+      "reason": "prior complete record retained in raw; existing original archive reused"
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\restore-final-paint.json",
+      "bytes": 18902165,
+      "sha256": "3e1820c8c39154c0828856686c56ad0232b183f9509492aa1d3de92593d33855",
+      "reason": "prior complete record retained in raw; existing original archive reused"
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\node-popup-geometry\\viewport-final-paint.json",
+      "bytes": 24038522,
+      "sha256": "f187091a71e7cdde04a38960843f06ad6d08f9e0f289902c5d6a78be38cef7a6",
+      "reason": "prior complete record retained in raw; existing original archive reused"
+    }
+  ],
+  "archive": {
+    "file": "evidence.zip",
+    "bytes": 4515998,
+    "sha256": "bff0fee245dd62b7bec0d691f43ee16709743b013f1ad9dee1a15f61d28ed88d"
+  },
+  "members": [
+    {
+      "path": "raw/app-build.jsonl",
+      "bytes": 473851,
+      "sha256": "e78f1e46937cdaf9180e52851be181741eadc8ce4fde940bdd389b7ac4429281"
+    },
+    {
+      "path": "raw/app-build.stderr",
+      "bytes": 166,
+      "sha256": "f73e3e033ce6bb3e083ad2d5239b71def4868aafeeda6ea4f60a3a1031137eaa"
+    },
+    {
+      "path": "raw/before-0.stderr",
+      "bytes": 15617,
+      "sha256": "171043cfe4e3b5a5cc27699ce1d8aec4fa78f86f2389060d7afcb5bd92bd7e1e"
+    },
+    {
+      "path": "raw/before-0.stdout",
+      "bytes": 417,
+      "sha256": "ce73e2c681aa9016c23aef5b9e8aa58f720ff78627612c7339bfb95ce2fbe516"
+    },
+    {
+      "path": "raw/before-1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/before-1.stdout",
+      "bytes": 246,
+      "sha256": "c7036a20dfd42c745a088c308e29732b332fcfb380753bb1c3de5175d67bc4aa"
+    },
+    {
+      "path": "raw/before-build.jsonl",
+      "bytes": 473851,
+      "sha256": "be0adef9bd44ce7645b201eedfd3bff54b1b9a3ebe4ca1cc3cbc027a8ef0cb63"
+    },
+    {
+      "path": "raw/before-build.stderr",
+      "bytes": 166,
+      "sha256": "9b8c3e7a4967a2770949799fabfc5687b6a3b3a934559cc73147fc4356fb0e7a"
+    },
+    {
+      "path": "raw/before-control_popup.rs",
+      "bytes": 23774,
+      "sha256": "3422f068079d346873754cbf256e3bb88a473cd47e3b5e172bf31aea5de2202b"
+    },
+    {
+      "path": "raw/before-controls.rs",
+      "bytes": 34270,
+      "sha256": "480272b2a665ea0ad9fd733517db041e113a2b16ba30e547bf172c398552c54a"
+    },
+    {
+      "path": "raw/before-counts.json",
+      "bytes": 24227,
+      "sha256": "fc02c135924f6f0f51c7371b9808f70dbffff25aecc2d74f8d5c7dd6552a877d"
+    },
+    {
+      "path": "raw/before-paint.json",
+      "bytes": 20540855,
+      "sha256": "ad743cf2807c6a7672fbbf682bb9603e6bc49e6acbfcf3b48647ab7527954d07"
+    },
+    {
+      "path": "raw/before-tests.json",
+      "bytes": 976,
+      "sha256": "36052ad79f107a10b0942bef6e0da4621d66e8f762d32f04fa713ffb2739409a"
+    },
+    {
+      "path": "raw/build-app.ps1",
+      "bytes": 1355,
+      "sha256": "cb0e99875aca002bb8eb6d20e9dbfe29e2082f3e4dc736f7ef670c16411fd3b3"
+    },
+    {
+      "path": "raw/build-production.ps1",
+      "bytes": 1360,
+      "sha256": "d70086888a5946e9f15024a7b02c5ced02054047d1a239e7e84b3bc9c1176d1b"
+    },
+    {
+      "path": "raw/canvas-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/canvas-final.stdout",
+      "bytes": 247,
+      "sha256": "ede1ebd9d21c833da697a712b7a5c272adb4fcf97fbe766079ece94af6ac059c"
+    },
+    {
+      "path": "raw/check-current-ownership.py",
+      "bytes": 1619,
+      "sha256": "84d568c67b97f2c5bca7be729b9126ebd1786dafe5f85fada447c61aab5ea3d6"
+    },
+    {
+      "path": "raw/check-startup.py",
+      "bytes": 1251,
+      "sha256": "f88cd9d09beaf3f8af0c845cea6832f48f05bd0afe9f9a2bf82af1091d7521ae"
+    },
+    {
+      "path": "raw/collapse-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/collapse-final.stdout",
+      "bytes": 311,
+      "sha256": "1a04a3074b03f51b8c90821b5e52b60b5332c38db552f15a048a833424e904a6"
+    },
+    {
+      "path": "raw/comparison.json",
+      "bytes": 164,
+      "sha256": "82e2c0a0c193c9317b4d15c0a87ac0405567ca2ea5373fa182da3d31be1fd9b1"
+    },
+    {
+      "path": "raw/costs.json",
+      "bytes": 34922,
+      "sha256": "7f596239ce89b8338ed1bae4baf46e4f3b117eac6586159fc5caabdd594084ba"
+    },
+    {
+      "path": "raw/costs.json.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/costs.json.stdout",
+      "bytes": 365,
+      "sha256": "a81d64b648f226e97dcf25a67cf77a72eba3341ef7b58372ba9958325387aa30"
+    },
+    {
+      "path": "raw/current-ownership.json",
+      "bytes": 34090,
+      "sha256": "ffda91a463df53fbfbd38b8d726bece161b85282d67d00a9920a5135694e0814"
+    },
+    {
+      "path": "raw/field-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/field-final.stdout",
+      "bytes": 246,
+      "sha256": "534bc340d0b817697ecc8fe17cfcdcbb6e45831760e323627691ce213ab1cb56"
+    },
+    {
+      "path": "raw/final-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/final-0.stdout",
+      "bytes": 255,
+      "sha256": "375e44d6ce64c425dca50820942d63198e373dff28ed1e8b76af70d6338506cb"
+    },
+    {
+      "path": "raw/final-1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/final-1.stdout",
+      "bytes": 246,
+      "sha256": "3471525db60e5729c76439f422b3411f69f366e37d46026f4cd11fa7d00720f5"
+    },
+    {
+      "path": "raw/final-comparison.json",
+      "bytes": 5305,
+      "sha256": "685aa9bba016c61ed96a416de364bc8f83814b121e5efc7325f99e5d14a20961"
+    },
+    {
+      "path": "raw/final-paint.json",
+      "bytes": 20540855,
+      "sha256": "ad743cf2807c6a7672fbbf682bb9603e6bc49e6acbfcf3b48647ab7527954d07"
+    },
+    {
+      "path": "raw/final-tests.json",
+      "bytes": 972,
+      "sha256": "b56a307be355f23abaecc72390ef85105226b7dc3c714a411941a88b48d6aae0"
+    },
+    {
+      "path": "raw/inline-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/inline-final.stdout",
+      "bytes": 305,
+      "sha256": "f913b1db4d5689f46379c548f6bbe10232e78136cf8bfc8987988d4c6063cea9"
+    },
+    {
+      "path": "raw/input-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/input-final.stdout",
+      "bytes": 314,
+      "sha256": "8222a178a0e4226a48876539a5b4268344718e524e0604a4ca3a90b038cbb706"
+    },
+    {
+      "path": "raw/layouts.json",
+      "bytes": 23826,
+      "sha256": "30b1c881f772a595a19a248ca84fde9729bd00dbb623e70443edd9017d6c11d6"
+    },
+    {
+      "path": "raw/layouts.json.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/layouts.json.stdout",
+      "bytes": 352,
+      "sha256": "c091003af907033090ea276a2a9a2f83599423abee2a21aa4f54afc81a36c9d7"
+    },
+    {
+      "path": "raw/package-evidence.py",
+      "bytes": 4417,
+      "sha256": "e7d0d90ab8b38c04cfdf8c339fd2a3f01654bd74b684338863c2bd134d73f1d1"
+    },
+    {
+      "path": "raw/production-build.jsonl",
+      "bytes": 487440,
+      "sha256": "9847e5ffecf7d74277953764f88bd6f66aa0c11d0cc11e6a5c687c9fe53052c8"
+    },
+    {
+      "path": "raw/production-build.stderr",
+      "bytes": 165,
+      "sha256": "2de81a8cb0b824e58694d452a74ad869613c7e44fe86300b9ba927bcd1fc5ace"
+    },
+    {
+      "path": "raw/regression-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/regression-0.stdout",
+      "bytes": 25077,
+      "sha256": "097bbd9e52d97d1e87389becf6dfbdb56a5d43aa13acc66ac5605190b59c24b0"
+    },
+    {
+      "path": "raw/regression-1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/regression-1.stdout",
+      "bytes": 579,
+      "sha256": "3ccc8498b58d820a5f87245f9ba1cdf4eb4c2973f02b1842979b99c0bdffc547"
+    },
+    {
+      "path": "raw/regression-2.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/regression-2.stdout",
+      "bytes": 1258,
+      "sha256": "01040761b6dd57ea8eb9256c2a0675f274cebbdbf1c05d7cd7990820beca76ae"
+    },
+    {
+      "path": "raw/regression-3.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/regression-3.stdout",
+      "bytes": 986,
+      "sha256": "922be9f2abd58eca987ff2e98c46893c6056051f45de7125676bd0189bb7d1df"
+    },
+    {
+      "path": "raw/regression.json",
+      "bytes": 1342,
+      "sha256": "da77035dcb73de97647a7f731a9b5e470739ab592f5bb99e67d7ecc27cae1d85"
+    },
+    {
+      "path": "raw/restore-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/restore-final.stdout",
+      "bytes": 247,
+      "sha256": "ce7940d609db39b2b8dfde284c5e7f20af27dae4a0ecf3533d2b457d6a975cb9"
+    },
+    {
+      "path": "raw/run-prior-records.py",
+      "bytes": 3534,
+      "sha256": "ad9e581489e7b3745ee5eaf435bf5a3ff172f6804b3fab2fcbf408d78fa08ec0"
+    },
+    {
+      "path": "raw/run-probe.py",
+      "bytes": 2615,
+      "sha256": "44299f27a8b7e8c6343c41230dca1d5267719eede6c9fbeca1c9aec95eeca834"
+    },
+    {
+      "path": "raw/run-regressions.py",
+      "bytes": 1385,
+      "sha256": "80d316c152a734f83e2f1638fdf2b90a6c1a735b4456ff572f904f23af45e0a2"
+    },
+    {
+      "path": "raw/run-workspace.py",
+      "bytes": 1573,
+      "sha256": "628359c2bf20a12f220f9d847092af47ee1806ea1a7feaa0035874a5ac9f1fe3"
+    },
+    {
+      "path": "raw/startup.json",
+      "bytes": 392,
+      "sha256": "18531acff04e7977fcd37abf77896f1a0ba40a25e56bd40eb8453a9d36d7379b"
+    },
+    {
+      "path": "raw/startup.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/startup.stdout",
+      "bytes": 61852,
+      "sha256": "418c03d5be959192058fa1240503d333ecfe0d6d7776b00d534c88ec2338896a"
+    },
+    {
+      "path": "raw/viewport-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/viewport-final.stdout",
+      "bytes": 328,
+      "sha256": "a6b92163af2999001063a198d3b27af57d835b1af507a083b4c11cb98ce1b16e"
+    },
+    {
+      "path": "raw/workspace-tests.json",
+      "bytes": 880,
+      "sha256": "bda5a1a0fa7f7848dd99b0838679f24c1dd7d4cb8c0c19c885515534ef836391"
+    },
+    {
+      "path": "source/desktop/app/src/node_editor/view/control_popup.rs",
+      "bytes": 23741,
+      "sha256": "c5df37f392b23e37549f8691d5ed53e3d7c38df2a3e298dadd03446363a2e1d9"
+    },
+    {
+      "path": "source/desktop/app/src/node_editor/view/controls.rs",
+      "bytes": 34281,
+      "sha256": "90eea7ec7075951bcd907b19397e11b0bff46a39845ec1af1e992eed811cb13f"
+    },
+    {
+      "path": "source/desktop/app/src/node_editor/view/frame_cards_tests.rs",
+      "bytes": 14244,
+      "sha256": "33f5922d77053ca9309129b92d51490fd382a3619326b32a34efa4b584fd180a"
+    },
+    {
+      "path": "source/desktop/app/src/node_editor/view/frame_cards_tests/popup_geometry.rs",
+      "bytes": 7341,
+      "sha256": "0aab137766559d7d421b02ac321e9cc1bdb9e5a288c99f53ae4188afb1b77d77"
+    },
+    {
+      "path": "source/production.diff",
+      "bytes": 2358,
+      "sha256": "f726a7848a4d29f284b0d678121a16a4ac365a325b3c8777def3aa4bb08a76e7"
+    },
+    {
+      "path": "source/base.txt",
+      "bytes": 41,
+      "sha256": "4c4773a6147323aabbd52c331293c81e1833ac60ef23603358966fd29e302798"
+    },
+    {
+      "path": "verification/distinct-tests.json",
+      "bytes": 25006,
+      "sha256": "bfbc5c5127f797590ad658043bca47070c16f230211b53c620af80f4de0b904e"
+    }
+  ],
+  "limits": [
+    "CPU draw records are not native screenshots or GPU timings.",
+    "Full workspace and final cross-platform CI remain unproven.",
+    "Current PR 604 head is unchanged; this local follow-up is not covered by its CI."
+  ]
+}

@@ -62,3 +62,12 @@ project field is unchanged. This case does not qualify every codec, nonlinear le
 binding, audio output device, or the optional prototype's photographed tracking
 quality. It adds no UI and makes no claim about a complete tracker/3D solver or
 completion of #88. Android is retired and excluded.
+
+## Subsequent point, plane and nonlinear video qualification
+
+The [native video/lens increment](tracking88-native-video-lens-current.md) adds
+actual Surface controls for point, corner-pin plane and nonzero radial/tangential
+camera bindings with identical source video bytes. It fixes the ordinary 3D
+video/lens admission gap discovered by that control and independently checks
+queued RGBA/YUV video inputs. The narrower result above remains historical;
+the follow-up records its own final source, measurements and remaining limits.

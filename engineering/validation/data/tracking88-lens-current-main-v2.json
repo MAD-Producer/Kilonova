@@ -1,0 +1,384 @@
+{
+  "status": "scoped_current_main_lens_controls_passed_final_ci_pending",
+  "head": "1170ededa825a100d63131c2aa5255a2e55768a0",
+  "main": "0790404fab0328c99ffcc525ca4b56084a383951",
+  "parent": "52b26fda5295acc9383c6b77ff970a456c40d0cc",
+  "unchangedCrateTrees": {
+    "crates/motion-model": "e348dc74469370f1e9b24e64c2d48317f48a1b56",
+    "crates/motion-core": "5d66947081d7b8087cfaafe367bd5a7c4a9b4ed9",
+    "crates/motion-host": "d3b9abc2292ffc34a3638b5235822d2562754f66",
+    "crates/motion-media": "ab1d8099096575f26227482f16620e71fd86e57a"
+  },
+  "counts": {
+    "render": {
+      "passed": 100,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "host": {
+      "passed": 176,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "surface": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 1787
+    },
+    "prefetch": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 1787
+    },
+    "mapped": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 1788
+    }
+  },
+  "renderTargets": [
+    "layer_time_nested",
+    "model_layers",
+    "tracking_lens",
+    "video_allocation_budget",
+    "video_instances",
+    "video_lifetime",
+    "video_yuv"
+  ],
+  "terminalSession": 54025,
+  "terminalConsumed": true,
+  "terminalExitCode": 0,
+  "rayOracle": [
+    {
+      "checked": 288586,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": false
+    },
+    {
+      "checked": 290077,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": false
+    },
+    {
+      "checked": 288784,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": false
+    },
+    {
+      "checked": 289822,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": false
+    },
+    {
+      "checked": 288586,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": true
+    },
+    {
+      "checked": 289073,
+      "maximumError": 1,
+      "rotation": "None",
+      "yuv": true
+    },
+    {
+      "checked": 288784,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": true
+    },
+    {
+      "checked": 288802,
+      "maximumError": 1,
+      "rotation": "Clockwise90",
+      "yuv": true
+    }
+  ],
+  "steps": [
+    {
+      "name": "check",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-host",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "startedUtc": "2026-11-04T02:15:08.279701+00:00",
+      "pid": 21272,
+      "exitCode": 0,
+      "completedUtc": "2026-11-04T02:16:25.859490+00:00",
+      "summaries": []
+    },
+    {
+      "name": "render",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--locked",
+        "--offline",
+        "--no-fail-fast",
+        "--test",
+        "tracking_lens",
+        "--test",
+        "video_yuv",
+        "--test",
+        "video_lifetime",
+        "--test",
+        "video_instances",
+        "--test",
+        "video_allocation_budget",
+        "--test",
+        "model_layers",
+        "--test",
+        "layer_time_nested",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-04T02:16:26.039564+00:00",
+      "pid": 18416,
+      "exitCode": 0,
+      "completedUtc": "2026-11-04T02:19:39.030494+00:00",
+      "summaries": [
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "53",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "17",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "host",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-04T02:19:39.214375+00:00",
+      "pid": 41808,
+      "exitCode": 0,
+      "completedUtc": "2026-11-04T02:22:03.713000+00:00",
+      "summaries": [
+        [
+          "ok",
+          "176",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "surface",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::surface::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-04T02:22:03.954216+00:00",
+      "pid": 15096,
+      "exitCode": 0,
+      "completedUtc": "2026-11-04T02:24:11.863362+00:00",
+      "summaries": [
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "1787"
+        ]
+      ]
+    },
+    {
+      "name": "prefetch",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::mapped_video_prefetch_tests::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-04T02:24:12.079577+00:00",
+      "pid": 19336,
+      "exitCode": 0,
+      "completedUtc": "2026-11-04T02:24:13.487399+00:00",
+      "summaries": [
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "1787"
+        ]
+      ]
+    },
+    {
+      "name": "mapped",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::mapped_time::mapped_original_video_keeps_native_picture_and_authored_clock_across_replacement",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-04T02:24:13.712041+00:00",
+      "pid": 32672,
+      "exitCode": 0,
+      "completedUtc": "2026-11-04T02:25:18.258618+00:00",
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1788"
+        ]
+      ]
+    }
+  ],
+  "sourceUnchanged": true,
+  "visualReview": {
+    "review": "Eight new actual native captures individually viewed",
+    "images": {
+      "surface-bindings/Point/before.png": "1c7454e54c73865b2c0b4b09d67822dc0e966ac03c2882f1bf510428e6442e13",
+      "surface-bindings/Point/after.png": "0046b915d9d392aa4274b8042c3ece4b07ccc85bd06c35362bfb38de55dce297",
+      "surface-bindings/Plane/before.png": "29907c0846339a0b87484f7a88f23ae2d62bbc5dfe5f43eae14713658591b0c5",
+      "surface-bindings/Plane/after.png": "e2ceedb5201acff67e3a5a581799328c65d564277b55c4b4a62ac96ce119944f",
+      "surface-bindings/Lens/before.png": "f71be8b0a4e2f6c54a9fc422e0b1f7003777d463a22d2ab81f9ad71ac9f5003b",
+      "surface-bindings/Lens/after.png": "52cf7a30bb0892758592a5cc83be3d314b0c05799875ae31517ba22149f255eb",
+      "surface-camera/before.png": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5",
+      "surface-camera/after.png": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+    },
+    "findings": [
+      "Point marker translates from center to the expected right/up location; plane marker shrinks with the authored displacement",
+      "Lens output is nonempty in both captures; its small edge changes establish neither independent lens accuracy nor photographed quality",
+      "Camera/plate pair changes from blue center to translated green center; raw test assertions separately cover rejection/history/cache behavior",
+      "These are hidden-window native readbacks; no physical scanout or UI layout/style acceptance is implied"
+    ],
+    "terminal": {
+      "session": 54025,
+      "exitCode": 0,
+      "consumed": true
+    },
+    "independentLensAccuracy": "Separate eight GPU Newton-ray reports exceed 250000 stable pixels each, maximum channel error1, original limit2"
+  },
+  "archive": {
+    "path": "tracking88-lens-current-main-v2.zip",
+    "bytes": 631923,
+    "sha256": "c4b87d723922ba01ada3d8c966ea8f135f7689505469827351a2c4eda47c6e7e",
+    "members": 172
+  },
+  "limits": [
+    "Seven complete renderer integration targets and complete host library; filtered desktop controls do not qualify full desktop/workspace",
+    "Actual Surface, original clocks and bounded planning-failure logs do not qualify every lens/codec/binding/clock combination",
+    "Earlier native crashes and real photographed-tracker quality failures remain unresolved; no Android acceptance"
+  ]
+}

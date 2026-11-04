@@ -109,7 +109,7 @@ fn wheel_pan_and_minimap_changes_project_existing_metadata_once() {
 }
 
 #[test]
-fn initial_pointer_batch_and_normal_release_reuse_metadata_but_identity_restoration_rebuilds() {
+fn initial_pointer_batch_release_and_restoration_use_current_geometry_once() {
     for language in [Language::English, Language::Chinese] {
         let mut atlas =
             TextAtlas::from_system_language(12., language == Language::Chinese).unwrap();
@@ -133,8 +133,8 @@ fn initial_pointer_batch_and_normal_release_reuse_metadata_but_identity_restorat
             assert_eq!(editor.semantic_revision, before.semantic_revision);
             assert!(editor.undo.is_empty());
             if cancel {
-                // Losing the held button replaces the document with the saved
-                // history. Its new node identities must reject the old cards.
+                // Restore before building the final cards. The old identities
+                // remain invalid; this path no longer creates abandoned cards.
                 assert_eq!(
                     draw(
                         &mut editor,
@@ -146,7 +146,7 @@ fn initial_pointer_batch_and_normal_release_reuse_metadata_but_identity_restorat
                         },
                         language
                     ),
-                    2
+                    1
                 );
                 assert_eq!(editor.document, before.document);
                 assert!(editor.undo.is_empty());
