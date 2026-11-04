@@ -1,0 +1,57 @@
+{
+  "audit": {
+    "status": "rust_targets_passed_original_controller_receipt_assertion_failed",
+    "passed": 64,
+    "failed": 0,
+    "originalIgnored": 1,
+    "filtered": 0,
+    "reason": "Controller incorrectly required zero ignored tests for the complete core unit target. Its original manual performance ignore remains unchanged. No tests were rerun, ignored, edited or reclassified. Original controller exit1 and raw receipt retained.",
+    "counts": [
+      [
+        43,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        8,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "sourceUnchanged": true,
+    "limits": [
+      "Earlier PR597 CI timeout remains unresolved; no source failure phase was captured before this observation increment",
+      "No deadline, memory/stack budget, test assertion or functional return behavior changes",
+      "This is a selected core expression gate, not desktop sink/complete workspace/cross-platform acceptance"
+    ]
+  },
+  "archive": "expression-budget-trace-v1.zip",
+  "bytes": 255678,
+  "sha256": "aeab5af59d1504a75c07b12640f28d4edcd2382013af6dce804f4b3f6fd25925",
+  "members": 13
+}
