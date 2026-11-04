@@ -1,0 +1,37 @@
+{
+  "review": {
+    "terminalSession": 59177,
+    "terminalExitCode": 0,
+    "terminalConsumed": true,
+    "sourceUnchanged": true,
+    "images": {
+      "30000-1001-en": {
+        "review": "Both native preview and timeline display 00:01:00:00; readable locale chrome; no edit actions",
+        "sha256": "fbfa9da611cc7553734c5a95439d72a279195f2d9840c716fbe9a3da5f4c93c5"
+      },
+      "30000-1001-zh": {
+        "review": "Both native preview and timeline display 00:01:00:00; readable locale chrome; no edit actions",
+        "sha256": "35379d8f9c000eff9481197ad099abd5f9df0f6d2131cd3dccd291abb490c333"
+      },
+      "24000-1001-en": {
+        "review": "Both native preview and timeline display 00:01:00:00; readable locale chrome; no edit actions",
+        "sha256": "d268c6336843f557d800667dd730f5965b68003cd1d91eb4cb62c1fc3804fb6e"
+      },
+      "24000-1001-zh": {
+        "review": "Both native preview and timeline display 00:01:00:00; readable locale chrome; no edit actions",
+        "sha256": "f25210e43f5bfae8528f021bfde9a27ae8ffc42ea40d637a7ca826dfaa1f22b2"
+      }
+    },
+    "originalFailures": [
+      "Windows run41638999455 job125928665201: 1698 passed, 1 RecreationAttempt, 69 original ignores",
+      "Windows run41639113963 job125928503036: 1698 passed, 1 RecreationAttempt, 69 original ignores"
+    ],
+    "scope": "Only test-process isolation; original native-test body and all original assertions byte-identical; no full package success claim"
+  },
+  "archive": {
+    "path": "frame-rate85-event-loop-isolation-v1.zip",
+    "bytes": 993166,
+    "sha256": "f2e3508fcff947b79884bc7f2c51d89fc5c33091a013aff61d57c003e9f0c8fa",
+    "members": 31
+  }
+}
