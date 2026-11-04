@@ -1,0 +1,94 @@
+{
+  "status": "accepted_static_closeout_not_full_issue",
+  "startedUtc": "2026-11-01T05:57:42.177819+00:00",
+  "sourceCode": {
+    "crates/motion-desktop-media/src/av.rs": "266057e1b8428ce92c3bb7de8cffd9f3240f446c55e167fc1d760a862498fbdd",
+    "crates/motion-desktop-media/src/av/tracking.rs": "a86129f6432cb40df5e601c486d2b5088b980f43737d2c983845e00e90cb3567",
+    "crates/motion-desktop-media/src/av/tracking/tests.rs": "a1c65b3418b21f8cac647c58f7a3d01cc8096e3d409ca4f946a8638d35cb79f6",
+    "crates/motion-desktop-media/src/lib.rs": "a3f7ce64c16554b357aeea50de95cfaf37efb8edc186553c41fd8f65758f171e",
+    "crates/motion-host/src/ops/tracking.rs": "29cff477167b61f493b6d4dd5664acd0667be5b3f8da2be91a353995d5383ad1",
+    "crates/motion-host/src/platform.rs": "45030a6076f3ade56a46fbcc98993523106d28652b46aaf1d269df4ce11b8782",
+    "crates/motion-host/src/tracking.rs": "67157793bc374faf6cb0a242148d7a50eae3ce458c4df5643715240f5c4bc22e",
+    "crates/motion-host/src/tracking/decoded.rs": "89f754677bc27161005f8476f1f88e01a5d451b916083d90269dbd6954b92893",
+    "crates/motion-host/src/tracking/decoded_tests.rs": "fc76c606c7e24a5f5adae91211e9b25c83de8113e061a71536900c95ed3ca380",
+    "crates/motion-host/src/tracking/import.rs": "8eae4aec3b0949eb496670daccad4876fd5ef8b499dde81dc95f46f8c2c67e85",
+    "crates/motion-host/src/tracking/import_tests.rs": "3e1b44ed439ad6f77319dce2f9541753dd20f5d413fd13ae9fae787b0fb3bc3e",
+    "desktop/app/src/mcp.rs": "8d9e8ff799f1000988e50ab65877e08748fb81f133842cb9956bb99f3db79578",
+    "desktop/app/src/mcp/tracking_tests.rs": "b4df208be9bee72a50805c52da36b5100aeeee606a3bfcd9997e4c389908f8b5"
+  },
+  "archiveSha256": "4c6333e654a9b20f651a4ae8b4234d6afa6084a2a38ea68b46fc4c39591cd8da",
+  "stagedPaths": [
+    "crates/motion-desktop-media/src/av.rs",
+    "crates/motion-desktop-media/src/av/tracking.rs",
+    "crates/motion-desktop-media/src/av/tracking/tests.rs",
+    "crates/motion-desktop-media/src/lib.rs",
+    "crates/motion-host/src/ops/tracking.rs",
+    "crates/motion-host/src/platform.rs",
+    "crates/motion-host/src/tracking.rs",
+    "crates/motion-host/src/tracking/decoded.rs",
+    "crates/motion-host/src/tracking/decoded_tests.rs",
+    "crates/motion-host/src/tracking/import.rs",
+    "crates/motion-host/src/tracking/import_tests.rs",
+    "desktop/app/src/mcp.rs",
+    "desktop/app/src/mcp/tracking_tests.rs",
+    "engineering/validation/data/tracking88-decoded-source-v4.zip",
+    "engineering/validation/tracking88-decoded-source-current.md",
+    "engineering/validation/tracking88-managed-import-current.md"
+  ],
+  "panelChanges": false,
+  "dependencyChanges": false,
+  "androidChanges": false,
+  "steps": [
+    {
+      "name": "whitespace",
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "style-consumers",
+      "command": [
+        "python",
+        "-c",
+        "import runpy; runpy.run_path('tools/ci_desktop.py')['verify_style_consumers'](); print('PASS: existing panel style consumers')"
+      ],
+      "exitCode": 0,
+      "stdout": "PASS: existing panel style consumers\r\n",
+      "stderr": ""
+    },
+    {
+      "name": "provenance",
+      "command": [
+        "python",
+        "tools/validate_provenance.py"
+      ],
+      "exitCode": 0,
+      "stdout": "provenance guard passed (5135 tracked paths)\r\n",
+      "stderr": ""
+    },
+    {
+      "name": "tool-inventory",
+      "command": [
+        "python",
+        "tools/validation_inventory.py"
+      ],
+      "exitCode": 0,
+      "stdout": "{\r\n  \"tools\": 57,\r\n  \"androidSelectors\": 0,\r\n  \"androidTests\": 0,\r\n  \"effectLibrariesChecked\": false\r\n}\r\n",
+      "stderr": ""
+    }
+  ],
+  "fullHostRegression": [
+    212,
+    2,
+    0
+  ],
+  "mcpUnitRegression": "Build failed: rustc 0xc0000005 before tests ran; final-source unit gate is not green",
+  "nativeProductAcceptance": "Portable and FFmpeg actual product builds, four real stdio processes and decoded-source controls pass; this does not repair full regression failures",
+  "completedUtc": "2026-11-01T05:57:42.937982+00:00"
+}

@@ -1,0 +1,302 @@
+{
+  "sourceHead": "b5d73deb31474240b95cf169a8971ee9fb677760",
+  "main": "c0e25eda7c469c62ee94135e380647d818921662",
+  "status": "scoped_integration_passed_final_ci_pending",
+  "totals": {
+    "passed": 20,
+    "failed": 0,
+    "ignored": 0
+  },
+  "review": {
+    "originalSession": 19322,
+    "terminalConsumed": true,
+    "transportExitCode": 0,
+    "coverageDisposition": "Host selector matched zero; excluded from all counts. Correct five named host tests listed then executed in tracking583-host-controls-v1",
+    "actualNativeCases": 4,
+    "uniquePassed": 20,
+    "failed": 0,
+    "ignored": 0
+  },
+  "commands": [
+    {
+      "run": "tracking583-current-main-v2",
+      "name": "check-all-targets",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-host",
+        "-p",
+        "motion-desktop",
+        "--all-targets",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "pid": 17016,
+      "exitCode": 0,
+      "elapsedSeconds": 145.187,
+      "summaries": []
+    },
+    {
+      "run": "tracking583-current-main-v2",
+      "name": "candidate-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-media",
+        "--lib",
+        "video::candidate::tests",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 20908,
+      "exitCode": 0,
+      "elapsedSeconds": 73.016,
+      "summaries": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 100 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "run": "tracking583-current-main-v2",
+      "name": "native-compile",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--no-run",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "pid": 42680,
+      "exitCode": 0,
+      "elapsedSeconds": 174.375,
+      "summaries": []
+    },
+    {
+      "run": "tracking583-current-main-v2",
+      "name": "native-pair",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "status": "passed",
+      "pid": 49912,
+      "exitCode": 0,
+      "elapsedSeconds": 22.859,
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1766 filtered out; finished in 18.40s"
+      ]
+    },
+    {
+      "run": "tracking583-integration-controls-v1",
+      "name": "core-atomic",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-core",
+        "--test",
+        "tracking_replacement",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 5972,
+      "exitCode": 0,
+      "elapsedSeconds": 55.281,
+      "summaries": [
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s"
+      ]
+    },
+    {
+      "run": "tracking583-integration-controls-v1",
+      "name": "host-publication",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--lib",
+        "ops::media::tracked_replacement_tests::",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 51216,
+      "exitCode": 0,
+      "elapsedSeconds": 26.438,
+      "summaries": [
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 176 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "run": "tracking583-integration-controls-v1",
+      "name": "native-original",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::tracked_video_replacement_refuses_changed_plate_and_preserves_identical_source",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "status": "passed",
+      "pid": 48876,
+      "exitCode": 0,
+      "elapsedSeconds": 27.343,
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1766 filtered out; finished in 23.35s"
+      ]
+    },
+    {
+      "run": "tracking583-integration-controls-v1",
+      "name": "native-mapped",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::mapped_time::mapped_original_video_keeps_native_picture_and_authored_clock_across_replacement",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "status": "passed",
+      "pid": 49932,
+      "exitCode": 0,
+      "elapsedSeconds": 72.125,
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1766 filtered out; finished in 70.17s"
+      ]
+    },
+    {
+      "run": "tracking583-integration-controls-v1",
+      "name": "native-audio",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::audio::native_audio_and_tracking_replace_rollback_undo_redo_and_reopen_together",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "status": "passed",
+      "pid": 44812,
+      "exitCode": 0,
+      "elapsedSeconds": 17.953,
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1766 filtered out; finished in 16.10s"
+      ]
+    },
+    {
+      "run": "tracking583-host-controls-v1",
+      "name": "host-list",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--lib",
+        "ops::media::tracked_replacement::tests::",
+        "--locked",
+        "--offline",
+        "--",
+        "--list"
+      ],
+      "status": "passed",
+      "pid": 39168,
+      "exitCode": 0,
+      "elapsedSeconds": 0.734,
+      "summaries": []
+    },
+    {
+      "run": "tracking583-host-controls-v1",
+      "name": "host-publication",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--lib",
+        "ops::media::tracked_replacement::tests::",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 39020,
+      "exitCode": 0,
+      "elapsedSeconds": 0.937,
+      "summaries": [
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 171 filtered out; finished in 0.20s"
+      ]
+    }
+  ],
+  "archive": {
+    "path": "tracking88-pair-current-main-v1.zip",
+    "bytes": 505758,
+    "sha256": "8f4d92aa95b5b0d2d6af7b50f1690780fa278e924c89809f75af94aa48dfca63",
+    "members": 46
+  },
+  "limits": [
+    "Original encoding failure retained and corrected from original conflict bytes using explicit UTF-8",
+    "Earlier green CI against old PR583 base is historical; current head CI required",
+    "Not complete workspace or prototype tracking-quality acceptance; no panels, assets, dependencies, assertion or budget changes; no Android acceptance"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "scope": "Independent exact fractional media clock; project adoption not included",
+  "testsPassed": 7,
+  "testsFailed": 0,
+  "testsIgnored": 0,
+  "independentOracleCases": 644,
+  "comparisons": 1932,
+  "archiveBytes": 18339,
+  "archiveSha256": "4257a0b90210ee52cded46c827d3850976d7bb6dcd54975306c80b786953c512",
+  "members": {
+    "crates/motion-model/src/frame_rate.rs": {
+      "bytes": 8317,
+      "sha256": "f5dc319b197eb67089b5f4ada94ff84f4eccd9098020d4ff9a7f9be7d097e65a"
+    },
+    "crates/motion-model/tests/frame_rate.rs": {
+      "bytes": 6324,
+      "sha256": "3dd798e499774ac7719f3e92738db3d91d0c99eed96dbd0a6bf89e295a7f7dbd"
+    },
+    "crates/motion-model/tests/fixtures/frame-rate/fractional-clock.json": {
+      "bytes": 129305,
+      "sha256": "dce527471636107b0a9f48f938d578b32bee7a73ad04e36c9a0f0e11efa39104"
+    },
+    "evidence/controller.py": {
+      "bytes": 3858,
+      "sha256": "303dcd53f35069e9ecefd50f84676617a4045ccdb807b4d769370522c28b3280"
+    },
+    "evidence/exit.json": {
+      "bytes": 12349,
+      "sha256": "48edc2d430fb9c151ba287cf460ba109539870cfd24ad0254fb2d9eaf2155e01"
+    },
+    "evidence/stdout.log": {
+      "bytes": 660,
+      "sha256": "43e5eb0344348e3d2d9b1a7a06dfa87050aa3cb531de83329ad6fb711dc0f5ea"
+    },
+    "evidence/stderr.log": {
+      "bytes": 283,
+      "sha256": "04061a62453bc356b43de4c4fa83651c6719f9a4dc03be203704ccd8bc842c55"
+    },
+    "evidence/generate-oracle.py": {
+      "bytes": 2084,
+      "sha256": "cf86faaf3dda16f51f9b42a8ad198c408821f6956371f212210fad76d47088ec"
+    }
+  }
+}

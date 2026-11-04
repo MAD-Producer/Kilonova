@@ -65,6 +65,8 @@ impl Changes {
                 return;
             }
             Command::SetVector { object, .. }
+            | Command::SetTrackingPoint { object, .. }
+            | Command::SetTrackingPlane { object, .. }
             | Command::LayerTime { object, .. }
             | Command::SetScalar { object, .. }
             | Command::SetComponent { object, .. }
@@ -102,6 +104,7 @@ impl Changes {
             | Command::TrackAt { target, .. } => target.object(),
             Command::DepthCalibration { object, .. } | Command::VideoDepthCalibration { object, .. } => *object,
             Command::CameraMode { object, .. }
+            | Command::SetTrackingCamera {object,..}
             | Command::CameraImported { object, .. }
             | Command::CameraLens { object, .. }
             | Command::Dolly { object, .. }
@@ -231,6 +234,7 @@ impl ProjectSize {
             ("library", counted(&project.library)),
             ("assets", counted(&project.assets)),
             ("model_assets", counted(&project.model_assets)),
+            ("tracking_assets", counted(&project.tracking_assets)),
             ("fonts", counted(&project.fonts)),
             ("audio_assets", counted(&project.audio_assets)),
             ("video_assets", counted(&project.video_assets)),

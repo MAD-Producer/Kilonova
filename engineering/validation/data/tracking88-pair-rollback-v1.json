@@ -1,0 +1,83 @@
+{
+  "status": "passed_actual_staged_binding_and_save_failure_rollback_native_gpu_history_reopen",
+  "startedUtc": "2026-11-02T04:17:47.899459+00:00",
+  "completedUtc": "2026-11-02T04:20:00.665313+00:00",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-desktop",
+    "--bin",
+    "motion-studio",
+    "--features",
+    "ffmpeg",
+    "--locked",
+    "--offline",
+    "--",
+    "engine::tracking_video_replacement_tests::paired::fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable",
+    "--exact",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "exitCode": 0,
+  "baseCommit": "07cefe1642da638bf8e82b50906225aa7e8c6d7d",
+  "source": {
+    "desktop/app/src/engine/tracking_video_pair_tests.rs": {
+      "validatedRawSha256": "2de40faf6fab84c1231108c6369eea93d5892344566511c563d4819e5021a27e",
+      "gitLfSha256": "2de40faf6fab84c1231108c6369eea93d5892344566511c563d4819e5021a27e"
+    },
+    "crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "validatedRawSha256": "c7f9a8af79ec60a932a0ae0e80c7201aa442ef819a21337740f9db49f8752092",
+      "gitLfSha256": "c7f9a8af79ec60a932a0ae0e80c7201aa442ef819a21337740f9db49f8752092"
+    }
+  },
+  "members": {
+    "source/desktop/app/src/engine/tracking_video_pair_tests.rs": {
+      "bytes": 13310,
+      "sha256": "2de40faf6fab84c1231108c6369eea93d5892344566511c563d4819e5021a27e"
+    },
+    "source/crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "bytes": 13194,
+      "sha256": "c7f9a8af79ec60a932a0ae0e80c7201aa442ef819a21337740f9db49f8752092"
+    },
+    "stdout.log": {
+      "bytes": 251,
+      "sha256": "5a6381f221f18b63f7d6ac347d119e63a7faf06fd9b3b35e3a301e0253856562"
+    },
+    "stderr.log": {
+      "bytes": 22358,
+      "sha256": "6caf2f97f5a2fc7dfdd0e82cdfcb3cf27b01dab16df78a6cb8d38f5c7fe83f73"
+    },
+    "controller.py": {
+      "bytes": 2546,
+      "sha256": "45242cd94af098802432c610616fe43f58da0841dd3d2766a04ad9cb10b8da51"
+    },
+    "before.png": {
+      "bytes": 7770,
+      "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+    },
+    "after.png": {
+      "bytes": 7705,
+      "sha256": "c804360a2e1478c312a05eef1f13d492af7259e74f94e1f0ca1d8ddf9b02debd"
+    },
+    "logs/motion-studio.log": {
+      "bytes": 25816,
+      "sha256": "28895259493cb5620ec5da5f0d150560a9dc2c450277be4b9efc9d166e1d33c2"
+    }
+  },
+  "archive": {
+    "path": "engineering/validation/data/tracking88-pair-rollback-v1.zip",
+    "sha256": "9137f4fd188d77a54d2dd9bba05974767cd71549cc3de9367ca4b7ef2dc14f8e",
+    "bytes": 19418
+  },
+  "limitations": [
+    "Targeted native test only; no post-publication acknowledgement/unwind injection",
+    "Initial macOS CI failed an existing asynchronous freeze panic test waiting 5 seconds for its result",
+    "No assertion or production code changed to bypass that CI failure"
+  ],
+  "earlierAttempt": {
+    "path": "artifacts/pr-queue/tracking88-pair-rollback-v1",
+    "result": "failed reading the session-owned lock file in test snapshot; snapshot now targets published assets/cache/project.json explicitly",
+    "fixtureCorrection": "save authored baseline before comparing reopened document; do not infer autosave from editing"
+  }
+}

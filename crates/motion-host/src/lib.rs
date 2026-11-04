@@ -40,6 +40,7 @@ pub mod preview_video;
 pub mod video_frames;
 pub mod resource_memory;
 pub mod render_sampling;
+pub mod tracking;
 
 pub use platform::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 pub use session::{Result, Session};

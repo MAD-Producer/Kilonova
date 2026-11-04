@@ -1,0 +1,219 @@
+{
+  "issue": 88,
+  "status": "draft_increment_local_targeted_tests_passed_full_regression_pending",
+  "baseCommit": "8a1dfb7f57fc1bc65683942427214b18595ac625",
+  "source": {
+    "crates/motion-core/src/command_registry.rs": {
+      "validatedRawSha256": "4020194d5834d1ec642c89980c953e61391aceb09de8f5ced9622ef868b9d079",
+      "gitLfSha256": "2027612c5da62a444af1be08f5a57552ed5f2717ea9a37204559b08da0e00eb2"
+    },
+    "crates/motion-core/src/editor.rs": {
+      "validatedRawSha256": "0a4446c591e4e40053cc7fc3a01bc15c962664f0dc18e65866299159e5357ebc",
+      "gitLfSha256": "e99ef178947dd20bfb928a45fe60198537a226e3a7f53f35a1ee5cec6fccd48b"
+    },
+    "crates/motion-core/tests/tracking_replacement.rs": {
+      "validatedRawSha256": "c634fc441eca9385f96635b1f658a846c4d70bcf86a69c7c39a35ae6272e3f9e",
+      "gitLfSha256": "c634fc441eca9385f96635b1f658a846c4d70bcf86a69c7c39a35ae6272e3f9e"
+    },
+    "crates/motion-host/src/ops/media.rs": {
+      "validatedRawSha256": "a05c44b91a2fe236419fc799be7796a91e8f63b5cf5a88eec12868853ffabbbc",
+      "gitLfSha256": "40546df9d0782d85a804e759d2d66d653f242916f51aceaa10595a3c3f557a75"
+    },
+    "crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "validatedRawSha256": "8e3838b36073944b865eb62c8db08c5c98d6ff59bcff7862c05d392810c5899e",
+      "gitLfSha256": "8e3838b36073944b865eb62c8db08c5c98d6ff59bcff7862c05d392810c5899e"
+    },
+    "crates/motion-host/src/tracking/import.rs": {
+      "validatedRawSha256": "9ed491b7ee52172a2ad0504522be85e8d1dd453167655a6fe82fd385a49c5639",
+      "gitLfSha256": "9ed491b7ee52172a2ad0504522be85e8d1dd453167655a6fe82fd385a49c5639"
+    },
+    "crates/motion-model/src/commands.rs": {
+      "validatedRawSha256": "94ff1f24d5800fd59d3bf9fa30a0b4a4c565d515c597377a6212e0ee0be27847",
+      "gitLfSha256": "55ae111b8609802db0c34b5cc05f25ab9c3ddc45afaa2613970a1054a186ded6"
+    },
+    "crates/motion-model/src/tracking_assets.rs": {
+      "validatedRawSha256": "a97dffb8ab56d6d96e3bf961c140b39a66da0d489f53b09c87fd65168d53c250",
+      "gitLfSha256": "a97dffb8ab56d6d96e3bf961c140b39a66da0d489f53b09c87fd65168d53c250"
+    },
+    "crates/motion-model/src/tracking_assets/replacement.rs": {
+      "validatedRawSha256": "3e5e6abed91ad37f3c2151487abbd4b3a2ed8d8bb14a713e11df6562d503cb1b",
+      "gitLfSha256": "3e5e6abed91ad37f3c2151487abbd4b3a2ed8d8bb14a713e11df6562d503cb1b"
+    },
+    "desktop/app/src/engine/tracking_video_pair_tests.rs": {
+      "validatedRawSha256": "1341d4ca5b3d4093dedae296b308d78783e722009ece073e379ead49c658aab6",
+      "gitLfSha256": "1341d4ca5b3d4093dedae296b308d78783e722009ece073e379ead49c658aab6"
+    },
+    "desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+      "validatedRawSha256": "16cb5b92a2f8d46d18fe4dc1833489b0380a3da343cf2a13afc758186a478ea1",
+      "gitLfSha256": "16cb5b92a2f8d46d18fe4dc1833489b0380a3da343cf2a13afc758186a478ea1"
+    }
+  },
+  "runs": {
+    "core": {
+      "status": "passed_core_contract_only_native_paired_replacement_pending",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-core",
+        "--test",
+        "tracking_replacement",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "exitCode": 0,
+      "startedUtc": "2026-11-01T15:27:43.711064+00:00",
+      "completedUtc": "2026-11-01T15:29:28.329062+00:00",
+      "changedSource": {
+        "crates/motion-model/src/tracking_assets.rs": "a97dffb8ab56d6d96e3bf961c140b39a66da0d489f53b09c87fd65168d53c250",
+        "crates/motion-model/src/commands.rs": "94ff1f24d5800fd59d3bf9fa30a0b4a4c565d515c597377a6212e0ee0be27847",
+        "crates/motion-core/src/command_registry.rs": "4020194d5834d1ec642c89980c953e61391aceb09de8f5ced9622ef868b9d079",
+        "crates/motion-core/tests/tracking_replacement.rs": "c634fc441eca9385f96635b1f658a846c4d70bcf86a69c7c39a35ae6272e3f9e",
+        "crates/motion-model/src/tracking_assets/replacement.rs": "3e5e6abed91ad37f3c2151487abbd4b3a2ed8d8bb14a713e11df6562d503cb1b",
+        "crates/motion-core/src/editor.rs": "0a4446c591e4e40053cc7fc3a01bc15c962664f0dc18e65866299159e5357ebc"
+      }
+    },
+    "native": {
+      "status": "passed_native_pair_source_clock_gpu_history_reopen_default_logs",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "--",
+        "engine::tracking_video_replacement_tests::paired::fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exitCode": 0,
+      "startedUtc": "2026-11-01T15:35:59.570305+00:00",
+      "completedUtc": "2026-11-01T15:40:57.985283+00:00",
+      "changedSource": {
+        "desktop/app/src/engine/tracking_video_pair_tests.rs": "1341d4ca5b3d4093dedae296b308d78783e722009ece073e379ead49c658aab6",
+        "crates/motion-core/src/editor.rs": "0a4446c591e4e40053cc7fc3a01bc15c962664f0dc18e65866299159e5357ebc",
+        "crates/motion-model/src/commands.rs": "94ff1f24d5800fd59d3bf9fa30a0b4a4c565d515c597377a6212e0ee0be27847",
+        "crates/motion-core/tests/tracking_replacement.rs": "c634fc441eca9385f96635b1f658a846c4d70bcf86a69c7c39a35ae6272e3f9e",
+        "crates/motion-host/src/tracking/import.rs": "9ed491b7ee52172a2ad0504522be85e8d1dd453167655a6fe82fd385a49c5639",
+        "crates/motion-model/src/tracking_assets/replacement.rs": "3e5e6abed91ad37f3c2151487abbd4b3a2ed8d8bb14a713e11df6562d503cb1b",
+        "crates/motion-model/src/tracking_assets.rs": "a97dffb8ab56d6d96e3bf961c140b39a66da0d489f53b09c87fd65168d53c250",
+        "crates/motion-core/src/command_registry.rs": "4020194d5834d1ec642c89980c953e61391aceb09de8f5ced9622ef868b9d079",
+        "crates/motion-host/src/ops/media/tracked_replacement.rs": "8e3838b36073944b865eb62c8db08c5c98d6ff59bcff7862c05d392810c5899e",
+        "crates/motion-host/src/ops/media.rs": "a05c44b91a2fe236419fc799be7796a91e8f63b5cf5a88eec12868853ffabbbc",
+        "desktop/app/src/engine/tracking_video_replacement_tests.rs": "16cb5b92a2f8d46d18fe4dc1833489b0380a3da343cf2a13afc758186a478ea1"
+      }
+    }
+  },
+  "members": {
+    "core/controller.py": {
+      "bytes": 1774,
+      "sha256": "90aabbad75dd317ee5ddbc482a8d6c4c8c2d4525c51ca7e89575475fedcdefe0"
+    },
+    "core/receipt.json": {
+      "bytes": 1117,
+      "sha256": "079603b1d260eb3b82b86472a0be1e191d3ec63711570b8fc82de33f733cf513"
+    },
+    "core/stderr.log": {
+      "bytes": 1337,
+      "sha256": "dc9ed81f8861bfb5c8c85e562f721b449886216e96f27a595cac5dfe153cc6d2"
+    },
+    "core/stdout.log": {
+      "bytes": 442,
+      "sha256": "804d6f44773c0402d0339028c5edcf41dda752f25d6b4fe25535947b2265d63c"
+    },
+    "native/after.png": {
+      "bytes": 7705,
+      "sha256": "c804360a2e1478c312a05eef1f13d492af7259e74f94e1f0ca1d8ddf9b02debd"
+    },
+    "native/before.png": {
+      "bytes": 7770,
+      "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+    },
+    "native/controller.py": {
+      "bytes": 2428,
+      "sha256": "a62af2739352bbb0727db64cbad2623d922b6ee4145a30305f645dcb173b7629"
+    },
+    "native/logs/motion-studio.log": {
+      "bytes": 21319,
+      "sha256": "4778d623dfeb30fb3168630dcec9e960660b3c9f31aaf3c6524d7b7b58d5c80e"
+    },
+    "native/receipt.json": {
+      "bytes": 1932,
+      "sha256": "b5c3b2559d67ac58e4216578d8e8490e5b40d6317e2bcb861090b717c97a0a07"
+    },
+    "native/stderr.log": {
+      "bytes": 21291,
+      "sha256": "9d09439a45de70d0a2a06ba630c7f2ffd3decf3b86e1be483631f8524af12d2f"
+    },
+    "native/stdout.log": {
+      "bytes": 251,
+      "sha256": "bc22d910a173e3fef4923109993de929eeb02be81c439ac374820049bfb6465d"
+    },
+    "source/crates/motion-core/src/command_registry.rs": {
+      "bytes": 27967,
+      "sha256": "4020194d5834d1ec642c89980c953e61391aceb09de8f5ced9622ef868b9d079"
+    },
+    "source/crates/motion-core/src/editor.rs": {
+      "bytes": 64741,
+      "sha256": "0a4446c591e4e40053cc7fc3a01bc15c962664f0dc18e65866299159e5357ebc"
+    },
+    "source/crates/motion-core/tests/tracking_replacement.rs": {
+      "bytes": 8089,
+      "sha256": "c634fc441eca9385f96635b1f658a846c4d70bcf86a69c7c39a35ae6272e3f9e"
+    },
+    "source/crates/motion-host/src/ops/media.rs": {
+      "bytes": 31256,
+      "sha256": "a05c44b91a2fe236419fc799be7796a91e8f63b5cf5a88eec12868853ffabbbc"
+    },
+    "source/crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "bytes": 12668,
+      "sha256": "8e3838b36073944b865eb62c8db08c5c98d6ff59bcff7862c05d392810c5899e"
+    },
+    "source/crates/motion-host/src/tracking/import.rs": {
+      "bytes": 17970,
+      "sha256": "9ed491b7ee52172a2ad0504522be85e8d1dd453167655a6fe82fd385a49c5639"
+    },
+    "source/crates/motion-model/src/commands.rs": {
+      "bytes": 13223,
+      "sha256": "94ff1f24d5800fd59d3bf9fa30a0b4a4c565d515c597377a6212e0ee0be27847"
+    },
+    "source/crates/motion-model/src/tracking_assets.rs": {
+      "bytes": 2886,
+      "sha256": "a97dffb8ab56d6d96e3bf961c140b39a66da0d489f53b09c87fd65168d53c250"
+    },
+    "source/crates/motion-model/src/tracking_assets/replacement.rs": {
+      "bytes": 7930,
+      "sha256": "3e5e6abed91ad37f3c2151487abbd4b3a2ed8d8bb14a713e11df6562d503cb1b"
+    },
+    "source/desktop/app/src/engine/tracking_video_pair_tests.rs": {
+      "bytes": 10096,
+      "sha256": "1341d4ca5b3d4093dedae296b308d78783e722009ece073e379ead49c658aab6"
+    },
+    "source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+      "bytes": 11135,
+      "sha256": "16cb5b92a2f8d46d18fe4dc1833489b0380a3da343cf2a13afc758186a478ea1"
+    }
+  },
+  "limits": [
+    "Full workspace/desktop regression and cross-platform CI are not established by these targeted runs",
+    "Post-staging binding failure, save failure, published durability acknowledgement and unwind need dedicated paired-path injection",
+    "Point/plane and nested-composition paired changes need dedicated controls",
+    "No new UI or MCP preparation/finish tool workflow and no new endpoint stdout-isolation proof",
+    "Filesystem writers are not excluded between cold verification and publication",
+    "Optional planar tracker real-footage quality remains a separate failing acceptance in PR 582",
+    "Android is not maintained and was not validated"
+  ],
+  "archive": {
+    "path": "engineering/validation/data/tracking88-paired-replacement-v1.zip",
+    "bytes": 65041,
+    "sha256": "784665697b4103e1c28796942fb51f6de845bdc4a3d9c62a559dfd4b50800240"
+  }
+}

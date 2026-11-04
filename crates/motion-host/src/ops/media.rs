@@ -15,6 +15,9 @@ use std::{
     sync::Arc,
 };
 pub(crate) mod relink;
+mod replacement;
+mod tracking;
+mod tracked_replacement;
 
 /// Opens a user-selected media file.
 ///
@@ -104,6 +107,14 @@ pub enum Request {
         target: motion_core::media_assets::AssetRef,
         revision: u64,
     },
+    FinishTrackedVideoReplacement {
+        request_id: String,
+        target: motion_core::media_assets::AssetRef,
+        revision: u64,
+        document_generation: u64,
+        solves: Vec<tracked_replacement::SolveReplacement>,
+        bindings: Vec<motion_core::tracking_assets::replacement::BindingUpdate>,
+    },
     MediaAssetUsages {
         target: motion_core::media_assets::AssetRef,
     },
@@ -189,7 +200,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
                     .or_insert_with(|| active.clone());
             }
         }
-        if matches!(op.as_str(), "finish_media_import" | "finish_media_replacement")
+        if matches!(op.as_str(), "finish_media_import" | "finish_media_replacement" | "finish_tracked_video_replacement")
             && request_id
                 .as_ref()
                 .and_then(|id| s.media_compositions.get(id))
@@ -364,7 +375,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             s.asset_relink = Some(batch);
             Ok(status)
         }),
-        Request::FinishAssetRelink { request_id } => crate::session::with_session(id, |s| relink::finish(s, &request_id)),
+        Request::FinishAssetRelink { request_id } => relink::finish(id, &request_id),
         Request::CancelAssetRelink { request_id } => crate::session::with_session(id, |s| {
             if request_id.is_empty() || request_id.len()>128 { return Err("invalid asset relink request id".into()); }
             let mut status=if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {
@@ -413,47 +424,11 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             let source = lookup(project, target).ok_or("asset no longer exists")?;
             Ok(json!({"target":target,"source":source,"usages":usages(project,target),"revision":s.engine.revision()}))
         }),
-        Request::FinishMediaReplacement { request_id, target, revision } => crate::session::with_session(id, |s| {
-            use motion_core::media_assets::{lookup, AssetKind};
-            log::info!("media replacement commit request={} asset={} kind={:?} revision={} expected_revision={revision}",
-                request_id.chars().take(128).collect::<String>(), target.id, target.kind, s.engine.revision());
-            if revision < s.engine.revision() {
-                let task = match target.kind {
-                    AssetKind::Video if s.video_jobs.contains(&request_id) => json!(s.video_jobs.cancel(&request_id)?),
-                    AssetKind::Audio if s.audio_jobs.contains(&request_id) => json!(s.audio_jobs.cancel(&request_id)?),
-                    _ => return Err("replacement task and asset kinds do not match".into()),
-                };
-                return Ok(json!({"asset_operation_cancelled":true,"asset_operation_reason":"superseded","task":task,"state":s.snapshot()?}));
-            }
-            if s.engine.revision() != revision {
-                return Err("project changed during media replacement; original asset retained".into());
-            }
-            lookup(s.engine.project(),target).ok_or("replacement asset no longer exists")?;
-            let prepared = match target.kind {
-                AssetKind::Video if s.video_jobs.contains(&request_id) => json!(s.video_jobs.status(&request_id)?),
-                AssetKind::Audio if s.audio_jobs.contains(&request_id) => json!(s.audio_jobs.status(&request_id)?),
-                _ => return Err("replacement task and asset kinds do not match".into()),
-            };
-            if prepared["state"] != "ready" {
-                return Err(prepared["error"].as_str().unwrap_or("replacement task is not ready; original asset retained").into());
-            }
-            let task = match target.kind {
-                AssetKind::Video if s.video_jobs.contains(&request_id) => json!(s.video_jobs.replace(&request_id, &mut s.engine, target.id)?),
-                AssetKind::Audio if s.audio_jobs.contains(&request_id) => json!(s.audio_jobs.replace(&request_id, &mut s.engine, target.id)?),
-                _ => return Err("replacement task and asset kinds do not match".into()),
-            };
-            if task["state"] != "succeeded" {
-                return Err(task["error"].as_str().unwrap_or("replacement did not publish; original asset retained").into());
-            }
-            s.audio_mixer = None;
-            s.video_frames.clear();
-            if let Err(error) = s.sample() {
-                log::error!("media replacement committed but sampling failed asset={} kind={:?} revision={} phase=sample reason={error}",target.id,target.kind,s.engine.revision());
-            }
-            Ok(json!({"task":task,"target":target,"state":s.snapshot()?}))
-        }).map_err(|cause| crate::Error::with_context(
+        Request::FinishMediaReplacement { request_id, target, revision } => replacement::finish(id, &request_id, target, revision).map_err(|cause| crate::Error::with_context(
             format!("media replacement request={} asset={} kind={:?} phase=commit expected_revision={revision}",
                 request_id.chars().take(128).collect::<String>(),target.id,target.kind),cause)),
+        Request::FinishTrackedVideoReplacement {request_id,target,revision,document_generation,solves,bindings}=>
+            tracked_replacement::finish(id,&request_id,target,revision,document_generation,solves,bindings),
         Request::CancelMediaImport { request_id } => crate::session::with_session(id, |s| {
             if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {
                 batch.cancel()

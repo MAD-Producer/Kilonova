@@ -6,6 +6,7 @@ mod depth_of_field;
 pub use depth_of_field::{DepthOfField, SampledDepthOfField};
 mod imported;
 pub use imported::{CameraSample, CameraSampler, ImportedCamera, AuthoredCameraSampler};
+pub(crate) use imported::authored_sample;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -22,6 +23,9 @@ pub struct Camera {
     /// Explicit imported node selection; absence uses authored camera tracks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub imported: Option<ImportedCamera>,
+    /// Independent calibrated source; authored tracks remain pose/lens corrections.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking: Option<crate::tracking::camera::CameraBinding>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<crate::ParentLink>,
     pub mode: CameraMode,
@@ -77,6 +81,7 @@ impl Camera {
         Self {
             created: true,
             imported: None,
+            tracking: None,
             parent: None,
             mode: CameraMode::Position,
             position: Track::constant([target[0], target[1], -distance]),
@@ -97,6 +102,8 @@ impl Camera {
         self.validate_tracks(None)
     }
     fn validate_tracks(&self, frames: Option<u32>) -> Result<()> {
+        ensure(self.imported.is_none() || self.tracking.is_none(), "choose imported-node or tracking camera")?;
+        if let Some(binding) = &self.tracking { binding.validate_parameters()?; }
         if let Some(imported) = &self.imported { imported.validate()?; }
         lens::validate_film_width(f64::from(self.film_width_mm))?;
         if let Some(dof) = &self.depth_of_field { dof.validate(frames)?; }
@@ -174,6 +181,13 @@ impl Camera {
     }
     pub fn pose_parented(&self, frame: f64, width: u32, height: u32, parent: Mat4) -> Result<CameraPose> {
         ensure(self.imported.is_none(), "imported camera requires its model source resolver")?;
+        ensure(self.tracking.is_none(), "tracking camera requires its project source resolver")?;
+        self.authored_pose_parented(frame,width,height,parent)
+    }
+    pub(crate) fn authored_pose_parented(&self, frame:f64, width:u32, height:u32, parent:Mat4) -> Result<CameraPose> {
+        self.authored_pose_and_world(frame,width,height,parent).map(|(pose,_)|pose)
+    }
+    pub(crate) fn authored_pose_and_world(&self, frame:f64, width:u32, height:u32, parent:Mat4) -> Result<(CameraPose,Mat4)> {
         let local_eye = to_world(self.position_at(frame)?, width, height);
         let local_target = to_world(self.target.sample(frame)?, width, height);
         let eye = parent.transform_point3(local_eye);
@@ -211,12 +225,12 @@ impl Camera {
             0.5,
             100_000.0,
         );
-        Ok(CameraPose {
+        Ok((CameraPose {
             eye,
             target,
             projection: ProjectionKind::Perspective,
             view_projection: projection * view,
-        })
+        },view.inverse()))
     }
     /// Bake on integer frames to preserve an existing animation when modes change.
     pub fn convert_mode(&mut self, mode: CameraMode, frames: u32) -> Result<()> {

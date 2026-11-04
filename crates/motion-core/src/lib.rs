@@ -14,7 +14,7 @@ pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, Keyfr
 pub use motion_model::KeyframeValueOffset;
 pub use motion_model::keyframe_clipboard::spatial::SpatialKeyEdit;
 pub use motion_model::keyframe_clipboard::local::{LocalKeyEdit, LocalValueOffset};
-pub use motion_model::keyframe_clipboard::authoring::{TrackEdit, TrackValue};
+pub use motion_model::keyframe_clipboard::authoring::{AnchorKeyBinding, TrackEdit, TrackValue};
 pub use motion_model::keyframe_clipboard::timing;
 pub use motion_model::keyframe_clipboard::MAX_KEYFRAME_CLIPBOARD_BYTES;
 pub use motion_model::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
@@ -36,6 +36,7 @@ pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track,
 pub use motion_model::hierarchy::ParentMode;
 pub use motion_model::{AudioAsset, AudioClip};
 pub use motion_model::{ModelAnimation, ModelAsset, ModelClip, model_assets};
+pub use motion_model::{TrackingAsset, TrackingFormat, tracking_assets, tracking};
 pub use motion_model::ClipRange;
 pub use motion_model::{FrameScope, WorkArea};
 pub use motion_model::{guides, Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};

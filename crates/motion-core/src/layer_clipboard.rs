@@ -161,6 +161,7 @@ pub(crate) fn paste(
         .chain(project.audio_assets.iter().map(|a| a.id))
         .chain(project.video_assets.iter().map(|a| a.id))
         .chain(project.model_assets.iter().map(|a| a.id))
+        .chain(project.tracking_assets.iter().map(|a| a.id))
         .max()
         .unwrap_or(0);
     // A same-document paste reuses an identical registered source. A host

@@ -1,0 +1,103 @@
+{
+  "revision": "71d3237a093b60a27601c20e9ee6c3e52154e8b1",
+  "license": "Apache-2.0",
+  "authors": "OpenCV contributors; individual photographers not named upstream",
+  "files": [
+    {
+      "name": "LICENSE",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "name": "COPYRIGHT",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/COPYRIGHT",
+      "bytes": 733,
+      "sha256": "bba849c98da85a2b27b86113284a90812c959b1c1fc4ed67de9355475d1e6831"
+    },
+    {
+      "name": "stereo_calib.xml",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/stereo_calib.xml",
+      "bytes": 433,
+      "sha256": "585a31531d6624f34acfce2cc9ca0be4d46d30db061494c8ea189f7274b80391"
+    },
+    {
+      "name": "left01.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left01.jpg",
+      "bytes": 27908,
+      "sha256": "9621899098adffa1440c8264606bb7be535ccfd9ad126ae8e0bd9b0c5a5b8676"
+    },
+    {
+      "name": "left02.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left02.jpg",
+      "bytes": 28611,
+      "sha256": "052e700bbcc865c112958ec2ea105cb1bce4deca50ac8d6efae13adca9df7a2c"
+    },
+    {
+      "name": "left03.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left03.jpg",
+      "bytes": 29553,
+      "sha256": "c85b9426c3d8fcf161e1e727356105091009c3fd0b1b1a65bc2da91fea2724d2"
+    },
+    {
+      "name": "left04.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left04.jpg",
+      "bytes": 25150,
+      "sha256": "b490599dccfbfe5eb56d33363415b02227a9548ab8c9b8e7b05d3580e97266d9"
+    },
+    {
+      "name": "left05.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left05.jpg",
+      "bytes": 28743,
+      "sha256": "40bab8934fa76f82ec614a7fd0e6ebb4d9f74391d5e8b0c6f2f0ed6080c6c4de"
+    },
+    {
+      "name": "left06.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left06.jpg",
+      "bytes": 28530,
+      "sha256": "1cb164db61b3bd52f58a7e9340bb27c5e0278895bc80b6f292fba5cf9bccc4a1"
+    },
+    {
+      "name": "left07.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left07.jpg",
+      "bytes": 29864,
+      "sha256": "d2211fe9f971646b6ff88ed93a4f0d3f443741eb2894095cba15caade7c8c6e4"
+    },
+    {
+      "name": "left08.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left08.jpg",
+      "bytes": 28689,
+      "sha256": "f7a0737894812a28243af5b409c5689f4fadfe7610958b8ca5fc79aec2f2cd1b"
+    },
+    {
+      "name": "left09.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left09.jpg",
+      "bytes": 27244,
+      "sha256": "753939bc62d093c001d9118e989bef2b887f1b2f9ac03603df915a8b85aa81d3"
+    },
+    {
+      "name": "left11.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left11.jpg",
+      "bytes": 27749,
+      "sha256": "e736ace3d515c94c547009c3c10d818c81506ed7059cb31123749b9cc3f94ee8"
+    },
+    {
+      "name": "left12.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left12.jpg",
+      "bytes": 25603,
+      "sha256": "04bdd78b3b507fe0551aa7062a3ffd94846a147ee2bea7fb38082c720bdbe231"
+    },
+    {
+      "name": "left13.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left13.jpg",
+      "bytes": 28129,
+      "sha256": "2637fb6dd5e557f4fadb06b353a453eb0b9223f4671f6f572f815302bc4a70b3"
+    },
+    {
+      "name": "left14.jpg",
+      "source": "https://raw.githubusercontent.com/opencv/opencv/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data/left14.jpg",
+      "bytes": 27875,
+      "sha256": "d4c032971dd7b859f9d6aed5090c9888bd8039b82e0604bee5bfe05444fce834"
+    }
+  ]
+}

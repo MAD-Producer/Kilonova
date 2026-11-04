@@ -1,0 +1,171 @@
+{
+  "status": "accepted_standalone_primitive_camera_integration_pending",
+  "createdUtc": "2026-11-01T10:35:29.405298+00:00",
+  "baseCommit": "a044a16f481da7a6174ef44fdb18525c70ac17e6",
+  "counts": {
+    "model": [
+      242,
+      0,
+      0
+    ],
+    "render": [
+      135,
+      0,
+      0
+    ]
+  },
+  "archive": {
+    "path": "tracking88-lens-primitive-v1.zip",
+    "bytes": 162546,
+    "members": 31,
+    "sha256": "c542d3c711983ea4075c672956072c302bd93460c525504e3dad04424d3a2860"
+  },
+  "source": {
+    "crates/motion-model/src/tracking.rs": "97fb6243c3608ce834722b8890a6edebfec8377940670444aae668b5593c69f7",
+    "crates/motion-model/src/tracking/lens.rs": "da869cb501327c13b7649164941c060940f6b000ebe4b6c9757c23baeaea487d",
+    "crates/motion-model/tests/tracking_lens.rs": "e4b380799779f85cafd22c3ebd9e8998acb01f54a1e147a6db937b0fd212beed",
+    "crates/motion-render/src/lens_output.rs": "c029ec3ce926dcac4881efc1afa63fd7eec731cab48a72718a731ed40f4bd4be",
+    "crates/motion-render/src/lens_output.wgsl": "357e7cd48ce8bd440b43792289bffa846eb2f8ab8830087d65b10a7e1c8c1323",
+    "crates/motion-render/src/lib.rs": "e4b09e81e321e404243081149bb779a25b5bb1e0c60917b083ccc030bd3e477c",
+    "crates/motion-render/tests/tracking_lens.rs": "173de5dc14b0cda5275982a033c1bc80bd3747dbb1b6fed5e116b82f109a9c95",
+    "crates/motion-render/tests/tracking_lens/resources.rs": "3385eea3282e4498b95e88159b82af4e6701ea41bfef4a62af48e9340aa565c8"
+  },
+  "oracle": [
+    {
+      "detectsIdentityPixels": 598,
+      "maxByteError": 1,
+      "radial": -0.025,
+      "rotation": "None",
+      "sourceRect": [
+        -9.0,
+        -9.0,
+        86.0,
+        67.0
+      ],
+      "sourceSize": [
+        86,
+        67
+      ]
+    },
+    {
+      "detectsIdentityPixels": 535,
+      "maxByteError": 1,
+      "radial": 0.025,
+      "rotation": "None",
+      "sourceRect": [
+        -9.0,
+        -9.0,
+        85.0,
+        67.0
+      ],
+      "sourceSize": [
+        85,
+        67
+      ]
+    },
+    {
+      "detectsIdentityPixels": 594,
+      "maxByteError": 1,
+      "radial": -0.025,
+      "rotation": "Clockwise90",
+      "sourceRect": [
+        -11.0,
+        -8.0,
+        90.0,
+        65.0
+      ],
+      "sourceSize": [
+        90,
+        65
+      ]
+    },
+    {
+      "detectsIdentityPixels": 551,
+      "maxByteError": 1,
+      "radial": 0.025,
+      "rotation": "Clockwise90",
+      "sourceRect": [
+        -11.0,
+        -7.0,
+        89.0,
+        63.0
+      ],
+      "sourceSize": [
+        89,
+        63
+      ]
+    },
+    {
+      "detectsIdentityPixels": 591,
+      "maxByteError": 1,
+      "radial": -0.025,
+      "rotation": "HalfTurn",
+      "sourceRect": [
+        -10.0,
+        -9.0,
+        86.0,
+        67.0
+      ],
+      "sourceSize": [
+        86,
+        67
+      ]
+    },
+    {
+      "detectsIdentityPixels": 536,
+      "maxByteError": 1,
+      "radial": 0.025,
+      "rotation": "HalfTurn",
+      "sourceRect": [
+        -9.0,
+        -9.0,
+        85.0,
+        67.0
+      ],
+      "sourceSize": [
+        85,
+        67
+      ]
+    },
+    {
+      "detectsIdentityPixels": 598,
+      "maxByteError": 1,
+      "radial": -0.025,
+      "rotation": "Clockwise270",
+      "sourceRect": [
+        -12.0,
+        -8.0,
+        90.0,
+        65.0
+      ],
+      "sourceSize": [
+        90,
+        65
+      ]
+    },
+    {
+      "detectsIdentityPixels": 542,
+      "maxByteError": 1,
+      "radial": 0.025,
+      "rotation": "Clockwise270",
+      "sourceRect": [
+        -11.0,
+        -7.0,
+        89.0,
+        63.0
+      ],
+      "sourceSize": [
+        89,
+        63
+      ]
+    }
+  ],
+  "allOwnedValidatorsTerminal": true,
+  "pending": [
+    "composition camera spatial-run routing, independent 2D boundaries and nested/shared/frozen/exposure consumers",
+    "forward projection, inverse picking and view-plane drag integration",
+    "calibrated permitted-source real-footage reprojection and lens replacement",
+    "vendor adapters, relink/cache invalidation and full maintained regression/cross-platform CI",
+    "previous compiler/native crash causes and strict #82 P95/GPU coverage failures"
+  ]
+}

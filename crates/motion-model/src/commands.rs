@@ -9,6 +9,19 @@ fn deserialize_depth_calibration<'de, D: serde::Deserializer<'de>>(deserializer:
     -> std::result::Result<Option<crate::depth::SavedDepthCalibration>, D::Error> {
     Option::<crate::depth::SavedDepthCalibration>::deserialize(deserializer)
 }
+fn deserialize_point_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::tracking::point::PointBinding>, D::Error> {
+    Option::<crate::tracking::point::PointBinding>::deserialize(deserializer)
+}
+
+fn deserialize_plane_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::tracking::plane::PlaneBinding>, D::Error> {
+    Option::<crate::tracking::plane::PlaneBinding>::deserialize(deserializer)
+}
+fn deserialize_tracking_camera_binding<'de,D:serde::Deserializer<'de>>(deserializer:D)
+    -> std::result::Result<Option<crate::tracking::camera::CameraBinding>,D::Error> {
+    Option::<crate::tracking::camera::CameraBinding>::deserialize(deserializer)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -35,6 +48,13 @@ impl Property {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    SetTrackingCamera {object:u64,#[serde(deserialize_with="deserialize_tracking_camera_binding")] binding:Option<crate::tracking::camera::CameraBinding>},
+    SetTrackingPlane { object:u64, #[serde(deserialize_with="deserialize_plane_binding")] binding:Option<crate::tracking::plane::PlaneBinding> },
+    SetTrackingPoint {
+        object: u64,
+        #[serde(deserialize_with = "deserialize_point_binding")]
+        binding: Option<crate::tracking::point::PointBinding>,
+    },
     LayerTime { object: u64, action: crate::layer_time::LayerTimeAction },
     ApplyAnimationPreset { preset: Box<crate::AnimationPreset>, objects: Vec<u64>, at_frame: u32 },
     SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
@@ -185,6 +205,12 @@ pub enum Command {
     RegisterModelAsset {
         asset: crate::ModelAsset,
     },
+    RegisterTrackingAsset {
+        asset: crate::TrackingAsset,
+    },
+    ReplaceTrackedVideo {
+        replacement: Box<crate::tracking_assets::replacement::Replacement>,
+    },
     RegisterFontAsset {
         asset: crate::FontAsset,
     },
@@ -296,7 +322,14 @@ pub enum Command {
         anchor: [f32; 2],
     },
     /// Move the sampled anchor with position compensation at composition time.
-    AnchorAt { object: u64, frame: f64, anchor: [f32; 2] },
+    AnchorAt {
+        object: u64,
+        frame: f64,
+        anchor: [f32; 2],
+        /// Optional identities captured together before a compensated gesture.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        keys: Option<crate::keyframe_clipboard::authoring::AnchorKeyBinding>,
+    },
     CameraLens {
         #[serde(default)]
         object: u64,
@@ -337,6 +370,8 @@ impl Command {
             Self::InComposition { command, .. } => command.changes_resources(),
             Self::RegisterAsset { .. }
             | Self::RegisterModelAsset { .. }
+            | Self::RegisterTrackingAsset { .. }
+            | Self::ReplaceTrackedVideo { .. }
             | Self::RegisterAudioAsset { .. }
             | Self::RegisterVideoAsset { .. }
             | Self::MediaAsset { .. }
@@ -363,7 +398,7 @@ impl Command {
             return !matches!(edit, crate::keyframe_clipboard::local::LocalKeyEdit::Curve { .. }
                 | crate::keyframe_clipboard::local::LocalKeyEdit::Handle { .. });
         }
-        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. }) { return true; }
+        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. } | Self::ReplaceTrackedVideo { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeAutomatic {..} | Self::SpatialKeyframes {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

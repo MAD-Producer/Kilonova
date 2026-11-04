@@ -757,6 +757,18 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         }
         Command::RegisterAsset { asset } => project.assets.push(asset),
         Command::RegisterModelAsset { asset } => project.model_assets.push(asset),
+        Command::RegisterTrackingAsset { asset } => project.tracking_assets.push(asset),
+        Command::ReplaceTrackedVideo { replacement } => *project = replacement.propose(project)?,
+        Command::SetTrackingPlane { object,binding } => {
+            let layer=project.layer_mut(object)?;
+            if layer.locked {return Err(Error::Locked(object));}
+            layer.tracking_plane=binding;
+        }
+        Command::SetTrackingPoint { object, binding } => {
+            let layer = project.layer_mut(object)?;
+            if layer.locked { return Err(Error::Locked(object)); }
+            layer.tracking_point = binding;
+        }
         Command::RegisterFontAsset { asset } => project.fonts.push(asset),
         Command::Content {
             object,
@@ -906,6 +918,9 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             if let Some(binding) = &binding { binding.validate()?; }
             project.camera_for_mut(object)?.imported = binding;
         }
+        Command::SetTrackingCamera {object,binding} => {
+            project.camera_for_mut(object)?.tracking=binding;
+        }
         Command::CameraLens { object, frame, film_width_mm, focal_length_mm } => {
             let lens = motion_model::lens::Lens::from_focal_length(
                 f64::from(film_width_mm), f64::from(focal_length_mm), project.width, project.height)?;
@@ -1043,8 +1058,8 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             layer.transform.position = position;
             layer.transform.anchor = Track::constant(anchor);
         }
-        Command::AnchorAt { object, frame, anchor } => {
-            motion_model::keyframe_clipboard::authoring::compensate_anchor(project, object, frame, anchor)?;
+        Command::AnchorAt { object, frame, anchor, keys } => {
+            motion_model::keyframe_clipboard::authoring::compensate_anchor_with_keys(project, object, frame, anchor, keys.as_ref())?;
         }
     }
     project.rebuild_plugin_dependencies();

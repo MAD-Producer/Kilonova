@@ -1,0 +1,537 @@
+{
+  "status": "focused_audio_controls_passed_full_regression_failed",
+  "baseCommit": "e66bb3545278d41eebeba4bbcb6204581c52f053",
+  "source": {
+    "crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "validatedRawSha256": "7863c14024f7402aed47f1f856576fff636c34683e1f5144bf419946f98d8111",
+      "gitLfSha256": "7863c14024f7402aed47f1f856576fff636c34683e1f5144bf419946f98d8111"
+    },
+    "crates/motion-host/src/ops/media/tracked_replacement_tests.rs": {
+      "validatedRawSha256": "59bb8774e98874ae8fc54f42f047026f9d5c7a7b4534c13d2081d1920ba548bf",
+      "gitLfSha256": "59bb8774e98874ae8fc54f42f047026f9d5c7a7b4534c13d2081d1920ba548bf"
+    },
+    "crates/motion-media/src/video/candidate.rs": {
+      "validatedRawSha256": "c71d67511eea2675eb406feab08fdb2e70a959d9ebdcc163c76fc50a71072607",
+      "gitLfSha256": "c71d67511eea2675eb406feab08fdb2e70a959d9ebdcc163c76fc50a71072607"
+    },
+    "desktop/app/src/engine/tracking_video_pair_tests.rs": {
+      "validatedRawSha256": "7a8d9401cba9e232fbc347cbcdbf16f8513b9212ec4a1de5fb128d904e6f130e",
+      "gitLfSha256": "7a8d9401cba9e232fbc347cbcdbf16f8513b9212ec4a1de5fb128d904e6f130e"
+    },
+    "desktop/app/src/engine/tracking_video_pair_audio_tests.rs": {
+      "validatedRawSha256": "e909a5785a8c3a0aaf3b9ed13ef4a817a6fe3117d035b8c518a6e2a794a93b62",
+      "gitLfSha256": "e909a5785a8c3a0aaf3b9ed13ef4a817a6fe3117d035b8c518a6e2a794a93b62"
+    }
+  },
+  "focused": {
+    "status": "passed_nine_candidate_view_and_native_audio_pcm_gpu_rollback_history_reopen_controls",
+    "commands": [
+      [
+        "candidate",
+        [
+          "cargo",
+          "test",
+          "-p",
+          "motion-media",
+          "--lib",
+          "video::candidate::tests::",
+          "--locked",
+          "--offline",
+          "--",
+          "--test-threads=1"
+        ]
+      ],
+      [
+        "view",
+        [
+          "cargo",
+          "test",
+          "-p",
+          "motion-host",
+          "--lib",
+          "ops::media::tracked_replacement::tests::",
+          "--locked",
+          "--offline",
+          "--",
+          "--test-threads=1"
+        ]
+      ],
+      [
+        "native",
+        [
+          "cargo",
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--features",
+          "ffmpeg",
+          "--locked",
+          "--offline",
+          "--",
+          "engine::tracking_video_replacement_tests::paired::audio::native_audio_and_tracking_replace_rollback_undo_redo_and_reopen_together",
+          "--exact",
+          "--test-threads=1",
+          "--nocapture"
+        ]
+      ]
+    ],
+    "results": [
+      {
+        "phase": "candidate",
+        "exitCode": 0
+      },
+      {
+        "phase": "view",
+        "exitCode": 0
+      },
+      {
+        "phase": "native",
+        "exitCode": 0
+      }
+    ],
+    "startedUtc": "2026-11-02T04:57:20.119335+00:00",
+    "completedUtc": "2026-11-02T04:59:37.907930+00:00"
+  },
+  "regression": {
+    "status": "failed",
+    "commands": [
+      [
+        "host",
+        [
+          "cargo",
+          "test",
+          "-p",
+          "motion-host",
+          "--lib",
+          "--locked",
+          "--offline",
+          "--",
+          "--test-threads=1"
+        ]
+      ],
+      [
+        "desktop",
+        [
+          "cargo",
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--features",
+          "ffmpeg",
+          "--locked",
+          "--offline",
+          "--",
+          "--test-threads=1"
+        ]
+      ]
+    ],
+    "results": [
+      {
+        "phase": "host",
+        "exitCode": 0,
+        "summaries": [
+          [
+            "ok",
+            "169",
+            "0",
+            "0"
+          ]
+        ]
+      },
+      {
+        "phase": "desktop",
+        "exitCode": 101,
+        "summaries": [
+          [
+            "FAILED",
+            "1522",
+            "3",
+            "50"
+          ]
+        ]
+      }
+    ],
+    "startedUtc": "2026-11-02T04:59:57.841329+00:00",
+    "completedUtc": "2026-11-02T05:38:50.912174+00:00"
+  },
+  "earlierAttempts": [
+    {
+      "attempt": "tracking88-pair-audio-v1",
+      "status": "failed",
+      "exitCode": 101,
+      "disposition": "New fixture retained placeholder authored.mp4; cleared fixture video list before actual import"
+    },
+    {
+      "attempt": "tracking88-pair-audio-v2",
+      "status": "failed",
+      "exitCode": 101,
+      "disposition": "rustc terminated with 0xc0000005; unchanged source retry executed"
+    },
+    {
+      "attempt": "tracking88-pair-audio-v3",
+      "status": "failed",
+      "exitCode": 101,
+      "disposition": "Actual new-video/old-audio byte-count mismatch in temporary verification; fixed coherent prepared pair"
+    }
+  ],
+  "isolations": [
+    {
+      "status": "terminal_isolated_tests_passed_full_failure_not_erased",
+      "startedUtc": "2026-11-02T05:39:48.758633+00:00",
+      "completedUtc": "2026-11-02T05:40:21.185248+00:00",
+      "results": [
+        {
+          "phase": "mask",
+          "test": "engine::failure::composition_tests::mask_admission::mask_refusal_preserves_cause_and_reaches_default_file_and_stderr",
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "motion-desktop",
+            "--bin",
+            "motion-studio",
+            "--features",
+            "ffmpeg",
+            "--locked",
+            "--offline",
+            "--",
+            "engine::failure::composition_tests::mask_admission::mask_refusal_preserves_cause_and_reaches_default_file_and_stderr",
+            "--exact",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exitCode": 0
+        },
+        {
+          "phase": "text",
+          "test": "engine::text_style_tests::export::text_style_png_movie_and_independent_reopen_preserve_authored_pixels",
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "motion-desktop",
+            "--bin",
+            "motion-studio",
+            "--features",
+            "ffmpeg",
+            "--locked",
+            "--offline",
+            "--",
+            "engine::text_style_tests::export::text_style_png_movie_and_independent_reopen_preserve_authored_pixels",
+            "--exact",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "status": "terminal_isolated_tests_passed_full_failure_not_erased",
+      "startedUtc": "2026-11-02T05:41:46.138915+00:00",
+      "completedUtc": "2026-11-02T05:42:47.177632+00:00",
+      "results": [
+        {
+          "phase": "precision",
+          "test": "shell::project_precision_tests::project_precision_menu_apply_cancel_history_and_gpu_screens_cover_locales_sizes_and_ratios",
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "motion-desktop",
+            "--bin",
+            "motion-studio",
+            "--features",
+            "ffmpeg",
+            "--locked",
+            "--offline",
+            "--",
+            "shell::project_precision_tests::project_precision_menu_apply_cancel_history_and_gpu_screens_cover_locales_sizes_and_ratios",
+            "--exact",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exitCode": 0
+        }
+      ]
+    }
+  ],
+  "windowsNativeCrashes": [
+    {
+      "timeUtc": "2026-11-02T05:37:39.1070836Z",
+      "recordId": 15729,
+      "data": {
+        "AppVersion": "0.0.0.0",
+        "FaultingOffset": "0000000000000020",
+        "ModuleVersion": "0.0.0.0",
+        "ProcessCreationTime": "0x1dd6a8c365434d7",
+        "ModulePath": "unknown",
+        "ModuleTimeStamp": "00000000",
+        "IntegratorReportId": "9b7101e1-e2fc-4f49-af2a-f9f2819476b5",
+        "PackageRelativeAppId": "",
+        "PackageFullName": "",
+        "ModuleName": "unknown",
+        "AppPath": "E:\\Dev\\aem\\target\\gltf-animation87-contract\\debug\\deps\\motion_studio-9968776b45b485e1.exe",
+        "ExceptionCode": "c0000005",
+        "AppTimeStamp": "6ae818aa",
+        "AppName": "motion_studio-9968776b45b485e1.exe",
+        "ProcessId": "0x6094"
+      }
+    },
+    {
+      "timeUtc": "2026-11-02T05:13:04.1075342Z",
+      "recordId": 15723,
+      "data": {
+        "AppVersion": "0.0.0.0",
+        "FaultingOffset": "000000b1bb703260",
+        "ModuleVersion": "0.0.0.0",
+        "ProcessCreationTime": "0x1dd6a88d3488f95",
+        "ModulePath": "unknown",
+        "ModuleTimeStamp": "00000000",
+        "IntegratorReportId": "962987dd-a067-401b-87d1-2bee1ace73e3",
+        "PackageRelativeAppId": "",
+        "PackageFullName": "",
+        "ModuleName": "unknown",
+        "AppPath": "E:\\Dev\\aem\\target\\gltf-animation87-contract\\debug\\deps\\motion_studio-9968776b45b485e1.exe",
+        "ExceptionCode": "c0000005",
+        "AppTimeStamp": "6ae818aa",
+        "AppName": "motion_studio-9968776b45b485e1.exe",
+        "ProcessId": "0x8a54"
+      }
+    },
+    {
+      "timeUtc": "2026-11-02T05:05:50.8448160Z",
+      "recordId": 15721,
+      "data": {
+        "AppVersion": "0.0.0.0",
+        "FaultingOffset": "000000540f47f620",
+        "ModuleVersion": "0.0.0.0",
+        "ProcessCreationTime": "0x1dd6a87d22da5cf",
+        "ModulePath": "unknown",
+        "ModuleTimeStamp": "00000000",
+        "IntegratorReportId": "81360c71-e1c0-41fd-87ce-8944f41293ac",
+        "PackageRelativeAppId": "",
+        "PackageFullName": "",
+        "ModuleName": "unknown",
+        "AppPath": "E:\\Dev\\aem\\target\\gltf-animation87-contract\\debug\\deps\\motion_studio-9968776b45b485e1.exe",
+        "ExceptionCode": "c0000005",
+        "AppTimeStamp": "6ae818aa",
+        "AppName": "motion_studio-9968776b45b485e1.exe",
+        "ProcessId": "0x8458"
+      }
+    }
+  ],
+  "existingIgnoredTests": [
+    "test animation_presets::tests::native::native_preset_and_effect_context_menus_use_bilingual_main_and_floating_windows ... ignored, manual native screenshots; run explicitly with MOTION_ANIMATION_PRESET_UI_ARTIFACTS",
+    "test audio_output::tests::real_output_device_clock_advances_and_reaches_composition_end ... ignored, requires an actual native audio output device",
+    "test engine::native_video_study::pressure::real_file_video_pressure_cost_study ... ignored, explicit Release native application-budget study; real four-file video and production recovery cooldown",
+    "test engine::native_video_study::real_file_video_window_cost_study ... ignored, explicit Release performance study; requires four real files and a native Windows desktop",
+    "test layer_clipboard::curves::tests::curve_clipboard_real_system_roundtrip_between_processes_and_default_error_output ... ignored, manual system clipboard integration; requires an existing text clipboard to restore",
+    "test panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing ... ignored, manual real GPU, FFmpeg and independent reopen acceptance for Roving timing",
+    "test panels::animation_menu::roving::native_tests::native_roving_menu_captures_conversion_fixed_and_mixed_states_in_both_languages ... ignored, manual native Roving menu GPU captures with real worker transactions",
+    "test panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages ... ignored, manual native type-menu GPU captures; retains screenshots and original log streams",
+    "test panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales ... ignored, requires Windows native GPU capture; explicitly run for audio monitor acceptance",
+    "test panels::auxiliary::render_queue::tests::native::render_queue_native_tasks_templates_and_actual_output ... ignored, explicit native render queue UI, frozen exports and shared-window input evidence",
+    "test panels::auxiliary::text_style::tests::native::text_style_native_controls_pixels_transactions_and_floating_input ... ignored, manual native GPU character/paragraph captures and window routing",
+    "test panels::expressions::expanded::tests::native::expression_editor_native_drafts_menus_diagnostics_and_floating_input ... ignored, manual native GPU expression editor captures and input routing",
+    "test panels::expressions::expanded::tests::native::reference::property_reference_native_menus_drag_drafts_and_float_transactions ... ignored, manual native GPU property reference gestures and menu captures",
+    "test panels::graph_native_performance_tests::actual_native_graph_costs_match_info_counters ... ignored, manual native baseline/current graph cost study; raw artifacts required",
+    "test panels::graph_ranges::native_tests::graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_files ... ignored, manual native graph-range windows, GPU captures and byte invariance; explicitly retained artifacts",
+    "test panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen ... ignored, manual native GPU capture; keeps OS foreground and physical input untouched",
+    "test panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves ... ignored, manual native GPU evidence for spatial comparison graph selection and dragging",
+    "test panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves ... ignored, manual native GPU evidence for fractional spatial graph selection and dragging",
+    "test panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves ... ignored, manual native GPU evidence for stable spatial-key timeline gestures",
+    "test panels::keyboard::redo_tests::native_menus_show_redo_and_solid_chords_in_both_languages ... ignored, manual GPU menu evidence, two native window owners",
+    "test panels::layer_actions::tests::shared_native::shared_menu_native_root_child_shortcuts_checks_and_small_window_owners ... ignored, manual Windows GPU shared-menu screenshots and real worker transactions",
+    "test panels::media_assets::tests::native::asset_actions_native_menus_focus_replacement_removal_and_reopen ... ignored, manual native GPU capture and transaction evidence",
+    "test panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages ... ignored, requires actual native GPU windows; run explicitly",
+    "test panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions ... ignored, manual Windows GPU masks; normalized input, not physical OS input",
+    "test panels::path_controls::mask_boundaries::viewer::tests::native::native_boundary_viewer_main_and_independent_float_render_and_transactions ... ignored, manual Windows GPU mask viewer matrix; explicit normalized input",
+    "test panels::path_controls::mask_boundaries::viewer::tests::native::owner::independent_native_owners_release_once_and_cancel_complete_tracks_on_focus_loss ... ignored, manual independent Windows owners and actual mask gesture history",
+    "test panels::playback_switches::tests::native::native_switches_change_pixels_and_persist_in_bilingual_main_and_float ... ignored, manual native surfaces, output PNGs and default-level error evidence",
+    "test panels::project::tests::native::drag::project_asset_native_drag_maps_zoomed_tracks_in_both_languages_and_window_owners ... ignored, manual native project asset drag screenshots and worker transactions",
+    "test panels::project::tests::native::models::model_library_native_menu_and_placement_reuse_owned_sources_in_both_languages ... ignored, manual native model-library screenshots and ownership transactions",
+    "test panels::project::tests::native::project_browser_native_surfaces_menus_and_folder_edits_work_in_both_languages_and_owners ... ignored, manual native window screenshots and project organization transactions",
+    "test panels::project::tests::native::thumbnails::project_thumbnails_and_first_frame_previews_render_real_assets_in_both_languages_and_windows ... ignored, manual native real image and video poster preview screenshots",
+    "test panels::timeline_shortcuts_tests::group_reveal_tests::native::native_group_shortcuts_capture_both_owners_and_locales_without_document_edits ... ignored, manual native timeline disclosure captures; retained artifacts required",
+    "test panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures ... ignored, explicit native GPU, main/floating routes, screenshots and default error-channel acceptance",
+    "test panels::transform_controls::spatial::native_tests::snapping::native_transform_snapping_preserves_history_and_exposes_reached_targets ... ignored, explicit native transform snapping screenshots and failure channels",
+    "test panels::viewer_guides::native_tests::viewer_channel_native_main_float_locales_pixels_and_export ... ignored, manual native GPU viewer-channel captures; executed explicitly with retained artifacts",
+    "test panels::viewer_guides::native_tests::viewer_guides_native_main_float_dpi_transactions_pixels_and_export ... ignored, manual native GPU viewer-guide captures; executed explicitly with retained artifacts",
+    "test panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs ... ignored, manual native GPU viewer snapshot captures; executed explicitly with retained artifacts",
+    "test plugin_editor::author::lsp::failures::language_failures_publish_before_blocking_and_use_default_error_channels ... ignored, explicit process/failure-channel acceptance; rustc required",
+    "test plugin_editor::author::lsp::tests::real_language_server_completion_hover_definition_and_diagnostics ... ignored, explicit real wgsl-analyzer acceptance; MOTION_WGSL_ANALYZER required",
+    "test plugin_editor::author::native::author_drag_source_history_save_and_native_rendering ... ignored, explicit native plugin author acceptance; Windows GPU required",
+    "test plugin_editor::author::source::assistance::tests::invalid_language_diagnostic_click_retains_draft_and_renders_feedback ... ignored, explicit native language navigation failure capture; Windows GPU required",
+    "test plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation ... ignored, requires a real Windows GPU and native window owner",
+    "test plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level ... ignored, explicit lifecycle failure-channel acceptance",
+    "test plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close ... ignored, explicit native author/host lifecycle acceptance; Windows GPU required",
+    "test shell::audio_preview_tests::native::native_audio_preview_menu_and_device_clock_preserve_canvas_and_history ... ignored, requires a real GPU, native windows and an audio output device",
+    "test shell::curve_comparison_tests::curve_clipboard_native::curve_clipboard_native_main_and_float_keep_explicit_targets_and_cancel_focus_loss ... ignored, manual native GPU screenshots; injects production Input, not physical OS input",
+    "test shell::curve_comparison_tests::curve_comparison_native_main_and_float_pixels_preserve_authored_project ... ignored, manual native GPU screenshots; does not inject physical OS input",
+    "test shell::keyframe_timing::native_tests::timing_dialog_native_pixels_focus_transactions_and_independent_reopen ... ignored, manual native GPU capture; does not inject OS input or monopolize desktop CI",
+    "test shell::node_image_drop_tests::native_image_drop_and_mapping_shortcut_work_in_both_window_owners_and_languages ... ignored, requires an interactive Windows desktop for real external OLE file dragging and OS key input",
+    "test shell::viewer_views::native_tests::native_view_layout_navigation_projection_and_reopen ... ignored, opens real native main/floating surfaces and writes visual acceptance images"
+  ],
+  "limits": [
+    "Native video + normal portable audio decoder, actual PCM/cache/GPU/history/reopen; no physical audio output device",
+    "No native-codec post-publication fault or desktop worker-closure injection in this increment",
+    "No new UI/MCP endpoint; protocol stdout isolation and full issue88 are not claimed",
+    "Final pushed-head cross-platform CI remains required"
+  ],
+  "members": {
+    "source/crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "bytes": 14926,
+      "sha256": "7863c14024f7402aed47f1f856576fff636c34683e1f5144bf419946f98d8111"
+    },
+    "source/crates/motion-host/src/ops/media/tracked_replacement_tests.rs": {
+      "bytes": 15697,
+      "sha256": "59bb8774e98874ae8fc54f42f047026f9d5c7a7b4534c13d2081d1920ba548bf"
+    },
+    "source/crates/motion-media/src/video/candidate.rs": {
+      "bytes": 6967,
+      "sha256": "c71d67511eea2675eb406feab08fdb2e70a959d9ebdcc163c76fc50a71072607"
+    },
+    "source/desktop/app/src/engine/tracking_video_pair_tests.rs": {
+      "bytes": 13369,
+      "sha256": "7a8d9401cba9e232fbc347cbcdbf16f8513b9212ec4a1de5fb128d904e6f130e"
+    },
+    "source/desktop/app/src/engine/tracking_video_pair_audio_tests.rs": {
+      "bytes": 10173,
+      "sha256": "e909a5785a8c3a0aaf3b9ed13ef4a817a6fe3117d035b8c518a6e2a794a93b62"
+    },
+    "focused/audio-plate.png": {
+      "bytes": 7287,
+      "sha256": "0587d330ec03c38e7a51d8af25a7dc42b3c77ff68596b096150c71e5b0376c59"
+    },
+    "focused/candidate.stderr.log": {
+      "bytes": 1129,
+      "sha256": "fa9c96af05a38e9e93ef971dd698bec938c4ce8920d3c06d50b3a70075475226"
+    },
+    "focused/candidate.stdout.log": {
+      "bytes": 394,
+      "sha256": "e422357229898538da09a933d679b8fbf22e8e09650d1d1fa46235778fcbd9e4"
+    },
+    "focused/controller.py": {
+      "bytes": 3066,
+      "sha256": "1040093bd087b1ce8d331fe1b1a4334b21a8166a9feee990f357bdaf0bcedfaa"
+    },
+    "focused/native.stderr.log": {
+      "bytes": 19550,
+      "sha256": "228a7fe3e43e4a6e1fa0cee42251ff11221f975625fa47e37f4cd13bf9b6dce5"
+    },
+    "focused/native.stdout.log": {
+      "bytes": 258,
+      "sha256": "c87ef1238f59a9dd90eb043f8b065f008ac373fb6b067b06a10bab999cc7dd19"
+    },
+    "focused/view.stderr.log": {
+      "bytes": 1222,
+      "sha256": "5e733b2b9188217c84f2a0c9d0d990734ee7d8cea50baf9c776daff193af3fce"
+    },
+    "focused/view.stdout.log": {
+      "bytes": 748,
+      "sha256": "7117dfa35f78ef2962fe9fc8db396c5fb79bc7db30c86aed1c7ee1b156d13e8a"
+    },
+    "focused/logs/motion-studio.log": {
+      "bytes": 24278,
+      "sha256": "116fbd5972a63940b182f2c67dbc2ca6c778095024bfb22c51f2f014ad24ec31"
+    },
+    "regression/controller.py": {
+      "bytes": 2504,
+      "sha256": "8b34176c33e4ab9adff97bc62fccfeaedfa7112d67c334129bfd17372743c201"
+    },
+    "regression/desktop.stderr.log": {
+      "bytes": 15823,
+      "sha256": "92fda4b960cc2c2e88bbdefa21fb72a8ca84a667acac724355206f34ffcbfbdb"
+    },
+    "regression/desktop.stdout.log": {
+      "bytes": 212488,
+      "sha256": "4f85d8996df82cd0e141cf970f746c0fb4b5047bdc6a719f675ec3882942a94d"
+    },
+    "regression/host.stderr.log": {
+      "bytes": 1033,
+      "sha256": "1fb212a1ebe07e8fa5322dbb44843ea8992ef394875dad3b2430247e160b739f"
+    },
+    "regression/host.stdout.log": {
+      "bytes": 18924,
+      "sha256": "a54213e2627cafb5690f1c6b9511754bd72b4303ee6d1f4997b183054fe4a15c"
+    },
+    "isolation-v1/summary.json": {
+      "bytes": 1420,
+      "sha256": "87a7579a9f3176207e084570face55f7213b9bd9f2726a39cd492e5376ad1a92"
+    },
+    "isolation-v1/controller.py": {
+      "bytes": 2302,
+      "sha256": "559b9f2bdf29ad8c292a33ee7cc111c2749074d0ed242afc6109949a5261aac5"
+    },
+    "isolation-v1/mask.stderr.log": {
+      "bytes": 12713,
+      "sha256": "243e0a1483420cd2fbfdeb07b0faf0e233022dd415260f68d06cd52a598341a8"
+    },
+    "isolation-v1/mask.stdout.log": {
+      "bytes": 244,
+      "sha256": "381a15b774bbc041b795f2bb79ffe06ae391d96b68657413b0b6b9dca926ab7f"
+    },
+    "isolation-v1/text.stderr.log": {
+      "bytes": 13219,
+      "sha256": "077f985f6c00c501018dad3c3f5da3f7d8a1aba2b08c1a98f67a015ab1a53f02"
+    },
+    "isolation-v1/text.stdout.log": {
+      "bytes": 231,
+      "sha256": "448b240384de94dc282c2a242b8dac15cfab57b278942ca7a97ac42333b27aa5"
+    },
+    "isolation-v2/summary.json": {
+      "bytes": 840,
+      "sha256": "60f6a18718a55a8cc3aa215c96bea47f5a041853718f6c1add2996bb735a3ff2"
+    },
+    "isolation-v2/controller.py": {
+      "bytes": 2221,
+      "sha256": "57793eb916d5d597c79bec967bfde36a7e4260e26d9833512e284a12f0778ed5"
+    },
+    "isolation-v2/precision.stderr.log": {
+      "bytes": 12713,
+      "sha256": "5adff18d81b857a6e8707e798bc2ee4d4ca3ee50109b7541868964e68cb6c866"
+    },
+    "isolation-v2/precision.stdout.log": {
+      "bytes": 251,
+      "sha256": "6923d706b7acff3af9ebd5d98108f9efd5b61ba81e33ce82747cd1599aeb411d"
+    },
+    "regression/windows-native-crashes.json": {
+      "bytes": 2339,
+      "sha256": "e53ec5a879416965c661934d02e4804a54625c6b306e3f12ff81f07811d119bb"
+    },
+    "earlier/tracking88-pair-audio-v1/stderr.log": {
+      "bytes": 20407,
+      "sha256": "64583f595864e532c661d2ffbcf18503e8d088752a822dea5245ced7cfe93ec8"
+    },
+    "earlier/tracking88-pair-audio-v1/stdout.log": {
+      "bytes": 421,
+      "sha256": "0edf4ba5e703d2ef472f6a4561c78ba3f2f51b2d8e44d7a1661db765bad84792"
+    },
+    "earlier/tracking88-pair-audio-v2/stderr.log": {
+      "bytes": 16990,
+      "sha256": "98abf5ad55abaacb5d3b460da1ff9a31a52514ad9e454ca9c3817234748e8f82"
+    },
+    "earlier/tracking88-pair-audio-v2/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "earlier/tracking88-pair-audio-v3/stderr.log": {
+      "bytes": 21479,
+      "sha256": "a2b6a08e55be96a70aa70669ac8119a2577ccb7ccacdf93397a58b4e73959241"
+    },
+    "earlier/tracking88-pair-audio-v3/stdout.log": {
+      "bytes": 421,
+      "sha256": "b7930dc02579dc5dfd989d056f49673743034452fd93bc5dc8f99f4144fc3902"
+    }
+  },
+  "archive": {
+    "path": "engineering/validation/data/tracking88-pair-audio-v1.zip",
+    "bytes": 117801,
+    "sha256": "d6a6118b0fa68fffb4e6d86752f95633c19d59bf57380b879532b7f9fc41be47"
+  }
+}

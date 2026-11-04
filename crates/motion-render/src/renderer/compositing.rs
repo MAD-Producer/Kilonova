@@ -2,6 +2,8 @@
 use super::*;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod uniform_tests;
 
 // Producer plans are bounded by MAX_LAYERS. Retain only the current traversal
 // and demand; no history or frame keys accumulate in this scratch storage.
@@ -11,8 +13,47 @@ pub(super) struct MattePlanning {
     order: Vec<(usize, bool)>,
     active: std::collections::HashSet<usize>,
     done: std::collections::HashSet<(usize, bool)>,
+    uniform_upload: Vec<u8>,
+    #[cfg(test)]
+    legacy_uniform_upload: bool,
+    #[cfg(test)]
+    uniform_uploads: std::cell::Cell<usize>,
 }
 impl MattePlanning {
+    // Preserve each source's dynamic offset. Only the occupied span is sent;
+    // holes and padding are never read by a draw. MAX_LAYERS bounds capacity.
+    fn uniform_bytes(
+        &mut self,
+        frame: &crate::effect_plan::EffectFramePlan,
+        size: [u32; 2],
+        stride: usize,
+    ) -> Result<(u64, &[u8])> {
+        let Some(first) = self.order.iter().map(|&(index, _)| index).min() else {
+            self.uniform_upload.clear();
+            return Ok((0, &self.uniform_upload));
+        };
+        let last = self.order.iter().map(|&(index, _)| index).fold(first, usize::max);
+        self.uniform_upload.resize((last - first) * stride + DRAW_SIZE as usize, 0);
+        for &(index, _) in &self.order {
+            let d = &frame.draws[index];
+            let c = frame.compositing[index];
+            let flags = u32::from(c.mode != 0) * 2 + u32::from(c.mode == 2 || c.mode == 4) * 4;
+            let uniform = DrawUniform {
+                mvp: std::array::from_fn(|col| std::array::from_fn(|row| d.words[col * 4 + row])),
+                color: [1.; 4],
+                extent_opacity: [0., 0., d.words[22], flags as f32],
+                uv_scale: [1., 1., size[0] as f32, size[1] as f32],
+                screen_uv: crate::plane_coordinates::screen_map(
+                    frame.uv_maps[index], [0., 0., size[0] as f32, size[1] as f32], d.layer,
+                )?,
+            };
+            let offset = (index - first) * stride;
+            self.uniform_upload[offset..offset + DRAW_SIZE as usize]
+                .copy_from_slice(bytemuck::bytes_of(&uniform));
+        }
+        Ok(((first * stride) as u64, &self.uniform_upload))
+    }
+
     pub fn collect_targets(&mut self, frame: &crate::effect_plan::EffectFramePlan) {
         self.needed.clear();
         self.needed.extend(
@@ -71,6 +112,25 @@ impl MattePlanning {
 }
 
 impl Renderer {
+    pub(super) fn prepare_track_matte_uniforms(&mut self, size: [u32; 2]) -> Result<()> {
+        #[cfg(test)]
+        {
+            self.matte_planning.uniform_uploads.set(0);
+            if self.matte_planning.legacy_uniform_upload { return Ok(()); }
+        }
+        let Some(gpu) = &self.compositing_gpu else { return Ok(()); };
+        let (offset, bytes) = self.matte_planning.uniform_bytes(
+            &self.effect_gpu.builder.frame, size, gpu.extract_stride,
+        )?;
+        if !bytes.is_empty() {
+            self.allocation_uploads.track(Some(gpu.extract_buffer.allocation()))?;
+            self.queue.write_buffer(&gpu.extract_buffer, offset, bytes);
+            #[cfg(test)]
+            self.matte_planning.uniform_uploads.set(1);
+        }
+        Ok(())
+    }
+
     pub(super) fn ensure_compositing_gpu(&mut self, frame: f64, phase: &str) -> Result<()> {
         if self.compositing_gpu.is_none() {
             let gpu = crate::compositing_gpu::CompositingGpu::new(
@@ -96,7 +156,7 @@ impl Renderer {
     pub(super) fn encode_track_mattes(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        size: [u32; 2],
+        _size: [u32; 2],
     ) -> Result<usize> {
         let Some(gpu) = &self.compositing_gpu else {
             return Ok(0);
@@ -112,25 +172,14 @@ impl Renderer {
             } else {
                 &gpu.zero.composite
             };
-            let flags = u32::from(c.mode != 0) * 2 + u32::from(c.mode == 2 || c.mode == 4) * 4;
-            let u = DrawUniform {
-                mvp: std::array::from_fn(|col| std::array::from_fn(|row| d.words[col * 4 + row])),
-                color: [1.; 4],
-                extent_opacity: [0., 0., d.words[22], flags as f32],
-                uv_scale: [1., 1., size[0] as f32, size[1] as f32],
-                screen_uv: crate::plane_coordinates::screen_map(
-                    frame.uv_maps[index],
-                    [0., 0., size[0] as f32, size[1] as f32],
-                    d.layer,
-                )?,
-            };
-            self.allocation_uploads
-                .track(Some(gpu.extract_buffer.allocation()))?;
-            self.queue.write_buffer(
-                &gpu.extract_buffer,
-                (index * gpu.extract_stride) as u64,
-                bytemuck::bytes_of(&u),
-            );
+            #[cfg(test)]
+            if self.matte_planning.legacy_uniform_upload {
+                let uniform = uniform_tests::reference_uniform(frame, index, _size)?;
+                self.allocation_uploads.track(Some(gpu.extract_buffer.allocation()))?;
+                self.queue.write_buffer(&gpu.extract_buffer, (index * gpu.extract_stride) as u64,
+                    bytemuck::bytes_of(&uniform));
+                self.matte_planning.uniform_uploads.set(self.matte_planning.uniform_uploads.get() + 1);
+            }
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 multiview_mask: None,
                 label: Some("projected track matte"),

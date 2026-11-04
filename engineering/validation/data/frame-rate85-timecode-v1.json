@@ -1,0 +1,51 @@
+{
+  "exitCode": 0,
+  "elapsedSeconds": 15.015,
+  "scope": "Actual staged timecode-only library, excluding the unfinished rational project port; not UI integration",
+  "stagedTree": "9bcbf33f26a9da930b5c85a22f2ef22728e81ce7",
+  "newTests": 5,
+  "existingClockTests": 7,
+  "failed": 0,
+  "ignored": 0,
+  "independentlyEnumeratedLabels": 323676,
+  "portRestoredByteExactly": true,
+  "archive": {
+    "name": "frame-rate85-timecode-v1.zip",
+    "sha256": "e68773ddfd99638e50a9737f3ea8efb64fceaaf4c92b93d9438ea2e1cf7cccd2",
+    "bytes": 15099
+  },
+  "members": {
+    "controller.py": {
+      "sha256": "9835c69b678536c5250ccd51a900aa9d2a83126b1a68d990c822fdd1451b571c",
+      "bytes": 3281
+    },
+    "stdout.log": {
+      "sha256": "f06aedc1c9d4307b92870b6b3a1dd3f8b060807ddedc679bd6e24adb209aca1d",
+      "bytes": 1198
+    },
+    "stderr.log": {
+      "sha256": "ed50b65026797dbcb2833a037dfcc80c69a6e7da9fe7c1e165fcf56fbe8486b7",
+      "bytes": 400
+    },
+    "exit.json": {
+      "sha256": "3f301e3a3f8c38f0f50585b3e6e2da4e7faab29d0c71ace085a1c6de438e0d59",
+      "bytes": 12416
+    },
+    "source/crates/motion-model/src/frame_rate.rs": {
+      "sha256": "107876821d9e184f397b4afbf455b7f37976232c5fc558d561589ac1c6e4da85",
+      "bytes": 8443
+    },
+    "source/crates/motion-model/src/frame_rate/parse.rs": {
+      "sha256": "af4196fbe29bf45684b774f91a7d32f4f5f77c805f7cf2874ff2c144a02aaca8",
+      "bytes": 1938
+    },
+    "source/crates/motion-model/src/timecode.rs": {
+      "sha256": "5f30bcbf1dd088cd54f4f0357615adf9e73be6419708cbe0d0a51d7b03768753",
+      "bytes": 5522
+    },
+    "source/crates/motion-model/tests/timecode.rs": {
+      "sha256": "c4cdcc2a5cada53b360b982dd04d98b4b5cf496540b7fc4d47ba17e5f3d1c092",
+      "bytes": 6484
+    }
+  }
+}
