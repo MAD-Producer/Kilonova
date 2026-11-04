@@ -1,0 +1,207 @@
+{
+  "status": "process_receipt_and_three_native_wrapper_controls_passed_not_full_regression",
+  "baseCommit": "b19125681c66f5208af74ab309b3959d8afdf6d4",
+  "source": {
+    "desktop/app/src/shell/project_precision_tests.rs": {
+      "rawSha256": "3997830566aa8e5061907b8adfc70e230ba525bd3b55836a4a7dd2613386c108",
+      "gitLfSha256": "3997830566aa8e5061907b8adfc70e230ba525bd3b55836a4a7dd2613386c108"
+    },
+    "desktop/app/src/main.rs": {
+      "rawSha256": "176aa56870dbbe9bcbac23b23e59d49b3bd0474e194c9d11e5e8c82bbe7add15",
+      "gitLfSha256": "176aa56870dbbe9bcbac23b23e59d49b3bd0474e194c9d11e5e8c82bbe7add15"
+    },
+    "desktop/app/src/engine/text_style_tests/export.rs": {
+      "rawSha256": "8f51e47857693e66b15e42a8acd31b918416e5111275abc585d2f15fd3e61742",
+      "gitLfSha256": "8f51e47857693e66b15e42a8acd31b918416e5111275abc585d2f15fd3e61742"
+    },
+    "desktop/app/src/test_process.rs": {
+      "rawSha256": "0cf05c4c50e50da7917d0ec87c725b1cce6e02b92f421ec848c9fc4ed79f7dbf",
+      "gitLfSha256": "0cf05c4c50e50da7917d0ec87c725b1cce6e02b92f421ec848c9fc4ed79f7dbf"
+    },
+    "desktop/app/src/engine/failure/composition_tests/mask_admission.rs": {
+      "rawSha256": "7242e98cc49c76604a56e5dd190c229c4c04ea57bf8551da171518c7ba86aca7",
+      "gitLfSha256": "7242e98cc49c76604a56e5dd190c229c4c04ea57bf8551da171518c7ba86aca7"
+    }
+  },
+  "results": [
+    {
+      "phase": "receipt",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "--",
+        "test_process::child_identity_exit_codes_streams_and_secondary_write_failure_are_preserved",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 40016,
+      "exitCode": 0,
+      "summary": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1575 filtered out; finished in 0.17s"
+    },
+    {
+      "phase": "mask",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "--",
+        "engine::failure::composition_tests::mask_admission::mask_refusal_preserves_cause_and_reaches_default_file_and_stderr",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 660,
+      "exitCode": 0,
+      "summary": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1575 filtered out; finished in 10.86s"
+    },
+    {
+      "phase": "text",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "--",
+        "engine::text_style_tests::export::text_style_png_movie_and_independent_reopen_preserve_authored_pixels",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 6788,
+      "exitCode": 0,
+      "summary": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1575 filtered out; finished in 25.59s"
+    },
+    {
+      "phase": "precision",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "--",
+        "shell::project_precision_tests::project_precision_menu_apply_cancel_history_and_gpu_screens_cover_locales_sizes_and_ratios",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "pid": 37004,
+      "exitCode": 0,
+      "summary": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1575 filtered out; finished in 107.95s"
+    }
+  ],
+  "precisionChild": {
+    "elapsed_ms": 107787,
+    "exit_code": 0,
+    "exit_code_hex": "0x00000000",
+    "pid": 34188,
+    "schema_version": 1,
+    "started_unix_ms": 1793608261971,
+    "status": "exit code: 0",
+    "success": true
+  },
+  "limits": [
+    "Only four targeted tests; no new full desktop regression",
+    "Earlier full native run three crashes remain unresolved; passing isolated tests do not erase that failure",
+    "Raw0xc0000005 control uses normal process exit on Windows, not unsafe memory access or a crash dump",
+    "No product/panel behavior changes, assertions weakened, ignores added, retries or driver changes"
+  ],
+  "archive": {
+    "path": "tracking88-native-process-v2.zip",
+    "bytes": 130666,
+    "sha256": "c3dc9803f47a02c793b6218216b13acbda4d90393a5dc53713a75f4a504bd42a",
+    "members": {
+      "controller.py": {
+        "bytes": 2605,
+        "sha256": "6ddec416c55ac60bc6a05fdef7adc4b0f2a03b762e57121aca4655f5e4679afc"
+      },
+      "exit.json": {
+        "bytes": 218838,
+        "sha256": "202e1e1adf9f096c551243685d5c0484b3dcd22be3602b29cdc404e79576a345"
+      },
+      "receipt.stdout.log": {
+        "bytes": 217,
+        "sha256": "3f704741302b7e3a0e877f7c0cc7fd35ab5120ae075c990fe3f2dcb3cf62b072"
+      },
+      "receipt.stderr.log": {
+        "bytes": 12803,
+        "sha256": "b76a342a71158a7e6c77aa27d69eeadff6869da711743d5c953fae9e90e02572"
+      },
+      "mask.stdout.log": {
+        "bytes": 245,
+        "sha256": "0fc4aa1e8ac55b859f59a18849986967e8bc0ec424a36bea4222394b5e9b405d"
+      },
+      "mask.stderr.log": {
+        "bytes": 12713,
+        "sha256": "a8a9b97671a897b8e038217c5a09bd67573afa66e831223eb36a52c75aec9158"
+      },
+      "text.stdout.log": {
+        "bytes": 231,
+        "sha256": "ef8c0058a7779a94f75c090e08083df1915df789ed8090f00aea09552a4e2592"
+      },
+      "text.stderr.log": {
+        "bytes": 13219,
+        "sha256": "a05efd44b280b5f10a25e5eea4206a714b2f6c39f6e2c387afa0a38c41d81914"
+      },
+      "precision.stdout.log": {
+        "bytes": 252,
+        "sha256": "ec6544a9f8a71b7cf7d9e2a49a10a1d2ffec978b2c60abebfc0eac372981c230"
+      },
+      "precision.stderr.log": {
+        "bytes": 12713,
+        "sha256": "18cf1317e2c96335a743775df965567c973d08690043cb1dcd330c091eec1fde"
+      },
+      "source/desktop/app/src/shell/project_precision_tests.rs": {
+        "bytes": 12929,
+        "sha256": "3997830566aa8e5061907b8adfc70e230ba525bd3b55836a4a7dd2613386c108"
+      },
+      "source/desktop/app/src/main.rs": {
+        "bytes": 70715,
+        "sha256": "176aa56870dbbe9bcbac23b23e59d49b3bd0474e194c9d11e5e8c82bbe7add15"
+      },
+      "source/desktop/app/src/engine/text_style_tests/export.rs": {
+        "bytes": 6293,
+        "sha256": "8f51e47857693e66b15e42a8acd31b918416e5111275abc585d2f15fd3e61742"
+      },
+      "source/desktop/app/src/test_process.rs": {
+        "bytes": 3850,
+        "sha256": "0cf05c4c50e50da7917d0ec87c725b1cce6e02b92f421ec848c9fc4ed79f7dbf"
+      },
+      "source/desktop/app/src/engine/failure/composition_tests/mask_admission.rs": {
+        "bytes": 4540,
+        "sha256": "7242e98cc49c76604a56e5dd190c229c4c04ea57bf8551da171518c7ba86aca7"
+      },
+      "precision/child-process.json": {
+        "bytes": 199,
+        "sha256": "6dd0f1a024a33b59731a30fb1a49f2a31d88619676957cca39908c89fe0f9192"
+      }
+    }
+  }
+}

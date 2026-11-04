@@ -17,6 +17,7 @@ use std::{
 pub(crate) mod relink;
 mod replacement;
 mod tracking;
+mod tracked_replacement;
 
 /// Opens a user-selected media file.
 ///
@@ -106,6 +107,14 @@ pub enum Request {
         target: motion_core::media_assets::AssetRef,
         revision: u64,
     },
+    FinishTrackedVideoReplacement {
+        request_id: String,
+        target: motion_core::media_assets::AssetRef,
+        revision: u64,
+        document_generation: u64,
+        solves: Vec<tracked_replacement::SolveReplacement>,
+        bindings: Vec<motion_core::tracking_assets::replacement::BindingUpdate>,
+    },
     MediaAssetUsages {
         target: motion_core::media_assets::AssetRef,
     },
@@ -191,7 +200,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
                     .or_insert_with(|| active.clone());
             }
         }
-        if matches!(op.as_str(), "finish_media_import" | "finish_media_replacement")
+        if matches!(op.as_str(), "finish_media_import" | "finish_media_replacement" | "finish_tracked_video_replacement")
             && request_id
                 .as_ref()
                 .and_then(|id| s.media_compositions.get(id))
@@ -418,6 +427,8 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
         Request::FinishMediaReplacement { request_id, target, revision } => replacement::finish(id, &request_id, target, revision).map_err(|cause| crate::Error::with_context(
             format!("media replacement request={} asset={} kind={:?} phase=commit expected_revision={revision}",
                 request_id.chars().take(128).collect::<String>(),target.id,target.kind),cause)),
+        Request::FinishTrackedVideoReplacement {request_id,target,revision,document_generation,solves,bindings}=>
+            tracked_replacement::finish(id,&request_id,target,revision,document_generation,solves,bindings),
         Request::CancelMediaImport { request_id } => crate::session::with_session(id, |s| {
             if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {
                 batch.cancel()

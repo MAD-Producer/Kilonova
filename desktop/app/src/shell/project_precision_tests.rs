@@ -94,11 +94,10 @@ fn project_precision_menu_apply_cancel_history_and_gpu_screens_cover_locales_siz
     const CHILD: &str = "MOTION_PROJECT_PRECISION_UI_CHILD";
     let Some(root) = std::env::var_os(CHILD) else {
         let root = tempfile::tempdir().unwrap();
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
+        let (output, process) = crate::test_process::capture(std::process::Command::new(std::env::current_exe().unwrap())
             .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
             .env(CHILD, root.path())
-            .env_remove("MOTION_LOG")
-            .output()
+            .env_remove("MOTION_LOG"), &root.path().join("child-process.json"))
             .unwrap();
         if let Some(destination) = std::env::var_os("MOTION_PRECISION_OUTPUT_ARTIFACTS") {
             std::fs::create_dir_all(&destination).unwrap();
@@ -115,7 +114,7 @@ fn project_precision_menu_apply_cancel_history_and_gpu_screens_cover_locales_siz
         }
         assert!(
             output.status.success(),
-            "{}\n{}",
+            "child={process}\n{}\n{}",
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
