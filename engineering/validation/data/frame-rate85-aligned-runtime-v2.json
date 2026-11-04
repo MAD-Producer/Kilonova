@@ -1,0 +1,62 @@
+{
+  "audit": {
+    "status": "same_source_check_render_host_and_complete_desktop_ui_passed_with_documented_codegen_overrides",
+    "head": "2927799f1fd2f3af06f9f5eb83c52323b91a00f2",
+    "main": "351d09b2ffebb4ea1b445d2dc16f2920a9075207",
+    "totals": {
+      "render": {
+        "passed": 100,
+        "failed": 0,
+        "originalIgnored": 0,
+        "filtered": 0,
+        "targets": 7
+      },
+      "host": {
+        "passed": 176,
+        "failed": 0,
+        "originalIgnored": 0,
+        "filtered": 0,
+        "targets": 1
+      },
+      "desktop-ui": {
+        "passed": 1977,
+        "failed": 0,
+        "originalIgnored": 72,
+        "filtered": 0,
+        "targets": 31
+      }
+    },
+    "limits": [
+      "Actual latest main351d09b2 includes own lens-video586 and node geometry604; no review or takeover of other PRs",
+      "Complete selected desktop/UI plus selected render targets and host unit target; not whole workspace or Android",
+      "Desktop and UI test-only codegen-units4 overrides; earlier UI compiler exit1 also unresolved; original default compiler fault and old native failures remain separate unresolved records",
+      "All assertions, budgets and original ignores retained, one own GPU workload, default adapter and Info, caches/temp on E"
+    ],
+    "preservedOriginalFailure": {
+      "status": "failed_original_outputs_retained",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "-p",
+        "motion-ui",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--no-fail-fast",
+        "--locked",
+        "--offline",
+        "--config",
+        "profile.test.package.motion-desktop.codegen-units=4",
+        "--",
+        "--test-threads=1"
+      ],
+      "exitCode": 101,
+      "testsExecuted": 0
+    }
+  },
+  "archive": "frame-rate85-aligned-runtime-v2.zip",
+  "bytes": 324559,
+  "sha256": "92551013ef8db7d96c2ead06353feac38d1b25e91bf561d76b5f54d156e87ceb",
+  "members": 32
+}
