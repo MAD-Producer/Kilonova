@@ -758,6 +758,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::RegisterAsset { asset } => project.assets.push(asset),
         Command::RegisterModelAsset { asset } => project.model_assets.push(asset),
         Command::RegisterTrackingAsset { asset } => project.tracking_assets.push(asset),
+        Command::ReplaceTrackedVideo { replacement } => *project = replacement.propose(project)?,
         Command::SetTrackingPlane { object,binding } => {
             let layer=project.layer_mut(object)?;
             if layer.locked {return Err(Error::Locked(object));}

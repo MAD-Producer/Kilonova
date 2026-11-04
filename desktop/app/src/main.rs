@@ -2,6 +2,8 @@
 #[cfg(test)]
 #[path = "../../../crates/motion-graph/tests/support/image_fixture.rs"]
 mod node_image_fixture;
+#[cfg(test)]
+mod test_process;
 mod audio_output;
 mod cursors;
 mod diagnostics;

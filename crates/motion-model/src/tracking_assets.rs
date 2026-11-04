@@ -7,6 +7,8 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+pub mod replacement;
+
 pub const MAX_TRACKING_ASSET_BYTES: u64 = 16 * 1024 * 1024;
 pub const MAX_TRACKING_ASSETS: usize = 256;
 

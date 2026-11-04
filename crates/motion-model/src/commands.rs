@@ -208,6 +208,9 @@ pub enum Command {
     RegisterTrackingAsset {
         asset: crate::TrackingAsset,
     },
+    ReplaceTrackedVideo {
+        replacement: Box<crate::tracking_assets::replacement::Replacement>,
+    },
     RegisterFontAsset {
         asset: crate::FontAsset,
     },
@@ -368,6 +371,7 @@ impl Command {
             Self::RegisterAsset { .. }
             | Self::RegisterModelAsset { .. }
             | Self::RegisterTrackingAsset { .. }
+            | Self::ReplaceTrackedVideo { .. }
             | Self::RegisterAudioAsset { .. }
             | Self::RegisterVideoAsset { .. }
             | Self::MediaAsset { .. }
@@ -394,7 +398,7 @@ impl Command {
             return !matches!(edit, crate::keyframe_clipboard::local::LocalKeyEdit::Curve { .. }
                 | crate::keyframe_clipboard::local::LocalKeyEdit::Handle { .. });
         }
-        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. }) { return true; }
+        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. } | Self::ReplaceTrackedVideo { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeAutomatic {..} | Self::SpatialKeyframes {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

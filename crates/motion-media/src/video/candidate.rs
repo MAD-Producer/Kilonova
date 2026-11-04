@@ -8,6 +8,7 @@ pub struct VideoReplacementCandidate {
     stage: PathBuf,
     relative_source: PathBuf,
     asset: VideoAsset,
+    audio: Option<AudioAsset>,
 }
 impl VideoReplacementCandidate {
     pub fn source_path(&self) -> PathBuf {
@@ -16,6 +17,9 @@ impl VideoReplacementCandidate {
     pub fn asset(&self) -> &VideoAsset {
         &self.asset
     }
+    pub fn audio(&self) -> Option<&AudioAsset> {
+        self.audio.as_ref()
+    }
     /// Relative to the owning jobs root, avoiding platform path-spelling guesses.
     pub fn relative_source_path(&self) -> &Path {
         &self.relative_source
@@ -23,10 +27,9 @@ impl VideoReplacementCandidate {
     pub(super) fn matches(&self, task: &Arc<Mutex<Task>>, state: &Task) -> bool {
         Arc::ptr_eq(task, &self.task)
             && state.status.state == "ready"
-            && state
-                .prepared
-                .as_ref()
-                .is_some_and(|p| p.stage.0 == self.stage && p.probe.asset == self.asset)
+            && state.prepared.as_ref().is_some_and(|p| {
+                p.stage.0 == self.stage && p.probe.asset == self.asset && p.audio == self.audio
+            })
     }
 }
 impl VideoJobs {
@@ -48,6 +51,7 @@ impl VideoJobs {
                 .map_err(|_| "prepared video outside job root")?
                 .join("source.mp4"),
             asset: prepared.probe.asset.clone(),
+            audio: prepared.audio.clone(),
         };
         Ok(candidate)
     }
@@ -127,5 +131,52 @@ mod tests {
         assert!(candidate.matches(&task, &state));
         state.status.state = "cancelled".into();
         assert!(!candidate.matches(&task, &state));
+    }
+
+    #[test]
+    fn changed_linked_audio_metadata_invalidates_a_ready_candidate() {
+        let root = tempfile::tempdir().unwrap();
+        let jobs = VideoJobs::new(root.path().into()).unwrap();
+        ready(&jobs, &root.path().join("staged"));
+        let silent = jobs.replacement_candidate("replace").unwrap();
+        assert!(silent.audio().is_none());
+        let task = jobs.task("replace").unwrap();
+        {
+            let mut state = task.lock().unwrap();
+            state.prepared.as_mut().unwrap().audio = Some(AudioAsset {
+                id: 2,
+                path: "assets/probe.mp4".into(),
+                mime: "audio/mp4".into(),
+                bytes: 64,
+                track: 1,
+                sample_rate: 48_000,
+                channels: 2,
+                sample_frames: 48_000,
+                duration_us: 1_000_000,
+            });
+            assert!(!silent.matches(&task, &state));
+        }
+        let current = jobs.replacement_candidate("replace").unwrap();
+        assert_eq!(current.audio().unwrap().track, 1);
+        let mut state = task.lock().unwrap();
+        assert!(current.matches(&task, &state));
+        state
+            .prepared
+            .as_mut()
+            .unwrap()
+            .audio
+            .as_mut()
+            .unwrap()
+            .bytes += 1;
+        assert!(!current.matches(&task, &state));
+        state
+            .prepared
+            .as_mut()
+            .unwrap()
+            .audio
+            .as_mut()
+            .unwrap()
+            .bytes -= 1;
+        assert!(current.matches(&task, &state));
     }
 }

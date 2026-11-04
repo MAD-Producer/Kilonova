@@ -1,0 +1,62 @@
+{
+  "status": "passed_four_pair_policy_and_actual_video_publisher_fault_controls",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-host",
+    "--lib",
+    "ops::media::tracked_replacement::tests::",
+    "--locked",
+    "--offline",
+    "--",
+    "--test-threads=1"
+  ],
+  "exitCode": 0,
+  "startedUtc": "2026-11-02T04:40:16.473998+00:00",
+  "completedUtc": "2026-11-02T04:40:32.292324+00:00",
+  "source": {
+    "crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "validatedRawSha256": "6db79169e7394a72f5367914bd2d4c8344e4d59042245eda8e85a0629f058431",
+      "gitLfSha256": "6db79169e7394a72f5367914bd2d4c8344e4d59042245eda8e85a0629f058431"
+    },
+    "crates/motion-host/src/ops/media/tracked_replacement_tests.rs": {
+      "validatedRawSha256": "f5e9e181b578e731728d6f074ff1fcbb36216500a23e64096cc4bade43898800",
+      "gitLfSha256": "f5e9e181b578e731728d6f074ff1fcbb36216500a23e64096cc4bade43898800"
+    }
+  },
+  "baseCommit": "6d1776e1b40210cbc6adc6713cbe44a3498ff895",
+  "members": {
+    "source/crates/motion-host/src/ops/media/tracked_replacement.rs": {
+      "bytes": 13577,
+      "sha256": "6db79169e7394a72f5367914bd2d4c8344e4d59042245eda8e85a0629f058431"
+    },
+    "source/crates/motion-host/src/ops/media/tracked_replacement_tests.rs": {
+      "bytes": 13481,
+      "sha256": "f5e9e181b578e731728d6f074ff1fcbb36216500a23e64096cc4bade43898800"
+    },
+    "stdout.log": {
+      "bytes": 606,
+      "sha256": "761ab77ad289031eea19965db9a1ec27f5508f20f153e2069345b30a88071424"
+    },
+    "stderr.log": {
+      "bytes": 1127,
+      "sha256": "83c2e4290e0823b57ca9e44e002634f49eff5af14d0b10f2e77e12f3501801ec"
+    },
+    "controller.py": {
+      "bytes": 1810,
+      "sha256": "3f87ab3e8b617b6904beb73c55269cb41e7127ffb81d55c71243dfbe3c187b8c"
+    }
+  },
+  "limits": [
+    "Actual VideoJobs asynchronous copy/candidate/source/cache publication and PairSink save/retention, with controlled PNG probe/video envelope",
+    "No audio stream, native codec decoding or desktop worker/session closure injection",
+    "Full-host 166-test regression belongs to previous head; this source adds two tests and executes four focused controls"
+  ],
+  "earlierAttempt": "v1 fixture probe used image::open on source.mp4; switched to decoding actual PNG bytes by content, matching neutral staging naming; no existing assertion weakened",
+  "archive": {
+    "path": "engineering/validation/data/tracking88-pair-publisher-v1.zip",
+    "sha256": "34fee90b74a3d3bc7feca962a6d2496e7a5c9fe5bc4042e13964801ac5e130d4",
+    "bytes": 9938
+  }
+}

@@ -137,6 +137,20 @@ impl Prepared {
         document: &Path,
         selected: AssetRef,
         platform: Option<&dyn crate::platform::Platform>,
+        check: impl FnMut() -> bool,
+    ) -> Result<Self, Error> {
+        Self::read_from(root, project, revision, document, selected, platform, None, check)
+    }
+    /// A prepared media task owns the source path. Only the paired replacement
+    /// host uses this override; it still resolves inside the managed root.
+    pub(crate) fn read_from(
+        root: &Path,
+        project: &Project,
+        revision: u64,
+        document: &Path,
+        selected: AssetRef,
+        platform: Option<&dyn crate::platform::Platform>,
+        source_override: Option<&Path>,
         mut check: impl FnMut() -> bool,
     ) -> Result<Self, Error> {
         cancelled(&mut check)?;
@@ -195,8 +209,8 @@ impl Prepared {
             matches!(selected.kind, AssetKind::Image | AssetKind::Video),
             "tracking plate must be image or video",
         )?;
-        let path = root
-            .join(media.path())
+        let location = source_override.map(Path::to_owned).unwrap_or_else(||root.join(media.path()));
+        let path = location
             .canonicalize()
             .map_err(|e| io("resolve_source", Path::new(media.path()), e))?;
         require(
@@ -374,6 +388,11 @@ impl Prepared {
     }
     pub fn descriptor(&self) -> &TrackingAsset {
         self.attachment.descriptor()
+    }
+    /// Publication may have reached disk during an unwind or a failed durability
+    /// acknowledgement. The enclosing paired transaction owns this policy.
+    pub(crate) fn retain_original(&mut self, retain: bool) {
+        self.owned.rollback = !retain;
     }
     pub fn track_count(&self) -> usize {
         self.attachment.solve().tracks.len()
