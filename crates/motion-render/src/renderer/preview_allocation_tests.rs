@@ -9,6 +9,7 @@ use motion_core::{
 };
 
 fn project(count: u64, kind: &str) -> Project {
+    let package = (kind == "effect").then(|| motion_effects::builtin::package().unwrap());
     let mut project = Project::new(32, 24, 30, 120).unwrap();
     project.background = [0.; 4];
     for id in 1..=count {
@@ -33,9 +34,32 @@ fn project(count: u64, kind: &str) -> Project {
                     MatteMode::Luma
                 },
             });
+        } else if let Some(package) = &package {
+            let definition = package
+                .manifest
+                .effects
+                .iter()
+                .find(|d| d.id == "displacement_map")
+                .unwrap();
+            let mut effect = motion_core::EffectInstance::new(
+                id,
+                &package.manifest.id,
+                &package.manifest.version,
+                &package.hash,
+                definition,
+                [16., 12.],
+            );
+            if id > 1 {
+                effect.image_input = Some(motion_core::EffectImageInput::Layer {
+                    layer: id - 1,
+                    stage: motion_core::EffectImageStage::Effects,
+                });
+            }
+            layer.effects.push(effect);
         }
         project.layers.push(layer);
     }
+    project.rebuild_plugin_dependencies();
     project.validate().unwrap();
     project
 }
@@ -43,7 +67,7 @@ fn project(count: u64, kind: &str) -> Project {
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn animated_preview_reports_sampling_preparation_encoding_and_submission_allocations() {
-    for kind in ["solid", "vector", "matte"] {
+    for kind in ["solid", "vector", "matte", "effect"] {
         for count in [1, 8, 32] {
             let mut project = project(count, kind);
             let mut scene = Scene::new(&project).unwrap();
@@ -55,6 +79,14 @@ fn animated_preview_reports_sampling_preparation_encoding_and_submission_allocat
                 // one static scene or only executing the resident prepare path.
                 for layer in &mut project.layers {
                     layer.transform.position.value[0] = 10. + (frame % 8) as f32;
+                    if kind == "effect" {
+                        layer.effects[0]
+                            .params
+                            .get_mut("amount")
+                            .unwrap()
+                            .track
+                            .value[0] = frame as f32 / 16.;
+                    }
                 }
                 let sample = test_allocations::count(|| {
                     scene
@@ -84,6 +116,7 @@ fn animated_preview_reports_sampling_preparation_encoding_and_submission_allocat
                     );
                 });
                 let mut encoder = encoder.unwrap();
+                let previous_plan_builds = renderer.effect_plan_builds();
                 let mut stats = None;
                 let encode = test_allocations::count(|| {
                     stats = Some(
@@ -93,6 +126,12 @@ fn animated_preview_reports_sampling_preparation_encoding_and_submission_allocat
                     );
                 });
                 assert!(stats.unwrap().draw_calls > 0);
+                if kind == "effect" {
+                    assert!(
+                        renderer.effect_plan_builds() > previous_plan_builds,
+                        "changing sampled effect parameters must rebuild the dependency plan"
+                    );
+                }
                 let submit = test_allocations::count(|| {
                     renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
                 });
