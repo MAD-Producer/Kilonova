@@ -1,0 +1,12 @@
+{
+  "archive": "professional-api86-manual-timing-v1.zip",
+  "sha256": "ea3bc7e82c549b8c8ff2d54a804d5cacf3421ed12f122f58b87484d5f9487355",
+  "bytes": 1014342,
+  "members": 106,
+  "scope": "Explicit execution of the two existing ignored native GPU/FFmpeg timing output tests with unchanged assertions and retained movies/pixel controls. Host lib selected only to preserve the shared dependency graph and filtered to zero tests. Not the ignored history performance measurement or complete issue86",
+  "limits": [
+    "Only the two named existing ignored native timing tests are executed; their ignore annotations and assertions are unchanged",
+    "The host lib is selected to preserve shared dependency features and runs zero filtered tests",
+    "Large-document history performance measurement, desktop HWND/UI, final-head platform CI and complete issue86/3D acceptance remain outside this proof"
+  ]
+}

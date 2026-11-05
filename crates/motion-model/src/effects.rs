@@ -197,7 +197,41 @@ pub struct EffectParam {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub curve: Option<CurveTrack>,
 }
+
+/// Schema support, independent of layer locks, package availability or whether
+/// an instance is enabled. Resource bindings are not parameter tracks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct ParameterAnimation {
+    pub keyframes: bool,
+    pub expressions: bool,
+    pub interpolation: Option<ParameterInterpolation>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParameterInterpolation {
+    Numeric,
+    Hold,
+    ColorCurveLut,
+}
+
 impl EffectParam {
+    pub fn animation_support(&self) -> ParameterAnimation {
+        let keyframes = self.animatable && self.implemented;
+        ParameterAnimation {
+            keyframes,
+            expressions: keyframes && !self.kind.discrete()
+                && self.kind != ParamKind::Curve && self.curve.is_none(),
+            interpolation: keyframes.then_some(if self.kind.discrete() {
+                ParameterInterpolation::Hold
+            } else if self.kind == ParamKind::Curve {
+                ParameterInterpolation::ColorCurveLut
+            } else {
+                ParameterInterpolation::Numeric
+            }),
+        }
+    }
+
     pub fn sample(&self, frame: f64) -> Result<[f32; 4]> {
         if self.kind.discrete() {
             ensure(self.track.axes.is_none(), "discrete effect parameters cannot separate dimensions")?;

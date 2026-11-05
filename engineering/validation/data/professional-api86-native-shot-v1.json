@@ -1,0 +1,18 @@
+{
+  "archive": "professional-api86-native-shot-v1.zip",
+  "sha256": "8ea4238b62a6cd73e7f3b0b039d2c06faaad22dc6d9d515dbf8708f4d7996aa7",
+  "bytes": 959578,
+  "members": 196,
+  "scope": "Issue86 public host procedural 3D camera/effect output and original failed/successful attempts; separate complete selected backend regression result; not complete professional shot/3D route acceptance",
+  "limits": [
+    "Headless GPU output, not a desktop HWND or UI screenshot",
+    "Procedural solids with independently asserted center/flat-depth controls, not photographed footage or an independently produced full-image golden",
+    "Default 8-bit working precision only; no node-graph, masks/mattes/precompose/relink or complete shot-suite proof",
+    "PNG comparison is exact; lossy movie per-frame RGB mean <=3 does not bound individual chroma-edge errors (observed maximum 164)",
+    "Backend regression excludes desktop app/panels and Android and does not prove final-head cross-platform CI"
+  ],
+  "corrections": [
+    "Native v1 controller scope prose was copied from the earlier parameter gate; actual command/summaries show the two executed targets. V2 onward correct the description",
+    "Native v3 failed the new flat-center assertion because the new fixture assumed reversed painter order. V4 explicitly reorders the far-blue layer last, preserving the blue-center assertion and existing product behavior"
+  ]
+}

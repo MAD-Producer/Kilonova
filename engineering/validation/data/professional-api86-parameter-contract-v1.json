@@ -1,0 +1,15 @@
+{
+  "archive": "professional-api86-parameter-contract-v1.zip",
+  "sha256": "ebd95d37bc2867be58e537cdd33caad4bd510a5499cf6b74fad81489fb26ae9f",
+  "bytes": 499730,
+  "members": 40,
+  "scope": "Issue86 parameter schema and real host admission/sampling/history/persistence increment only; not complete issue or 3D route",
+  "limits": [
+    "Initial aggregate v1 failed; original core-only compiler STATUS_ACCESS_VIOLATION is not diagnosed or fixed",
+    "V2 new-test private module compilation failure was corrected through the existing public export",
+    "Final v5 executes three real Cargo targets: 25 passed, 0 failed, 0 ignored",
+    "No GPU pixel equivalence, node compiler integration, frozen output, movie export, full desktop regression or final-head platform CI proof",
+    "Vec3 has shared model support but no actual builtin package fixture in this gate",
+    "Dependent PR597 panel clock adoption and UI acceptance remain incomplete; Android excluded"
+  ]
+}

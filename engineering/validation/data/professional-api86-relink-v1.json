@@ -1,0 +1,18 @@
+{
+  "archive": "professional-api86-relink-v1.zip",
+  "sha256": "e68fd995607ce0284cbf6620e64f0887c10abec4fac8c629f05f02ccf1f8ad09",
+  "bytes": 395447,
+  "members": 57,
+  "scope": "Issue86 public real-PNG multi-source relink, native RGBA, healthy undo/redo, missing-media recovery, reopen and independently frozen source versions",
+  "limits": [
+    "Default Unorm8 headless output, not desktop UI or photographed footage",
+    "One-unit full-channel oracle; no production behavior or old assertions changed",
+    "Undo of healthy source replacement is verified; external deletions cannot be undone into restored file bytes",
+    "Recorded protocol requests require fresh session revision/generation and retained candidate paths on replay",
+    "Nine targeted tests, not full backend/workspace or final-head platform acceptance"
+  ],
+  "corrections": [
+    "V1 failed new test compilation because Layer::solid requires a borrowed name; corrected fixture reference",
+    "V2 passes native/golden/history/failure/recovery/frozen checks; V3 adds public request and replay artifacts without weakening assertions"
+  ]
+}

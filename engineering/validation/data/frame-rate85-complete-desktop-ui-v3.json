@@ -1,0 +1,199 @@
+{
+  "audit": {
+    "status": "complete_selected_desktop_ui_passed",
+    "head": "2a5cec9f7b7127d3bc73ab72f66255d6f926711f",
+    "main": "b4133761df4bed5341d104740ebbe9820ad14554",
+    "passed": 1960,
+    "failed": 0,
+    "originalIgnored": 72,
+    "filtered": 0,
+    "targets": 31,
+    "elapsedSeconds": 2921.328,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "-p",
+      "motion-ui",
+      "--features",
+      "motion-desktop/ffmpeg",
+      "--no-fail-fast",
+      "--locked",
+      "--offline",
+      "--config",
+      "profile.test.package.motion-desktop.codegen-units=4",
+      "--",
+      "--test-threads=1"
+    ],
+    "expectedTargets": [
+      [
+        "motion_ui",
+        "rlib"
+      ],
+      [
+        "analytic",
+        "test"
+      ],
+      [
+        "borrowed_input",
+        "test"
+      ],
+      [
+        "composites",
+        "test"
+      ],
+      [
+        "diamond_bounds",
+        "test"
+      ],
+      [
+        "dock_constraints",
+        "test"
+      ],
+      [
+        "failure_boundaries",
+        "test"
+      ],
+      [
+        "framework",
+        "test"
+      ],
+      [
+        "grapheme_editing",
+        "test"
+      ],
+      [
+        "icon_geometry",
+        "test"
+      ],
+      [
+        "input_ownership",
+        "test"
+      ],
+      [
+        "layer_visibility",
+        "test"
+      ],
+      [
+        "paint_clip_buffers",
+        "test"
+      ],
+      [
+        "paint_observability",
+        "test"
+      ],
+      [
+        "path_antialiasing",
+        "test"
+      ],
+      [
+        "retained_text",
+        "test"
+      ],
+      [
+        "static_mesh",
+        "test"
+      ],
+      [
+        "style",
+        "test"
+      ],
+      [
+        "tabs",
+        "test"
+      ],
+      [
+        "text_bounds",
+        "test"
+      ],
+      [
+        "text_clipboard",
+        "test"
+      ],
+      [
+        "text_commands",
+        "test"
+      ],
+      [
+        "workspace_observability",
+        "test"
+      ],
+      [
+        "motion_ui",
+        "doc"
+      ],
+      [
+        "motion-studio",
+        "bin"
+      ],
+      [
+        "dock_frame_cache",
+        "test"
+      ],
+      [
+        "effect_definition_views",
+        "test"
+      ],
+      [
+        "effect_search_cache",
+        "test"
+      ],
+      [
+        "effect_track_cache",
+        "test"
+      ],
+      [
+        "timeline_row_cache",
+        "test"
+      ],
+      [
+        "timeline_scroll_signature",
+        "test"
+      ]
+    ],
+    "invocations": [
+      "     Running unittests src\\main.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\motion_studio-dc0859d72d7a92a8.exe)",
+      "     Running tests\\dock_frame_cache.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\dock_frame_cache-fe8f0a6d5c321959.exe)",
+      "     Running tests\\effect_definition_views.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\effect_definition_views-6e74eed56b3f63d7.exe)",
+      "     Running tests\\effect_search_cache.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\effect_search_cache-a45fc6c7837b4292.exe)",
+      "     Running tests\\effect_track_cache.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\effect_track_cache-9922be0edb35258c.exe)",
+      "     Running tests\\timeline_row_cache.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\timeline_row_cache-35a21c00750fc594.exe)",
+      "     Running tests\\timeline_scroll_signature.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\timeline_scroll_signature-93ef0238e9591ebd.exe)",
+      "     Running unittests src\\lib.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\motion_ui-c4069fdf6a143730.exe)",
+      "     Running tests\\analytic.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\analytic-d89df51d56c972db.exe)",
+      "     Running tests\\borrowed_input.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\borrowed_input-dad8b5b3b4eb27e7.exe)",
+      "     Running tests\\composites.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\composites-de152d987a75c040.exe)",
+      "     Running tests\\diamond_bounds.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\diamond_bounds-5992d082f6c4500a.exe)",
+      "     Running tests\\dock_constraints.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\dock_constraints-14b467e37484d4e3.exe)",
+      "     Running tests\\failure_boundaries.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\failure_boundaries-e43b82e0cb350162.exe)",
+      "     Running tests\\framework.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\framework-179da74a8a9a5abc.exe)",
+      "     Running tests\\grapheme_editing.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\grapheme_editing-3198860f6e4b0c35.exe)",
+      "     Running tests\\icon_geometry.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\icon_geometry-bccf42ada8ff877f.exe)",
+      "     Running tests\\input_ownership.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\input_ownership-ec8b9254f5673b65.exe)",
+      "     Running tests\\layer_visibility.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\layer_visibility-d8a6247405d6a6b1.exe)",
+      "     Running tests\\paint_clip_buffers.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\paint_clip_buffers-6941ce53059bc82e.exe)",
+      "     Running tests\\paint_observability.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\paint_observability-d4c4f9aa07480a16.exe)",
+      "     Running tests\\path_antialiasing.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\path_antialiasing-ed0878ba736e2828.exe)",
+      "     Running tests\\retained_text.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\retained_text-85c3faf4af0ff105.exe)",
+      "     Running tests\\static_mesh.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\static_mesh-441de5636007536d.exe)",
+      "     Running tests\\style.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\style-20defc33bfcb655b.exe)",
+      "     Running tests\\tabs.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\tabs-e59d4270369daa55.exe)",
+      "     Running tests\\text_bounds.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\text_bounds-71c9d092276aea09.exe)",
+      "     Running tests\\text_clipboard.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\text_clipboard-366cfbe467d9deac.exe)",
+      "     Running tests\\text_commands.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\text_commands-9f810c70034af92c.exe)",
+      "     Running tests\\workspace_observability.rs (E:/Dev/aem/target/rational-rate85-contract\\debug\\deps\\workspace_observability-57c3ce0aaeec3583.exe)",
+      "   Doc-tests motion_ui"
+    ],
+    "limits": [
+      "Selected desktop/UI packages, not whole workspace or later source",
+      "Desktop test codegen-units4 only, default compiler AV unresolved; old native stack/heap failures not established fixed",
+      "Original exec handle71502 unavailable after continuation; persisted terminal receipt exit0 plus complete Cargo outputs and absent original process establish completion. No invented controller exit or rerun",
+      "New parent expression budget observation2ca4 not included in this frozen2a5 source"
+    ]
+  },
+  "archive": "frame-rate85-complete-desktop-ui-v3.zip",
+  "bytes": 178129,
+  "sha256": "300a98a5e99e304cfb50959496fc2d5992de3551fa23cb31d26cf6bcc10319b4",
+  "members": 9
+}

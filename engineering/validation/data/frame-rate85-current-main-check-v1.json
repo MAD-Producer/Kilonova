@@ -1,0 +1,92 @@
+{
+  "head": "7f5f0c999ca45c22f33a86c8e87ddc8f5b5fb5dd",
+  "main": "c0e25eda7c469c62ee94135e380647d818921662",
+  "status": "passed_scoped_final_acceptance_pending",
+  "terminal": {
+    "originalSession": 61191,
+    "terminalConsumed": true,
+    "exitCode": 0,
+    "reportSha256": "10fa844bd251f079eeb36536a9b56254f79f7afad9675fbce18a293d799904d6"
+  },
+  "unchangedComparedToB015": [
+    "crates/motion-render",
+    "crates/motion-core",
+    "crates/motion-model",
+    "desktop/app/src/panels",
+    "desktop/app/src/shell/rational_clock_native_tests.rs",
+    "desktop/app/src/shell/mod.rs"
+  ],
+  "commands": [
+    {
+      "name": "desktop-check",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-desktop",
+        "-p",
+        "motion-host",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "pid": 7060,
+      "exitCode": 0,
+      "elapsedSeconds": 77.985,
+      "summaries": []
+    },
+    {
+      "name": "candidate-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-media",
+        "--lib",
+        "video::candidate::tests",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 50836,
+      "exitCode": 0,
+      "elapsedSeconds": 31.079,
+      "summaries": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 100 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "name": "helper-check",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\ai-depth74\\venv\\Scripts\\python.exe",
+        "tools/build_desktop.py",
+        "--task",
+        "check",
+        "--debug",
+        "--target-dir",
+        "E:/Dev/aem/target/rational-rate85-contract",
+        "--",
+        "--offline"
+      ],
+      "status": "passed",
+      "pid": 41340,
+      "exitCode": 0,
+      "elapsedSeconds": 14.485,
+      "summaries": []
+    }
+  ],
+  "limits": [
+    "Latest main c0e25eda integrated, complete host/desktop target check and actual media candidate controls; no GPU execution in this gate",
+    "Previously accepted renderer/core/panel clocks unchanged byte-for-byte; no assertion, ignore, budget or threshold changes",
+    "Complete desktop precision stack overflow and unauthorized graph fixture remain unresolved; no Android acceptance"
+  ],
+  "archive": {
+    "path": "frame-rate85-current-main-check-v1.zip",
+    "bytes": 125565,
+    "sha256": "97bf62df424e8f559629b9b910ad2d46768e60157339795f6901a4fd02a1b7cd",
+    "members": 12
+  }
+}

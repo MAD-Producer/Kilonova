@@ -64,9 +64,12 @@ one original ignore, but its desktop gate failed one precision-menu child with
 a motion-engine stack overflow (1697 passed, 69 original ignores). That source
 did not contain these later ten panel changes. A single later diagnostic pass
 does not resolve the native failure. The panel changes and cold-expression
-preparation fix are now locally integrated; final-source runtime and CI remain
-required. A separate graph-readout fault fixture clock update remains pending
-user authorization in that historical run. The later explicitly authorized
+preparation fix are now locally integrated. The complete renderer passed on
+`b015ddad` with 957 passes, zero failures and one original ignore; see the
+[source-bound renderer record](professional-api86-final-render-current.md).
+Complete desktop runtime, subsequent main integration and CI remain required.
+The separate graph-readout fixture was pending authorization in that historical
+run. The later explicitly authorized
 [readout fixture repair](frame-rate85-readout-fixture-current.md) now passes the
 original assertions and actual default-output checks. The historical native
 heap-corruption failure remains unresolved.

@@ -1,7 +1,9 @@
 # Issue 85: native rational-clock readouts
 
-Status: native clock readback and visual review passed. Complete integrated
-desktop/render regression and final cross-platform CI remain pending.
+Status: native clock readback and visual review passed. The subsequent complete
+renderer gate passed on `b015ddad`; see the
+[renderer record](professional-api86-final-render-current.md). Complete desktop
+regression, later main integration and final cross-platform CI remain pending.
 
 The actual Shell, engine worker, attached native GPU surface, text atlas and
 UI capture path render four cases: 30000/1001 at frame 1800.75 and 24000/1001

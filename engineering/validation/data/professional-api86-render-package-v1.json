@@ -1,0 +1,22 @@
+{
+  "status": "complete_render_package_passed_final_main_acceptance_pending",
+  "head": "73020b5cedb494da39b607747c109ad2b7a704d2",
+  "sourceUnchanged": true,
+  "targets": 120,
+  "docTestTargets": 1,
+  "elapsedSeconds": 2058.672,
+  "passed": 929,
+  "failed": 0,
+  "ignored": 1,
+  "limits": [
+    "This gate predates integration of main251d and tracking root PR580; it does not validate the final combined source",
+    "Only tracked crates and Cargo manifests were frozen; approved desktop-only clock edits were made during this gate",
+    "Complete desktop previously failed eight readouts; ten focused CPU tests subsequently passed with the approved fix, not a complete desktop acceptance",
+    "Original native heap corruption and further issue86 professional acceptance remain unresolved",
+    "Android is outside the maintained acceptance scope"
+  ],
+  "archive": "professional-api86-render-package-v1.zip",
+  "bytes": 100642,
+  "sha256": "722780bf0918ef4d78b132685c695565078126f19e606498a1f2ea3a1fe5e2ec",
+  "members": 7
+}
