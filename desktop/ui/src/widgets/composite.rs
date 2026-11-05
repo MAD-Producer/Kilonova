@@ -393,6 +393,7 @@ pub struct Dropdown {
     pub open: bool,
     highlighted: usize,
     scroll: usize,
+    paint: PaintList,
 }
 pub struct DropdownItem<'a> {
     pub label: &'a str,
@@ -598,9 +599,9 @@ impl Dropdown {
             );
             let cx = area.max[0] - 11.;
             let cy = area.min[1] + area.height() * 0.5;
-            paint::line(
+            paint::line3(
                 list,
-                vec![[cx - 3., cy - 1.], [cx, cy + 2.], [cx + 3., cy - 1.]],
+                [[cx - 3., cy - 1.], [cx, cy + 2.], [cx + 3., cy - 1.]],
                 style.foreground,
             );
         }
@@ -721,9 +722,11 @@ impl Dropdown {
             self.open = false;
             return None;
         }
-        let mut overlay = list.child();
+        let overlay = &mut self.paint;
+        overlay.clear();
+        overlay.stylesheet = list.stylesheet.clone();
         box_style(
-            &mut overlay,
+            overlay,
             popup,
             sheet.resolve("popup", States::default()).unwrap(),
         );
@@ -732,7 +735,7 @@ impl Dropdown {
         for (index, item) in items.iter().enumerate().skip(self.scroll).take(count) {
             if index > self.scroll && group_starts.contains(&index) {
                 paint::rect(
-                    &mut overlay,
+                    overlay,
                     Rect::new(
                         popup.min[0] + 8.,
                         y + 3.,
@@ -750,10 +753,10 @@ impl Dropdown {
                 s = s.with(State::Selected);
             }
             let style = sheet.resolve("row", s).unwrap();
-            box_style(&mut overlay, rect, style);
+            box_style(overlay, rect, style);
             if marked && index == selected {
                 paint::box_rect(
-                    &mut overlay,
+                    overlay,
                     Rect::new(rect.min[0] + 9., rect.min[1] + row * 0.5 - 1.5, 3., 3.),
                     style.foreground,
                     sheet.color("transparent"),
@@ -767,7 +770,7 @@ impl Dropdown {
                 (rect.width() - if marked { 26. } else { 8. }).max(0.),
                 rect.height(),
             );
-            text_style(&mut overlay, atlas, caption, item.label, style, Align::Left);
+            text_style(overlay, atlas, caption, item.label, style, Align::Left);
             if item.enabled && press(input, rect) {
                 chosen = Some(index);
             }
@@ -783,7 +786,7 @@ impl Dropdown {
             self.open = false;
         }
         overlay.clip_to(bounds);
-        list.append(overlay);
+        list.append_reusing(overlay);
         chosen
     }
 }
