@@ -1,5 +1,10 @@
 # Motion Studio 来源说明 / Provenance
 
+The chroma-key API acceptance fixtures are three explicitly converted SDR
+derivatives of Blender Foundation / Mango footage (CC BY 3.0), with source
+hashes, license, modifications and technical-only scope in ATTRIBUTION.md and
+the fixture directory. They are not product artwork or an HDR import claim.
+
 The external #88 camera calibration qualification uses pinned OpenCV sample
 photographs under Apache-2.0, with unmodified license/copyright and file hashes
 retained. Derived corner measurements and independently authored replacement

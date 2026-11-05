@@ -17,6 +17,7 @@ rasterized source-mask / track-matte / flat-precompose shot.
 | Effect parameters | Stable effect instance and parameter IDs; actual schema publishes Numeric, Hold and Color Curve LUT support | Schema support does not imply an unlocked/enabled instance or available shader package; resource bindings are not continuous tracks | [Parameter contract](effect-parameter-animation.md) and actual host tests |
 | Source relink | `missing_media_assets`, `start_asset_relink`, `media_status`, `finish_asset_relink`, `release_asset_relink`; bind a batch to the current revision and document generation | Decode in isolated staging before one atomic edit; references retain asset IDs; stale edits cancel; undo can restore an available original source but cannot recreate externally deleted files | Desktop `workflow/media_asset_tests/relink.rs`; native public-host PNG example below |
 | Projective screen insert | Existing `corner_pin` effect with animated `tl`, `tr`, `br`, `bl` Vec2 parameters in source-pixel coordinates | This maps supplied corners projectively; it does not detect or track a screen automatically. Bounds and sampling quality are separate acceptance concerns | Native public-host screen example below |
+| Chroma key / spill SDK example | Independently authored image-effect package with animatable key color, tolerance, softness and spill controls; ordinary effect insertion and parameter commands | An SDK sample, not an installed catalogue effect. Single-frame chroma classification and dominant-channel suppression do not recover physical edge alpha or illumination | [Sample contract and native controls](../../sdk/examples/chroma-key/README.md); execution status belongs to the validation record |
 
 Existing component tests are listed so maintainers can locate coverage; their
 current execution status belongs to the validation record, not this table.
@@ -235,3 +236,26 @@ oracle evaluates a point-sampled raster contract. The
 [validation record](../validation/professional-api86-parameter-contract-current.md#projective-screen-pixels-verified-native-stability-pending)
 retains an earlier unexplained native process exit; successful pixel checks do
 not certify native stability.
+
+## Chroma-key and spill SDK example
+
+[`sdk/examples/chroma-key`](../../sdk/examples/chroma-key/README.md) is an
+independently authored SDK package using the same public effect insertion and
+parameter commands. It requests straight-alpha, linear input; numeric/color
+parameter values reach shader uniforms unchanged, so key color is supplied in
+that declared linear space. The example is not installed into the product
+catalogue and does not change an editor panel.
+
+[`professional_key.rs`](../../crates/motion-desktop-media/tests/professional_key.rs)
+defines synthetic numerical controls, including a partial-coverage transition
+and clip-local spill animation. Its separate photographed control uses three
+attributed, explicitly converted SDR frames with a fixed preset, manually
+labelled opaque core regions and retained edge crops. Both controls require
+history, fresh reopen and frozen PNG consistency after source/package removal.
+Their code is an executable acceptance specification; actual run results and
+limits are recorded in [the current validation report](../validation/professional-key86-current.md).
+The synthetic workflow and an explicitly authored manual holdout workflow
+passed native history/reopen/frozen-output checks. The raw classifier still
+retains its frame-502 dark-foreground failure; protected RGB may retain spill.
+The mask was authored after observing the failure, not as blind qualification.
+The sample does not establish full-shot temporal quality or HDR input/output support.

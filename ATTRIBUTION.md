@@ -1,5 +1,30 @@
 # 第三方归属说明 / Third-party attribution
 
+## Photographed chroma-key API test fixtures
+
+- Authors: Blender Foundation / Mango Open Movie Project contributors
+- Source: [Tears of Steel raw footage announcement](https://mango.blender.org/production/4-tb-original-4k-footage-available-as-cc-by/),
+  [upstream sharing terms](https://mango.blender.org/sharing/), and the Xiph mirror
+  `https://media.xiph.org/mango/tearsofsteel-footage-exr/03_2a/linear/`
+- Revision: numbered original EXR frames `03_2a_00500`, `03_2a_00501` and
+  `03_2a_00502`; upstream supplies no commit revision. Per-original and derived
+  SHA-256 identities are pinned in
+  `crates/motion-desktop-media/tests/fixtures/chroma-key/source.json`
+- License: [CC BY 3.0 Unported](https://creativecommons.org/licenses/by/3.0/),
+  separate from the repository MIT license. Attribution and the legal-code link
+  remain beside the fixtures. Upstream separately reserves actor portrait and
+  privacy rights; the fixtures are technical validation, not advertising artwork
+- Modification scope: read the unchanged uncompressed BGR HALF scene-linear
+  Rec709 sources exactly, average 8x8 linear blocks from 4096x2160 to 512x270,
+  clip to [0,1], encode IEC sRGB and round to 8-bit PNG. No other image edits.
+  The originals and exact unclipped decoded channels remain external acceptance
+  data. The three small derivatives are test inputs, not installed product assets
+- Limits: source capture rate and PTS are unknown; any test composition clock is
+  explicitly authored. These SDR derivatives do not qualify HDR import/output,
+  full-shot temporal matte quality, or physical alpha ground truth
+- The example chroma classifier, shader, core-region annotations, operation
+  scripts and tests are independently authored under the repository MIT license
+
 ## External photographed camera calibration acceptance data
 
 - Authors: OpenCV contributors; the sample photographs are distributed in the
