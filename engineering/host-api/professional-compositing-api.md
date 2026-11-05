@@ -244,6 +244,17 @@ oracle evaluates a point-sampled raster contract. The
 retains an earlier unexplained native process exit; successful pixel checks do
 not certify native stability.
 
+The separate
+[`professional_screen_photo.rs`](../../crates/motion-desktop-media/tests/professional_screen_photo.rs)
+example uses an attributed photographed background and an authored screen plate.
+The same public corner-pin and clip-local opacity commands preserve history,
+fresh reopen and frozen output. Its independent f64 reference retains a
+three-byte channel budget, excludes a two-pixel boundary, and requires at least
+1,500 inserted interior pixels. These are different controls from the procedural
+example above. The [photographed-screen record](../validation/professional86-screen-photo-current.md)
+identifies source, conversion, actual images and limits: alignment is manual,
+with no automatic tracking, illumination matching or antialiased-edge acceptance.
+
 ## Chroma-key and spill SDK example
 
 [`sdk/examples/chroma-key`](../../sdk/examples/chroma-key/README.md) is an

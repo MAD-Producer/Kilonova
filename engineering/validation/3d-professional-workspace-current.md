@@ -61,6 +61,12 @@ adding paint-buffer changes and layer-time/vector-upload tests. This receipt
 does not establish execution of those later sources. Aligning the combined
 branch and validating that integration remain separate delivery work.
 
+Merge `b6e3ffc3` subsequently aligned the branch with that main source without
+conflicts. The provenance and panel-style guards passed; the branch has no
+panel changes relative to the new main. A fresh complete maintained-workspace
+execution and combined-source CI are required for this integration. The
+4,885-pass receipt above remains attached to its original source.
+
 Issues 74, 85, 86 and 88 remain open. The separate optional tracker's failed
 real-sequence quality gate is not repaired by successful imported-data rendering.
 The key's unprotected dark-foreground failure, manual alignment of the screen,
