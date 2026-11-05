@@ -710,6 +710,7 @@ pub fn chrome(
             active,
             body_input,
             tabs.len() > 1 || panels.focused == Some(f.panel),
+            styles.as_ref(),
         ) {
             match event {
                 motion_ui::tabs::Event::Activate(index) => out.push(Action::Activate {

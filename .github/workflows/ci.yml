@@ -74,6 +74,13 @@ jobs:
         run: python tools/ci_release.py policy
       - name: Validate clean-room provenance guard
         run: python tools/validate_provenance.py
+      - name: Reserve Linux Rust and GPU build disk space
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          # Match the native desktop jobs: these hosted SDKs are unused by
+          # this job. Keep Rust caches, test outputs, and diagnostic evidence.
+          sudo rm -rf -- /usr/local/lib/android /usr/share/dotnet
+          df -h "$GITHUB_WORKSPACE"
       - name: Install headless Vulkan and native build dependencies
         run: |
           sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' -e 's|http://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources

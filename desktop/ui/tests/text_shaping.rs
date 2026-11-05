@@ -3,10 +3,14 @@ use std::sync::Arc;
 #[path = "support/installed_font.rs"]
 mod installed_font;
 
-fn fixture() -> RunShaper {
+fn fixture_source() -> (Arc<[u8]>, u32) {
     let mut db = fontdb::Database::new();
     db.load_system_fonts();
-    let (bytes, index) = installed_font::source(&db);
+    installed_font::source(&db)
+}
+
+fn fixture() -> RunShaper {
+    let (bytes, index) = fixture_source();
     RunShaper::new(bytes, index).expect("valid system font")
 }
 
@@ -91,4 +95,59 @@ fn invalid_font_direction_and_long_runs_return_context_without_echoing_text() {
     let empty = shaper.shape("", Direction::LeftToRight).unwrap();
     assert!(empty.glyphs.is_empty());
     assert_eq!(empty.advance(), [0, 0]);
+}
+
+#[test]
+fn reused_plans_match_fresh_engine_plans_across_direction_script_and_eviction() {
+    use harfrust::{Buffer, ClusterLevel, Font, Script, ShapeOptions, ShaperFont};
+    let (bytes, index) = fixture_source();
+    let source: Arc<dyn AsRef<[u8]> + Send + Sync> = Arc::new(bytes.clone());
+    let font = Font::new(source, index).unwrap();
+    let mut shaper = RunShaper::new(bytes, index).unwrap();
+    // More than eight segment-property combinations exercises bounded eviction.
+    let cases = [
+        ("office AV", Some(Script::LATIN)),
+        ("q\u{301} A\u{30a}", None),
+        ("سلام", Some(Script::ARABIC)),
+        ("אבג", Some(Script::HEBREW)),
+        ("位置", Some(Script::HAN)),
+        ("कर्म", Some(Script::DEVANAGARI)),
+        ("ภาษาไทย", Some(Script::THAI)),
+    ];
+    for _ in 0..2 {
+        for direction in [Direction::LeftToRight, Direction::RightToLeft] {
+            for (text, script) in cases {
+                let mut reference = Buffer::new();
+                reference.push_str(text);
+                reference.set_cluster_level(ClusterLevel::MonotoneGraphemes);
+                reference.set_direction(direction);
+                reference.set_script(script);
+                reference.guess_segment_properties();
+                harfrust::shape(
+                    &ShaperFont::new(&font),
+                    &mut reference,
+                    ShapeOptions::default(),
+                )
+                .unwrap();
+                // Two calls test both a cache miss and its immediate reuse.
+                for _ in 0..2 {
+                    let actual = shaper.shape_script(text, direction, script).unwrap();
+                    assert_eq!(actual.direction, direction);
+                    assert_eq!(actual.glyphs.len(), reference.glyph_infos().len());
+                    for ((a, ap), (b, bp)) in actual.glyphs.iter().zip(actual.positions).zip(
+                        reference
+                            .glyph_infos()
+                            .iter()
+                            .zip(reference.glyph_positions()),
+                    ) {
+                        assert_eq!((a.glyph_id, a.cluster), (b.glyph_id, b.cluster));
+                        assert_eq!(
+                            (ap.x_advance, ap.y_advance, ap.x_offset, ap.y_offset),
+                            (bp.x_advance, bp.y_advance, bp.x_offset, bp.y_offset)
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
