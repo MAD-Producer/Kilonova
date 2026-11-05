@@ -1,7 +1,7 @@
 //! Retain complete shaped prefixes, including the ellipsis in the same layout.
 //! Widths are in em units so font-size and DPI do not multiply cache entries.
 use super::{
-    layout::{LayoutError, LineLayout},
+    layout::{LayoutError, LineLayout, ARC_HEADER_BYTES},
     TextAtlas,
 };
 use std::{
@@ -10,8 +10,13 @@ use std::{
     sync::Arc,
 };
 
-const MAX_ENTRIES: usize = 128;
 const MAX_BYTES: usize = 1024 * 1024;
+const ENTRY_BYTES: usize = size_of::<(u64, Entry)>() + ARC_HEADER_BYTES;
+const MAX_ENTRIES: usize = MAX_BYTES / (ENTRY_BYTES + LineLayout::FIXED_RETAINED_BYTES);
+
+#[cfg(test)]
+#[path = "fitting/budget_tests.rs"]
+mod budget_tests;
 
 #[derive(Clone)]
 pub struct FittedLine {
@@ -64,10 +69,7 @@ impl FitCache {
             })
     }
     fn insert(&mut self, text: &str, width: f32, value: FittedLine) {
-        let bytes = text.len()
-            + value.layout.glyphs.capacity() * size_of::<super::layout::PositionedGlyph>()
-            + value.layout.grapheme_boundaries.capacity() * size_of::<usize>();
-        let bytes = bytes + value.layout.grapheme_spans.capacity() * size_of::<[f32; 2]>();
+        let bytes = ENTRY_BYTES + text.len() + value.layout.retained_bytes();
         if bytes > MAX_BYTES {
             return;
         }
