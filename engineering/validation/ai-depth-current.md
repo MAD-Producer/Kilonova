@@ -1,5 +1,12 @@
 # Optional desktop depth inference — issue #74
 
+Current source `4cd60b0f` has a new [source-bound desktop verification](ai-depth-current-source-4cd60b0f.md):
+51 Rust tests including actual GPU controls, real native Session/FFmpeg/CPU ONNX,
+and actual unavailable-CUDA-to-CPU fallback with measured host-copy costs. It
+retains the failed process-main probe and distinguishes fixed-golden comparison
+from fresh reference execution. This targeted checkpoint does not complete the
+full regression, final-head CI or the entire issue.
+
 This branch implements #74 after the typed render DAG (#78). Android is retired
 and is outside implementation and acceptance. A contract checkpoint is not a
 completed inference feature. No existing project migration or UI change is added.
