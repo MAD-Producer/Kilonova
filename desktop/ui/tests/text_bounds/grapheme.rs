@@ -1,5 +1,19 @@
 use super::*;
 
+fn width_before_flag(atlas: &mut TextAtlas) -> f32 {
+    // A flag can be a ligature: the advance of one regional indicator need
+    // not be smaller than that of the pair. Measure the complete candidates
+    // with their ellipsis in the same shaping context as the production path.
+    let fitting = atlas.measure("A…");
+    let overflowing = atlas.measure("A🇯🇵…");
+    let width = (fitting + overflowing) * 0.5;
+    assert!(
+        fitting < width && width < overflowing,
+        "fixture must fit the preceding grapheme and exclude the complete flag"
+    );
+    width
+}
+
 #[test]
 #[cfg_attr(
     not(feature = "gpu-tests"),
@@ -122,9 +136,7 @@ fn every_ellipsized_prefix_ends_at_an_extended_grapheme_boundary_and_fits() {
 #[test]
 fn a_cluster_that_cannot_fit_is_omitted_whole_without_losing_the_previous_cluster() {
     let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
-    let first = "A🇯";
-    let full = "A🇯🇵";
-    let width = (atlas.measure(first) + atlas.measure(full)) * 0.5 + atlas.measure("…");
+    let width = width_before_flag(&mut atlas);
     assert!(width < atlas.measure("A🇯🇵BBBBBBBB"));
     assert_eq!(atlas.ellipsize("A🇯🇵BBBBBBBB", width), "A…");
     let width = atlas.measure("A🇯🇵…") + 0.01;
@@ -183,7 +195,7 @@ fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
     let base = default_stylesheet()
         .resolve("label", States::default())
         .unwrap();
-    let logical_width = (atlas.measure("A🇯") + atlas.measure("A🇯🇵")) * 0.5 + atlas.measure("…");
+    let logical_width = width_before_flag(&mut atlas);
     for ratio in [1., 1.25, 1.5, 1.75, 2.] {
         atlas.set_pixel_ratio(ratio);
         for size in [12., 28.] {
