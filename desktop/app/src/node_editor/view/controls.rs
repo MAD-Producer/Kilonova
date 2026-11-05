@@ -114,6 +114,13 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
                     point(&mut clip.max);
                 }
             }
+            Shape::Line3 { points, clip } => {
+                points.iter_mut().for_each(&point);
+                if let Some(clip) = clip {
+                    point(&mut clip.min);
+                    point(&mut clip.max);
+                }
+            }
             Shape::Stroke { points, clip, width } => {
                 points.iter_mut().for_each(&point);
                 *width *= zoom;

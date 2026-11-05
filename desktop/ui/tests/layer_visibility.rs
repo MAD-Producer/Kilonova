@@ -58,10 +58,12 @@ fn fractional_scroll_draws_and_hits_both_partial_rows_without_leaking_outside() 
                         }
                     }
                     Shape::Line { clip: Some(clip), .. }
+                    | Shape::Line3 { clip: Some(clip), .. }
                     | Shape::Stroke { clip: Some(clip), .. }
                     | Shape::Procedural { clip, .. } => assert!(area.contains_rect(*clip)),
                     Shape::Line { points, clip: None }
                     | Shape::Stroke { points, clip: None, .. } => check_points(points, area),
+                    Shape::Line3 { points, clip: None } => check_points(points, area),
                 }
             }
         }

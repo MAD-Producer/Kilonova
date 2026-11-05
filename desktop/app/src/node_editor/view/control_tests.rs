@@ -48,6 +48,24 @@ fn canvas_transform_keeps_shared_icons_and_exact_coordinates() {
     }
 }
 
+#[test]
+fn inline_arrow_transform_keeps_canvas_points_and_clip_exactly_like_owned_lines() {
+    use motion_ui::paint::Shape;
+    for zoom in [0.25, 0.5, 1., 1.25, 1.75, 2.] {
+        for clip in [None, Some(Rect::new(1.25, 2.5, 20., 18.))] {
+            let points = [[2.25, 3.5], [5.25, 6.5], [8.25, 3.5]];
+            let mut list = PaintList::default();
+            list.push_shape(Shape::Line3 { points, clip }, motion_ui::Color::grey(220));
+            list.push_shape(Shape::Line { points: points.to_vec(), clip }, motion_ui::Color::grey(220));
+            controls::transform_content(&mut list, [13.25, 17.75], zoom);
+            let Shape::Line3 { points, clip } = &list.shapes[0] else { panic!("inline mark must stay inline"); };
+            let Shape::Line { points: owned, clip: owned_clip } = &list.shapes[1] else { panic!("owned reference line"); };
+            assert_eq!(points.as_slice(), owned);
+            assert_eq!(clip, owned_clip);
+        }
+    }
+}
+
 fn row(editor: &NodeEditor, id: &str, index: usize, slider: bool) -> Rect {
     let card = editor
         .cards(editor.last_canvas)

@@ -38,6 +38,12 @@ pub enum Shape {
         points: Vec<[f32; 2]>,
         clip: Option<Rect>,
     },
+    /// A three-point connected stroke with the same clipping and AA as Line.
+    /// Small control marks need no separately allocated point buffer.
+    Line3 {
+        points: [[f32; 2]; 3],
+        clip: Option<Rect>,
+    },
     /// Connected, coverage-antialiased stroke of `width` logical pixels.
     /// Unlike a one-pixel Line, its width scales with content transforms.
     Stroke {
@@ -200,7 +206,7 @@ impl PaintList {
         self.shapes.retain_mut(|shape| {
             let old = old_shape;
             old_shape += 1;
-            let keep = if let Shape::Line { clip, .. } | Shape::Stroke { clip, .. } = shape {
+            let keep = if let Shape::Line { clip, .. } | Shape::Line3 { clip, .. } | Shape::Stroke { clip, .. } = shape {
                 let bounds = clip.get_or_insert(area);
                 bounds.min = [
                     bounds.min[0].max(area.min[0]),
@@ -320,13 +326,17 @@ impl PaintList {
         order.compact_clipped([shape_map, glyph_map, image_map], [shapes, glyphs, images]);
     }
     pub fn append(&mut self, mut other: Self) {
+        self.append_reusing(&mut other);
+    }
+    /// Move commands while keeping the source's empty buffers for its next draw.
+    pub(crate) fn append_reusing(&mut self, other: &mut Self) {
         self.legacy_order();
         other.legacy_order();
         let shapes = self.shapes.len();
         let glyphs = self.glyphs.len();
         let images = self.images.len();
         self.order
-            .extend(other.order.into_iter().map(|op| match op {
+            .extend(other.order.drain(..).map(|op| match op {
                 PaintOp::Shape(index) => PaintOp::Shape(index + shapes),
                 PaintOp::Glyph(index) => PaintOp::Glyph(index + glyphs),
                 PaintOp::Image(index) => PaintOp::Image(index + images),
@@ -755,6 +765,19 @@ pub fn line(list: &mut PaintList, mut points: Vec<[f32; 2]>, color: Color) {
     points.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) <= f32::EPSILON);
     if points.len() > 1 {
         list.push_shape(Shape::Line { points, clip: None }, color);
+    }
+}
+
+pub(crate) fn line3(list: &mut PaintList, points: [[f32; 2]; 3], color: Color) {
+    if color.0[3] <= 0. || points.iter().flatten().any(|v| !v.is_finite()) {
+        return;
+    }
+    // Preserve the ordinary line's consecutive-point deduplication at extreme
+    // coordinates. The normal control mark has three distinct points.
+    if points.windows(2).any(|pair| (pair[0][0] - pair[1][0]).hypot(pair[0][1] - pair[1][1]) <= f32::EPSILON) {
+        line(list, points.to_vec(), color);
+    } else {
+        list.push_shape(Shape::Line3 { points, clip: None }, color);
     }
 }
 
@@ -1283,6 +1306,9 @@ impl Painter {
                     }
                 }
                 Shape::Line { points, clip } => {
+                    strokes::append(&mut solids, points, rgba, scale, *clip, 1.);
+                }
+                Shape::Line3 { points, clip } => {
                     strokes::append(&mut solids, points, rgba, scale, *clip, 1.);
                 }
                 Shape::Stroke { points, clip, width } => {
