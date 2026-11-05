@@ -17,8 +17,9 @@ It does not close issues 85, 86 or 88.
   Reverse, nested and frozen controls remain unchanged. Preserve the original
   decoded AAC equality, silence, signal, source removal and frozen-history assertions
 
-These are test-only changes. No production behavior, panel, style, dependency,
-timeout, retry or test threshold changes are included.
+The original follow-up changes are test-only. A later CI correction below
+increases the job's time budget. No production behavior, panel, style,
+dependency, retry or test threshold changes are included.
 
 ## Evidence and limits
 
@@ -69,3 +70,54 @@ receipts, corrected focused receipts, native comparisons and license files.
 Every archive member was read back and SHA-256 verified.
 
 Archive SHA-256: `799418081eb62a0a832307c4fb36fc8909e13068b61ef79ad9c521c7abc59a66`.
+
+## November 5 regression and CI follow-up
+
+The next full desktop/UI invocation used source `3e2e2bee`, Cargo's default
+test codegen units, one test thread and the original assertions, stack and
+backend. It linked successfully, then reported **1985 passed, one failed and
+72 original ignores across 32 target invocations**. The failing test was
+`actual_exposure_io_and_terminal_replay_reach_default_reply_channels_then_new_task_recovers`.
+Its isolated child exited without a Rust panic message. Windows Application
+event 16775, at `2026-11-05T02:02:05.8679779Z`, identifies the same executable
+and an access violation `0xc0000005`, with an unknown module. This identifies
+the failure class; it does not establish the responsible code or driver.
+
+Running the unchanged original child directly afterward passed in 11.36 s,
+including the original IO cause, terminal replay, recovery and default Error
+file/stderr outputs. Its executable SHA-256 was
+`35c07258215b610c6f2fb75358c3a6895c40db58348ac899b9c308e60663b8c1`.
+This focused success does not replace the failed full invocation. The parent
+assertion now also prints the child's exit status and code, preserving the
+same success predicate so a future native crash is distinguishable from a
+Rust assertion or ordinary IO error.
+
+The host/media phase of that full invocation did not execute any tests: a
+concurrent check from a divergent worktree had replaced shared Cargo metadata.
+The renderer check resolved a foreign `motion-model` without `inverse_step`,
+and the host compile resolved a foreign `motion-core` without `tracking::colmap`
+and `tracking::document`. Those APIs exist in the integration source. This was
+a validation setup error, not evidence for changing those product APIs.
+Subsequent builds use a dedicated target directory for each divergent tree.
+A fresh isolated all-target check of desktop, host and media with FFmpeg and
+optional `motion-desktop-media/ai-depth` passed in 362.422 s, with the source
+unchanged. It proves type checking, not inference or a host/media runtime pass.
+
+In [CI run 41951382727](https://github.com/MAD-Producer/Kilonova/actions/runs/41951382727),
+the Rust/GPU job annotation explicitly reports its 45-minute execution limit.
+The workspace test step passed in 42 min 16 s, followed by a successful SDK
+loader step. The separate optimized portable-loop compile was then cancelled
+before completing. The job budget is now 60 minutes to retain time for that
+existing gate; no test, gate, platform or publication requirement is removed.
+All 15 workflow policy tests passed locally after this change. Required checks
+for the updated commit must still finish; the cancelled job is not a pass.
+
+The [second archive](data/tracking88-integration-followup-v2.zip) and its
+[member hashes and dispositions](data/tracking88-integration-followup-v2.json)
+retain the failed full invocation, both optional-depth checks, the unchanged
+direct child, original CI logs and timeout annotations. Selected Windows event
+metadata is included; no dump was inspected. Every archive member was read
+back and compared byte for byte. Archive SHA-256:
+`09b8eea538c95aee9bb102f3ae6b9a9ed194257c54c31f87fe39d03f146e30ba`.
+The full regression and native-crash investigation remain pending. This
+follow-up does not close issues 74, 85, 86 or 88.

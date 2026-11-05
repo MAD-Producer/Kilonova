@@ -1,0 +1,133 @@
+{
+  "archive": "tracking88-integration-followup-v2.zip",
+  "bytes": 562579,
+  "sha256": "09b8eea538c95aee9bb102f3ae6b9a9ed194257c54c31f87fe39d03f146e30ba",
+  "integrationSource": "3e2e2bee8372a9a5afe2026630cfb06908d1bc9d",
+  "dispositions": {
+    "fullDesktopUi": "FAILED: 1985 passed, 1 failed, 72 original ignores, 32 targets",
+    "fullHostMedia": "NOT EXECUTED: foreign worktree metadata compile failure",
+    "optionalDepthV1": "FAILED: shared target reused foreign motion-model metadata",
+    "optionalDepthV2": "PASS all-target typecheck in fresh dedicated target, no inference/runtime",
+    "exposureDirectChild": "PASS unchanged original executable; original full-gate native crash unresolved",
+    "requiredRustGpuJob": "CANCELLED after 45-minute job budget; tests and SDK steps passed, release-loop step incomplete"
+  },
+  "limits": [
+    "No complete four-package regression or complete issue closure",
+    "No minidump or proprietary binary inspection",
+    "Compilation and focused child success do not replace a full passing gate"
+  ],
+  "members": {
+    "archive-controller.py": {
+      "bytes": 3910,
+      "sha256": "594d85e6d9e2ee3489716ccb86c4175cf42ab7383a410d1ff4abb90f1eac7a10"
+    },
+    "tracking88-ci-cancelled-3e2-v1/annotations.json": {
+      "bytes": 616,
+      "sha256": "751d305ee4ceec0f3968941f17ca76314161f727a781e929042520069daee214"
+    },
+    "tracking88-ci-cancelled-3e2-v1/controller.py": {
+      "bytes": 1745,
+      "sha256": "ad8938884fb3ad879168f27dcca61f77dfbc432b8239a66c2f65b1127caf637a"
+    },
+    "tracking88-ci-cancelled-3e2-v1/job.stdout": {
+      "bytes": 4267,
+      "sha256": "5eb1b8bebb6e9e9a27a7cf23fd921b46913dd716597ebcb3eae3939a0a816035"
+    },
+    "tracking88-ci-cancelled-3e2-v1/logs.stdout": {
+      "bytes": 581944,
+      "sha256": "b36dbd1cd9808868d8c55c8794d3cd96831ef7954c150162eeedd7a5d0525b37"
+    },
+    "tracking88-ci-cancelled-3e2-v1/receipt.json": {
+      "bytes": 925,
+      "sha256": "78961f9303b6176bf89d0fd9dc4aec8dc6c770ba93597c2e7ba6589a06cd6d93"
+    },
+    "tracking88-exposure-original-child-v1/child/motion-studio.log": {
+      "bytes": 2804,
+      "sha256": "75e37b1345c5523f9fc3be21ec47d95c7163e5a4b5885c9d03cc6590d8c8e76d"
+    },
+    "tracking88-exposure-original-child-v1/child/primary-causes.json": {
+      "bytes": 579,
+      "sha256": "69f29e46fbf224bc7df6260e66341caab76d500ef5f8a11d406755d63ebfe7cf"
+    },
+    "tracking88-exposure-original-child-v1/controller.py": {
+      "bytes": 2764,
+      "sha256": "c282a084b6572b2be45aaaaed23b5f723b8acd7e66285e0b3255e2cfabf54ed6"
+    },
+    "tracking88-exposure-original-child-v1/receipt.json": {
+      "bytes": 988,
+      "sha256": "f5493de97d243966736a8c2f740c7eeaebe329095a5d9e4c1dd79fb7167c4ef3"
+    },
+    "tracking88-exposure-original-child-v1/stderr.log": {
+      "bytes": 1276,
+      "sha256": "eaadfe682d84ff57c9210ce635e9c6302cea0ff7e4587940551194aee3dc29af"
+    },
+    "tracking88-exposure-original-child-v1/stdout.log": {
+      "bytes": 283,
+      "sha256": "4a2daf75ebe60d6bcb31ff5525af18c9b7d8157d48ba5c43ee0dbc941de7e83a"
+    },
+    "tracking88-exposure-original-child-v1/windows-event-summary.json": {
+      "bytes": 682,
+      "sha256": "a79e66969694f879f55cb210e8cab1331c17efa65c8e384e53608d2eb19d66ba"
+    },
+    "tracking88-integration-final-v1/cargo-metadata.json": {
+      "bytes": 252908,
+      "sha256": "4970215d23c9762c5c3e4d7376b6f9c7f745934e5c3930b89d185e17920f6300"
+    },
+    "tracking88-integration-final-v1/controller.py": {
+      "bytes": 5646,
+      "sha256": "70bf67699bc1f556bff8bd6425a9db126c1010129ff47e12a87f9cd655045b61"
+    },
+    "tracking88-integration-final-v1/desktop-ui.stderr.log": {
+      "bytes": 27832,
+      "sha256": "a5ff57e4c087da20043770e37def310a9be3cc2bb63903ead067425319042f74"
+    },
+    "tracking88-integration-final-v1/desktop-ui.stdout.log": {
+      "bytes": 256882,
+      "sha256": "4049560f0330e9ea30844e0a19e49a2adac9dd31dc4ac4048d34f89221466950"
+    },
+    "tracking88-integration-final-v1/exit.json": {
+      "bytes": 292821,
+      "sha256": "27c202f116604cc77067fa9b84d017fe4c06714052c25bfa7749197fc7697e98"
+    },
+    "tracking88-integration-final-v1/host-media.stderr.log": {
+      "bytes": 1535,
+      "sha256": "8251d7989ab0a58c9f570d779f07491211de902c3acfe6272d11b8fcf8d958e4"
+    },
+    "tracking88-integration-final-v1/host-media.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-optional-depth-check-v1/controller.py": {
+      "bytes": 3297,
+      "sha256": "f058cebcc8695fbd836a959557dd4642feaa76d2685de0f8e4a54e23eec0cf5c"
+    },
+    "tracking88-optional-depth-check-v1/exit.json": {
+      "bytes": 299301,
+      "sha256": "8a7e3945d6a5eee20a13286309b6182c9fdd1d650020c1b0c69b2c823ffb41bf"
+    },
+    "tracking88-optional-depth-check-v1/stderr.log": {
+      "bytes": 676,
+      "sha256": "4cf1b3d2a8033f98595e29d5b6686806bb1709d3f9ce66d1877144bb34f999e7"
+    },
+    "tracking88-optional-depth-check-v1/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-optional-depth-check-v2/controller.py": {
+      "bytes": 3427,
+      "sha256": "00a9eacf44e859808bc8ffd33c6613987c4191332ed2760dc8edc8a29b59fa84"
+    },
+    "tracking88-optional-depth-check-v2/exit.json": {
+      "bytes": 299471,
+      "sha256": "ff4bc9480189c225153080c754a4436e1dc5f256e22ab695c69ae614235f68b1"
+    },
+    "tracking88-optional-depth-check-v2/stderr.log": {
+      "bytes": 31710,
+      "sha256": "27d469c4d61469689aad02fe8c35238145403f8e3d9faa88fe79660a38a15f1a"
+    },
+    "tracking88-optional-depth-check-v2/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}
