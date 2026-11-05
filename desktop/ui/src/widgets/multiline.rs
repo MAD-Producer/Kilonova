@@ -46,14 +46,17 @@ impl TextEditor {
         self.preferred_column = None;
     }
     pub(super) fn remove_selection(&mut self) -> bool {
-        let Some(range) = self.selection_bytes() else {
+        let selection = self.selection_bytes();
+        // An empty draft may still carry begin()/Ctrl+A's select-all state.
+        // Consuming it must clear that state before the next insertion.
+        self.anchor = None;
+        self.select_all = false;
+        let Some(range) = selection else {
             return false;
         };
         let start = range.start;
         self.text.replace_range(range, "");
         self.place_after_byte(start);
-        self.anchor = None;
-        self.select_all = false;
         true
     }
     pub(super) fn filtered_text(&self, text: &str) -> String {
