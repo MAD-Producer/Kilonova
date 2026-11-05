@@ -71,6 +71,8 @@ pub struct PanelHost<A> {
     styles: std::sync::Arc<StyleSheet>,
     registry: PanelRegistry,
     views: BTreeMap<DockId, Box<dyn PanelView<Action = A>>>,
+    // One sequential drawing buffer, shared across panels rather than per ID.
+    content: PaintList,
 }
 impl<A> Default for PanelHost<A> {
     fn default() -> Self {
@@ -79,6 +81,7 @@ impl<A> Default for PanelHost<A> {
             styles: crate::style::default_stylesheet_arc(),
             registry: Default::default(),
             views: Default::default(),
+            content: Default::default(),
         }
     }
 }
@@ -141,18 +144,21 @@ impl<A> PanelHost<A> {
             self.observations.record("panel.unregistered_draw", &format!("{:?}", layout.panel), format_args!("window={}", layout.window));
             return vec![];
         };
-        let mut content = PaintList::with_styles(self.styles.clone());
+        // Clear first so an unwinding view can never publish stale commands on
+        // the next call. Panics continue to propagate to the existing hook.
+        self.content.clear();
+        self.content.stylesheet = Some(self.styles.clone());
         let actions = view.draw(&mut PanelFrame {
             styles: &self.styles,
             layout,
             language,
-            paint: &mut content,
+            paint: &mut self.content,
             atlas,
             router,
             input,
         });
-        content.clip_to(layout.bounds.intersection(layout.clip));
-        list.append(content);
+        self.content.clip_to(layout.bounds.intersection(layout.clip));
+        list.append_reusing(&mut self.content);
         actions
     }
     pub fn lifecycle(&mut self, panel: DockId, event: Lifecycle) -> Vec<A> {

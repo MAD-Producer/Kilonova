@@ -87,6 +87,9 @@ impl PaintWork {
                 | motion_ui::paint::Shape::Stroke { points, .. } => {
                     self.line_points = self.line_points.saturating_add(points.len() as u64);
                 }
+                motion_ui::paint::Shape::Line3 { points, .. } => {
+                    self.line_points = self.line_points.saturating_add(points.len() as u64);
+                }
                 motion_ui::paint::Shape::Triangles { points } => {
                     self.triangle_points = self.triangle_points.saturating_add(points.len() as u64);
                 }

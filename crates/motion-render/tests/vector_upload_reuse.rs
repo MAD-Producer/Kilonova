@@ -339,3 +339,167 @@ fn distinct_encodes_in_one_submission_keep_their_own_vector_pixels() {
     assert!(pixels[bytes as usize + alpha].abs_diff(96) <= 2);
     assert_eq!(renderer.vector_upload_info().unwrap().pending_buffers, 0);
 }
+
+fn animated_scalar(start: f32, end: f32) -> Track<f32> {
+    let mut track = Track::constant(start);
+    track.keys = [(0, start), (59, end)]
+        .into_iter()
+        .map(|(frame, value)| motion_core::Keyframe {
+            frame,
+            value,
+            ease: motion_core::Ease::Linear,
+            auto_bezier: false,
+            curve: None,
+            spatial: None,
+        })
+        .collect();
+    track
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn animated_geometry_and_group_opacity_reuse_uploads_across_sixty_sampled_frames() {
+    let mut project = fixture();
+    // Rounded corners change tessellation while keeping the outer bounds fixed.
+    // Tessellation capacity is warmed over a full cycle below: a maximal
+    // radius can have fewer triangles than an intermediate rounded rectangle.
+    let mut rounded = VectorContent::shape(ShapeKind::RoundedRectangle);
+    rounded.fill = Some(Track::constant([1., 0., 0., 1.]));
+    let VectorSource::Shape { parameters, .. } = &mut rounded.source else {
+        unreachable!()
+    };
+    parameters.insert("corner_ratio".into(), animated_scalar(1., 0.05));
+    project.layers[0].content = Content::Vector { vector: rounded };
+    for (index, start, end) in [(1, 100., 10.), (2, 10., 100.)] {
+        let Content::Vector { vector } = &mut project.layers[index].content else {
+            unreachable!()
+        };
+        let VectorSource::Group { group } = &mut vector.source else {
+            unreachable!()
+        };
+        group.transform.opacity = animated_scalar(start, end);
+    }
+    project.validate().unwrap();
+    let mut scene = Scene::new(&project).unwrap();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let target = renderer.capture_target(96, 64).unwrap();
+    let budget = renderer.allocation_budget().clone();
+    for frame in 0..60 {
+        scene
+            .sample(
+                &project,
+                frame as f64,
+                None,
+                &motion_core::ExpressionEvaluator,
+            )
+            .unwrap();
+        renderer.capture(&scene, &target).unwrap();
+        eprintln!(
+            "{}",
+            serde_json::json!({"warmFrame":frame,"uploads":renderer.vector_upload_info().unwrap()})
+        );
+    }
+    let mut warm = None;
+    let mut previous = None;
+    let mut bytes = 0;
+    let mut upload_sizes = std::collections::BTreeSet::new();
+    for frame in 0..60 {
+        scene
+            .sample(
+                &project,
+                frame as f64,
+                None,
+                &motion_core::ExpressionEvaluator,
+            )
+            .unwrap();
+        let pixels = renderer.capture(&scene, &target).unwrap().0;
+        let info = renderer.vector_upload_info().unwrap();
+        let admitted = budget.info().unwrap().admitted_bytes;
+        // The two nested white-box rectangles have an authored child opacity
+        // of 50%; their root opacity follows independent linear arithmetic.
+        // These checks do not reuse renderer sampling or a second GPU result.
+        for (x, start, end) in [(48_usize, 100_f32, 10_f32), (80, 10., 100.)] {
+            let alpha = 0.5 * (start + (end - start) * frame as f32 / 59.) / 100.;
+            let expected = (alpha * 255.).round() as u8;
+            assert!(
+                pixels[(32 * 96 + x) * 4 + 3].abs_diff(expected) <= 2,
+                "frame={frame} x={x}"
+            );
+        }
+        if let Some((baseline, native_bytes, admitted_bytes)) = warm {
+            let baseline: motion_render::VectorUploadInfo = baseline;
+            assert_eq!(
+                info.destination_buffers_created_total, baseline.destination_buffers_created_total,
+                "frame={frame}"
+            );
+            assert_eq!(
+                info.staging_buffers_created_total, baseline.staging_buffers_created_total,
+                "frame={frame}"
+            );
+            assert_eq!(renderer.texture_bytes(), native_bytes, "frame={frame}");
+            assert_eq!(admitted, admitted_bytes, "frame={frame}");
+            assert!(
+                info.encoded_upload_bytes_total > bytes,
+                "animation must upload changed geometry at frame={frame}"
+            );
+            upload_sizes.insert(info.encoded_upload_bytes_total - bytes);
+        } else {
+            assert!(info.vertex_capacity_bytes > 0 && info.opacity_capacity_bytes > 0);
+            warm = Some((info, renderer.texture_bytes(), admitted));
+        }
+        assert_eq!(info.pending_buffers, 0, "frame={frame}");
+        assert_eq!(info.pending_bytes, 0, "frame={frame}");
+        assert!(info.idle_bytes <= info.idle_limit_bytes);
+        assert!(info.idle_buffers <= info.idle_limit_buffers as u64);
+        if let Some(previous) = &previous {
+            assert_ne!(
+                &pixels, previous,
+                "frame={frame} must not reuse stale pixels"
+            );
+        }
+        // A separately constructed scene and renderer have no prior geometry,
+        // target, opacity binding or upload cache to inherit from the live run.
+        if [0, 1, 15, 30, 45, 59].contains(&frame) {
+            let mut fresh = pollster::block_on(Renderer::headless()).unwrap();
+            let mut reference = Scene::new(&project).unwrap();
+            reference
+                .sample(
+                    &project,
+                    frame as f64,
+                    None,
+                    &motion_core::ExpressionEvaluator,
+                )
+                .unwrap();
+            let reference_target = fresh.capture_target(96, 64).unwrap();
+            assert_eq!(
+                pixels,
+                fresh.capture(&reference, &reference_target).unwrap().0,
+                "frame={frame}"
+            );
+            fresh.check_health().unwrap();
+        }
+        eprintln!(
+            "{}",
+            serde_json::json!({"frame":frame,"uploads":info,"admittedBytes":admitted})
+        );
+        bytes = info.encoded_upload_bytes_total;
+        previous = Some(pixels);
+    }
+    assert!(
+        upload_sizes.len() > 1,
+        "changing corner geometry must exercise different tessellation sizes"
+    );
+    renderer.check_health().unwrap();
+    drop(target);
+    renderer.clear_assets();
+    renderer
+        .device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+    assert_eq!(
+        budget.info().unwrap().admitted_bytes,
+        motion_render::FIXED_RENDERER_ALLOCATION_BYTES
+    );
+    drop(renderer);
+    assert_eq!(budget.info().unwrap().admitted_bytes, 0);
+}
