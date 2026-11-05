@@ -84,3 +84,6 @@ impl<'a> ExpandedLine<'a> {
             .map(|p| p.0)
     }
 }
+
+#[cfg(test)]
+mod tests;
