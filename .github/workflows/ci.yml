@@ -54,7 +54,9 @@ jobs:
   checks:
     name: Rust and GPU
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # Cold workspace tests used 42m16s in run 41951382727; retain time for
+    # SDK validation and the separate optimized portable-loop gate afterward.
+    timeout-minutes: 60
     outputs:
       publish: ${{ steps.release_policy.outputs.publish }}
     env:
