@@ -1,5 +1,11 @@
 # Motion Studio 法律声明 / Legal notice
 
+The photographed screen regression uses a credited, resized NASA / ISS crew
+image under NASA's informational media-use guidelines. See ATTRIBUTION.md and
+the fixture-local source record. This technical evaluation does not imply NASA
+endorsement; the image is not relicensed under the repository MIT license or
+included in product release resources.
+
 Photographed chroma-key API tests include three modified Blender Foundation /
 Mango footage derivatives under CC BY 3.0. Fixture-local attribution and the
 legal-code link are retained; see ATTRIBUTION.md for pinned identities and

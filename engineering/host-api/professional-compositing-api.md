@@ -141,6 +141,13 @@ project, then apply `precompose.json`; the saved project already contains both.
 The example is self-authored MIT geometry with no external assets. It is not a
 photographed roto/green-screen shot, feather quality or other-precision proof.
 
+The separate [photographed screen checkpoint](../validation/professional86-screen-photo-current.md)
+uses the existing corner-pin API on a credited NASA laptop photograph, with an
+independent linear-light reference, actual opacity animation, atomic history,
+save/reopen and three source-independent frozen outputs. Its manually authored
+static quad and two-pixel edge exclusion do not establish tracking, temporal
+footage quality, lighting matching or antialiased edges.
+
 The example exposed two actual renderer faults. Recreating a mask output must
 invalidate the signature of the retired output before the raster cache shortcut.
 Equal-size SDR conversion now loads exact integer texels instead of

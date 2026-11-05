@@ -1,5 +1,11 @@
 # Motion Studio 来源说明 / Provenance
 
+The test-only photographed screen replacement fixture reuses the previously
+attributed NASA Destiny laboratory image. Its local source record pins both
+the original and resized RGB derivative and credits NASA / the ISS crew.
+Authoring and independently calculated compositing references are separate from
+the photograph. No NASA image is added to product UI or release resources.
+
 The chroma-key API acceptance fixtures are three explicitly converted SDR
 derivatives of Blender Foundation / Mango footage (CC BY 3.0), with source
 hashes, license, modifications and technical-only scope in ATTRIBUTION.md and

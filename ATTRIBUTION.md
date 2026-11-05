@@ -141,6 +141,17 @@ resizing for numerical/edge comparisons; no source audio is retained. Original
 media remains external. Only credited evaluation frames and scalar results may
 enter the technical evidence archive, never product UI, examples or releases.
 
+The photographed screen API regression additionally retains a 960-by-654 RGB8
+PNG derivative of `ISS007-E-11800` in the test-only fixture directory
+`crates/motion-desktop-media/tests/fixtures/professional-screen`. NASA / the
+Expedition 7 crew remain credited; the source revision, informational-use
+guidelines, original and derivative hashes, explicit sRGB interpretation and
+Lanczos resizing are recorded in its `source.json`. The manually authored
+screen quad and replacement gradient are independent MIT test data. This is a
+factual compositing evaluation, not NASA endorsement, product artwork or a
+redistributed original photograph. The fixture is not used by product resources
+or release packaging.
+
 ## Rust 依赖 / Rust dependencies
 
 The read-only adapter memory probe directly uses two unmodified binding crates
