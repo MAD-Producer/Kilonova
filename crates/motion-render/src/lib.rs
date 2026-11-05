@@ -91,6 +91,8 @@ pub use renderer::WorkingPrecisionChange;
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;
+mod video_lookahead;
+pub use video_lookahead::{UpcomingVideo, VideoLookahead};
 mod depth_image;
 pub use depth_image::DepthImage;
 pub mod exposure_scene;

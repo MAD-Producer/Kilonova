@@ -65,20 +65,29 @@ impl InstanceIds {
         self.prepare_composition(project, project)
     }
     pub fn prepare_composition(&mut self, document: &Project, root: &Project) -> Result<()> {
+        self.prepare_sources(document, &root.composition_id, &root.layers)
+    }
+    pub(crate) fn prepare_view(&mut self, document: &Project, composition: &str) -> Result<()> {
+        let root = document.composition_view(composition)?;
+        self.prepare_sources(document, root.id, root.layers)
+    }
+    fn prepare_sources(
+        &mut self,
+        document: &Project,
+        root_id: &str,
+        root_layers: &[Layer],
+    ) -> Result<()> {
         let sources = || {
-            std::iter::once((root.composition_id.as_str(), root.layers.as_slice()))
+            std::iter::once((root_id, root_layers))
                 .chain(
                     std::iter::once((document.composition_id.as_str(), document.layers.as_slice()))
-                        .filter(|(id, _)| *id != root.composition_id),
+                        .filter(|(id, _)| *id != root_id),
                 )
                 .chain(
                     document
                         .compositions
                         .iter()
-                        .filter(|c| {
-                            root.composition_id == document.composition_id
-                                || c.id != root.composition_id
-                        })
+                        .filter(|c| root_id == document.composition_id || c.id != root_id)
                         .map(|c| (c.id.as_str(), c.layers.as_slice())),
                 )
         };
@@ -92,13 +101,13 @@ impl InstanceIds {
             return Ok(());
         }
         // Build off to the side: invalid edits cannot leave a partial layout.
-        let candidate = Self::build(document, root, sources())?;
+        let candidate = Self::build(document, root_id, sources())?;
         *self = candidate;
         Ok(())
     }
     fn build<'a>(
         project: &Project,
-        root: &Project,
+        root_id: &str,
         sources: impl Iterator<Item = (&'a str, &'a [Layer])>,
     ) -> Result<Self> {
         if project.compositions.len() >= composition::MAX_COMPOSITIONS {
@@ -146,21 +155,42 @@ impl InstanceIds {
                     continue;
                 }
                 let Some(end) = base.checked_add(span - 1) else {
-                    return limit(&root.composition_id, "Instance alias range exhausted");
+                    return limit(root_id, "Instance alias range exhausted");
                 };
                 if id > end {
                     break;
                 }
                 let Some(next) = id.checked_add(1) else {
-                    return limit(&root.composition_id, "Instance alias range exhausted");
+                    return limit(root_id, "Instance alias range exhausted");
                 };
                 base = next;
             }
             if base.checked_add(span - 1).is_none() {
-                return limit(&root.composition_id, "Instance alias range exhausted");
+                return limit(root_id, "Instance alias range exhausted");
             }
         }
         Ok(Self { nodes, paths, base })
+    }
+    pub(crate) fn object(&self, path: &[u64], composition: &str, object: u64) -> Result<u64> {
+        let address = self.paths.get(path).ok_or_else(|| {
+            motion_model::Error::Invalid(format!(
+                "Instance reference path is missing composition={composition} path={:?}",
+                bounded_path(path)
+            ))
+        })?;
+        let node = &self.nodes[address.node];
+        if node.id != composition {
+            return fault(
+                composition,
+                "Instance source differs from the authored reference path",
+                serde_json::json!({"reference_path":bounded_path(path),"authored_composition":node.id,"object":object}),
+            );
+        }
+        let index = node
+            .indices
+            .get(&object)
+            .ok_or(motion_model::Error::Missing(object))?;
+        Ok(self.base + address.ordinal * MAX_LAYERS as u64 + index)
     }
     pub fn mapping(
         &self,
