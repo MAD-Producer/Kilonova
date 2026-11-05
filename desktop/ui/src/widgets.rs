@@ -6,6 +6,8 @@ mod inspector;
 pub use inspector::InspectorColumns;
 mod text_history;
 mod text_input;
+mod text_paint;
+mod text_line;
 mod text_commands;
 mod multiline;
 pub use multiline::TextViewport;
@@ -145,29 +147,29 @@ impl TextEditor {
             match key {
                 Key::A if mods.control => {
                     self.select_all = true;
+                    self.anchor = None;
                     self.cursor = self.text.graphemes(true).count();
                 }
-                Key::Left => {
-                    self.cursor = self.cursor.saturating_sub(1);
-                    self.select_all = false;
-                }
-                Key::Right => {
-                    self.cursor = (self.cursor + 1).min(self.text.graphemes(true).count());
-                    self.select_all = false;
+                Key::Left | Key::Right => {
+                    let next = if let Some(range) = self.selection_bytes().filter(|_| !mods.shift) {
+                        let byte = if key == Key::Left { range.start } else { range.end };
+                        self.text[..byte].graphemes(true).count()
+                    } else if key == Key::Left {
+                        self.cursor.saturating_sub(1)
+                    } else {
+                        self.cursor.saturating_add(1)
+                    };
+                    self.navigate(next, mods.shift);
                 }
                 Key::Home => {
-                    self.cursor = 0;
-                    self.select_all = false;
+                    self.navigate(0, mods.shift);
                 }
                 Key::End => {
-                    self.cursor = self.text.graphemes(true).count();
-                    self.select_all = false;
+                    self.navigate(self.text.graphemes(true).count(), mods.shift);
                 }
                 Key::Backspace | Key::Delete => {
-                    if self.select_all {
-                        self.text.clear();
-                        self.cursor = 0;
-                        self.select_all = false;
+                    if self.remove_selection() {
+                        self.error = None;
                     } else if key == Key::Backspace && self.cursor > 0 {
                         let end = self.byte_index();
                         self.cursor -= 1;
@@ -189,11 +191,7 @@ impl TextEditor {
         }
         let text: String = input.text.chars().filter(|c| !c.is_control()).collect();
         if !text.is_empty() {
-            if self.select_all {
-                self.text.clear();
-                self.cursor = 0;
-                self.select_all = false;
-            }
+            self.remove_selection();
             let index = self.byte_index();
             self.text.insert_str(index, &text);
             self.place_after_byte(index + text.len());
@@ -226,7 +224,7 @@ impl TextEditor {
         class: &str,
         mut states: crate::style::States,
     ) {
-        use crate::style::{box_style, text_style, State, States};
+        use crate::style::{box_style, text_style, State};
         if self.active {
             states = states.with(State::Focused);
         }
@@ -237,14 +235,9 @@ impl TextEditor {
             .resolve(class, states)
             .unwrap_or_else(|| sheet.resolve("field", states).expect("field style"));
         box_style(list, area, style);
-        if self.active && self.select_all {
-            box_style(
-                list,
-                area.shrink(style.padding),
-                sheet
-                    .resolve("selection", States::default())
-                    .expect("selection style"),
-            );
+        if self.active {
+            self.draw_active_text(list, atlas, area, style, sheet);
+            return;
         }
         text_style(
             list,
@@ -254,21 +247,6 @@ impl TextEditor {
             style,
             Align::Left,
         );
-        if self.active && !self.select_all {
-            let pad = style
-                .padding
-                .min(area.width().min(area.height()).max(0.) * 0.5);
-            let x = (area.min[0]
-                + pad
-                + atlas.measure(&self.text[..self.byte_index()]) * style.font_size
-                    / atlas.font_size())
-            .min(area.max[0] - pad);
-            paint::line(
-                list,
-                vec![[x, area.min[1] + pad], [x, area.max[1] - pad]],
-                style.foreground,
-            );
-        }
     }
 }
 
