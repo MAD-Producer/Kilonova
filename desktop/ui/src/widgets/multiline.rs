@@ -1,9 +1,9 @@
 //! Opt-in multiline drafts share the field editor's bounded history, native
 //! clipboard sessions and grapheme boundaries. Existing fields stay single-line.
+use super::text_line::ExpandedLine;
 use super::*;
 use crate::{input::MouseButton, InputSource};
 use std::ops::Range;
-use super::text_line::ExpandedLine;
 
 #[derive(Default)]
 pub struct TextViewport {
@@ -341,11 +341,16 @@ impl TextEditor {
                     if index == row {
                         let x = (point[0] - body.min[0] + view.scroll[0]) / style.font_size;
                         let expanded = ExpandedLine::new(line, tabs);
-                        let Some(layout) = atlas.editor_layout(&expanded.text) else { return start; };
+                        let Some(layout) = atlas.editor_layout(&expanded.text) else {
+                            return start;
+                        };
                         return match expanded.hit_test(atlas, &layout, x) {
                             Some(byte) => start + byte,
                             None => {
-                                atlas.report_layout_failure("editor_pointer", format_args!("row={row} x={x}"));
+                                atlas.report_layout_failure(
+                                    "editor_pointer",
+                                    format_args!("row={row} x={x}"),
+                                );
                                 start
                             }
                         };
@@ -372,8 +377,10 @@ impl TextEditor {
         let caret_byte = self.byte_index();
         let (line_start, line_end) = self.line_bounds();
         let expanded = ExpandedLine::new(&self.text[line_start..line_end], tabs);
-        let caret_x = atlas.editor_layout(&expanded.text)
-            .map(|layout| expanded.caret(atlas, &layout, caret_byte-line_start)*style.font_size).unwrap_or(0.);
+        let caret_x = atlas
+            .editor_layout(&expanded.text)
+            .map(|layout| expanded.caret(atlas, &layout, caret_byte - line_start) * style.font_size)
+            .unwrap_or(0.);
         if viewport.last_caret != Some(caret_byte) {
             let y = (line - 1) as f32 * line_height;
             if y < viewport.scroll[1] {
@@ -433,44 +440,94 @@ impl TextEditor {
                     let s = range.start.max(start);
                     let e = range.end.min(start + text.len());
                     if s < e || range.start <= start && range.end > start + text.len() {
-                        let s = expanded.mapped_byte(&layout, s.saturating_sub(start).min(text.len()));
-                        let e = expanded.mapped_byte(&layout, e.saturating_sub(start).min(text.len()));
-                        if let (Some(s), Some(e)) = (s,e) {
-                            layout.selection_spans(s..e, |span| paint::rect(
-                            &mut text_paint,
-                            Rect::new(
-                                body.min[0] + span[0]*style.font_size - viewport.scroll[0],
-                                y,
-                                (span[1] - span[0])*style.font_size,
-                                line_height,
-                            ),
-                            sheet.color("selected"),
-                            ));
+                        let s =
+                            expanded.mapped_byte(&layout, s.saturating_sub(start).min(text.len()));
+                        let e =
+                            expanded.mapped_byte(&layout, e.saturating_sub(start).min(text.len()));
+                        if let (Some(s), Some(e)) = (s, e) {
+                            layout.selection_spans(s..e, |span| {
+                                paint::rect(
+                                    &mut text_paint,
+                                    Rect::new(
+                                        body.min[0] + span[0] * style.font_size
+                                            - viewport.scroll[0],
+                                        y,
+                                        (span[1] - span[0]) * style.font_size,
+                                        line_height,
+                                    ),
+                                    sheet.color("selected"),
+                                )
+                            });
                         } else {
-                            atlas.report_layout_failure("editor_selection", format_args!("row={index} bytes={}", text.len()));
+                            atlas.report_layout_failure(
+                                "editor_selection",
+                                format_args!("row={index} bytes={}", text.len()),
+                            );
                         }
                         if range.end > start + text.len() {
-                            paint::rect(&mut text_paint, Rect::new(body.min[0] + layout.advance*style.font_size - viewport.scroll[0],y,pad,line_height), sheet.color("selected"));
+                            paint::rect(
+                                &mut text_paint,
+                                Rect::new(
+                                    body.min[0] + layout.advance * style.font_size
+                                        - viewport.scroll[0],
+                                    y,
+                                    pad,
+                                    line_height,
+                                ),
+                                sheet.color("selected"),
+                            );
                         }
                     }
                 }
                 if let Some(colors) = colors {
                     let parts = colors(index, &expanded.text);
-                    let valid = parts.iter().flat_map(|(part,_)| part.bytes()).eq(expanded.text.bytes());
+                    let valid = parts
+                        .iter()
+                        .flat_map(|(part, _)| part.bytes())
+                        .eq(expanded.text.bytes());
                     if !valid {
-                        atlas.report_layout_failure("editor_syntax", format_args!("row={index} bytes={} parts={}", expanded.text.len(), parts.len()));
+                        atlas.report_layout_failure(
+                            "editor_syntax",
+                            format_args!(
+                                "row={index} bytes={} parts={}",
+                                expanded.text.len(),
+                                parts.len()
+                            ),
+                        );
                     }
-                    ui::positioned_text(&mut text_paint,atlas,Rect::new(body.min[0],y,body.width(),line_height),&layout,body.min[0]-viewport.scroll[0],style.font_size,false,|byte| {
-                        if !valid { return style.foreground; }
-                        let mut end = 0;
-                        for (part,color) in &parts {
-                            end += part.len();
-                            if byte < end { return *color; }
-                        }
-                        style.foreground
-                    });
+                    ui::positioned_text(
+                        &mut text_paint,
+                        atlas,
+                        Rect::new(body.min[0], y, body.width(), line_height),
+                        &layout,
+                        body.min[0] - viewport.scroll[0],
+                        style.font_size,
+                        false,
+                        |byte| {
+                            if !valid {
+                                return style.foreground;
+                            }
+                            let mut end = 0;
+                            for (part, color) in &parts {
+                                end += part.len();
+                                if byte < end {
+                                    return *color;
+                                }
+                            }
+                            style.foreground
+                        },
+                    );
                 } else {
-                    ui::positioned_text(&mut text_paint,atlas,Rect::new(body.min[0],y,body.width(),line_height),&layout,body.min[0]-viewport.scroll[0],style.font_size,false,|_| style.foreground);
+                    ui::positioned_text(
+                        &mut text_paint,
+                        atlas,
+                        Rect::new(body.min[0], y, body.width(), line_height),
+                        &layout,
+                        body.min[0] - viewport.scroll[0],
+                        style.font_size,
+                        false,
+                        |_| style.foreground,
+                    );
                 }
                 if self.active && index + 1 == line {
                     let x = body.min[0] + caret_x - viewport.scroll[0];

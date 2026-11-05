@@ -1,4 +1,3 @@
-use super::*;
 use crate::text::{format_controls_tests::Capture, TextAtlas};
 use crate::{
     paint::PaintList,

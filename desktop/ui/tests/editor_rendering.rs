@@ -7,6 +7,9 @@ use motion_ui::{
     Color, Input, Key, Rect,
 };
 
+#[path = "editor_rendering/gpu.rs"]
+mod gpu;
+
 #[test]
 fn syntax_spans_preserve_complete_line_kerning_marks_and_joining() {
     let mut atlas = TextAtlas::from_system(12.).unwrap();
