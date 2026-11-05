@@ -2,6 +2,172 @@ use super::*;
 use motion_ui::paint::{Bitmap, ImageQuad};
 
 #[test]
+fn glyph_callback_panic_discards_temporary_maps_and_allows_next_frame() {
+    let mut list = PaintList::default();
+    for n in 0..4 {
+        list.push_glyph(Glyph {
+            uv: [0., 0., 1., 1.],
+            atlas_size: None,
+            position: [n as f32, 2.],
+            size: [2., 2.],
+            color: Color::grey(220),
+        });
+    }
+    let original = list.order.clone();
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        list.retain_glyphs(|glyph| {
+            assert_ne!(glyph.position[0], 2., "controlled glyph callback panic");
+            glyph.position[0] != 0.
+        });
+    }));
+    assert!(panic.is_err(), "caller panic must propagate");
+    assert_eq!(
+        list.order, original,
+        "temporary map tags escaped during unwind"
+    );
+    list.clear();
+    paint::rect(&mut list, Rect::new(1., 1., 2., 2.), Color::grey(220));
+    list.clip_to(Rect::new(0., 0., 10., 10.));
+    assert_eq!(list.order, [PaintOp::Shape(0)]);
+}
+
+#[test]
+fn invalid_glyph_indices_still_panic_with_and_without_remapping() {
+    for keep in [false, true] {
+        let mut list = PaintList::default();
+        for _ in 0..2 {
+            list.push_glyph(Glyph {
+                uv: [0., 0., 1., 1.],
+                atlas_size: None,
+                position: [1., 2.],
+                size: [2., 2.],
+                color: Color::grey(220),
+            });
+        }
+        list.order[1] = PaintOp::Glyph(usize::MAX);
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            list.retain_glyphs(|_| keep);
+        }));
+        assert!(
+            panic.is_err(),
+            "invalid glyph index must not silently disappear"
+        );
+        assert!(
+            list.order.len() <= 2,
+            "temporary maps survived an index panic"
+        );
+    }
+}
+
+#[test]
+fn raw_geometry_without_order_keeps_legacy_empty_order_after_remapping() {
+    let bitmap = Bitmap::new(1, 1, vec![255; 4]).unwrap();
+    let mut list = PaintList::default();
+    for x in [20., 1.] {
+        paint::rect(&mut list, Rect::new(x, 1., 2., 2.), Color::grey(x as u8));
+        list.push_glyph(Glyph {
+            uv: [0., 0., 1., 1.],
+            atlas_size: None,
+            position: [x, 2.],
+            size: [2., 2.],
+            color: Color::grey(220),
+        });
+        list.push_image(ImageQuad::new(bitmap.clone(), Rect::new(x, 2., 2., 2.)));
+    }
+    list.order.clear();
+    list.clip_to(Rect::new(0., 0., 10., 10.));
+    assert!(list.order.is_empty());
+    assert_eq!(list.colors, [Color::grey(1)]);
+    assert_eq!(
+        (list.shapes.len(), list.glyphs.len(), list.images.len()),
+        (1, 1, 1)
+    );
+}
+
+fn clipped_list(bitmap: &std::sync::Arc<Bitmap>, list: &mut PaintList) {
+    list.clear();
+    for x in [20., 1.] {
+        paint::rect(list, Rect::new(x, 1., 2., 2.), Color::grey(220));
+        list.push_glyph(Glyph {
+            uv: [0., 0., 1., 1.],
+            atlas_size: None,
+            position: [x, 2.],
+            size: [2., 2.],
+            color: Color::grey(220),
+        });
+        list.push_image(ImageQuad::new(bitmap.clone(), Rect::new(x, 2., 2., 2.)));
+    }
+    list.clip_to(Rect::new(0., 0., 10., 10.));
+}
+
+#[test]
+fn removed_commands_reuse_existing_order_storage_for_index_maps() {
+    let bitmap = Bitmap::new(1, 1, vec![255; 4]).unwrap();
+    let mut observations = vec![];
+    for count in [1, 200] {
+        let mut lists: Vec<_> = (0..count).map(|_| PaintList::default()).collect();
+        for list in &mut lists {
+            clipped_list(&bitmap, list);
+        }
+        let requests = allocations(|| {
+            for list in &mut lists {
+                clipped_list(&bitmap, list);
+            }
+        });
+        println!("compacted_lists={count} allocations={requests}");
+        observations.push(requests);
+        for list in &lists {
+            assert_eq!(
+                list.order,
+                [PaintOp::Shape(0), PaintOp::Glyph(0), PaintOp::Image(0)]
+            );
+            assert_eq!(
+                (list.shapes.len(), list.glyphs.len(), list.images.len()),
+                (1, 1, 1)
+            );
+        }
+    }
+    assert_eq!(
+        observations,
+        [0, 0],
+        "warmed index maps must reuse the order buffer"
+    );
+}
+
+#[test]
+fn glyph_removal_reuses_existing_order_storage_and_preserves_other_ops() {
+    let mut list = PaintList::default();
+    let frame = |list: &mut PaintList| {
+        list.clear();
+        for n in 0..200 {
+            list.push_glyph(Glyph {
+                uv: [0., 0., 1., 1.],
+                atlas_size: None,
+                position: [n as f32, 2.],
+                size: [2., 2.],
+                color: Color::grey(220),
+            });
+        }
+        list.retain_glyphs(|glyph| glyph.position[0] % 2. == 1.);
+    };
+    frame(&mut list);
+    let requests = allocations(|| frame(&mut list));
+    println!("compacted_glyphs=200 allocations={requests}");
+    assert_eq!(
+        requests, 0,
+        "warmed glyph removal must reuse the order buffer"
+    );
+    assert_eq!(list.order, (0..100).map(PaintOp::Glyph).collect::<Vec<_>>());
+    assert_eq!(
+        list.glyphs
+            .iter()
+            .map(|g| g.position[0])
+            .collect::<Vec<_>>(),
+        (0..100).map(|n| (n * 2 + 1) as f32).collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn crossing_owned_triangles_reuse_their_existing_storage() {
     let triangle = [[-2., 2.], [6., 2.], [2., 6.]];
     let expected = [[0., 4.], [0., 2.], [6., 2.], [0., 4.], [6., 2.], [2., 6.]];
