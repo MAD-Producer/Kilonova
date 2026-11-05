@@ -121,3 +121,18 @@ back and compared byte for byte. Archive SHA-256:
 `09b8eea538c95aee9bb102f3ae6b9a9ed194257c54c31f87fe39d03f146e30ba`.
 The full regression and native-crash investigation remain pending. This
 follow-up does not close issues 74, 85, 86 or 88.
+
+The next head, `8484e1a2`, exposed the earlier video transaction failure's actual
+cause in [job 127028516397](https://github.com/MAD-Producer/Kilonova/actions/runs/41961357656/job/127028516397):
+`at-new-limit` declared 2,147,483,648 bytes but the runner had only 1,586,536,448
+bytes available. Storage admission correctly returned `insufficient video source
+storage` before the test could reach its intended length-mismatch check. Two
+later failures were consequences of the poisoned test lock. The production
+storage check and all original test predicates remain unchanged.
+
+The workspace job now performs the same fixed-path hosted Android/.NET SDK
+cleanup already used by the Linux desktop jobs, before restoring Rust artifacts.
+It does not remove workspace files, validation records or local developer caches.
+This prepares runner capacity; it does not make the failed invocation a pass.
+Its original complete job log and receipt are retained separately as
+`artifacts/pr-queue/tracking88-ci-failed-8484-v1` in the validation workspace.
