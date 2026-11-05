@@ -1,18 +1,13 @@
 use motion_ui::text::shaping::{Direction, RunShaper, ShapeError, MAX_RUN_BYTES};
 use std::sync::Arc;
+#[path = "support/installed_font.rs"]
+mod installed_font;
 
 fn fixture() -> RunShaper {
     let mut db = fontdb::Database::new();
     db.load_system_fonts();
-    let id = db
-        .query(&fontdb::Query {
-            families: &[fontdb::Family::SansSerif],
-            ..Default::default()
-        })
-        .expect("installed sans-serif UI font");
-    db.with_face_data(id, |bytes, index| RunShaper::new(Arc::from(bytes), index))
-        .expect("font bytes")
-        .expect("valid system font")
+    let (bytes, index) = installed_font::source(&db);
+    RunShaper::new(bytes, index).expect("valid system font")
 }
 
 fn signature(shaper: &mut RunShaper, text: &str) -> (Vec<(u32, [i32; 4])>, [i64; 2]) {
