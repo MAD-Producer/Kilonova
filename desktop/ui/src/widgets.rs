@@ -645,8 +645,10 @@ impl Button {
         );
         response.clicked = clicked
             || enabled
-                && input.key_presses()
-                    .any(|(k, _, repeat)| !repeat && matches!(k, Key::Enter | Key::Space));
+                && !input.focus_lost
+                && [Key::Enter, Key::Space].into_iter().any(|key| {
+                    crate::input::KeyChord::new(key, false, false, false).pressed(input)
+                });
         response.active = self.armed;
         response
     }
