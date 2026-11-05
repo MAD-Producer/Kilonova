@@ -1,0 +1,81 @@
+{
+  "archive_sha256": "1fba0e513b700961f00667341b3ba0a3f10637f7eeda6af1c6053a5544ea043b",
+  "members": {
+    ".cargo_vcs_info.json": {
+      "sha256": "2ed9a73a19c933cc6a22b0382be3ef8aff93d164d57c901f5b45fadf2d6c9083",
+      "bytes": 102
+    },
+    "fetch.stderr": {
+      "sha256": "dd72b71ffb3ca6b702b0ffd39e250a11fec17d55545c0087d460c3f8d9da4cf7",
+      "bytes": 271
+    },
+    "fetch.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "initial-result.json": {
+      "sha256": "1d866943301b8130999a6273d737635b61ffa622c3700cc09d52deb8c3394ef3",
+      "bytes": 74
+    },
+    "initial-tests.stderr": {
+      "sha256": "40d746e4010af6e7ff6ae9e05e2306840c35525b783289543a7c2a88fa0e181e",
+      "bytes": 1121
+    },
+    "initial-tests.stdout": {
+      "sha256": "92ffb84d86478087f840ae1065221a321629fd02de4e4cbe7ecbd46a86e93bde",
+      "bytes": 170153
+    },
+    "provenance.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "provenance.stdout": {
+      "sha256": "2e339b1f21dbdf914110221bf4ab13a86eda2a01066cce71d77dbe9c0e3bd462",
+      "bytes": 46
+    },
+    "result.json": {
+      "sha256": "5007cdbc8739fe1a4a964cee214887a8e83eec0f080b1f2b3590c9656407b991",
+      "bytes": 72
+    },
+    "source-receipt.json": {
+      "sha256": "d317fd37f6c772adb3a3f880bd18607603b94f99139b1f217735b4b87d05b226",
+      "bytes": 1484
+    },
+    "tests.stderr": {
+      "sha256": "d3f09b2c137ed9bc2d65faf5afa446ec358350a99553111c939c8db78951a1c2",
+      "bytes": 300
+    },
+    "tests.stdout": {
+      "sha256": "97b347b7960381ea2525f5e0a9f8441f787a3d1a03548b02a537357c6873afea",
+      "bytes": 163207
+    },
+    "source/desktop/ui/src/text/shaping.rs": {
+      "sha256": "480dd630d378da0f347ddcae40ae2a85f223b0c92729092e8521ddbf59635d02",
+      "bytes": 4003
+    },
+    "source/desktop/ui/src/text.rs": {
+      "sha256": "026b02f24da96bbfb8b78922dc7e324067e76bcd2b555c649eb26cc9cf3c5647",
+      "bytes": 24565
+    },
+    "source/desktop/ui/tests/text_shaping.rs": {
+      "sha256": "2cd499d7f6c302e9a78c783c0ef06b89d4b6727c725f736b45ec88684e69ffcf",
+      "bytes": 3306
+    },
+    "source/desktop/ui/Cargo.toml": {
+      "sha256": "3e120dbeaf4c1ede2fc410d781b24b107433a24b2478fec8383c50b6d57dfecb",
+      "bytes": 819
+    },
+    "source/Cargo.lock": {
+      "sha256": "bbc6d132108a970e2ec34b371736a9a06c6fcd9091bb875ca45eac5d0015b9d6",
+      "bytes": 147203
+    },
+    "source/ATTRIBUTION.md": {
+      "sha256": "5b9d80b3856cdc09095c2e6ead7f91727941649ec18d05bb9c35751e5d97c149",
+      "bytes": 22787
+    },
+    "source/NOTICE": {
+      "sha256": "1a4e7670a9b81c38e12314ecd4032802766e12979b03126525e1cb7fec5d53e7",
+      "bytes": 6023
+    }
+  }
+}

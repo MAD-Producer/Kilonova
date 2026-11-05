@@ -195,14 +195,19 @@ fn draw_text(
     if area.width() <= 0.0 || label.is_empty() {
         return;
     }
+    if !font_size.is_finite() || font_size <= 0. || !atlas.font_size().is_finite() || atlas.font_size() <= 0. {
+        atlas.report_layout_failure("invalid_size", format_args!("size={font_size} base_size={}", atlas.font_size()));
+        return;
+    }
     let scale = font_size / atlas.font_size();
-    let (shown, ellipsis) = atlas.fitted_text(label, area.width() / scale);
-    let width = (atlas.measure(shown)
-        + if ellipsis {
-            atlas.measure("\u{2026}")
-        } else {
-            0.
-        }) * scale;
+    let fit = match atlas.fit_line(label, area.width() / font_size) {
+        Ok(fit) => fit,
+        Err(cause) => {
+            atlas.report_layout_failure("draw", format_args!("bytes={} cause={cause}", label.len()));
+            return;
+        }
+    };
+    let width = fit.layout.advance * font_size;
     let origin = match align {
         Align::Left => area.min[0],
         Align::Center => area.min[0] + (area.width() - width).max(0.0) * 0.5,
@@ -210,9 +215,8 @@ fn draw_text(
     };
     let baseline =
         area.min[1] + (area.height() + (atlas.ascent * 2. - atlas.line_height) * scale) * 0.5;
-    let mut pen = origin;
-    for character in shown.chars().chain(ellipsis.then_some('\u{2026}')) {
-        let glyph = atlas.glyph_at(character, font_size);
+    for positioned in &fit.layout.glyphs {
+        let Some(glyph) = atlas.layout_bitmap(positioned, font_size) else { continue; };
         let width = (glyph.uv[2] - glyph.uv[0]) * atlas.config().width as f32 / atlas.pixel_ratio();
         let height =
             (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32 / atlas.pixel_ratio();
@@ -222,8 +226,8 @@ fn draw_text(
                 uv: glyph.uv,
                 atlas_size: Some([atlas.config().width, atlas.config().height]),
                 position: [
-                    (pen * atlas.pixel_ratio()).round() / atlas.pixel_ratio() + glyph.offset[0],
-                    (baseline * atlas.pixel_ratio()).round() / atlas.pixel_ratio()
+                    ((origin + positioned.position[0] * font_size) * atlas.pixel_ratio()).round() / atlas.pixel_ratio() + glyph.offset[0],
+                    ((baseline - positioned.position[1] * font_size) * atlas.pixel_ratio()).round() / atlas.pixel_ratio()
                         + glyph.offset[1],
                 ],
                 size: [width, height],
@@ -234,7 +238,6 @@ fn draw_text(
                 list.push_glyph(glyph);
             }
         }
-        pen += glyph.advance;
     }
 }
 

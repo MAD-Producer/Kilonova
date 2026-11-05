@@ -24,6 +24,8 @@ fontdb = "0.23"
 ab_glyph = "0.2"
 lyon_tessellation = "1.0.22"
 unicode-segmentation = "1.13.3"
+harfrust = "=0.15.0"
+unicode-bidi = "=0.3.18"
 
 [dev-dependencies]
 motion-render = { path = "../../crates/motion-render", default-features = false }

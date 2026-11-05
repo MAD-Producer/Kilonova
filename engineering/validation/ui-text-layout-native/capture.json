@@ -1,0 +1,48 @@
+{
+  "kind": "native component gallery, not full desktop editor",
+  "binary_sha256": "dc1cee4e2f37263b9bae031d3adf096258c7b9147b7f0f1ec3d9103078791947",
+  "captures": [
+    {
+      "case": "zh-wide",
+      "exit": 0,
+      "seconds": 2.75,
+      "command": [
+        "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\examples\\framework.exe",
+        "--smoke",
+        "E:\\Dev\\aem\\artifacts\\issue-goal-current\\ui-text-layout\\font-final-native\\zh-wide.json",
+        "--locale",
+        "zh",
+        "--size",
+        "1280x800",
+        "--sample-text",
+        "caf茅 / cafe虂 路 爻賱丕賲 123 路 浣嶇疆"
+      ],
+      "dimensions": [
+        1280,
+        800
+      ],
+      "image_sha256": "1affae582d636cba39da0595bf37a5b52e710c7a78dd48ca2947a8de241a9b87"
+    },
+    {
+      "case": "en-narrow",
+      "exit": 0,
+      "seconds": 2.313000000000102,
+      "command": [
+        "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\examples\\framework.exe",
+        "--smoke",
+        "E:\\Dev\\aem\\artifacts\\issue-goal-current\\ui-text-layout\\font-final-native\\en-narrow.json",
+        "--locale",
+        "en",
+        "--size",
+        "800x600",
+        "--sample-text",
+        "caf茅 / cafe虂 路 爻賱丕賲 123 路 浣嶇疆"
+      ],
+      "dimensions": [
+        800,
+        600
+      ],
+      "image_sha256": "fc3b26b820de4c848b13f8e34260978b1a58da29601afc0f406380d927d4bf3c"
+    }
+  ]
+}

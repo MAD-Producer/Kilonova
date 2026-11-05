@@ -1,4 +1,5 @@
 //! Native UI component gallery. No project, media, JS or editor session is loaded.
+//! `--sample-text TEXT` supplies a bounded Unicode value for native text captures.
 #[path = "framework/acceptance.rs"]
 mod acceptance;
 #[path = "framework/input_acceptance.rs"]
@@ -843,6 +844,13 @@ fn main() {
     };
     let event_loop = EventLoop::new().unwrap();
     let mut app = App::new(smoke, language);
+    if let Some(index) = args.iter().position(|arg| arg == "--sample-text") {
+        let Some(text) = args.get(index + 1).filter(|text| text.len() <= motion_ui::text::shaping::MAX_RUN_BYTES) else {
+            eprintln!("--sample-text requires a value of at most {} UTF-8 bytes", motion_ui::text::shaping::MAX_RUN_BYTES);
+            std::process::exit(1);
+        };
+        app.model.borrow_mut().text = text.clone();
+    }
     if let Some(index) = args.iter().position(|arg| arg == "--size") {
         let size = args.get(index + 1).and_then(|s| s.split_once('x'))
             .and_then(|(w, h)| Some([w.parse::<u32>().ok()?, h.parse::<u32>().ok()?]));

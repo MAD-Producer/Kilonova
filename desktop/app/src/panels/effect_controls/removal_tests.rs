@@ -534,6 +534,44 @@ fn localized_scope_and_counts_are_fully_painted_in_the_existing_menu_row() {
                 "Remove all: 2 selected layers / 3 effects"
             }
         );
+        let row_y = motion_ui::theme::metrics::TITLE_BAR
+            + motion_ui::theme::metrics::MENU_BAR
+            + 4.
+            + 32.;
+        let mut reference = PaintList::default();
+        let style = reference
+            .styles()
+            .resolve("context_menu.row", motion_ui::style::States::default())
+            .unwrap();
+        // A shaped caption may contain ligatures. Compare its complete bitmap
+        // sequence and relative placement, rather than counting source scalars.
+        motion_ui::ui::text_sized(
+            &mut reference,
+            &mut atlas,
+            Rect::new(0., row_y, 10000., 32.),
+            &caption,
+            style.foreground,
+            motion_ui::ui::Align::Left,
+            style.font_size,
+        );
+        assert!(!reference.glyphs.is_empty());
+        let complete = |actual: &[&motion_ui::paint::Glyph]| {
+            let Some(first) = actual.first() else { return false };
+            actual.len() == reference.glyphs.len()
+                && actual.iter().zip(&reference.glyphs).all(|(actual, expected)| {
+                    let source_rect = |glyph: &motion_ui::paint::Glyph| {
+                        let size = glyph.atlas_size.expect("text retains atlas dimensions");
+                        std::array::from_fn::<_, 4, _>(|i| {
+                            (glyph.uv[i] * size[i % 2] as f32).round() as i32
+                        })
+                    };
+                    source_rect(actual) == source_rect(expected)
+                        && actual.size == expected.size
+                        && ((actual.position[0] - first.position[0])
+                            - (expected.position[0] - reference.glyphs[0].position[0]))
+                            .abs() <= 1.
+                })
+        };
         for size in [[900., 600.], [1600., 1000.]] {
             let mut list = PaintList::default();
             let mut actions = Vec::new();
@@ -546,28 +584,35 @@ fn localized_scope_and_counts_are_fully_painted_in_the_existing_menu_row() {
                 &state(&engine),
                 &mut actions,
             );
-            let row_y = motion_ui::theme::metrics::TITLE_BAR
-                + motion_ui::theme::metrics::MENU_BAR
-                + 4.
-                + 32.;
             let glyphs = list
                 .glyphs
                 .iter()
                 .filter(|glyph| glyph.position[1] >= row_y && glyph.position[1] < row_y + 30.)
                 .collect::<Vec<_>>();
-            assert_eq!(
-                glyphs.len(),
-                caption
-                    .chars()
-                    .filter(|character| !character.is_whitespace())
-                    .count(),
-                "clipped scope: {caption}"
-            );
+            assert!(complete(&glyphs), "clipped scope: {caption}");
             assert!(glyphs.iter().all(|glyph| glyph.size[0] > 0.
                 && glyph.size[1] > 0.
                 && glyph.uv[2] > glyph.uv[0]
                 && glyph.uv[3] > glyph.uv[1]));
             assert!(actions.is_empty());
         }
+        // Exercise real menu clipping: the same oracle must reject a caption
+        // truncated by the production popup's narrow-window constraint.
+        let mut narrow = PaintList::default();
+        let mut actions = Vec::new();
+        menus::render(
+            &mut narrow,
+            &mut atlas,
+            [170., 600.],
+            &mut p,
+            &Input::default(),
+            &state(&engine),
+            &mut actions,
+        );
+        let clipped = narrow.glyphs.iter()
+            .filter(|glyph| glyph.position[1] >= row_y && glyph.position[1] < row_y + 30.)
+            .collect::<Vec<_>>();
+        assert!(!complete(&clipped), "narrow menu must not pass full-caption coverage");
+        assert!(actions.is_empty());
     }
 }

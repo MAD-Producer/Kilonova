@@ -1,4 +1,89 @@
 use super::*;
+
+fn width_before_flag(atlas: &mut TextAtlas) -> f32 {
+    // A flag can be a ligature: the advance of one regional indicator need
+    // not be smaller than that of the pair. Measure the complete candidates
+    // with their ellipsis in the same shaping context as the production path.
+    let fitting = atlas.measure("A…");
+    let overflowing = atlas.measure("A🇯🇵…");
+    let width = (fitting + overflowing) * 0.5;
+    assert!(
+        fitting < width && width < overflowing,
+        "fixture must fit the preceding grapheme and exclude the complete flag"
+    );
+    width
+}
+
+#[test]
+#[cfg_attr(
+    not(feature = "gpu-tests"),
+    ignore = "requires gpu-tests; run with --features gpu-tests"
+)]
+fn composed_and_decomposed_marks_produce_identical_nonempty_gpu_pixels() {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
+    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default())).unwrap();
+    let mut painter = motion_ui::paint::Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
+    let foreground = default_stylesheet().color("text");
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        atlas.set_pixel_ratio(ratio);
+        for size in [12., 18., 28.] {
+            for align in [Align::Left, Align::Center, Align::Right] {
+                let area = Rect::new(10., 8., 240., 60.);
+                let mut canonical = PaintList::default();
+                let mut decomposed = PaintList::default();
+                ui::text_sized(
+                    &mut canonical,
+                    &mut atlas,
+                    area,
+                    "café Åñ",
+                    foreground,
+                    align,
+                    size,
+                );
+                ui::text_sized(
+                    &mut decomposed,
+                    &mut atlas,
+                    area,
+                    "cafe\u{301} A\u{30a}n\u{303}",
+                    foreground,
+                    align,
+                    size,
+                );
+                assert!(!canonical.glyphs.is_empty());
+                assert!(!decomposed.glyphs.is_empty());
+                painter
+                    .upload_atlas(
+                        &device,
+                        &queue,
+                        atlas.pixel_data(),
+                        atlas.config().width,
+                        atlas.config().height,
+                    )
+                    .expect("canonical mark atlas upload");
+                let expected = gpu::capture(
+                    &device,
+                    &queue,
+                    &mut painter,
+                    &canonical,
+                    [260., 76.],
+                    ratio,
+                );
+                let actual = gpu::capture(
+                    &device,
+                    &queue,
+                    &mut painter,
+                    &decomposed,
+                    [260., 76.],
+                    ratio,
+                );
+                assert!(expected.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                assert_eq!(actual, expected, "ratio={ratio} size={size}");
+            }
+        }
+    }
+}
 use unicode_segmentation::UnicodeSegmentation;
 
 // Independent strings exercise extended clusters, including unsupported-font
@@ -51,9 +136,7 @@ fn every_ellipsized_prefix_ends_at_an_extended_grapheme_boundary_and_fits() {
 #[test]
 fn a_cluster_that_cannot_fit_is_omitted_whole_without_losing_the_previous_cluster() {
     let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
-    let first = "A🇯";
-    let full = "A🇯🇵";
-    let width = (atlas.measure(first) + atlas.measure(full)) * 0.5 + atlas.measure("…");
+    let width = width_before_flag(&mut atlas);
     assert!(width < atlas.measure("A🇯🇵BBBBBBBB"));
     assert_eq!(atlas.ellipsize("A🇯🇵BBBBBBBB", width), "A…");
     let width = atlas.measure("A🇯🇵…") + 0.01;
@@ -98,7 +181,10 @@ fn warmed_cluster_labels_keep_plain_and_styled_drawing_allocation_free() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
+#[cfg_attr(
+    not(feature = "gpu-tests"),
+    ignore = "requires gpu-tests; run with --features gpu-tests"
+)]
 fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
@@ -109,7 +195,7 @@ fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
     let base = default_stylesheet()
         .resolve("label", States::default())
         .unwrap();
-    let logical_width = (atlas.measure("A🇯") + atlas.measure("A🇯🇵")) * 0.5 + atlas.measure("…");
+    let logical_width = width_before_flag(&mut atlas);
     for ratio in [1., 1.25, 1.5, 1.75, 2.] {
         atlas.set_pixel_ratio(ratio);
         for size in [12., 28.] {
@@ -126,13 +212,15 @@ fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
                 };
                 let actual = draw(&mut atlas, "A🇯🇵BBBBBBBB");
                 let expected = draw(&mut atlas, "A…");
-                painter.upload_atlas(
-                    &device,
-                    &queue,
-                    atlas.pixel_data(),
-                    atlas.config().width,
-                    atlas.config().height,
-                ).unwrap();
+                painter
+                    .upload_atlas(
+                        &device,
+                        &queue,
+                        atlas.pixel_data(),
+                        atlas.config().width,
+                        atlas.config().height,
+                    )
+                    .unwrap();
                 let actual_pixels =
                     gpu::capture(&device, &queue, &mut painter, &actual, [160., 64.], ratio);
                 let expected_pixels =

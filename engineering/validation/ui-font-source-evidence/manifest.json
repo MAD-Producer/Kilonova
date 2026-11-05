@@ -1,0 +1,61 @@
+{
+  "archive_sha256": "3734293b7f25c1f69191adeaf1d56f45dce98795d8efd72a8b3a2295a1b11f9a",
+  "members": {
+    "font-index.stdout": {
+      "sha256": "0854f028ae251b47c69c1940e687141826d1c235be73ae819ceda576f3154951",
+      "bytes": 162668
+    },
+    "font-index.stderr": {
+      "sha256": "8f695ca18b3e0c10a13b61d907448a4a3e6c14ca169cad01b3bfe263591be4b0",
+      "bytes": 296
+    },
+    "font-index-result.json": {
+      "sha256": "47c511e2393dde84cc627304ee57a795ec7dc9de1591d8293eb6af4e5edfe73a",
+      "bytes": 72
+    },
+    "indexed-ui.stdout": {
+      "sha256": "05e4b73be31f052fdfda803f9f38f93c89e8e24203e6af93e2f0398101032939",
+      "bytes": 175086
+    },
+    "indexed-ui.stderr": {
+      "sha256": "21b4a1990efe5ac75491603fcce4995406aa74877411b4d17f64ee2041e03501",
+      "bytes": 963
+    },
+    "indexed-ui-result.json": {
+      "sha256": "fd61bd8a47d00673b25929426695dc9ef5a96048bb6fd092a2b4618186fba89f",
+      "bytes": 72
+    },
+    "indexed-source-receipt.json": {
+      "sha256": "94af8fecbf4a9e94402e3626c624bcb27c1b295afdd317d15f409fcee272df9b",
+      "bytes": 2712
+    },
+    "source/desktop/ui/src/text.rs": {
+      "sha256": "d979fd600e669914e5eac1b36e13d2ea6eaa752f1579e331f1b570c6cc6e5d55",
+      "bytes": 26641
+    },
+    "source/desktop/ui/src/text/shaping.rs": {
+      "sha256": "cff03b581cd6dd88800e599e6153375dc99d179a80d3f6627f8ad313b8fc5a00",
+      "bytes": 4481
+    },
+    "source/desktop/ui/src/text/font_selection_tests.rs": {
+      "sha256": "a61499c34c564059011a6f8e19ea35524bd366d153b1f3f56fbcfcbc7598c2de",
+      "bytes": 5696
+    },
+    "source/desktop/ui/tests/text_bounds/gpu.rs": {
+      "sha256": "3ffc1543178f11005bccbd76061bcfc685406aa05ee9acae8af6ebf622140140",
+      "bytes": 12911
+    },
+    "source/desktop/ui/tests/text_shaping.rs": {
+      "sha256": "2cd499d7f6c302e9a78c783c0ef06b89d4b6727c725f736b45ec88684e69ffcf",
+      "bytes": 3306
+    },
+    "source/desktop/ui/Cargo.toml": {
+      "sha256": "3e120dbeaf4c1ede2fc410d781b24b107433a24b2478fec8383c50b6d57dfecb",
+      "bytes": 819
+    },
+    "source/Cargo.lock": {
+      "sha256": "bbc6d132108a970e2ec34b371736a9a06c6fcd9091bb875ca45eac5d0015b9d6",
+      "bytes": 147203
+    }
+  }
+}

@@ -75,7 +75,7 @@ fn assert_rendered(atlas: &mut TextAtlas) {
 #[test]
 fn automatic_chinese_selection_searches_past_a_usable_latin_candidate() {
     let (database, latin, chinese) = fixtures();
-    let (font, family) = select_candidate(&database, [latin, chinese], true).unwrap();
+    let (font, family, index) = select_candidate(&database, [latin, chinese], true).unwrap();
     assert_ne!(
         font.glyph_id('中').0,
         0,
@@ -83,7 +83,7 @@ fn automatic_chinese_selection_searches_past_a_usable_latin_candidate() {
     );
     let expected = database.face(chinese).unwrap().families[0].0.clone();
     assert_eq!(family, expected);
-    let mut atlas = TextAtlas::new(font, 12., Vec::new());
+    let mut atlas = TextAtlas::new(font, index, 12., Vec::new()).expect("indexed fixture font");
     atlas.configure_family(family);
     assert_rendered(&mut atlas);
 }
@@ -92,9 +92,9 @@ fn automatic_chinese_selection_searches_past_a_usable_latin_candidate() {
 fn latin_preference_and_missing_coverage_keep_the_existing_fallback() {
     let (database, latin, chinese) = fixtures();
     let expected = database.face(latin).unwrap().families[0].0.clone();
-    let (_, family) = select_candidate(&database, [latin, chinese], false).unwrap();
+    let (_, family, _) = select_candidate(&database, [latin, chinese], false).unwrap();
     assert_eq!(family, expected);
-    let (font, family) = select_candidate(&database, [latin], true).unwrap();
+    let (font, family, _) = select_candidate(&database, [latin], true).unwrap();
     assert_eq!(family, expected);
     assert_eq!(font.glyph_id('中').0, 0);
     assert!(select_candidate(&database, [], true).is_none());
@@ -109,4 +109,49 @@ fn actual_system_chinese_and_explicit_latin_atlases_render_complete_notices() {
     let mut explicit = TextAtlas::from_family(&family, 12., true).unwrap();
     assert_eq!(explicit.selected_family, family);
     assert_rendered(&mut explicit);
+}
+
+#[test]
+fn collection_face_index_is_shared_by_rasterization_and_shaping() {
+    let mut database = fontdb::Database::new();
+    database.load_system_fonts();
+    let mut checked = 0;
+    for face in database.faces().filter(|face| face.index > 0) {
+        let Some((font, family, index)) = select_candidate(&database, [face.id], false) else {
+            continue;
+        };
+        assert_eq!(index, face.index);
+        let atlas = TextAtlas::new(font, index, 12., vec![]).expect("indexed collection font");
+        for character in ['A', '0', 'é', '中'] {
+            assert_eq!(
+                atlas.shaper.nominal_glyph(character).unwrap_or(0),
+                u32::from(atlas.font.glyph_id(character).0),
+                "family={family} index={index} character={character}"
+            );
+        }
+        checked += 1;
+    }
+    assert!(
+        checked > 0,
+        "installed CJK fonts must supply a nonzero collection face"
+    );
+    println!("matched_collection_faces={checked}");
+}
+
+#[test]
+fn primary_and_fallback_coverage_use_the_same_font_as_their_rasterizer() {
+    let (database, latin, _) = fixtures();
+    let family = database.face(latin).unwrap().families[0].0.clone();
+    let atlas = TextAtlas::from_family(&family, 12., true).unwrap();
+    assert!(atlas.fallback_shaper.is_some());
+    for character in "Aé中很长的属性名称".chars() {
+        assert_eq!(
+            atlas
+                .shaping_face(character)
+                .nominal_glyph(character)
+                .unwrap_or(0),
+            u32::from(atlas.face(character).glyph_id(character).0)
+        );
+        assert!(atlas.supports(character));
+    }
 }

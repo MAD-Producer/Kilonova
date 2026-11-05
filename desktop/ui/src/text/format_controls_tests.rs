@@ -19,6 +19,18 @@ fn unsupported_selector(atlas: &TextAtlas) -> char {
         )
 }
 
+fn missing_glyph_atlas() -> TextAtlas {
+    let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
+    // This fixture exercises the missing-glyph boundary, not discovery of
+    // every installed face. macOS LastResort covers unassigned code points.
+    atlas.system_fallback = None;
+    assert!(!atlas.supports('\u{10ffff}'));
+    let missing = atlas.layout_line("\u{10ffff}").unwrap();
+    assert_eq!(missing.missing_glyphs, 1);
+    assert_eq!(missing.glyphs[0].id, 0);
+    atlas
+}
+
 #[test]
 fn unsupported_variation_sequences_do_not_add_fallback_spacing() {
     let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
@@ -74,7 +86,7 @@ fn ordinary_base_glyphs_keep_their_positions_around_an_unsupported_selector() {
     }
 }
 
-struct Capture(Mutex<File>);
+pub(super) struct Capture(pub(super) Mutex<File>);
 impl log::Log for Capture {
     fn enabled(&self, m: &log::Metadata<'_>) -> bool {
         m.level() <= log::Level::Info
@@ -90,6 +102,141 @@ impl log::Log for Capture {
         }
     }
     fn flush(&self) {}
+}
+
+#[test]
+fn shaped_draw_failures_keep_bounded_default_level_causes_and_owner_scope() {
+    const CHILD: &str = "MOTION_UI_SHAPED_DRAW_CHILD";
+    const NAME: &str = "text::format_controls_tests::shaped_draw_failures_keep_bounded_default_level_causes_and_owner_scope";
+    if let Some(path) = std::env::var_os(CHILD) {
+        log::set_logger(Box::leak(Box::new(Capture(Mutex::new(
+            File::create(&path).unwrap(),
+        )))))
+        .unwrap();
+        log::set_max_level(log::LevelFilter::Info);
+        let mut atlas = missing_glyph_atlas();
+        let area = Rect::new(0., 0., 500., 40.);
+        let draw = |atlas: &mut TextAtlas, label: &str, size: f32| {
+            let mut paint = PaintList::default();
+            let color = paint.styles().color("text");
+            ui::text_sized(&mut paint, atlas, area, label, color, Align::Left, size);
+            paint
+        };
+        for _ in 0..120 {
+            assert!(!draw(&mut atlas, "cafe\u{301} \u{200d}", 12.)
+                .glyphs
+                .is_empty());
+            assert!(draw(&mut atlas, " ", 12.).glyphs.is_empty());
+            assert!(draw(&mut atlas, "", 12.).glyphs.is_empty());
+        }
+        assert!(fs::read_to_string(&path).unwrap().is_empty());
+        let oversized = "PRIVATE-LABEL-CONTENT".repeat(shaping::MAX_RUN_BYTES / 20 + 1);
+        assert!(oversized.len() > shaping::MAX_RUN_BYTES);
+        let missing = '\u{10ffff}';
+        assert!(!atlas.supports(missing));
+        let actual_glyph = atlas.layout_line("A").unwrap().glyphs[0].clone();
+        for i in 0..120 {
+            assert_eq!(atlas.measure(&oversized), 0.);
+            assert_eq!(atlas.ellipsize(&oversized, 500.), "");
+            assert!(draw(&mut atlas, &oversized, 12.).glyphs.is_empty());
+            assert!(draw(&mut atlas, "\u{10ffff}", 12.).glyphs.is_empty());
+            assert!(draw(&mut atlas, "A", f32::NAN).glyphs.is_empty());
+            assert!(atlas.layout_bitmap(&actual_glyph, f32::NAN).is_none());
+            if i == 29 {
+                // Counters belong to the atlas lifetime, not consecutive
+                // frames. Healthy labels and cache clears must not reset them.
+                assert!(!draw(&mut atlas, "healthy", 12.).glyphs.is_empty());
+                atlas.clear();
+            }
+        }
+        let events = fs::read_to_string(&path).unwrap();
+        let keys = [
+            ("text.layout", "shape"),
+            ("text.layout", "fit"),
+            ("text.layout", "draw"),
+            ("text.layout", "invalid_size"),
+            ("text.shaped_missing", "U+10FFFF"),
+            ("text.shaped_raster", "InvalidSize"),
+        ];
+        for (site, key) in keys {
+            let marker = format!("site={site} key={key:?} ");
+            let lines: Vec<_> = events.lines().filter(|s| s.contains(&marker)).collect();
+            assert_eq!(lines.len(), 2, "{marker}: {events}");
+            assert!(lines[0].starts_with("WARN ") && lines[0].contains("count=1 "));
+            assert!(lines[1].starts_with("ERROR ") && lines[1].contains("count=60 "));
+        }
+        assert_eq!(events.lines().count(), 12, "{events}");
+        assert!(!events.contains("PRIVATE-LABEL-CONTENT"));
+        assert!(events.contains("bytes=") && events.contains("limit=16384"));
+        assert!(events.contains("face=Primary") && events.contains("cluster_source=U+10FFFF"));
+        assert!(events.contains("size=NaN") && events.contains("pixel_ratio=1"));
+        assert!(!draw(&mut atlas, "healthy", 12.).glyphs.is_empty());
+        assert_eq!(fs::read_to_string(&path).unwrap(), events);
+        let mut replacement = missing_glyph_atlas();
+        for _ in 0..60 {
+            assert!(draw(&mut replacement, "\u{10ffff}", 12.).glyphs.is_empty());
+        }
+        let next = fs::read_to_string(&path).unwrap();
+        assert_eq!(next.lines().count(), 14, "{next}");
+        let owner = |line: &str| {
+            line.split_whitespace()
+                .find(|s| s.starts_with("owner="))
+                .unwrap()
+                .to_owned()
+        };
+        assert_ne!(
+            owner(events.lines().next().unwrap()),
+            owner(next.lines().last().unwrap())
+        );
+        return;
+    }
+    let explicit = std::env::var_os("MOTION_UI_SHAPED_DRAW_ARTIFACTS");
+    let root = explicit
+        .clone()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::temp_dir().join(format!(
+                "motion-ui-shaped-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ))
+        });
+    fs::create_dir_all(&root).unwrap();
+    let path = root.join("events.log");
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+        .env_remove("MOTION_LOG")
+        .env(CHILD, &path)
+        .output()
+        .unwrap();
+    fs::write(root.join("child-stdout.log"), &output.stdout).unwrap();
+    fs::write(root.join("child-stderr.log"), &output.stderr).unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("UI degradation"));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        stderr
+            .lines()
+            .filter(|s| s.starts_with("ERROR ") && s.contains("UI degradation"))
+            .count(),
+        7,
+        "{stderr}"
+    );
+    assert!(!stderr.contains("WARN ") && !stderr.contains("PRIVATE-LABEL-CONTENT"));
+    if explicit.is_none() {
+        for file in ["events.log", "child-stdout.log", "child-stderr.log"] {
+            fs::remove_file(root.join(file)).unwrap();
+        }
+        fs::remove_dir(root).unwrap();
+    }
 }
 
 #[test]

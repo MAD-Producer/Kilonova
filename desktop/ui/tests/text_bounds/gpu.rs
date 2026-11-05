@@ -129,15 +129,15 @@ fn installed_covered_atlas(required: &str) -> TextAtlas {
                 ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), index)
                     .ok()
                     .filter(|font| required.chars().all(|c| font.glyph_id(c).0 != 0))
-                    .map(ab_glyph::FontArc::new)
+                    .map(|font| (ab_glyph::FontArc::new(font), index))
             })
             .flatten();
-        if let Some(font) = candidate {
+        if let Some((font, index)) = candidate {
             eprintln!(
                 "text bounds GPU fixture selected installed CJK face: {:?}",
                 face.families
             );
-            return TextAtlas::new(font, 12., vec![]);
+            return TextAtlas::new(font, index, 12., vec![]).expect("indexed CJK font");
         }
     }
     panic!("text bounds GPU fixture requires an installed rasterizable CJK font");

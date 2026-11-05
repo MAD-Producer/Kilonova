@@ -236,3 +236,29 @@ generated `video-delayed.mp4` and `sound-24fps.mp4` fixtures. The author, local
 FFmpeg revision, reproduction command, stream intervals, SHA-256 and scope are
 recorded in that directory's `TIMING.md`. No third-party media or runtime is
 added or changed; the fixture is test input only and is not product artwork.
+
+
+## HarfRust 文本塑形内核（接入中）
+
+作者：HarfBuzz developers、Yevhenii Reizner。来源：https://github.com/harfbuzz/harfrust 。
+固定 crate 版本 0.15.0，发布源码 revision 71d965130ea93905f81b8f03a03d7ecc794fbc47，
+crate SHA-256 865dcc4105d51c323d8fedbb2d75b5e9c8ecddf5613f74c82f851d0afbc97114。
+许可 MIT，原文保留于 NOTICE。上游源码未修改；本项目独立编写字体绑定、
+有界运行布局、缓存与测量/绘制集成。系统字体只在当前机器读取，不复制或随产品分发。
+此项接入尚未完成，不代表组合标记、双向文本、emoji 或整个 #129 已验收。
+
+传递依赖：Fontations Developers，read-fonts 0.46.0（revision
+47a301615fd95acf0da9fb7dbcd0ea7c7df36943）和 font-types 0.12.7（revision
+ef666662f5985965bbbb726c4f77d15481831a1b），来源
+https://github.com/googlefonts/fontations ，MIT OR Apache-2.0，本次按 MIT 使用，
+许可原文保留于 NOTICE；未修改上游源码。确切 crate 校验值保留在 Cargo.lock。
+
+
+## Unicode 双向文本算法（UI 布局接入中）
+
+作者：The Servo Project Developers；上游 LICENSE-MIT 版权行为 The Rust Project Developers。
+来源：https://github.com/servo/unicode-bidi ，固定版本 0.3.18，revision 580b9c6c68fdb689916017e61d5052be3ed349b5，
+crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5。MIT OR Apache-2.0，本次按 MIT 使用，
+原许可和 COPYRIGHT 说明保留于 NOTICE。上游源码未修改；仅调用双向级别与运行
+排序 API，与项目独立编写的字素/字体/脚本分段和塑形布局组合。不新增或分发字体
+及第三方界面资产；接入模块不代表产品绘制或整个 #129 已完成。
