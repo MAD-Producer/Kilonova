@@ -1,5 +1,12 @@
 # Tracking #88: integrated acceptance map
 
+The [complete combined workspace regression](3d-professional-workspace-current.md)
+passed all 414 maintained targets on source `84c17760`, including FFmpeg and
+optional depth features. Its 4,885 passes retain all 78 original ignores. This
+supersedes the pending whole-workspace gate for that source; later-main alignment,
+final combined-head CI and the optional tracker's failed real-sequence quality
+remain separate boundaries.
+
 The latest [photographed frozen-output checkpoint](tracking88-frozen-precision-current.md)
 covers all four working precisions and twelve actual SDR PNG exports after
 live-layer deletion and Session closure. The underlying photographs remain

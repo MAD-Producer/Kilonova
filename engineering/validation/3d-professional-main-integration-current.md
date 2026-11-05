@@ -1,5 +1,10 @@
 # 3D route: combined professional-compositing integration
 
+The later [complete workspace record](3d-professional-workspace-current.md)
+passes 4,885 tests across all 414 maintained targets on source `84c17760`.
+It supersedes the pending whole-workspace gate below for that exact source;
+subsequent main alignment and final-head CI retain their separate boundaries.
+
 This checkpoint combines the external-camera/depth/rational-clock branch and
 its three professional-compositing test targets on main `e314cc92`. The source
 is merge `e8ff7a1ac1f91b6ec80507a778d91aaef0aff827`. Both parents remain in
