@@ -99,7 +99,7 @@ pub fn passive(
 pub fn passive_compact(list: &mut PaintList, atlas: &mut TextAtlas, rect: Rect,
     value: f64, input: &Input, enabled: bool, inline_inspector: bool, left: bool) {
     let styles = list.styles();
-    use motion_ui::style::{box_style, text_style, State, States};
+    use motion_ui::style::{box_style, State, States};
     let mut states = States::default();
     if enabled && rect.contains(input.mouse) { states = states.with(State::Hovered); }
     if !enabled { states = states.with(State::Disabled); }
@@ -107,8 +107,8 @@ pub fn passive_compact(list: &mut PaintList, atlas: &mut TextAtlas, rect: Rect,
     let height = styles.metric("field.height", 18.).min(rect.height());
     let rect = Rect::new(rect.min[0], rect.min[1] + (rect.height() - height) * 0.5, rect.width(), height);
     box_style(list, rect, style);
-    text_style(list, atlas, rect.shrink(style.padding),
-        &motion_ui::widgets::compact_number(value), style, if left { Align::Left } else { Align::Right });
+    motion_ui::ui::number_text(list, atlas, rect.shrink(style.padding), value,
+        motion_ui::ui::NumberFormat::Compact, style, if left { Align::Left } else { Align::Right });
 }
 pub fn passive_with_precision(
     list: &mut PaintList,
@@ -121,7 +121,7 @@ pub fn passive_with_precision(
 ) {
     let styles = list.styles();
 
-    use motion_ui::style::{box_style, text_style, State, States};
+    use motion_ui::style::{box_style, State, States};
     let mut states = States::default();
     if enabled && rect.contains(input.mouse) {
         states = states.with(State::Hovered);
@@ -131,11 +131,12 @@ pub fn passive_with_precision(
     }
     let style = styles.as_ref().resolve("field.number", states).unwrap();
     box_style(list, rect, style);
-    text_style(
+    motion_ui::ui::number_text(
         list,
         atlas,
         rect.shrink(style.padding),
-        &format!("{:.*}", decimals.min(8), value),
+        value,
+        motion_ui::ui::NumberFormat::Fixed(decimals),
         style,
         Align::Right,
     );

@@ -80,6 +80,12 @@ fn triangle_clipping_preserves_legacy_vertices_for_edges_and_random_crossings() 
             for (a, b) in actual.iter().flatten().zip(expected.iter().flatten()) {
                 assert_eq!(a.to_bits(), b.to_bits(), "{input:?} {area:?}");
             }
+            let mut owned = input.clone();
+            super::clip_owned_triangles(&mut owned, area);
+            assert_eq!(owned.len(), expected.len(), "owned {input:?} {area:?}");
+            for (a, b) in owned.iter().flatten().zip(expected.iter().flatten()) {
+                assert_eq!(a.to_bits(), b.to_bits(), "owned {input:?} {area:?}");
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ pub mod shaping;
 pub mod glyph_index;
 pub mod layout;
 mod fitting;
+mod formatting;
 mod fallback;
 pub use fallback::FallbackError;
 pub use fitting::FittedLine;
@@ -92,6 +93,7 @@ pub struct TextAtlas {
     indexed_entries: std::collections::HashMap<(glyph_index::FontSlot, u16, u32, u32), GlyphEntry>,
     layouts: layout::LayoutCache,
     fitted_layouts: fitting::FitCache,
+    formatting_scratch: String,
     pixel_ratio: f32,
     pub selected_family: String,
     #[cfg(target_os = "windows")]
@@ -209,6 +211,7 @@ impl TextAtlas {
             indexed_entries: std::collections::HashMap::new(),
             layouts: Default::default(),
             fitted_layouts: Default::default(),
+            formatting_scratch: String::new(),
             pixel_ratio: 1.,
             selected_family: "custom".into(),
             #[cfg(target_os = "windows")]

@@ -503,12 +503,13 @@ impl NumberEditor {
                 .resolve(class, states)
                 .expect("numeric field style");
             crate::style::box_style(list, area, style);
-            crate::style::text_style(
+            ui::number_text(
                 list,
                 atlas,
                 area.shrink(style.padding),
-                &if self.compact { compact_number(value) } else {
-                    format!("{:.*}", options.decimals.min(8), value)
+                value,
+                if self.compact { ui::NumberFormat::Compact } else {
+                    ui::NumberFormat::Fixed(options.decimals)
                 },
                 style,
                 if self.align_left { Align::Left } else { Align::Right },

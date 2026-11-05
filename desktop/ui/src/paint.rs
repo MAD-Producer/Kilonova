@@ -9,6 +9,8 @@ use crate::input::Rect;
 use crate::theme::Color;
 mod strokes;
 mod static_mesh;
+mod index_map;
+use index_map::{IndexMap, Scratch};
 pub use static_mesh::StaticMesh;
 pub mod allocation;
 mod memory;
@@ -16,6 +18,8 @@ mod bitmaps;
 pub use bitmaps::{Bitmap, ImageQuad, MAX_BITMAPS};
 #[cfg(test)]
 mod triangle_clip_tests;
+#[cfg(test)]
+mod clip_storage_tests;
 
 /// One drawable shape.
 #[derive(Clone, Debug)]
@@ -147,7 +151,8 @@ impl PaintList {
     pub fn retain_glyphs(&mut self, mut keep: impl FnMut(&Glyph) -> bool) {
         self.legacy_order();
         let len = self.glyphs.len();
-        let mut mapping: Option<Vec<Option<usize>>> = None;
+        let mut order = Scratch::new(&mut self.order);
+        let mut mapping: Option<IndexMap> = None;
         let mut old = 0;
         let mut next = 0;
         self.glyphs.retain(|glyph| {
@@ -155,38 +160,24 @@ impl PaintList {
             old += 1;
             if keep(glyph) {
                 if let Some(mapping) = &mut mapping {
-                    mapping[index] = Some(next);
+                    order.set(*mapping, index, next);
                 }
                 next += 1;
                 true
             } else {
                 if mapping.is_none() {
                     // Until the first removal, all indices still map to themselves.
-                    let mut entries = vec![None; len];
-                    for (index, entry) in entries.iter_mut().take(index).enumerate() {
-                        *entry = Some(index);
-                    }
-                    mapping = Some(entries);
+                    mapping = Some(order.map(len, index));
                 }
                 false
             }
         });
         if let Some(mapping) = mapping {
-            self.order.retain_mut(|op| match op {
-                PaintOp::Shape(_) | PaintOp::Image(_) => true,
-                PaintOp::Glyph(index) => {
-                    if let Some(new) = mapping[*index] {
-                        *index = new;
-                        true
-                    } else {
-                        false
-                    }
-                }
-            });
+            order.compact_glyphs(mapping);
         } else {
             // Public buffers can contain stale indices; preserve the bounds check
             // even when every glyph survives and the order needs no remapping.
-            for op in &self.order {
+            for op in order.original() {
                 if let PaintOp::Glyph(index) = op {
                     let _ = &self.glyphs[*index];
                 }
@@ -197,8 +188,9 @@ impl PaintList {
     pub fn clip_to(&mut self, area: Rect) {
         let shape_len = self.shapes.len();
         let glyph_len = self.glyphs.len();
-        let mut shape_map: Option<Vec<Option<usize>>> = None;
-        let mut glyph_map: Option<Vec<Option<usize>>> = None;
+        let mut order = Scratch::new(&mut self.order);
+        let mut shape_map: Option<IndexMap> = None;
+        let mut glyph_map: Option<IndexMap> = None;
         // Keep the old zip truncation for callers that fill the public buffers
         // directly, while retaining their allocations through compaction.
         self.shapes.truncate(self.colors.len());
@@ -234,7 +226,7 @@ impl PaintList {
                 // A complete triangle list inside the clip needs no new output.
                 // Keep incomplete lists on the existing chunks_exact path.
                 if points.len() % 3 != 0 || !points.iter().all(|p| area.contains(*p)) {
-                    *points = clip_triangles(points, area);
+                    clip_owned_triangles(points, area);
                 }
                 !points.is_empty()
             } else {
@@ -265,9 +257,9 @@ impl PaintList {
                 // the identity prefix only when a surviving shape actually moves.
                 if old != new_shape {
                     let mapping = shape_map.get_or_insert_with(|| {
-                        (0..shape_len).map(|i| (i < new_shape).then_some(i)).collect()
+                        order.map(shape_len, new_shape)
                     });
-                    mapping[old] = Some(new_shape);
+                    order.set(*mapping, old, new_shape);
                 }
                 new_shape += 1;
             }
@@ -276,7 +268,7 @@ impl PaintList {
         if let Some(mapping) = &shape_map {
             let mut old_color = 0;
             self.colors.retain(|_| {
-                let keep = mapping[old_color].is_some();
+                let keep = order.at(*mapping, old_color).is_some();
                 old_color += 1;
                 keep
             });
@@ -294,49 +286,38 @@ impl PaintList {
             *glyph = clipped;
             if old != new_glyph {
                 let mapping = glyph_map.get_or_insert_with(|| {
-                    (0..glyph_len).map(|i| (i < new_glyph).then_some(i)).collect()
+                    order.map(glyph_len, new_glyph)
                 });
-                mapping[old] = Some(new_glyph);
+                order.set(*mapping, old, new_glyph);
             }
             new_glyph += 1;
             true
         });
         let shapes = self.shapes.len();
         let glyphs = self.glyphs.len();
-        let mut image_map = Vec::with_capacity(self.images.len());
+        let image_len = self.images.len();
+        let mut image_map: Option<IndexMap> = None;
+        let mut old_image = 0;
         let mut next = 0;
         self.images.retain_mut(|image| {
+            let old = old_image;
+            old_image += 1;
             if let Some(clipped) = image.clipped(area) {
                 *image = clipped;
-                image_map.push(Some(next));
+                if old != next {
+                    let mapping = image_map.get_or_insert_with(|| {
+                        order.map(image_len, next)
+                    });
+                    order.set(*mapping, old, next);
+                }
                 next += 1;
                 true
             } else {
-                image_map.push(None);
                 false
             }
         });
-        self.order.retain_mut(|op| {
-            if let PaintOp::Image(index) = op {
-                if let Some(Some(new)) = image_map.get(*index) { *index=*new; return true; }
-                return false;
-            }
-            let (index, mapping, len) = match op {
-                PaintOp::Shape(index) => (index, &shape_map, shapes),
-                PaintOp::Glyph(index) => (index, &glyph_map, glyphs),
-                PaintOp::Image(_) => unreachable!(),
-            };
-            if let Some(mapping) = mapping {
-                if let Some(Some(new)) = mapping.get(*index) {
-                    *index = *new;
-                    true
-                } else {
-                    false
-                }
-            } else {
-                *index < len
-            }
-        });
+        let images = self.images.len();
+        order.compact_clipped([shape_map, glyph_map, image_map], [shapes, glyphs, images]);
     }
     pub fn append(&mut self, mut other: Self) {
         self.legacy_order();
@@ -358,6 +339,22 @@ impl PaintList {
 }
 
 /// Sutherland-Hodgman clipping preserves an icon's silhouette at panel edges.
+fn clip_owned_triangles(points: &mut Vec<[f32; 2]>, area: Rect) {
+    if area.width() <= 0. || area.height() <= 0. {
+        points.clear();
+        return;
+    }
+    let input_len = points.len();
+    // Append beyond the original input so expanded polygons cannot overwrite
+    // unread triangles. Draining the prefix retains this owner's allocation.
+    for start in (0..input_len - input_len % 3).step_by(3) {
+        let triangle = [points[start], points[start + 1], points[start + 2]];
+        clip_triangle(triangle, area, |triangle| points.extend_from_slice(&triangle));
+    }
+    points.drain(..input_len);
+}
+
+/// Fresh output is still needed when an inline quad first becomes triangles.
 fn clip_triangles(points: &[[f32; 2]], area: Rect) -> Vec<[f32; 2]> {
     let mut result = Vec::new();
     if area.width() <= 0. || area.height() <= 0. {

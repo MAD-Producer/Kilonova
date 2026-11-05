@@ -8,6 +8,8 @@ use std::{
     cell::Cell,
     hint::black_box,
 };
+#[path = "paint_clip_buffers/crossing.rs"]
+mod crossing;
 
 thread_local! { static COUNT: Cell<Option<usize>> = const { Cell::new(None) }; }
 struct Allocator;
