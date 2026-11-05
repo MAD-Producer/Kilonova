@@ -6,6 +6,7 @@ use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
 pub mod shaping;
 pub mod glyph_index;
 pub mod layout;
+mod caret;
 mod fitting;
 mod formatting;
 mod fallback;

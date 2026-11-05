@@ -1,5 +1,6 @@
 //! Opt-in multiline drafts share the field editor's bounded history, native
 //! clipboard sessions and grapheme boundaries. Existing fields stay single-line.
+use super::text_line::ExpandedLine;
 use super::*;
 use crate::{input::MouseButton, InputSource};
 use std::ops::Range;
@@ -45,14 +46,17 @@ impl TextEditor {
         self.preferred_column = None;
     }
     pub(super) fn remove_selection(&mut self) -> bool {
-        let Some(range) = self.selection_bytes() else {
+        let selection = self.selection_bytes();
+        // An empty draft may still carry begin()/Ctrl+A's select-all state.
+        // Consuming it must clear that state before the next insertion.
+        self.anchor = None;
+        self.select_all = false;
+        let Some(range) = selection else {
             return false;
         };
         let start = range.start;
         self.text.replace_range(range, "");
         self.place_after_byte(start);
-        self.anchor = None;
-        self.select_all = false;
         true
     }
     pub(super) fn filtered_text(&self, text: &str) -> String {
@@ -60,7 +64,7 @@ impl TextEditor {
             .filter(|c| !c.is_control() || self.multiline && matches!(c, '\n' | '\t'))
             .collect()
     }
-    fn navigate(&mut self, next: usize, extend: bool) {
+    pub(super) fn navigate(&mut self, next: usize, extend: bool) {
         if extend {
             if self.select_all {
                 self.anchor = Some(0);
@@ -328,7 +332,7 @@ impl TextEditor {
             .round()
             .clamp(1., 16.) as usize;
         let measure = |atlas: &mut TextAtlas, text: &str| {
-            atlas.measure(&expand_tabs(text, tabs)) * style.font_size / atlas.font_size()
+            atlas.measure(&ExpandedLine::new(text, tabs).text) * style.font_size / atlas.font_size()
         };
         let pointer_byte =
             |editor: &TextEditor, point: [f32; 2], view: &TextViewport, atlas: &mut TextAtlas| {
@@ -338,17 +342,21 @@ impl TextEditor {
                 let mut start = 0;
                 for (index, line) in editor.text.split('\n').enumerate() {
                     if index == row {
-                        let x = (point[0] - body.min[0] + view.scroll[0]).max(0.);
-                        let mut previous = 0.;
-                        for (at, cluster) in line.grapheme_indices(true) {
-                            let end = at + cluster.len();
-                            let next = measure(atlas, &line[..end]);
-                            if x < (previous + next) * 0.5 {
-                                return start + at;
+                        let x = (point[0] - body.min[0] + view.scroll[0]) / style.font_size;
+                        let expanded = ExpandedLine::new(line, tabs);
+                        let Some(layout) = atlas.editor_layout(&expanded.text) else {
+                            return start;
+                        };
+                        return match expanded.hit_test(atlas, &layout, x) {
+                            Some(byte) => start + byte,
+                            None => {
+                                atlas.report_layout_failure(
+                                    "editor_pointer",
+                                    format_args!("row={row} x={x}"),
+                                );
+                                start
                             }
-                            previous = next;
-                        }
-                        return start + line.len();
+                        };
                     }
                     start += line.len() + 1;
                 }
@@ -370,8 +378,12 @@ impl TextEditor {
         let event = self.input(&input);
         let (line, _) = self.caret_line_column();
         let caret_byte = self.byte_index();
-        let line_text = self.text[..caret_byte].rsplit('\n').next().unwrap_or("");
-        let caret_x = measure(atlas, line_text);
+        let (line_start, line_end) = self.line_bounds();
+        let expanded = ExpandedLine::new(&self.text[line_start..line_end], tabs);
+        let caret_x = atlas
+            .editor_layout(&expanded.text)
+            .map(|layout| expanded.caret(atlas, &layout, caret_byte - line_start) * style.font_size)
+            .unwrap_or(0.);
         if viewport.last_caret != Some(caret_byte) {
             let y = (line - 1) as f32 * line_height;
             if y < viewport.scroll[1] {
@@ -408,6 +420,11 @@ impl TextEditor {
         for (index, text) in self.text.split('\n').enumerate() {
             if index >= first && index <= last {
                 let y = body.min[1] + index as f32 * line_height - viewport.scroll[1];
+                let expanded = ExpandedLine::new(text, tabs);
+                let Some(layout) = atlas.editor_layout(&expanded.text) else {
+                    start += text.len() + 1;
+                    continue;
+                };
                 ui::text_sized(
                     &mut gutter_paint,
                     atlas,
@@ -426,56 +443,93 @@ impl TextEditor {
                     let s = range.start.max(start);
                     let e = range.end.min(start + text.len());
                     if s < e || range.start <= start && range.end > start + text.len() {
-                        let x = measure(atlas, &text[..s.saturating_sub(start).min(text.len())]);
-                        let end = measure(atlas, &text[..e.saturating_sub(start).min(text.len())]);
-                        paint::rect(
-                            &mut text_paint,
-                            Rect::new(
-                                body.min[0] + x - viewport.scroll[0],
-                                y,
-                                (end - x).max(pad),
-                                line_height,
-                            ),
-                            sheet.color("selected"),
-                        );
+                        let s =
+                            expanded.mapped_byte(&layout, s.saturating_sub(start).min(text.len()));
+                        let e =
+                            expanded.mapped_byte(&layout, e.saturating_sub(start).min(text.len()));
+                        if let (Some(s), Some(e)) = (s, e) {
+                            layout.selection_spans(s..e, |span| {
+                                paint::rect(
+                                    &mut text_paint,
+                                    Rect::new(
+                                        body.min[0] + span[0] * style.font_size
+                                            - viewport.scroll[0],
+                                        y,
+                                        (span[1] - span[0]) * style.font_size,
+                                        line_height,
+                                    ),
+                                    sheet.color("selected"),
+                                )
+                            });
+                        } else {
+                            atlas.report_layout_failure(
+                                "editor_selection",
+                                format_args!("row={index} bytes={}", text.len()),
+                            );
+                        }
+                        if range.end > start + text.len() {
+                            paint::rect(
+                                &mut text_paint,
+                                Rect::new(
+                                    body.min[0] + layout.advance * style.font_size
+                                        - viewport.scroll[0],
+                                    y,
+                                    pad,
+                                    line_height,
+                                ),
+                                sheet.color("selected"),
+                            );
+                        }
                     }
                 }
-                let text_width = measure(atlas, text) + pad;
                 if let Some(colors) = colors {
-                    let expanded = expand_tabs(text, tabs);
-                    let parts = colors(index, &expanded);
-                    let mut prefix = String::new();
-                    for (part, color) in parts {
-                        let x = atlas.measure(&prefix) * style.font_size / atlas.font_size();
-                        prefix.push_str(&part);
-                        ui::text_sized(
-                            &mut text_paint,
-                            atlas,
-                            Rect::new(
-                                body.min[0] - viewport.scroll[0] + x,
-                                y,
-                                text_width,
-                                line_height,
+                    let parts = colors(index, &expanded.text);
+                    let valid = parts
+                        .iter()
+                        .flat_map(|(part, _)| part.bytes())
+                        .eq(expanded.text.bytes());
+                    if !valid {
+                        atlas.report_layout_failure(
+                            "editor_syntax",
+                            format_args!(
+                                "row={index} bytes={} parts={}",
+                                expanded.text.len(),
+                                parts.len()
                             ),
-                            &part,
-                            color,
-                            Align::Left,
-                            style.font_size,
                         );
                     }
-                    debug_assert_eq!(
-                        prefix, expanded,
-                        "syntax presentation must preserve source text"
-                    );
-                } else {
-                    ui::text_sized(
+                    ui::positioned_text(
                         &mut text_paint,
                         atlas,
-                        Rect::new(body.min[0] - viewport.scroll[0], y, text_width, line_height),
-                        &expand_tabs(text, tabs),
-                        style.foreground,
-                        Align::Left,
+                        Rect::new(body.min[0], y, body.width(), line_height),
+                        &layout,
+                        body.min[0] - viewport.scroll[0],
                         style.font_size,
+                        false,
+                        |byte| {
+                            if !valid {
+                                return style.foreground;
+                            }
+                            let mut end = 0;
+                            for (part, color) in &parts {
+                                end += part.len();
+                                if byte < end {
+                                    return *color;
+                                }
+                            }
+                            style.foreground
+                        },
+                    );
+                } else {
+                    ui::positioned_text(
+                        &mut text_paint,
+                        atlas,
+                        Rect::new(body.min[0], y, body.width(), line_height),
+                        &layout,
+                        body.min[0] - viewport.scroll[0],
+                        style.font_size,
+                        false,
+                        |_| style.foreground,
                     );
                 }
                 if self.active && index + 1 == line {
@@ -507,22 +561,6 @@ impl TextEditor {
         }
         event
     }
-}
-
-fn expand_tabs(text: &str, tab: usize) -> String {
-    let mut column = 0;
-    let mut output = String::new();
-    for cluster in text.graphemes(true) {
-        if cluster == "\t" {
-            let count = tab - column % tab;
-            output.extend(std::iter::repeat_n(' ', count));
-            column += count;
-        } else {
-            output.push_str(cluster);
-            column += 1;
-        }
-    }
-    output
 }
 
 #[cfg(test)]

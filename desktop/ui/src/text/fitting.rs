@@ -67,6 +67,7 @@ impl FitCache {
         let bytes = text.len()
             + value.layout.glyphs.capacity() * size_of::<super::layout::PositionedGlyph>()
             + value.layout.grapheme_boundaries.capacity() * size_of::<usize>();
+        let bytes = bytes + value.layout.grapheme_spans.capacity() * size_of::<[f32; 2]>();
         if bytes > MAX_BYTES {
             return;
         }

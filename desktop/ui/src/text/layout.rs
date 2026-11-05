@@ -70,6 +70,7 @@ pub struct LineLayout {
     pub glyphs: Vec<PositionedGlyph>,
     pub advance: f32,
     pub grapheme_boundaries: Vec<usize>,
+    pub(super) grapheme_spans: Vec<[f32; 2]>,
     /// Explicit unsupported glyphs, retained as ID 0, never scalar substitution.
     /// The drawing boundary must handle and observe this degradation.
     pub missing_glyphs: usize,
@@ -113,6 +114,7 @@ impl LayoutCache {
         let bytes = text.len()
             + value.glyphs.capacity() * size_of::<PositionedGlyph>()
             + value.grapheme_boundaries.capacity() * size_of::<usize>();
+        let bytes = bytes + value.grapheme_spans.capacity() * size_of::<[f32; 2]>();
         if bytes > MAX_CACHE_BYTES {
             return;
         }
@@ -221,7 +223,7 @@ impl TextAtlas {
                 })
             })
             .collect::<Result<_, LayoutError>>()?;
-        let boundaries = clusters
+        let boundaries: Vec<usize> = clusters
             .iter()
             .map(|c| c.range.start)
             .chain([text.len()])
@@ -310,6 +312,7 @@ impl TextAtlas {
             offset += paragraph.len();
         }
         let mut glyphs = Vec::new();
+        let mut grapheme_spans = vec![[f32::NAN; 2]; boundaries.len().saturating_sub(1)];
         let mut pen = [0., 0.];
         let mut missing = 0;
         for index in order {
@@ -345,6 +348,7 @@ impl TextAtlas {
                 });
             }
             let scale = 1. / f32::from(shaped.units_per_em);
+            super::caret::place_run(&boundaries, &mut grapheme_spans, run.range.clone(), &shaped, pen[0])?;
             for (info, position) in shaped.glyphs.iter().zip(shaped.positions) {
                 let cluster = run.range.start + info.cluster as usize;
                 let source = text
@@ -374,10 +378,17 @@ impl TextAtlas {
                 missing += usize::from(info.glyph_id == 0);
             }
         }
+        // Removed formatting/paragraph controls have no painted extent.
+        let mut previous = 0.;
+        for span in &mut grapheme_spans {
+            if span[0].is_nan() { *span = [previous; 2]; }
+            previous = span[1];
+        }
         let layout = Arc::new(LineLayout {
             glyphs,
             advance: pen[0],
             grapheme_boundaries: boundaries,
+            grapheme_spans,
             missing_glyphs: missing,
         });
         self.layouts.insert(text, Arc::clone(&layout));
