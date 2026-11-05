@@ -106,3 +106,123 @@ fn cached_fitted_layouts_keep_complete_graphemes_without_per_control_allocations
         }
     }
 }
+
+#[test]
+fn distinct_label_churn_keeps_retained_layouts_immutable_and_reports_allocations() {
+    // Exceed the bounded caches with real, different labels. Repeating one
+    // cached label 200 times does not exercise the layout miss path.
+    let labels: Vec<_> = (0..200)
+        .map(|n| format!("Property {n:03} cafe\u{301} / 位置 / سلام long label"))
+        .collect();
+    for chinese in [false, true] {
+        let mut atlas = TextAtlas::from_system_language(12., chinese).unwrap();
+        for width in [7., 100.] {
+            let retained = atlas.fit_line(&labels[0], width).unwrap();
+            let snapshot = retained
+                .layout
+                .glyphs
+                .iter()
+                .map(|g| (g.id, g.face, g.cluster, g.position, g.advance))
+                .collect::<Vec<_>>();
+            for count in [32, 200] {
+                for _ in 0..2 {
+                    for label in &labels[..count] {
+                        std::hint::black_box(atlas.fit_line(label, width).unwrap());
+                    }
+                }
+                let allocated = allocations(|| {
+                    for label in &labels[..count] {
+                        std::hint::black_box(atlas.fit_line(label, width).unwrap());
+                    }
+                });
+                println!("distinct_labels={count} chinese={chinese} width_em={width} allocations={allocated}");
+            }
+            assert_eq!(
+                retained
+                    .layout
+                    .glyphs
+                    .iter()
+                    .map(|g| (g.id, g.face, g.cluster, g.position, g.advance))
+                    .collect::<Vec<_>>(),
+                snapshot,
+                "eviction and scratch reuse must not overwrite an outstanding layout"
+            );
+            let rebuilt = atlas.fit_line(&labels[0], width).unwrap();
+            assert_eq!(rebuilt.prefix_end, retained.prefix_end);
+            assert_eq!(rebuilt.ellipsis, retained.ellipsis);
+            assert_eq!(rebuilt.layout.advance, retained.layout.advance);
+            assert_eq!(
+                rebuilt.layout.grapheme_boundaries,
+                retained.layout.grapheme_boundaries
+            );
+            assert_eq!(
+                rebuilt
+                    .layout
+                    .glyphs
+                    .iter()
+                    .map(|g| (g.id, g.face, g.cluster, g.position, g.advance))
+                    .collect::<Vec<_>>(),
+                snapshot
+            );
+        }
+    }
+}
+
+#[test]
+fn retained_shaping_plans_reduce_allocations_against_fresh_engine_plans() {
+    use harfrust::{Buffer, ClusterLevel, Direction, Font, Script, ShapeOptions, ShaperFont};
+    use motion_ui::text::shaping::RunShaper;
+    let mut database = fontdb::Database::new();
+    database.load_system_fonts();
+    let id = database
+        .query(&fontdb::Query {
+            families: &[fontdb::Family::SansSerif],
+            ..Default::default()
+        })
+        .unwrap();
+    let (bytes, index): (Arc<[u8]>, _) = database
+        .with_face_data(id, |bytes, index| (Arc::from(bytes), index))
+        .unwrap();
+    let source: Arc<dyn AsRef<[u8]> + Send + Sync> = Arc::new(bytes.clone());
+    let font = Font::new(source, index).unwrap();
+    let mut shaper = RunShaper::new(bytes, index).unwrap();
+    let mut buffer = Buffer::new();
+    let labels: Vec<_> = (0..200)
+        .map(|n| format!("Property {n:03} office AV"))
+        .collect();
+    let mut retained = || {
+        for text in &labels {
+            std::hint::black_box(
+                shaper
+                    .shape_script(text, Direction::LeftToRight, Some(Script::LATIN))
+                    .unwrap(),
+            );
+        }
+    };
+    let mut fresh = || {
+        for text in &labels {
+            buffer.clear();
+            buffer.push_str(text);
+            buffer.set_cluster_level(ClusterLevel::MonotoneGraphemes);
+            buffer.set_direction(Direction::LeftToRight);
+            buffer.set_script(Some(Script::LATIN));
+            buffer.guess_segment_properties();
+            harfrust::shape(
+                &ShaperFont::new(&font),
+                &mut buffer,
+                ShapeOptions::default(),
+            )
+            .unwrap();
+            std::hint::black_box(buffer.glyph_infos());
+        }
+    };
+    retained();
+    fresh();
+    let retained_count = allocations(retained);
+    let fresh_count = allocations(fresh);
+    println!("shaping_runs=200 retained_plan_allocations={retained_count} fresh_plan_allocations={fresh_count}");
+    assert!(
+        retained_count < fresh_count,
+        "reusing plans must reduce actual allocations on different runs"
+    );
+}

@@ -3,13 +3,17 @@
 //! Paragraph bidi resolution, font fallback and atlas rasterization belong to
 //! the caller. This module does not silently substitute scalar layout on error.
 
-use harfrust::{Buffer, ClusterLevel, Font, ShapeOptions, ShaperFont};
+use harfrust::{Buffer, ClusterLevel, Font, ShapeOptions, ShapePlan, ShapePlanKey, ShaperFont};
 use std::{fmt, sync::Arc};
 
 pub use harfrust::{Direction, GlyphInfo, GlyphPosition, Script};
 
 /// Reject oversized runs before allocating shaping scratch storage.
 pub const MAX_RUN_BYTES: usize = 16 * 1024;
+
+// Per immutable font, not per label or font size. Eviction is a normal cache
+// miss; it must not alter segment properties or the engine's default features.
+const MAX_PLANS: usize = 8;
 
 #[derive(Debug)]
 pub enum ShapeError {
@@ -69,6 +73,7 @@ impl ShapedRun<'_> {
 pub struct RunShaper {
     font: Font,
     buffer: Buffer,
+    plans: Vec<ShapePlan>,
 }
 
 impl RunShaper {
@@ -88,6 +93,7 @@ impl RunShaper {
         Ok(Self {
             font,
             buffer: Buffer::new(),
+            plans: Vec::new(),
         })
     }
 
@@ -126,10 +132,28 @@ impl RunShaper {
         self.buffer.set_direction(direction);
         self.buffer.set_script(script);
         self.buffer.guess_segment_properties();
+        let key = ShapePlanKey::new(&self.font, self.buffer.script(), self.buffer.direction())
+            .language(self.buffer.language());
+        let index = if let Some(index) = self.plans.iter().position(|plan| key.matches(plan)) {
+            index
+        } else {
+            let plan = ShapePlan::new(
+                &self.font,
+                self.buffer.direction(),
+                self.buffer.script(),
+                self.buffer.language(),
+                &[],
+            );
+            if self.plans.len() == MAX_PLANS {
+                self.plans.remove(0);
+            }
+            self.plans.push(plan);
+            self.plans.len() - 1
+        };
         harfrust::shape(
             &ShaperFont::new(&self.font),
             &mut self.buffer,
-            ShapeOptions::default(),
+            ShapeOptions::default().plan(Some(&self.plans[index])),
         )
         .map_err(ShapeError::Engine)?;
         Ok(ShapedRun {
