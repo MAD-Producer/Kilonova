@@ -469,3 +469,6 @@ fn mapped_speculative_failure_stays_visible_without_retrying_or_poisoning_the_re
     wait(|| stream.ready(3).is_ok());
     assert_eq!(stream.ready(3).unwrap().pts, 620_000);
 }
+
+mod upcoming;
+mod upcoming_fault;

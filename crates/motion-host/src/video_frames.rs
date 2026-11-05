@@ -19,6 +19,7 @@ mod retirement;
 use retirement::RetiredStream;
 mod shutdown;
 mod mapped_prefetch;
+mod warmup;
 static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
 #[derive(Clone, Copy)]
@@ -485,6 +486,11 @@ pub struct VideoFrames {
     // Per-reader consecutive prefetch-enabled planning attempts. A successful
     // plan, including no mapped clips or no active video, resets this counter.
     prefetch_planning: motion_render::observability::FailureCounter,
+    warmup: motion_render::VideoLookahead,
+    // Per-reader consecutive authored warmup planning failures; a successful
+    // plan (including no candidates/backpressure) resets this bounded counter.
+    warmup_planning: motion_render::observability::FailureCounter,
+    warmup_errors: HashMap<u64, warmup::Failure>,
     streams: HashMap<u64, Stream>,
     // Public sequences never share a namespace with automatic preview generations.
     sequences: HashMap<u64, (u64, f64, u64)>,
@@ -536,6 +542,9 @@ impl VideoFrames {
         }
         self.sequences.clear();
         self.sampling_recent.clear();
+        self.warmup = Default::default();
+        self.warmup_errors.clear();
+        self.warmup_planning.success();
     }
     /// Stop and join every owned decoder. Only call on an independent export
     /// worker: native decoder closure can block. Retain that worker's slot and
@@ -690,6 +699,10 @@ impl VideoFrames {
         future: Option<&mapped_prefetch::Times>,
     ) -> Result<Value> {
         self.reap_retired()?;
+        if let Some(failure) = self.warmup_errors.get(&object) {
+            if failure.asset == *asset { return Err(failure.error.clone()); }
+            self.warmup_errors.remove(&object);
+        }
         if self.streams.get(&object).is_some_and(|s| s.asset != *asset) {
             self.retire(object);
         }
@@ -801,7 +814,12 @@ impl VideoFrames {
             }
         } else { Some(HashMap::new()) };
         let no_prefetch = [None; LOOKAHEAD];
-        let inactive: Vec<_> = self.streams.keys().filter(|object| !layers.iter().any(|l| l.id == **object)).copied().collect();
+        let required: Vec<_> = layers.iter().map(|l| l.id).collect();
+        let upcoming = if prefetch { self.upcoming(project, scene, &required) } else { Vec::new() };
+        self.warmup_errors.retain(|object, _| required.contains(object)
+            || upcoming.iter().any(|candidate| candidate.object == *object));
+        let inactive: Vec<_> = self.streams.keys().filter(|object| !required.contains(object)
+            && !upcoming.iter().any(|candidate| candidate.object == **object)).copied().collect();
         if retain_idle {
             let missing=layers.iter().filter(|layer| !self.streams.contains_key(&layer.id)).count();
             let allowed=MAX_DECODER_WORKERS.saturating_sub(missing);
@@ -854,6 +872,9 @@ impl VideoFrames {
                 _ => pending = true,
             }
         }
+        // Mandatory requests are installed first. Idle capacity alone may warm
+        // new instances; their readiness never blocks this frame's completion.
+        self.warm_up(root, &upcoming);
         if pending {
             Ok(None)
         } else {
