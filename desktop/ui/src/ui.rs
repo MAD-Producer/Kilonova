@@ -7,6 +7,8 @@
 use crate::input::{Event, Input, Key, MouseButton, Rect};
 use crate::paint::{self, PaintList};
 use crate::theme::Color;
+mod numeric_readout;
+pub use numeric_readout::{number_text, NumberFormat};
 
 /// Interaction result for one widget.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -319,14 +321,13 @@ pub fn scrub_field(
         Align::Left,
         atlas.font_size(),
     );
-    text_clipped(
+    numeric_readout::scrub_text(
         list,
         atlas,
         right,
-        &format_value(value),
+        value,
         colors.TEXT,
         Align::Right,
-        atlas.font_size(),
     );
     Response {
         hovered,
