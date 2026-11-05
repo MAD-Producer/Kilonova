@@ -124,3 +124,26 @@ that metadata wording update. Its 103 members were read back and verified:
 The actual `motion-effects` package-loader/shader validation also passed:
 1 passed, 0 failed, 0 ignored (0.05 seconds). No full-workspace result or
 cross-platform run is claimed for this separate sample branch.
+
+## Latest main integration
+
+Rebased onto main `ead8ce0c` and verified commit `6f5091c0` with the
+unchanged shader, preset, mask geometry and assertions. The first offline
+compile stopped before test execution because the local index lacked main's
+pinned harfrust 0.15.0 dependency. The subsequent locked online resolution and
+link succeeded without changing Cargo.lock or any dependency declaration.
+Both receipts remain separate.
+
+The exact linked executable SHA-256 is
+`75c0d0768044d9d63faf54a934b12fd09e75478be22c16f27645d72bc2ac29b3`.
+Actual GPU execution: **2 passed, 0 failed, 0 ignored**, 20.20 seconds.
+All 46 emitted PNGs (including raw failure, assisted results, crops,
+matte and frozen outputs) are byte-exact to the previously inspected v4 images.
+The actual package-loader/shader validation separately passed 1/0/0 in 0.06
+seconds after this rebase. No original test assertion or threshold changed.
+
+`data/professional86-key-main-rebase.zip` preserves the integration receipts, original dependency-cache
+failure, logs, projects/commands and image identity comparison; duplicate PNGs
+remain in the preceding archive. It contains 27 verified members,
+392,409 bytes, SHA-256 `9a282a7d5327c575e242ec446de4b0d4c1a97cf2e93b5f9b8ee278b6ee07a7b2`. These scoped checks do not claim
+full-workspace or final-head cross-platform acceptance.
