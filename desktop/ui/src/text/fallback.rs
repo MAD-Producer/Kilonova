@@ -308,6 +308,43 @@ mod tests {
     use crate::text::format_controls_tests::Capture;
     use std::{fs, sync::Mutex};
 
+    fn capacity_catalog() -> Arc<Catalog> {
+        let installed = system_catalog();
+        let face = installed.database.faces().find(|face| {
+            installed.database.with_face_data(face.id, |data,index| {
+                FontRef::try_from_slice_and_index(data,index)
+                    .is_ok_and(|font| font.glyph_id('A').0 != 0)
+            }).unwrap_or(false)
+        }).expect("capacity fixture needs one parseable installed face covering A").clone();
+        let mut database = fontdb::Database::new();
+        database.push_face_info(face);
+        Arc::new(Catalog::new(database))
+    }
+
+    #[test]
+    fn capacity_fixture_isolates_capacity_without_discarding_real_source_faults() {
+        let isolated = capacity_catalog();
+        let good = isolated.database.faces().next().unwrap().clone();
+        let mut bad = good.clone();
+        bad.source = fontdb::Source::Binary(Arc::new(Vec::<u8>::new()));
+        let mut database = fontdb::Database::new();
+        database.push_face_info(bad);
+        database.push_face_info(good);
+        let mut mixed = Catalog::new(database);
+        mixed.candidates = mixed.database.faces().map(|f| f.id).collect();
+        for (catalog, failures) in [(isolated,1), (Arc::new(mixed),2)] {
+            let mut healthy = FontFallback::new(Arc::clone(&catalog));
+            assert!(healthy.resolve("A",12.,&Default::default()).unwrap().is_some());
+            assert_eq!(healthy.faces.len(),1);
+            let mut pool = FontFallback::new(catalog);
+            pool.max_bytes = 1;
+            assert!(pool.resolve("A",12.,&Default::default()).unwrap_err().capacity);
+            assert_eq!(pool.misses.get("A").unwrap().candidate_failures,failures);
+            assert_eq!(pool.probes,failures);
+            assert!(pool.faces.is_empty() && pool.bytes == 0);
+        }
+    }
+
     fn missing_catalog(path: &std::path::Path) -> Arc<Catalog> {
         let mut face = system_catalog().database.faces().next().unwrap().clone();
         face.source = fontdb::Source::File(path.to_owned());
@@ -499,7 +536,7 @@ mod tests {
                 assert!(replacement.resolve(private, 12., &fresh).unwrap().is_none());
             }
             assert_eq!(fs::read_to_string(&path).unwrap().lines().count(), 4);
-            let mut limited = FontFallback::new(system_catalog());
+            let mut limited = FontFallback::new(capacity_catalog());
             limited.max_bytes = 1;
             let capacity_owner = Default::default();
             for _ in 0..120 {

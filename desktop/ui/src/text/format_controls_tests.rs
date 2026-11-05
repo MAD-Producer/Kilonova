@@ -19,6 +19,18 @@ fn unsupported_selector(atlas: &TextAtlas) -> char {
         )
 }
 
+fn missing_glyph_atlas() -> TextAtlas {
+    let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
+    // This fixture exercises the missing-glyph boundary, not discovery of
+    // every installed face. macOS LastResort covers unassigned code points.
+    atlas.system_fallback = None;
+    assert!(!atlas.supports('\u{10ffff}'));
+    let missing = atlas.layout_line("\u{10ffff}").unwrap();
+    assert_eq!(missing.missing_glyphs, 1);
+    assert_eq!(missing.glyphs[0].id, 0);
+    atlas
+}
+
 #[test]
 fn unsupported_variation_sequences_do_not_add_fallback_spacing() {
     let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
@@ -102,7 +114,7 @@ fn shaped_draw_failures_keep_bounded_default_level_causes_and_owner_scope() {
         )))))
         .unwrap();
         log::set_max_level(log::LevelFilter::Info);
-        let mut atlas = TextAtlas::from_system_language(12., false).unwrap();
+        let mut atlas = missing_glyph_atlas();
         let area = Rect::new(0., 0., 500., 40.);
         let draw = |atlas: &mut TextAtlas, label: &str, size: f32| {
             let mut paint = PaintList::default();
@@ -160,7 +172,7 @@ fn shaped_draw_failures_keep_bounded_default_level_causes_and_owner_scope() {
         assert!(events.contains("size=NaN") && events.contains("pixel_ratio=1"));
         assert!(!draw(&mut atlas, "healthy", 12.).glyphs.is_empty());
         assert_eq!(fs::read_to_string(&path).unwrap(), events);
-        let mut replacement = TextAtlas::from_system_language(12., false).unwrap();
+        let mut replacement = missing_glyph_atlas();
         for _ in 0..60 {
             assert!(draw(&mut replacement, "\u{10ffff}", 12.).glyphs.is_empty());
         }
