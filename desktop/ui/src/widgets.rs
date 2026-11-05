@@ -151,7 +151,10 @@ impl TextEditor {
                     self.cursor = self.text.graphemes(true).count();
                 }
                 Key::Left | Key::Right => {
-                    let next = if let Some(range) = self.selection_bytes().filter(|_| !mods.shift) {
+                    // Initial field-wide selection keeps the established
+                    // one-grapheme navigation from its caret. Explicit partial
+                    // selections collapse to their edge before continuing.
+                    let next = if let Some(range) = self.selection_bytes().filter(|_| !mods.shift && !self.select_all) {
                         let byte = if key == Key::Left { range.start } else { range.end };
                         self.text[..byte].graphemes(true).count()
                     } else if key == Key::Left {
