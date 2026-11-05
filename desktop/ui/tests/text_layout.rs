@@ -1,6 +1,8 @@
 use motion_ui::text::TextAtlas;
 #[path = "support/installed_font.rs"]
 mod installed_font;
+#[path = "text_layout/working_set.rs"]
+mod working_set;
 use std::{
     alloc::{GlobalAlloc, Layout, System},
     cell::Cell,

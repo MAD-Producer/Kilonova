@@ -7,8 +7,17 @@ use std::{collections::HashMap, fmt, ops::Range, sync::Arc};
 use unicode_bidi::{BidiInfo, Level, ParagraphBidiInfo};
 use unicode_segmentation::UnicodeSegmentation;
 
-const MAX_CACHE_ENTRIES: usize = 128;
 const MAX_CACHE_BYTES: usize = 1024 * 1024;
+// Bound keys and values by their retained storage, rather than evicting a small
+// working set solely because it contains more than 128 different labels.
+const ENTRY_BYTES: usize = size_of::<(Arc<str>, CachedLayout)>() + ARC_HEADER_BYTES;
+const MAX_CACHE_ENTRIES: usize =
+    MAX_CACHE_BYTES / (ENTRY_BYTES + LineLayout::FIXED_RETAINED_BYTES);
+pub(super) const ARC_HEADER_BYTES: usize = 2 * size_of::<usize>();
+
+#[cfg(test)]
+#[path = "layout/budget_tests.rs"]
+mod budget_tests;
 const MAX_LAYOUT_GLYPHS: usize = 16 * 1024;
 
 #[derive(Debug)]
@@ -76,6 +85,17 @@ pub struct LineLayout {
     pub missing_glyphs: usize,
 }
 
+impl LineLayout {
+    pub(super) const FIXED_RETAINED_BYTES: usize = size_of::<Self>() + ARC_HEADER_BYTES;
+
+    pub(super) fn retained_bytes(&self) -> usize {
+        Self::FIXED_RETAINED_BYTES
+            + self.glyphs.capacity() * size_of::<PositionedGlyph>()
+            + self.grapheme_boundaries.capacity() * size_of::<usize>()
+            + self.grapheme_spans.capacity() * size_of::<[f32; 2]>()
+    }
+}
+
 struct CachedLayout {
     value: Arc<LineLayout>,
     age: u64,
@@ -111,12 +131,16 @@ impl LayoutCache {
         })
     }
     fn insert(&mut self, text: &str, value: Arc<LineLayout>) {
-        let bytes = text.len()
-            + value.glyphs.capacity() * size_of::<PositionedGlyph>()
-            + value.grapheme_boundaries.capacity() * size_of::<usize>();
-        let bytes = bytes + value.grapheme_spans.capacity() * size_of::<[f32; 2]>();
+        // Charge shared layouts in full in each cache: outstanding callers must
+        // not let either cache retain unaccounted data. Hash-table spare buckets
+        // and allocator overhead are separate from this retained-data budget;
+        // the positive minimum entry charge also bounds table capacity.
+        let bytes = ENTRY_BYTES + text.len() + value.retained_bytes();
         if bytes > MAX_CACHE_BYTES {
             return;
+        }
+        if let Some(old) = self.entries.remove(text) {
+            self.bytes -= old.bytes;
         }
         while self.entries.len() >= MAX_CACHE_ENTRIES || self.bytes + bytes > MAX_CACHE_BYTES {
             let Some(oldest) = self
