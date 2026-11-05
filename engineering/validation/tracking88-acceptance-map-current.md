@@ -96,3 +96,12 @@ parent 52b26fda and main 0790404f after #583 merged. Its 281 passes include
 seven complete renderer targets, the complete host library and actual native
 Surface, prefetch and original-clock controls. Earlier counts retain their
 original scope; this is not full desktop/workspace or final CI acceptance.
+
+## Combined professional-compositing source
+
+The [combined current-main checkpoint](3d-professional-main-integration-current.md)
+merges the external-camera branch and the key/holdout/photographed-screen samples
+on main e314cc92. Four actual tests pass across three complete selected targets;
+all 61 source/golden/native/frozen PNGs match retained bytes. It preserves the
+full-workspace, native-crash and final-head CI boundaries rather than transferring
+historical green results to the new combined source.
