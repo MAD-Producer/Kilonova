@@ -8,6 +8,11 @@ outside that checkpoint.
 
 Issue #88 remains open. This map distinguishes the implemented imported-data
 route from optional tracker research, full regression, and the broader 3D route.
+
+The [actual depth-inference/frozen-output checkpoint](depth74-inferred-render-current.md)
+adds real ONNX-to-3D evidence on the rebased source. Its original full-workspace
+gate stops with linker disk exhaustion before any tests execute. This narrow
+pass leaves full regression and the earlier native access violations unresolved.
 Earlier `*-current.md` files are chronological increment reports: a remaining
 item in an early report may be implemented by a later linked increment. It is
 not evidence that every later acceptance boundary is closed.
