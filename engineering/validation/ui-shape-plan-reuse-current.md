@@ -88,3 +88,12 @@ P1（未完成）：布局 miss 的 BidiInfo、Vec 与 Arc 分配仍然存在，
 
 整合原始输出、源码和差异身份核验保存在 ui-shape-plan-fixture-integration-evidence.zip，
 6 个成员，SHA-256 `696dfabfd0c56b9fbf70632d898c09e3c78ab4d32d62257f7034fb7ba46ab6a6`，逐成员核验通过。
+
+
+## 后续 Linux 字体别名夹具修正
+
+cb95f451 的 Linux job 126989881340 在分配比较前因 SansSerif 查询 None 而 panic，text_layout 为三通过、一失败。父 #607 已在 8e9f238e 提供按实际覆盖选择字体的共享测试夹具及缺失通用别名的红绿控制；本批重放后，让分配测试也使用它，并保留所有原计数及字形断言。重放时只解决 fixture_source 的冲突，生产塑形源码与 cb95f451 字节相同。
+
+最终 text_layout、text_shaping 各五项通过，零失败、零忽略、零过滤；其中共享别名控制分别在两个目标执行。200 次塑形仍为复用计划 0 次分配、原始参考 3000 次；不同标签的四组计数与修正前相同。原始完整 Linux 失败与父红绿控制见 ui-font-fixture-current.md；本批输出、源码及身份核验见 ui-font-fixture-stacked-evidence.zip，逐成员读回校验通过。
+
+这十项与此前完整 254 项有重叠，不累计；没有声称修正后的完整套件或新头 Linux CI 已通过。没有修改生产实现、字体缓存、性能预算、既有断言、忽略或超时。

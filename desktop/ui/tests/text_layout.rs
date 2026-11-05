@@ -1,4 +1,6 @@
 use motion_ui::text::TextAtlas;
+#[path = "support/installed_font.rs"]
+mod installed_font;
 use std::{
     alloc::{GlobalAlloc, Layout, System},
     cell::Cell,
@@ -174,15 +176,7 @@ fn retained_shaping_plans_reduce_allocations_against_fresh_engine_plans() {
     use motion_ui::text::shaping::RunShaper;
     let mut database = fontdb::Database::new();
     database.load_system_fonts();
-    let id = database
-        .query(&fontdb::Query {
-            families: &[fontdb::Family::SansSerif],
-            ..Default::default()
-        })
-        .unwrap();
-    let (bytes, index): (Arc<[u8]>, _) = database
-        .with_face_data(id, |bytes, index| (Arc::from(bytes), index))
-        .unwrap();
+    let (bytes, index) = installed_font::source(&database);
     let source: Arc<dyn AsRef<[u8]> + Send + Sync> = Arc::new(bytes.clone());
     let font = Font::new(source, index).unwrap();
     let mut shaper = RunShaper::new(bytes, index).unwrap();
