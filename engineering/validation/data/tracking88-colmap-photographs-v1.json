@@ -1,0 +1,275 @@
+{
+  "audit": {
+    "status": "photographed_native_lens_passed_complete_desktop_ui_has_one_native_child_failure",
+    "baseCommit": "e38bcec150614b0a8d337185650ee5ed7fe12d21",
+    "binarySha256": "1e80ff7d026cdbb15da4e9d72468e3f3a691e7af2a6a0cb56f31ebfed5bad010",
+    "totals": {
+      "focused-lens": {
+        "passed": 6,
+        "failed": 0,
+        "originalIgnored": 0,
+        "filtered": 0,
+        "targets": 2
+      },
+      "motion-model": {
+        "passed": 340,
+        "failed": 0,
+        "originalIgnored": 0,
+        "filtered": 0,
+        "targets": 55
+      },
+      "motion-core": {
+        "passed": 570,
+        "failed": 0,
+        "originalIgnored": 1,
+        "filtered": 0,
+        "targets": 89
+      },
+      "native-render": {
+        "passed": 170,
+        "failed": 0,
+        "originalIgnored": 0,
+        "filtered": 0,
+        "targets": 10
+      },
+      "host-lib": {
+        "passed": 180,
+        "failed": 0,
+        "originalIgnored": 0,
+        "filtered": 0,
+        "targets": 1
+      },
+      "desktop-ui": {
+        "passed": 1976,
+        "failed": 1,
+        "originalIgnored": 72,
+        "filtered": 0,
+        "targets": 31
+      }
+    },
+    "views": [
+      {
+        "name": "left03.jpg",
+        "heldOutRms": 0.17504018545150757,
+        "heldOutMax": 0.3317719101905823,
+        "maxAnchorErrorPixels": 5.1521711261456196e-05,
+        "checkedStablePixels": 282516,
+        "interiorStablePixels": 63526,
+        "maxByteError": 0,
+        "maxAlphaByteError": 0,
+        "blackWhiteCompositeByteErrors": [
+          0.0,
+          0.0
+        ],
+        "photoSha256": "c85b9426c3d8fcf161e1e727356105091009c3fd0b1b1a65bc2da91fea2724d2",
+        "captureSha256": "d9dcc6a6237b8c808a26cf249dfac03aa20813520b0c27bca8821b5bfeacce2c",
+        "originalDocumentSha256": "2bf0a97c2510e1701d0c69eb3ef70879a87c2e4610bc5ff4d970e035fa0569ac",
+        "undoRedoReopen": true,
+        "defaultErrorFileAndStderr": true
+      },
+      {
+        "name": "left08.jpg",
+        "heldOutRms": 0.2630630433559418,
+        "heldOutMax": 0.5631606578826904,
+        "maxAnchorErrorPixels": 4.51756934170951e-05,
+        "checkedStablePixels": 285275,
+        "interiorStablePixels": 54396,
+        "maxByteError": 0,
+        "maxAlphaByteError": 0,
+        "blackWhiteCompositeByteErrors": [
+          0.0,
+          0.0
+        ],
+        "photoSha256": "f7a0737894812a28243af5b409c5689f4fadfe7610958b8ca5fc79aec2f2cd1b",
+        "captureSha256": "8b75222595b6f935696339e0aad833b585d609a5d27e489af1e7f5f9efb6dbf4",
+        "originalDocumentSha256": "81d271208610bb1b7d71c70d75d70135714d3ad9a382a1bca4f98e61629ab70a",
+        "undoRedoReopen": true,
+        "defaultErrorFileAndStderr": true
+      },
+      {
+        "name": "left14.jpg",
+        "heldOutRms": 0.2150379866361618,
+        "heldOutMax": 0.4264626204967499,
+        "maxAnchorErrorPixels": 3.910387225685501e-05,
+        "checkedStablePixels": 286158,
+        "interiorStablePixels": 49918,
+        "maxByteError": 0,
+        "maxAlphaByteError": 0,
+        "blackWhiteCompositeByteErrors": [
+          0.0,
+          0.0
+        ],
+        "photoSha256": "d4c032971dd7b859f9d6aed5090c9888bd8039b82e0604bee5bfe05444fce834",
+        "captureSha256": "ae8e900d5618ba197e1a6a3cdeae4987ab2b4dfe6666dbac480f0b97a9f36098",
+        "originalDocumentSha256": "0925ae37f14fe6df5e92b6f14dafbb7435fac650fad295b29837a8d02a6b3bcf",
+        "undoRedoReopen": true,
+        "defaultErrorFileAndStderr": true
+      }
+    ],
+    "precisionRotations": [
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.0,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm8",
+        "rotation": "None"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.5560653435416192,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm16",
+        "rotation": "None"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.0019529859210254408,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float16",
+        "rotation": "None"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.43745010561247e-07,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float32",
+        "rotation": "None"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.0,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm8",
+        "rotation": "Clockwise90"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.555516500380206,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm16",
+        "rotation": "Clockwise90"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.00195300753022698,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float16",
+        "rotation": "Clockwise90"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.35776306642299e-07,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float32",
+        "rotation": "Clockwise90"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.0,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm8",
+        "rotation": "HalfTurn"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.5576200386871388,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm16",
+        "rotation": "HalfTurn"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.0019529333343331068,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float16",
+        "rotation": "HalfTurn"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.3723002112442373e-07,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float32",
+        "rotation": "HalfTurn"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.0,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm8",
+        "rotation": "Clockwise270"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.5580140284030319,
+        "negativeHdrAndAlpha": false,
+        "precision": "Unorm16",
+        "rotation": "Clockwise270"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 0.0019529761343841656,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float16",
+        "rotation": "Clockwise270"
+      },
+      {
+        "checkedPixels": 3283,
+        "contractionBound": 0.42324853139212554,
+        "inverseStep": 1.375,
+        "maximumError": 1.3125085152054794e-07,
+        "negativeHdrAndAlpha": true,
+        "precision": "Float32",
+        "rotation": "Clockwise270"
+      }
+    ],
+    "limits": [
+      "Independent OpenCV calibration exported in COLMAP text syntax, not COLMAP multi-view reconstruction",
+      "Three separate photographed poses, not continuous motion or surveyed metric scale",
+      "Native Unorm8 preview plus fresh reopen; all-precision, final export and source-bound CI separate",
+      "Complete desktop/UI targets, not complete workspace or Android",
+      "Same previously documented desktop/UI test-only codegen-units4; no assertion, time budget, ignore, stack, adapter or production-profile changes",
+      "One own GPU workload, default Info and adapter, all controlled cache/temp on E",
+      "Earlier compiler/native failures remain retained and unresolved; this run does not establish their root cause",
+      "Focused lens six tests also occur in the complete model package; do not double-count",
+      "Ten selected render targets and complete host lib, not complete render/workspace runtime",
+      "Original null-fixture error, real inverse-certificate rejection, first conservative-certificate failure and XYZ/XY observer failure retained",
+      "The first desktop/UI observer disappeared during compilation without a terminal receipt or tests; its logs and additive interruption observation remain unchanged",
+      "Complete desktop/UI has one native toolbar child failure; a same-source direct child passed separately without explaining the original exit",
+      "Final exact-head cross-platform CI remains separate; neither issue88 nor the full 3D route is closed"
+    ]
+  },
+  "archive": "tracking88-colmap-photographs-v1.zip",
+  "bytes": 9168740,
+  "sha256": "ca812bdf506d4808b11564bdaf1eaf55eb2ed5ec978c823e43566914d6a508ce",
+  "members": 298
+}

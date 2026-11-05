@@ -18,6 +18,7 @@ pub struct LensWarp {
     radius: f64,
     inverse_radius: f64,
     derivative_bound: f64,
+    inverse_step: f64,
     bounds: [f64; 4], // min x/y, max x/y in undistorted composition pixels
 }
 
@@ -139,8 +140,10 @@ impl LensWarp {
         // bounds the signed radial Jacobian and displacement over whole radial
         // intervals, and searches a bounded number of smaller enclosing disks.
         // This is not sampling points for folds or reducing fitted distortion.
-        let (radius, bound) = if initial_bound.is_finite() && initial_bound < MAX_DERIVATIVE {
-            (radius, initial_bound)
+        let (radius, bound, inverse_step) = if initial_bound.is_finite()
+            && initial_bound < MAX_DERIVATIVE
+        {
+            (radius, initial_bound, 1.)
         } else {
             certificate::enclosing_disk(calibration, inverse_radius).ok_or_else(|| {
                 Error::Invalid(format!("lens inverse cannot certify a unique domain derivative_bound={initial_bound} limit={MAX_DERIVATIVE} radius={radius}"))
@@ -153,6 +156,7 @@ impl LensWarp {
             radius,
             inverse_radius,
             derivative_bound: bound,
+            inverse_step,
             bounds: [0., 0., w, h],
         };
         if !result.is_identity() {
@@ -162,7 +166,7 @@ impl LensWarp {
             let steps = 4.;
             let dx = (domain[2] - domain[0]) / steps;
             let dy = (domain[3] - domain[1]) / steps;
-            let error = 0.5 * dx.hypot(dy) / (1. - bound);
+            let error = 0.5 * dx.hypot(dy) * inverse_step / (1. - bound);
             let mut qbounds = [
                 f64::INFINITY,
                 f64::INFINITY,
@@ -223,6 +227,10 @@ impl LensWarp {
     }
     pub fn derivative_bound(self) -> f64 {
         self.derivative_bound
+    }
+    /// The certified fixed-point step, represented exactly by both f64 and f32.
+    pub fn inverse_step(self) -> f64 {
+        self.inverse_step
     }
     pub fn is_identity(self) -> bool {
         self.calibration.radial() == [0.; 3] && self.calibration.tangential() == [0.; 2]
@@ -330,7 +338,11 @@ impl LensWarp {
         let mut q = d;
         for _ in 0..INVERSE_ITERATIONS {
             let g = self.displacement(q);
-            q = [d[0] - g[0], d[1] - g[1]];
+            q = if self.inverse_step == 1. {
+                [d[0] - g[0], d[1] - g[1]]
+            } else {
+                std::array::from_fn(|i| q[i] + self.inverse_step * (d[i] - q[i] - g[i]))
+            };
         }
         let g = self.displacement(q);
         ensure(

@@ -26,7 +26,13 @@ fn load_pixel(at:vec2<i32>)->vec4<f32> {
     let point=vec3(at.xy*p.output_scale.xy,1.);
     let d=vec2(dot(p.inverse_x.xyz,point),dot(p.inverse_y.xyz,point));
     var q=d;
-    if p.radial.w>0. {for(var i=0u;i<48u;i+=1u) {q=d-displacement(q);}}
+    if p.radial.w>0. {
+        for(var i=0u;i<48u;i+=1u) {
+            let g=displacement(q);
+            if p.tangential.w==1. {q=d-g;}
+            else {q=q+p.tangential.w*(d-q-g);}
+        }
+    }
     let ideal=vec2(dot(p.ideal_x.xyz,vec3(q,1.)),dot(p.ideal_y.xyz,vec3(q,1.)));
     let uv=(ideal-p.raster.xy)/p.raster.zw;
     let pixel=uv*vec2<f32>(textureDimensions(source))-.5;
