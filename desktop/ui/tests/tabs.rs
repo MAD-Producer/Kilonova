@@ -44,6 +44,7 @@ fn header_actions_do_not_activate_tabs_and_overflow_stays_inside_the_group() {
                 ..Default::default()
             },
             true,
+            motion_ui::style::default_stylesheet(),
         );
         assert_eq!(result, Some(Event::Menu(1)));
         let close = regions[1].close.unwrap();
@@ -60,7 +61,8 @@ fn header_actions_do_not_activate_tabs_and_overflow_stays_inside_the_group() {
                     pressed: Some((MouseButton::Left, point)),
                     ..Default::default()
                 },
-                true
+                true,
+                motion_ui::style::default_stylesheet(),
             ),
             Some(Event::Close(1))
         );

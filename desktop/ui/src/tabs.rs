@@ -3,7 +3,7 @@ use crate::{
     icons::{self, Icon},
     input::MouseButton,
     paint,
-    style::States,
+    style::{States, StyleSheet},
     ui::{self, Align},
     Color, PaintList, Rect, TextAtlas,
 };
@@ -75,6 +75,8 @@ pub fn layouts(atlas: &mut TextAtlas, area: Rect, tabs: &[Tab<'_>], active: usiz
         })
         .collect()
 }
+/// Use the window or panel host's stylesheet for the entire header, including
+/// its inline menu icon. The caller owns the presentation context.
 pub fn draw(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -83,10 +85,10 @@ pub fn draw(
     active: usize,
     input: &impl crate::InputSource,
     underline: bool,
+    styles: &StyleSheet,
 ) -> Option<Event> {
     let view = input.input_view();
     let input = &view;
-    let styles = list.styles();
     let colors = styles.colors();
 
     paint::rect(list, area, colors.HEADER);
@@ -156,7 +158,6 @@ pub fn draw(
         }
         if let Some(menu) = layout.menu {
             let color = styles
-                .as_ref()
                 .resolve("icon", States::default())
                 .map_or(colors.TEXT_MUTED, |s| s.foreground);
             icons::draw(list, menu, Icon::Menu, 12., color);

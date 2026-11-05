@@ -37,6 +37,7 @@ impl PanelView for Header {
             0,
             &input,
             false,
+            frame.styles,
         )
         .into_iter()
         .collect()
@@ -55,6 +56,41 @@ fn menu_mesh(list: &PaintList) -> (Vec<[f32; 2]>, Color) {
         .collect::<Vec<_>>();
     assert_eq!(meshes.len(), 1, "fixture has exactly one menu icon");
     meshes.into_iter().next().unwrap()
+}
+
+#[test]
+fn direct_tab_call_uses_the_explicit_sheet_instead_of_the_list_fallback() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let sheet = default_stylesheet()
+        .with_overrides(br##"{"styles":{"icon":{"foreground":"#ff0000"}}}"##)
+        .unwrap();
+    let mut list = PaintList::default();
+    assert!(tabs::draw(
+        &mut list,
+        &mut atlas,
+        Rect::new(0., 0., 304., 26.),
+        &[tab(Language::English)],
+        0,
+        &Input::default(),
+        false,
+        &sheet,
+    )
+    .is_none());
+    assert_eq!(menu_mesh(&list).1, Color::rgb(255, 0, 0));
+    let mut control = PaintList::default();
+    assert!(tabs::draw(
+        &mut control,
+        &mut atlas,
+        Rect::new(0., 0., 304., 26.),
+        &[tab(Language::English)],
+        0,
+        &Input::default(),
+        false,
+        default_stylesheet(),
+    )
+    .is_none());
+    assert_eq!(menu_mesh(&control).0, menu_mesh(&list).0);
+    assert_ne!(menu_mesh(&control).1, menu_mesh(&list).1);
 }
 
 #[test]
