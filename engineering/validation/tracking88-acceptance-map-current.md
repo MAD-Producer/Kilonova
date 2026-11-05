@@ -1,5 +1,11 @@
 # Tracking #88: integrated acceptance map
 
+The latest [photographed frozen-output checkpoint](tracking88-frozen-precision-current.md)
+covers all four working precisions and twelve actual SDR PNG exports after
+live-layer deletion and Session closure. The underlying photographs remain
+separate calibrated poses; continuous motion and complete regression are still
+outside that checkpoint.
+
 Issue #88 remains open. This map distinguishes the implemented imported-data
 route from optional tracker research, full regression, and the broader 3D route.
 Earlier `*-current.md` files are chronological increment reports: a remaining

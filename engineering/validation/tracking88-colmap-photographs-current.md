@@ -1,5 +1,10 @@
 # Issue 88: photographed external camera import and certified lens inversion
 
+The later [four-precision frozen PNG checkpoint](tracking88-frozen-precision-current.md)
+executes twelve current-source exports after deleting live layers and closing
+their Sessions. It extends the bounded output evidence below; it does not
+complete continuous camera motion, reconstruction or full regression.
+
 Three independently calibrated photographed board poses pass actual vendor import,
 binding, native pixels, undo/redo, save and fresh read-only reopen. This is an
 OpenCV-calibrated COLMAP text-format interchange test, not execution of a COLMAP
