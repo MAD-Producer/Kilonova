@@ -1,5 +1,22 @@
 # 第三方归属说明 / Third-party attribution
 
+## Mathematical references for optional WGSL depth research
+
+- Authors: Milton Abramowitz and Irene A. Stegun (editors), US National Bureau
+  of Standards; the original approximation credits C. Hastings, Jr. NIST DLMF
+  and its contributors provide the separate power-series reference
+- Sources/revision: AMS55, *Handbook of Mathematical Functions*, printed page 299,
+  equation 7.1.26, identified by the
+  [primary handbook facsimile](https://digital.library.unt.edu/ark:/67531/metadc40302/m1/315/ocr/);
+  [NIST DLMF equation 7.6.1](https://dlmf.nist.gov/7.6.E1), accessed 2026-11-06
+- Rights/scope: mathematical formulas and coefficient facts are references only.
+  No upstream program, book prose, scan, figure, font or other asset is copied
+  or distributed. The independently authored evaluation and tests use the
+  repository MIT license; no broader rights in the reference works are claimed
+- Modification scope: independent FP32 coefficient evaluation, a small-argument
+  series and scalar numerical controls. The mathematical approximation bound
+  does not establish actual WGSL/GPU rounding, model quality or performance
+
 ## COLMAP camera text interchange reference
 
 - Authors: ETH Zurich, UNC Chapel Hill and the COLMAP contributors

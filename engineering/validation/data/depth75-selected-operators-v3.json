@@ -1,0 +1,479 @@
+{
+  "status": "successful_selected_operator_attempt_archived_readback_verified",
+  "createdUtc": "2026-11-06T05:14:20.175304+00:00",
+  "archive": "depth75-selected-operators-v3.zip",
+  "bytes": 203580,
+  "sha256": "05154001c63784902689bc8a5034c68dcbe7bbd9895ce1c81f82e50c2ad34ff7",
+  "entries": {
+    "archive-controller.py": {
+      "bytes": 4404,
+      "sha256": "bd1f0a278182c6253a27a5f360aae3ec1cefec6e33afceddf5f9d3c153eeea2c"
+    },
+    "execution/actual-gpu.stderr.log": {
+      "bytes": 586,
+      "sha256": "6bf8c7ba5281b75f4a90b4348cfe7571491e9e5a157c8740904c8bfc63392c48"
+    },
+    "execution/actual-gpu.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/build.stderr.log": {
+      "bytes": 1222,
+      "sha256": "9e941a294ec0d5d5a5120bf6374fd3a146a8aadba994adbf8e1bbc31ff703c13"
+    },
+    "execution/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/comparison/controller.py": {
+      "bytes": 6066,
+      "sha256": "23d3f1b87353c61265018ed3daee8bbff948748d54139537d2792a0d7361df74"
+    },
+    "execution/comparison/receipt.json": {
+      "bytes": 24893,
+      "sha256": "42dbacd94070e91d20d896365c9d356095aff00ce98c43c00bab15e653563923"
+    },
+    "execution/controller.py": {
+      "bytes": 9211,
+      "sha256": "eded44e8f1bb809f12f2ef68f18bd24a9ef555aaf6b2d540d2417ccba060cdf6"
+    },
+    "execution/fault-axis.stderr.log": {
+      "bytes": 812,
+      "sha256": "7e148d64a1008261b1a7832925f68b95edb0cb1239aa3cda9b7a945e791dd644"
+    },
+    "execution/fault-axis.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-axis/observed/logs/motion-studio.log": {
+      "bytes": 1554,
+      "sha256": "dfd5b74e9631f89c2a987f59b3e169458c1737c56bae5ee6bc83040c8470b738"
+    },
+    "execution/fault-axis/observed/receipt.json": {
+      "bytes": 1314,
+      "sha256": "3dd8009aebdca40276f3638908866cb479d371ba586b173b435fe7e73a822439"
+    },
+    "execution/fault-axis/request.json": {
+      "bytes": 1241,
+      "sha256": "549fe3971308548d7bbe177b7f1082725951a9d4c7cabfd1a98ea0d26323d39e"
+    },
+    "execution/fault-budget.stderr.log": {
+      "bytes": 781,
+      "sha256": "45994f089f170beb1ce426b82f01de32d6e2b9bc48170cb9ebb427b59d68c6f7"
+    },
+    "execution/fault-budget.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-budget/observed/logs/motion-studio.log": {
+      "bytes": 1523,
+      "sha256": "2c0ad0c1126b64343163a9b3d978817a0d5a2ed8754582aebc2be197caf36cdc"
+    },
+    "execution/fault-budget/observed/receipt.json": {
+      "bytes": 1283,
+      "sha256": "fc3ce694f200b3db041fb0a545c705a8a79d906ebac56389c96456fa100201ef"
+    },
+    "execution/fault-budget/request.json": {
+      "bytes": 1234,
+      "sha256": "04e8b9bc596fb6e47a3eeb71303116cc9388cf51bc9c79f3a7c9e0e2f8290a4a"
+    },
+    "execution/fault-model-identity.stderr.log": {
+      "bytes": 161,
+      "sha256": "c8172f961c15cbceb293c5117d917c94ed1ed6c2278990dbf3f354c96ed5dec9"
+    },
+    "execution/fault-model-identity.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-model-identity/observed/logs/motion-studio.log": {
+      "bytes": 466,
+      "sha256": "5c36893e00c723b4fc1c9084888dc0293646465f4a092ed62d6af1debb38b1b1"
+    },
+    "execution/fault-model-identity/observed/receipt.json": {
+      "bytes": 613,
+      "sha256": "5e0313d80df922fe675a3e34e910383c9f2cb15ebf4f9cae069549faabb4c9d1"
+    },
+    "execution/fault-model-identity/request.json": {
+      "bytes": 1242,
+      "sha256": "14f46f9b746dd71b89202601f8dbb5add9d1a44992f8664f25d0e6ce2827973c"
+    },
+    "execution/fault-nonfinite.stderr.log": {
+      "bytes": 822,
+      "sha256": "543661b5c6e51973b31fdcc678e28e5fbc20827bcc3dab03ad291c59c89c3446"
+    },
+    "execution/fault-nonfinite.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-nonfinite/observed/logs/motion-studio.log": {
+      "bytes": 1900,
+      "sha256": "7d0d91a98e98a22e51344a544d45f40f9a05c4fc8007c6dcdaed40acefa3060b"
+    },
+    "execution/fault-nonfinite/observed/receipt.json": {
+      "bytes": 1338,
+      "sha256": "a0162bf27d293613caa4cf81861d13ed9897d7f5b98b4559ce189f4e2b9fc3ae"
+    },
+    "execution/fault-nonfinite/request.json": {
+      "bytes": 1242,
+      "sha256": "dc6a3e8e8b0e9cc7edcb0fd8595ced3eb9914712432d9351d62e9ec8d9277476"
+    },
+    "execution/fault-tensor-hash.stderr.log": {
+      "bytes": 815,
+      "sha256": "3e11540d63259db2055e096fdf1a3a8b26a2de35ea99bdfa2a61836af144c7df"
+    },
+    "execution/fault-tensor-hash.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-tensor-hash/observed/logs/motion-studio.log": {
+      "bytes": 1893,
+      "sha256": "2c9f4866c856f8c8d047c398788369afb1aa4992d814aec8a1adfe4217f17735"
+    },
+    "execution/fault-tensor-hash/observed/receipt.json": {
+      "bytes": 1331,
+      "sha256": "d02885117940eb2da4eeefa4578bcc4d2d9a89591c63a59814612a503cdcff4d"
+    },
+    "execution/fault-tensor-hash/request.json": {
+      "bytes": 1242,
+      "sha256": "699ad2243cc75e4a221df8149c28f979113217beb73c47495feed31f0169e0fa"
+    },
+    "execution/gpu/logs/motion-studio.log": {
+      "bytes": 25215,
+      "sha256": "48623326714b67849832ce04cbfe5bd145bc7e43bf184b9a051e42f8362aa5ab"
+    },
+    "execution/gpu/receipt.json": {
+      "bytes": 25165,
+      "sha256": "2dbcdccbd533a27d89da67d20fb842aad44efac35168516b48ac04ddd6a9419e"
+    },
+    "execution/host-admission-tests.stderr.log": {
+      "bytes": 4296,
+      "sha256": "70143330eca87038214d943280059c4e1f09b3f5d4adc93e4f7f00ab27342429"
+    },
+    "execution/host-admission-tests.stdout.log": {
+      "bytes": 1314,
+      "sha256": "2168c50e3047679d5a1d557546d04463e869b6dfe13d09fe937e9bc5f7a5ade5"
+    },
+    "execution/independent-comparison.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/independent-comparison.stdout.log": {
+      "bytes": 1386,
+      "sha256": "774ee12d92b6a2843e4d77f38d1fe7e4cf064043e214554dfd112e32a873e95c"
+    },
+    "execution/offline-lock.stderr.log": {
+      "bytes": 68,
+      "sha256": "f11b64900dd47d6f1b5833cfd8d714ee83df3e585de9f3ddc356458db6dbd4fd"
+    },
+    "execution/offline-lock.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/receipt.json": {
+      "bytes": 9920,
+      "sha256": "6f57ba1cf4b38cce7513782e3210229333c63cd70b6e9c054297802a2efa4ff0"
+    },
+    "prior-failed-attempts/v1/controller.py": {
+      "bytes": 8917,
+      "sha256": "9acd655ded4d3194cc6c3d3602a506975742bb939781a9ba5b29401130ac1ad1"
+    },
+    "prior-failed-attempts/v1/frozen-source/Cargo.lock": {
+      "bytes": 29182,
+      "sha256": "b606eacff1f79c96d4b14f1417be8fb964f4f2577eeb43c13e5099c376d200c9"
+    },
+    "prior-failed-attempts/v1/frozen-source/Cargo.toml": {
+      "bytes": 640,
+      "sha256": "fefe51152b63590a6e01ae6bfa960a510501b8c7215abb3286d1444d0f6d57a9"
+    },
+    "prior-failed-attempts/v1/frozen-source/src/admission.rs": {
+      "bytes": 12888,
+      "sha256": "08a7c6af4e0c70790f1415f8b5af8501ac0d1f58c3485e9b3f60e998edfa4d50"
+    },
+    "prior-failed-attempts/v1/frozen-source/src/convolution.wgsl": {
+      "bytes": 4052,
+      "sha256": "ec253c28d8714da5f637fea0a1213dae114bb548bf0cf914c958b1593ef10c0e"
+    },
+    "prior-failed-attempts/v1/frozen-source/src/convolution_admission.rs": {
+      "bytes": 6820,
+      "sha256": "5d395d343790d697061a173e594bf08869a467a3e250f8ac0b85a92706f9743a"
+    },
+    "prior-failed-attempts/v1/frozen-source/src/erf.wgsl": {
+      "bytes": 1982,
+      "sha256": "7c0c8401876cad9e956154eeedbfb46cac12f8dcd3f0b09b924cd98b99d943cc"
+    },
+    "prior-failed-attempts/v1/frozen-source/src/logging.rs": {
+      "bytes": 18160,
+      "sha256": "95d4fb7ed6704877ea2ba09c00913b6bfb49c974c38a331658cdeb2da290576a"
+    },
+    "prior-failed-attempts/v1/frozen-source/src/main.rs": {
+      "bytes": 20221,
+      "sha256": "abd5b7fa798db5283f5640da267bfac9d0371676a58be9d28588bcdd45d48697"
+    },
+    "prior-failed-attempts/v1/frozen-source/src/operators.wgsl": {
+      "bytes": 6704,
+      "sha256": "ce99d6a8a295767ad6f38ca25578a05176bfea57ebaf04ad0a1f70b158f3c0c0"
+    },
+    "prior-failed-attempts/v1/frozen-source/tests/admission.rs": {
+      "bytes": 5960,
+      "sha256": "9dc80ef650b6c920226d451279897a02cd7eda0497d47534da8a95bde4efd067"
+    },
+    "prior-failed-attempts/v1/frozen-source/tests/convolution_admission.rs": {
+      "bytes": 4515,
+      "sha256": "c44ee12a79a38b02f84dd80de8402e3b2ef07c648ef015434a31fb14c74ab7e3"
+    },
+    "prior-failed-attempts/v1/host-admission-tests.stderr.log": {
+      "bytes": 8586,
+      "sha256": "da89788c990361546ccb46973032de2e6e061cd7c9930613cda4604899dc8ed1"
+    },
+    "prior-failed-attempts/v1/host-admission-tests.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v1/offline-lock.stderr.log": {
+      "bytes": 68,
+      "sha256": "f11b64900dd47d6f1b5833cfd8d714ee83df3e585de9f3ddc356458db6dbd4fd"
+    },
+    "prior-failed-attempts/v1/offline-lock.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v1/receipt.json": {
+      "bytes": 4443,
+      "sha256": "a753f4fc4a1718ea1c96076d0fc3168b4dd49282143b260baad19c34ba08bd30"
+    },
+    "prior-failed-attempts/v1/reference-fixtures.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v1/reference-fixtures.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v2/actual-gpu.stderr.log": {
+      "bytes": 586,
+      "sha256": "b70d6a91b93eacc1c09c89772e008000fadf817fbd64bbe7b011c2961dae521e"
+    },
+    "prior-failed-attempts/v2/actual-gpu.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v2/build.stderr.log": {
+      "bytes": 1222,
+      "sha256": "51b1690303e27e27ec30532edfe0451b4d1d3341dc595887db3cb05bc6765c00"
+    },
+    "prior-failed-attempts/v2/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v2/comparison/controller.py": {
+      "bytes": 6066,
+      "sha256": "23d3f1b87353c61265018ed3daee8bbff948748d54139537d2792a0d7361df74"
+    },
+    "prior-failed-attempts/v2/comparison/receipt.json": {
+      "bytes": 24918,
+      "sha256": "0a81948ad90f3d45fbc01848de64768f20d03fd231b27f68cbf6ae96254cf7c5"
+    },
+    "prior-failed-attempts/v2/controller.py": {
+      "bytes": 9147,
+      "sha256": "0decda00a88ba1d509be53094b9de11dc68473d0da83f3b274d603694efb76e5"
+    },
+    "prior-failed-attempts/v2/frozen-source/Cargo.lock": {
+      "bytes": 29182,
+      "sha256": "b606eacff1f79c96d4b14f1417be8fb964f4f2577eeb43c13e5099c376d200c9"
+    },
+    "prior-failed-attempts/v2/frozen-source/Cargo.toml": {
+      "bytes": 640,
+      "sha256": "fefe51152b63590a6e01ae6bfa960a510501b8c7215abb3286d1444d0f6d57a9"
+    },
+    "prior-failed-attempts/v2/frozen-source/src/admission.rs": {
+      "bytes": 12888,
+      "sha256": "08a7c6af4e0c70790f1415f8b5af8501ac0d1f58c3485e9b3f60e998edfa4d50"
+    },
+    "prior-failed-attempts/v2/frozen-source/src/convolution.wgsl": {
+      "bytes": 4052,
+      "sha256": "ec253c28d8714da5f637fea0a1213dae114bb548bf0cf914c958b1593ef10c0e"
+    },
+    "prior-failed-attempts/v2/frozen-source/src/convolution_admission.rs": {
+      "bytes": 6820,
+      "sha256": "5d395d343790d697061a173e594bf08869a467a3e250f8ac0b85a92706f9743a"
+    },
+    "prior-failed-attempts/v2/frozen-source/src/erf.wgsl": {
+      "bytes": 1982,
+      "sha256": "7c0c8401876cad9e956154eeedbfb46cac12f8dcd3f0b09b924cd98b99d943cc"
+    },
+    "prior-failed-attempts/v2/frozen-source/src/logging.rs": {
+      "bytes": 18160,
+      "sha256": "95d4fb7ed6704877ea2ba09c00913b6bfb49c974c38a331658cdeb2da290576a"
+    },
+    "prior-failed-attempts/v2/frozen-source/src/main.rs": {
+      "bytes": 20257,
+      "sha256": "cca599ad757572407849d6a913336f8c1af147b44e293264d6c3a838fbce5e6d"
+    },
+    "prior-failed-attempts/v2/frozen-source/src/operators.wgsl": {
+      "bytes": 6704,
+      "sha256": "ce99d6a8a295767ad6f38ca25578a05176bfea57ebaf04ad0a1f70b158f3c0c0"
+    },
+    "prior-failed-attempts/v2/frozen-source/tests/admission.rs": {
+      "bytes": 5960,
+      "sha256": "9dc80ef650b6c920226d451279897a02cd7eda0497d47534da8a95bde4efd067"
+    },
+    "prior-failed-attempts/v2/frozen-source/tests/convolution_admission.rs": {
+      "bytes": 4515,
+      "sha256": "c44ee12a79a38b02f84dd80de8402e3b2ef07c648ef015434a31fb14c74ab7e3"
+    },
+    "prior-failed-attempts/v2/gpu/logs/motion-studio.log": {
+      "bytes": 25215,
+      "sha256": "a092b5e65dcd8c83bc0b7905147d472011deabcac36b565818979642bc556f8c"
+    },
+    "prior-failed-attempts/v2/gpu/receipt.json": {
+      "bytes": 25161,
+      "sha256": "10276c98eca72947efe94f94fa3aa89bebc4d48728f9c2641faa828214cb7482"
+    },
+    "prior-failed-attempts/v2/host-admission-tests.stderr.log": {
+      "bytes": 4296,
+      "sha256": "7751954fc18c44208917327a53530028b472680b38f1015209cf6126f87f2192"
+    },
+    "prior-failed-attempts/v2/host-admission-tests.stdout.log": {
+      "bytes": 1314,
+      "sha256": "2168c50e3047679d5a1d557546d04463e869b6dfe13d09fe937e9bc5f7a5ade5"
+    },
+    "prior-failed-attempts/v2/independent-comparison.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v2/independent-comparison.stdout.log": {
+      "bytes": 1411,
+      "sha256": "8c94c4c4629861b5f0f8033dee7004202d2959a8a245cb4f2004e9f0e698ff1b"
+    },
+    "prior-failed-attempts/v2/offline-lock.stderr.log": {
+      "bytes": 68,
+      "sha256": "f11b64900dd47d6f1b5833cfd8d714ee83df3e585de9f3ddc356458db6dbd4fd"
+    },
+    "prior-failed-attempts/v2/offline-lock.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prior-failed-attempts/v2/receipt.json": {
+      "bytes": 6032,
+      "sha256": "4d9e8a96ff6dd7ff70b91011d95d3840ceccd63a71092a5d70d30f2241c12dc6"
+    },
+    "reference-fixtures/controller.py": {
+      "bytes": 12835,
+      "sha256": "78c489c2ca2d568625ad02723e9961ddd882afdb725f24699362c68ceb2039a8"
+    },
+    "reference-fixtures/receipt.json": {
+      "bytes": 4082,
+      "sha256": "88a7d788cc5a1a4c7a6e2272c36b8d6322fdf8f6ffb0004a5612759d2e1e55ab"
+    },
+    "reference-fixtures/request.json": {
+      "bytes": 42221,
+      "sha256": "f2e1427ac5addc974bcf0a3973c2d5af20646935e10f1d7ace51e07ab4e51c2d"
+    },
+    "reference-fixtures/research.log": {
+      "bytes": 616,
+      "sha256": "29bafdd96dee745983e417c047fa77f8f00511e4444fe1abb93852bceb3943f2"
+    },
+    "separate-static-and-math/depth75-convolution-layouts-v1/controller.py": {
+      "bytes": 4551,
+      "sha256": "a81e15706cbf6efe925788fdf46989353a852804adae05e29d38170b25c0f31b"
+    },
+    "separate-static-and-math/depth75-convolution-layouts-v1/receipt.json": {
+      "bytes": 35276,
+      "sha256": "9ece0feed31246bb4a28d43971dfc3ac8b3fcc74f6c9183943686a8f37b6ced0"
+    },
+    "separate-static-and-math/depth75-erf-math-v1/controller.py": {
+      "bytes": 3239,
+      "sha256": "d2023dde2c9fa3f93d3145643dd76b581bfb2b2cc61b2fd1175153ad73486fd6"
+    },
+    "separate-static-and-math/depth75-erf-math-v1/receipt.json": {
+      "bytes": 1208,
+      "sha256": "56c050881da53d27ce0f0d20bee649e42f71637f2495b477b46fa43ccaf2f010"
+    },
+    "separate-static-and-math/depth75-operator-layouts-v1/controller.py": {
+      "bytes": 5712,
+      "sha256": "992b82c93362f7e52e77e8b499b2d40cb4ab8afe5655b14433a99f7558bf8fee"
+    },
+    "separate-static-and-math/depth75-operator-layouts-v1/receipt.json": {
+      "bytes": 78158,
+      "sha256": "cb40cdc942982dee02f76e72999c4e436c4eceed9321841b4744cca731c4f91d"
+    },
+    "source/Cargo.lock": {
+      "bytes": 29182,
+      "sha256": "b606eacff1f79c96d4b14f1417be8fb964f4f2577eeb43c13e5099c376d200c9"
+    },
+    "source/Cargo.toml": {
+      "bytes": 640,
+      "sha256": "fefe51152b63590a6e01ae6bfa960a510501b8c7215abb3286d1444d0f6d57a9"
+    },
+    "source/README.md": {
+      "bytes": 3614,
+      "sha256": "b8dbf7903677273a2ef6a682ddce9558fec6744ccb6cb6b4bd6b8c1df1e125fe"
+    },
+    "source/src/admission.rs": {
+      "bytes": 12888,
+      "sha256": "08a7c6af4e0c70790f1415f8b5af8501ac0d1f58c3485e9b3f60e998edfa4d50"
+    },
+    "source/src/convolution.wgsl": {
+      "bytes": 4052,
+      "sha256": "ec253c28d8714da5f637fea0a1213dae114bb548bf0cf914c958b1593ef10c0e"
+    },
+    "source/src/convolution_admission.rs": {
+      "bytes": 6820,
+      "sha256": "5d395d343790d697061a173e594bf08869a467a3e250f8ac0b85a92706f9743a"
+    },
+    "source/src/erf.wgsl": {
+      "bytes": 1982,
+      "sha256": "7c0c8401876cad9e956154eeedbfb46cac12f8dcd3f0b09b924cd98b99d943cc"
+    },
+    "source/src/logging.rs": {
+      "bytes": 18160,
+      "sha256": "95d4fb7ed6704877ea2ba09c00913b6bfb49c974c38a331658cdeb2da290576a"
+    },
+    "source/src/main.rs": {
+      "bytes": 20257,
+      "sha256": "cca599ad757572407849d6a913336f8c1af147b44e293264d6c3a838fbce5e6d"
+    },
+    "source/src/operators.wgsl": {
+      "bytes": 6998,
+      "sha256": "40228823a897ad2137d480e05cd620f957cbacdd8d79a99172844973c64d808f"
+    },
+    "source/tests/admission.rs": {
+      "bytes": 5960,
+      "sha256": "9dc80ef650b6c920226d451279897a02cd7eda0497d47534da8a95bde4efd067"
+    },
+    "source/tests/convolution_admission.rs": {
+      "bytes": 4515,
+      "sha256": "c44ee12a79a38b02f84dd80de8402e3b2ef07c648ef015434a31fb14c74ab7e3"
+    }
+  },
+  "numericalTotals": {
+    "same_model_intermediate": {
+      "cases": 13,
+      "failed": 0
+    },
+    "authored_control": {
+      "cases": 21,
+      "failed": 0
+    }
+  },
+  "adapter": {
+    "backend": "Vulkan",
+    "device": 10272,
+    "device_type": "DiscreteGpu",
+    "driver": "NVIDIA",
+    "driver_info": "591.86",
+    "name": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "vendor": 4318
+  },
+  "defaultInfoStartVisible": true,
+  "errorFileAndStderrFailures": 5,
+  "stdoutEmpty": true,
+  "limits": [
+    "Four numerical operator families only, not a shipped backend or complete model output",
+    "The convolution and Erf shaders are unlinked and not GPU-qualified in this attempt",
+    "Model weights, RGB, learned activations, reference/GPU raw tensors, binaries and optional runtimes are excluded",
+    "Static layout/scalar mathematics records are separate evidence, not device execution results",
+    "External references require exact separately installed model and recorded input/output routing",
+    "No real video, temporal switching, allocator, full inference latency, thermal or mobile qualification"
+  ]
+}

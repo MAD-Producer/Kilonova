@@ -1,14 +1,17 @@
-# WGSL depth research: static candidate audit
+# WGSL depth research: candidate audit and selected operators
 
 Issue #75 remains **incomplete**. This checkpoint inspects the existing,
-separately installed Depth Anything V2 Small model before implementing a second
-inference backend. It does not implement WGSL operators, run the model, select a
-default backend, or establish performance or photographed/video quality.
+separately installed Depth Anything V2 Small model and validates four standalone
+WGSL operator families against its actual intermediate tensors. It does not
+provide composed WGSL model inference, a default product backend, or performance
+and photographed/video quality acceptance.
 
 The documentation branch starts at maintained main
-`1aa57293a84e70734ff414e9450f1e880c62139d`. Its audit used no GPU device and ran
-no learned operator while the separate #88 workspace regression was active.
-No product source, dependency, UI, model file or default distribution changed.
+`1aa57293a84e70734ff414e9450f1e880c62139d`. Its initial static audit used no GPU
+device or learned operator while the separate #88 workspace regression was
+active. The later selected-operator execution began after that original full
+run and the tracking experiment terminated. No product source, dependency, UI,
+model file or default distribution changed.
 
 ## Candidate identity and permitted use
 
@@ -107,16 +110,78 @@ the same separately exported model hash and optional environment.
 | Original #75 requirement | Current disposition |
 | --- | --- |
 | I1: licensed candidate, domain, operators/shapes/dtypes, weights/activation/device limits | Pinned candidate and complete static inventory recorded; deployment suitability and lightweight performance remain unqualified |
-| I2: same-weight per-operator and end-to-end WGSL/ONNX comparison | Pending; no WGSL kernels or equivalence measurements yet |
+| I2: same-weight per-operator and end-to-end WGSL/ONNX comparison | Four WGSL families passed 13 actual-model representatives and 21 edge controls; remaining families and composed inference pending |
 | I3: shared DepthResource/job contract; quality independent of backend | Existing ONNX route is separate evidence; adding a second execution backend remains pending |
 | I4: measured quality/backend resolution and explicit capability/model/operator fallback | Pending; no automatic backend selection is introduced |
 | I5: fast/high transitions, versioned alignment, hysteresis/generation and frozen export policy | Pending dual-backend integration and independent video tests |
 | I6: versioned compute-plan/weight resources and explicit execution capability negotiation | Pending; do not silently accept an unsupported plan or bypass the current msfx compute restriction |
 | A1: license qualification before default distribution | Candidate source/model distinction checked; default distribution is not enabled |
-| A2: same-model error, whole-pipeline latency, weights/activations and thermal record | Static sizes only; numerical/runtime/thermal measurements remain pending |
+| A2: same-model error, whole-pipeline latency, weights/activations and thermal record | Static sizes and selected-operator numerical evidence recorded; composed-model error, latency, actual memory and thermal measurements pending |
 | A3: explicit failure/fallback and no stale background result overwrite | Requires the real second backend, failure injection and generation tests |
 | A4: no additional scale drift or depth jumps when switching video quality | Pending; single-frame inventory cannot prove temporal behavior |
 
 Android is retired and excluded by the user's maintenance scope. That exclusion
 does not waive desktop numerical, scheduling, memory, temporal or output tests.
 Issue #75 and the complete 3D route remain open.
+
+## Actual selected-operator GPU qualification
+
+An independently authored standalone Rust/WGSL probe executed tiled batched
+MatMul, stable final-axis Softmax, final-axis LayerNormalization and NCHW linear
+Resize with the model's exact `align_corners` rule. Host admission checks model
+identity, tensor SHA-256/length/finiteness, shape, broadcast/layout semantics,
+dispatch/device limits and a bounded logical buffer budget before submission.
+It requests an explicit Vulkan hardware adapter with Float32 arithmetic and no
+backend or precision fallback.
+
+The existing Small ONNX export ran once with CPUExecutionProvider, one thread
+and graph optimization disabled to retain actual named intermediate inputs and
+weights. One representative of each of the 13 distinct audited layouts covers
+the four families' 117 static nodes: six MatMul layouts, one normalization,
+one Softmax and five Resize layouts. This samples 13 actual nodes; it does not
+prove every weight/activation or compose those operations into inference.
+Another 21 independently authored Float64-reference-to-Float32 controls cover
+partial tiles, shared batches, reduction boundaries, constant rows, extreme
+logits and singleton/up/downsample axes. Model and tensor payloads stay external.
+
+| Executed gate | Result |
+| --- | --- |
+| Host admission tests | All 15 passed; ten first-family and five convolution-layout controls |
+| Explicit hardware | NVIDIA GeForce RTX 4070 Laptop GPU, Vulkan, driver 591.86 |
+| Actual same-model representatives | All 13 passed |
+| Authored numerical edge controls | All 21 passed |
+| Predeclared normalized error bounds | Maximum 0.0002; mean 0.00002; unchanged after execution |
+| Largest measured normalized errors across cases | Maximum 0.000005754542; largest case mean 0.000000043629 |
+| Actual negative requests | Wrong model, unsupported axis, exhausted budget, tensor hash mismatch and nonfinite input all refused with original causes |
+| Default logging and protocol channels | Info starts visible; all five Error causes in file and stderr; stdout empty |
+
+The independent observer checks identities, complete output sizes and finite
+values. It divides error only by `max(max(abs(reference)), 1e-6)`, with no fitted
+output scale or affine alignment. Its own corrupted-value, NaN and wrong-length
+controls are rejected. The actual GPU stage took 12.891 seconds including cold
+per-operator allocations/submits/readback across all cases. This is not a
+whole-model latency benchmark or thermal/memory qualification.
+
+Two preceding attempts remain retained. The first failed compilation on three
+probe API errors. The second passed all 13 model cases but failed the constant
+width-seven normalization edge case: mean normalized error 0.000027934745 was
+above the original 0.00002 bound. The third centers each row relative to its
+first element before mean/variance reduction; constant rows then remain exactly
+zero. Reference bytes, tests, tolerances and budgets were unchanged. No failed
+attempt was overwritten or counted as passing acceptance.
+
+The [source and execution archive](data/depth75-selected-operators-v3.zip) and
+[manifest](data/depth75-selected-operators-v3.json) preserve Rust/WGSL sources,
+Cargo.lock, host tests, fixture/observer controllers, default-level logs,
+all three attempts and separate static/scalar diagnostics. All members were
+read back: 203,580 bytes, SHA-256
+`05154001c63784902689bc8a5034c68dcbe7bbd9895ce1c81f82e50c2ad34ff7`.
+Weights, RGB, learned activations, raw output/reference tensors, executables and
+optional runtimes are excluded. The included convolution and Erf shaders are
+unlinked candidates: host-layout/scalar checks do not qualify their GPU output.
+Published mathematical references for Erf are recorded in `ATTRIBUTION.md` and
+`PROVENANCE.md`; no reference source code, scans or text are copied.
+
+This checkpoint supplies selected numerical primitives, not a selectable
+product backend, complete model, video quality switch, resource planner or
+desktop cross-platform acceptance. Those issue requirements remain open.
