@@ -6,6 +6,9 @@ use crate::{
 };
 use motion_core::{storage::StagedAnimationPreset, AnimationPreset, Property};
 use serde_json::Value;
+mod error;
+use error::{io_error, panic_error};
+type PresetResult<T> = std::result::Result<T, crate::engine::Error>;
 use std::{
     path::PathBuf,
     sync::{
@@ -116,7 +119,7 @@ impl Controller {
             p.cancel.store(true, Ordering::Release);
         }
     }
-    pub(crate) fn scan(&mut self, root: PathBuf) -> Result<(), String> {
+    pub(crate) fn scan(&mut self, root: PathBuf) -> PresetResult<()> {
         if self.busy() {
             return Err("animation preset operation already in progress".into());
         }
@@ -134,7 +137,7 @@ impl Controller {
         engine: &Engine,
         intent: Intent,
         source: crate::layer_clipboard::KeyframeSource,
-    ) -> Result<(), String> {
+    ) -> PresetResult<()> {
         if self.busy() {
             return Err("animation preset operation already in progress".into());
         }
@@ -152,7 +155,7 @@ impl Controller {
         &mut self,
         engine: &Engine,
         allow_commit: bool,
-    ) -> Option<Result<Completion, String>> {
+    ) -> Option<PresetResult<Completion>> {
         let pending = self.pending.take()?;
         match Self::advance(pending, engine, allow_commit) {
             Ok(Step::Keep(pending)) => {
@@ -163,13 +166,13 @@ impl Controller {
             Err(error) => {
                 log::error!(
                     "animation preset controller failed phase=poll reason={}",
-                    bounded(&error)
+                    bounded(&error.to_string())
                 );
                 Some(Err(error))
             }
         }
     }
-    fn advance(mut pending: Pending, engine: &Engine, allow_commit: bool) -> Result<Step, String> {
+    fn advance(mut pending: Pending, engine: &Engine, allow_commit: bool) -> PresetResult<Step> {
         let cancelled = pending.cancel.load(Ordering::Acquire);
         pending.stage = match pending.stage {
             Stage::Reading(receive, intent, source) => match receive.try_recv() {
@@ -196,7 +199,7 @@ impl Controller {
                     return Ok(Step::Done(Completion::Saved(path)))
                 }
                 Ok(Err(error))
-                    if !(cancelled && error.ends_with("animation preset operation cancelled")) =>
+                    if !(cancelled && error::cancelled(&error)) =>
                 {
                     return Err(error)
                 }
@@ -211,7 +214,7 @@ impl Controller {
                     return Err(format!(
                         "preset IO worker disconnected: request={}",
                         job.request
-                    ))
+                    ).into())
                 }
             },
             Stage::Ready(output) => {
@@ -268,14 +271,8 @@ impl Controller {
 fn bounded(value: &str) -> String {
     value.chars().take(1024).collect()
 }
-fn io_error(operation: &str, path: &std::path::Path, cause: impl std::fmt::Display) -> String {
-    // Reserve space for the original cause even when a path is very long.
-    let path: String = path.to_string_lossy().chars().take(384).collect();
-    let cause: String = cause.to_string().chars().take(512).collect();
-    format!("{operation} path={path}: {cause}")
-}
 struct Job {
-    receive: Receiver<Result<Output, String>>,
+    receive: Receiver<PresetResult<Output>>,
     phase: Arc<AtomicU8>,
     request: u64,
 }
@@ -287,14 +284,14 @@ impl Job {
             _ => "finished",
         }
     }
-    fn start(work: Work, cancel: Arc<AtomicBool>) -> Result<Self, String> {
+    fn start(work: Work, cancel: Arc<AtomicBool>) -> PresetResult<Self> {
         Self::start_with(work, cancel, || {})
     }
     fn start_with(
         work: Work,
         cancel: Arc<AtomicBool>,
         before: impl FnOnce() + Send + 'static,
-    ) -> Result<Self, String> {
+    ) -> PresetResult<Self> {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let request = NEXT
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| v.checked_add(1))
@@ -343,21 +340,21 @@ impl Job {
                 .unwrap_or_else(|payload| {
                     let cause = payload.downcast_ref::<String>().map(String::as_str)
                         .or_else(|| payload.downcast_ref::<&str>().copied()).unwrap_or("non-text panic");
-                    Err(format!("preset worker panicked: {}", bounded(cause)))
+                    Err(panic_error(cause))
                 });
             phase.store(2, Ordering::Release);
             match &result {
-                Err(error) if cancel.load(Ordering::Acquire) && error.ends_with("animation preset operation cancelled") => log::debug!("animation preset cancelled request={request} operation={operation} elapsed_ms={}", began.elapsed().as_millis()),
-                Err(error) => log::error!("animation preset failed request={request} operation={operation} phase=io elapsed_ms={} reason={}", began.elapsed().as_millis(), bounded(error)),
+                Err(error) if cancel.load(Ordering::Acquire) && error::cancelled(&error) => log::debug!("animation preset cancelled request={request} operation={operation} elapsed_ms={}", began.elapsed().as_millis()),
+                Err(error) => log::error!("animation preset failed request={request} operation={operation} phase=io elapsed_ms={} reason={}", began.elapsed().as_millis(), bounded(&error.to_string())),
                 Ok(_) => log::debug!("animation preset done request={request} operation={operation} elapsed_ms={}", began.elapsed().as_millis()),
             }
             // Protocol best effort after the UI closes; dropping staged output cleans its owned files.
             let _ = send.send(result);
-        }).map_err(|e| format!("start preset worker: {e}"))?;
+        }).map_err(|cause| crate::engine::Error::from(motion_host::Error::with_context("start preset worker", cause)))?;
         Ok(job)
     }
 }
-fn run(work: Work, cancel: &AtomicBool) -> Result<Output, String> {
+fn run(work: Work, cancel: &AtomicBool) -> PresetResult<Output> {
     if cancel.load(Ordering::Acquire) {
         return Ok(Output::Complete(Completion::Cancelled));
     }
@@ -391,7 +388,7 @@ fn run(work: Work, cancel: &AtomicBool) -> Result<Output, String> {
                     &properties,
                     &effects,
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(motion_host::Error::from)?;
                 motion_core::storage::save_animation_preset(
                     &read.stamp.root,
                     &preset,
@@ -433,7 +430,7 @@ fn run(work: Work, cancel: &AtomicBool) -> Result<Output, String> {
         },
     }
 }
-fn scan(root: PathBuf, cancel: &AtomicBool) -> Result<Completion, String> {
+fn scan(root: PathBuf, cancel: &AtomicBool) -> PresetResult<Completion> {
     let mut entries = Vec::new();
     let mut failures = 0usize;
     if !root
@@ -452,12 +449,12 @@ fn scan(root: PathBuf, cancel: &AtomicBool) -> Result<Completion, String> {
             if cancel.load(Ordering::Acquire) {
                 return Ok(Completion::Cancelled);
             }
-            let item = item.map_err(|e| e.to_string())?;
+            let item = item.map_err(motion_host::Error::from)?;
             seen += 1;
             if seen > 512 {
                 return Err("preset catalog exceeds 512 filesystem entries".into());
             }
-            let kind = item.file_type().map_err(|e| e.to_string())?;
+            let kind = item.file_type().map_err(motion_host::Error::from)?;
             if kind.is_symlink() {
                 continue;
             }

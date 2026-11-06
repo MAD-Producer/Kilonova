@@ -1,6 +1,7 @@
 use super::*;
 use crate::{i18n::Locale, layer_clipboard::KeyframeSource, Shell};
 use std::{path::Path, time::Duration};
+mod native_errors;
 #[cfg(target_os = "windows")]
 mod native;
 fn fixture(root: &Path, locale: Locale) -> Shell {
@@ -63,7 +64,7 @@ fn wait(controller: &mut Controller, engine: &Engine, allow: bool) -> Result<Com
             controller.phase()
         );
         if let Some(result) = controller.poll(engine, allow) {
-            return result;
+            return result.map_err(Into::into);
         }
         std::thread::sleep(Duration::from_millis(1));
     }
@@ -306,6 +307,7 @@ fn actual_missing_file_locked_target_and_schema_failure_reach_default_error_chan
         .unwrap()
         .err()
         .unwrap()
+        .to_string()
         .contains("controlled preset worker panic"));
     assert_eq!(panicked.phase(), "finished");
     assert!(!root.join("panic-catalog").exists());

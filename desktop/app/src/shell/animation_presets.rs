@@ -20,7 +20,7 @@ impl Shell {
             return Ok(());
         }
         if matches!(action, Action::RefreshAnimationPresets) {
-            return self.animation_presets.scan(self.preset_library());
+            return self.animation_presets.scan(self.preset_library()).map_err(Into::into);
         }
         if self.animation_presets.busy() {
             return Err(if zh {
@@ -123,7 +123,7 @@ impl Shell {
         if !self.animation_presets.initialized && !self.animation_presets.busy() {
             if let Err(error) = self.animation_presets.scan(self.preset_library()) {
                 log::error!("animation preset initialization failed reason={error}");
-                self.panels.message = Some(self.workspace.locale.error(&error));
+                self.panels.message = Some(self.workspace.locale.error(&error.to_string()));
                 // A failed initialization is visible; explicit Refresh can retry.
                 self.animation_presets.initialized = true;
             }
@@ -189,7 +189,7 @@ impl Shell {
                 });
                 if let Err(error) = self.animation_presets.scan(self.preset_library()) {
                     log::error!("animation preset catalog refresh failed reason={error}");
-                    self.panels.message = Some(self.workspace.locale.error(&error));
+                    self.panels.message = Some(self.workspace.locale.error(&error.to_string()));
                 }
             }
             Ok(Completion::Cancelled) => {
@@ -212,7 +212,7 @@ impl Shell {
                     .into(),
                 )
             }
-            Err(error) => self.panels.message = Some(self.workspace.locale.error(&error)),
+            Err(error) => self.panels.message = Some(self.workspace.locale.error(&error.to_string())),
         }
         self.dirty = true;
     }

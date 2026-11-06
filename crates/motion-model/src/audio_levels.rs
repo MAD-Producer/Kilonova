@@ -135,7 +135,9 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioLevelsAction) -> Result
         | AudioLevelsAction::MoveKey { channel, .. }
         | AudioLevelsAction::CopyKey { channel, .. }
         | AudioLevelsAction::Curve { channel, .. } => *channel,
-        AudioLevelsAction::Clear | AudioLevelsAction::Balance { .. } => unreachable!(),
+        AudioLevelsAction::Clear | AudioLevelsAction::Balance { .. } => {
+            return Err(crate::Error::Invalid("audio channel dispatch requires a key action".into()));
+        }
     };
     let mut levels = layer.audio_levels.clone().unwrap_or_default();
     let track = match channel {
@@ -165,7 +167,9 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioLevelsAction) -> Result
         AudioLevelsAction::MoveKey { from, to, .. } => track.move_key(local(from)?, local(to)?)?,
         AudioLevelsAction::CopyKey { from, to, .. } => track.copy_key(local(from)?, local(to)?)?,
         AudioLevelsAction::Curve { frame, easing, .. } => track.set_curve(local(frame)?, easing)?,
-        AudioLevelsAction::Clear | AudioLevelsAction::Balance { .. } => unreachable!(),
+        AudioLevelsAction::Clear | AudioLevelsAction::Balance { .. } => {
+            return Err(crate::Error::Invalid("audio track dispatch requires a key action".into()));
+        }
     }
     levels.validate()?;
     layer.audio_levels = Some(levels);

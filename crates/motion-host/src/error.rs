@@ -48,6 +48,22 @@ pub enum Error {
         primary: Box<Error>,
         secondary: Box<Error>,
     },
+    /// An integration-owned cause without a dependency from the host to that
+    /// integration. Known host/native variants should still use their From impl.
+    #[error("{cause}")]
+    NativeSource {
+        #[source]
+        cause: Box<dyn std::error::Error + Send + Sync>,
+    },
+    /// A related failure is retained separately; it never replaces the primary
+    /// cause or supplies the primary structured composition detail.
+    #[error("{primary}; {context}: {secondary}")]
+    Related {
+        context: String,
+        #[source]
+        primary: Box<Error>,
+        secondary: Box<Error>,
+    },
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
@@ -73,6 +89,10 @@ pub enum Error {
 }
 
 impl Error {
+    pub fn from_source(cause: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::NativeSource { cause: Box::new(cause) }
+    }
+
     pub fn with_context(context: impl Into<String>, cause: impl Into<Error>) -> Self {
         Self::Context {
             context: context.into(),
@@ -97,7 +117,7 @@ impl Error {
                 media_composition_detail(error)
             }
             Self::Context { cause, .. } => cause.composition_detail(),
-            Self::Cleanup { primary, .. } => primary.composition_detail(),
+            Self::Cleanup { primary, .. } | Self::Related { primary, .. } => primary.composition_detail(),
             _ => None,
         }
     }

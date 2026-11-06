@@ -107,7 +107,7 @@ macro_rules! accessors {
                         $group(group, *item, parameter)
                     } else { $vector(vector, parameter) }
                 }
-                KeyframeTarget::Property { .. } => unreachable!(),
+                KeyframeTarget::Property { .. } => Err(Error::Invalid("clipboard property dispatch requires the property channel".into())),
             }
         }
 
