@@ -51,10 +51,10 @@ fn snapshot_refusal_reports_frame_layer_extent_and_original_cause_at_default_lev
             required_bytes: before.admitted_bytes + 32 * 32 * 4, budget_bytes: before.admitted_bytes,
         }));
         let original = failure.to_string();
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
         assert_eq!(renderer.read_target(&small).unwrap(), old);
         budget.set_limit(8 << 20).unwrap();

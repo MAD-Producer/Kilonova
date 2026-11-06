@@ -146,7 +146,7 @@ mod tests {
             .recv_timeout(Duration::from_secs(5))
             .unwrap()
             .unwrap_err();
-        assert!(error.contains("desktop surface is not attached"), "{error}");
+        assert!(error.to_string().contains("desktop surface is not attached"), "{error}");
         let snapshot = engine.allocation_frame_peaks().unwrap();
         assert!(snapshot.active.is_empty());
         assert_eq!(snapshot.recent.len(), 1);

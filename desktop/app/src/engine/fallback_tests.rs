@@ -44,14 +44,14 @@ fn poisoned_engine_caches_keep_drop_policy_and_terminal_messages() {
         .is_err());
         for _ in 0..120 {
             assert!(engine.check_running().is_ok());
-            assert!(engine.stopped_error().contains("reopen the project"));
+            assert!(engine.stopped_error().to_string().contains("reopen the project"));
         }
         *engine.failure.lock().unwrap_err().into_inner() = Some("original terminal reason".into());
         assert_eq!(
-            engine.check_running().unwrap_err(),
+            engine.check_running().unwrap_err().to_string(),
             "original terminal reason"
         );
-        assert_eq!(engine.stopped_error(), "original terminal reason");
+        assert_eq!(engine.stopped_error().to_string(), "original terminal reason");
         // This fixture injected a terminal value into a live worker. Restore
         // its lifecycle invariant before Drop sends the ordinary Shutdown.
         *engine.failure.lock().unwrap_err().into_inner() = None;
@@ -177,7 +177,7 @@ fn bounded_dispatch_and_shutdown_emit_after_releasing_the_flight_gate() {
             assert!(engine
                 .request(Command::State)
                 .unwrap_err()
-                .contains("command was not queued"));
+                .to_string().contains("command was not queued"));
             assert!(began.elapsed() < Duration::from_secs(1));
         }
         assert_eq!(engine.queue_depth(), COMMAND_QUEUE_CAPACITY);
@@ -186,7 +186,7 @@ fn bounded_dispatch_and_shutdown_emit_after_releasing_the_flight_gate() {
         assert!(engine
             .request(Command::State)
             .unwrap_err()
-            .contains("shutdown requested"));
+            .to_string().contains("shutdown requested"));
         let records = probe.records.lock().unwrap().clone();
         let recovery = records
             .iter()

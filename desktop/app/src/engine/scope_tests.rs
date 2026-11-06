@@ -66,10 +66,10 @@ pub(super) fn exercise(engine: &Engine, directory: &std::path::Path) {
                     .unwrap()
                     .unwrap_err();
                 assert!(
-                    error.contains(&format!("node graph {}", snapshot.document.id)),
+                    error.to_string().contains(&format!("node graph {}", snapshot.document.id)),
                     "{error}"
                 );
-                assert!(error.contains("N1 compiled graph"), "{error}");
+                assert!(error.to_string().contains("N1 compiled graph"), "{error}");
             }
         });
         frames.join().unwrap();

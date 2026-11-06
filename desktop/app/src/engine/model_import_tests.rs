@@ -133,7 +133,7 @@ fn missing_dependency_and_stale_revision_preserve_project_history_and_files() {
         .import_model(path.clone(), before["revision"].as_u64().unwrap())
         .unwrap_err();
     assert!(
-        error.contains("triangle.bin") && error.contains("model_import"),
+        error.to_string().contains("triangle.bin") && error.to_string().contains("model_import"),
         "{error}"
     );
     assert_eq!(worker.state().unwrap()["project"], before["project"]);
@@ -143,7 +143,7 @@ fn missing_dependency_and_stale_revision_preserve_project_history_and_files() {
     let error = worker
         .import_model(original.join("not-present.obj"), u64::MAX)
         .unwrap_err();
-    assert!(error.contains("revision"), "{error}");
+    assert!(error.to_string().contains("revision"), "{error}");
     assert_eq!(worker.state().unwrap()["project"], before["project"]);
     let path = triangle(&original, "obj");
     assert_eq!(
@@ -197,7 +197,7 @@ fn refused_publication_removes_only_its_frozen_file_and_recovers() {
         .import_model(path.clone(), before["revision"].as_u64().unwrap())
         .unwrap_err();
     assert!(
-        error.contains("layer") && error.contains("model_import"),
+        error.to_string().contains("layer") && error.to_string().contains("model_import"),
         "{error}"
     );
     assert_eq!(worker.state().unwrap()["project"], before["project"]);

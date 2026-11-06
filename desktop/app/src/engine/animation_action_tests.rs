@@ -54,11 +54,11 @@ fn single_handle_fault_is_atomic_and_reaches_default_error_channels() {
         };
         let error = apply(99).unwrap_err();
         assert!(
-            error.contains("operation=curve_handle") && error.contains("object=7"),
+            error.to_string().contains("operation=curve_handle") && error.to_string().contains("object=7"),
             "{error}"
         );
         assert!(
-            error.contains("selected keyframe does not exist"),
+            error.to_string().contains("selected keyframe does not exist"),
             "{error}"
         );
         let after = engine.state().unwrap();
@@ -141,8 +141,8 @@ fn automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels() {
             reply,
         });
         let error = apply(99).unwrap_err();
-        assert!(error.contains("operation=automatic_bezier") && error.contains("object=7"), "{error}");
-        assert!(error.contains("selected keyframe does not exist"), "{error}");
+        assert!(error.to_string().contains("operation=automatic_bezier") && error.to_string().contains("object=7"), "{error}");
+        assert!(error.to_string().contains("selected keyframe does not exist"), "{error}");
         let after = engine.state().unwrap();
         for field in ["project", "revision", "history"] { assert_eq!(before[field], after[field], "{field}"); }
         let applied = apply(10).unwrap();
@@ -181,14 +181,14 @@ fn edit(engine: &Engine, state: &Value, object: u64, frames: &[u32]) -> Result<V
         },
         frames: frames.to_vec(),
     }];
-    engine.call(|reply| Command::EditorAction {
+    Ok(engine.call(|reply| Command::EditorAction {
         source,
         commands: vec![motion_core::Command::KeyframeInterpolation {
             selections,
             ease: Ease::Hold,
         }],
         reply,
-    })
+    })?)
 }
 
 #[test]
@@ -408,9 +408,9 @@ fn key_selection_edits_keep_original_failures_on_default_channels_and_recover_at
                 };
                 let selections = vec![first, selected(object, vec![frame])];
                 let error = apply(&before, delete, selections).unwrap_err();
-                assert!(error.contains(reason), "{error}");
-                assert!(error.contains(&format!("operation={operation}")), "{error}");
-                assert!(error.contains(&format!("object={object}")), "{error}");
+                assert!(error.to_string().contains(reason), "{error}");
+                assert!(error.to_string().contains(&format!("operation={operation}")), "{error}");
+                assert!(error.to_string().contains(&format!("object={object}")), "{error}");
                 let after = engine.state().unwrap();
                 assert_eq!(after["project"], before["project"]);
                 assert_eq!(after["revision"], before["revision"]);
@@ -518,7 +518,7 @@ fn keyframe_transforms_keep_default_failure_channels_and_recover_without_partial
         ] {
             let value=component.map(|component|motion_core::KeyframeValueOffset {target:KeyframeTarget::Property {object,property:Property::Position,axis:None},component,delta:1.});
             let error=apply(&before,vec![selected(7,Property::Opacity,vec![0]),selected(object,Property::Position,vec![frame])],delta,value).unwrap_err();
-            assert!(error.contains(reason),"{error}");assert!(error.contains("operation=transform"),"{error}");
+            assert!(error.to_string().contains(reason),"{error}");assert!(error.to_string().contains("operation=transform"),"{error}");
             let after=engine.state().unwrap();
             for field in ["project","revision","history"] {assert_eq!(after[field],before[field],"{field}");}
         }

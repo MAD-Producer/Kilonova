@@ -6,7 +6,7 @@ fn request(state: &Value, query: Query) -> Request {
     Request { source: KeyframeSource::of(state), frame: state["frame"].as_f64().unwrap(), window: 0, query }
 }
 fn run(engine: &Engine, request: Request) -> Result<Value, String> {
-    engine.viewer_input_async(request).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap()
+    Ok(engine.viewer_input_async(request).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap()?)
 }
 
 #[test]
@@ -76,9 +76,9 @@ fn real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_chan
     assert!(point.contains("invalid hit-test point"));
     let drag=|state:&Value,camera,window,size|Drag{source:KeyframeSource::of(state),frame:state["frame"].as_f64().unwrap(),window,camera,object:7,spatial_key:None,delta:[10.,0.],size};
     let invalid_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(1),0,[0,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap_err();
-    assert!(invalid_drag.contains("invalid preview drag"));
+    assert!(invalid_drag.to_string().contains("invalid preview drag"));
     let missing_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(999),0,[64,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap_err();
-    assert!(missing_drag.contains("object=999"));
+    assert!(missing_drag.to_string().contains("object=999"));
     let closed_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(999),71,[64,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
     assert_eq!(closed_drag["viewerDrag"]["reason"],"window_closed");
     let after = engine.state().unwrap();

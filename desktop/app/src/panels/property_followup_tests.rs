@@ -868,7 +868,7 @@ fn dimension_context_merges_and_rejects_without_losing_axes_in_both_windows() {
                 let reason = host
                     .edit(serde_json::to_string(&merge).unwrap())
                     .unwrap_err();
-                assert!(reason.contains("matching key times"), "{reason}");
+                assert!(reason.to_string().contains("matching key times"), "{reason}");
                 let after = host.state().unwrap();
                 assert_eq!(after["project"], mismatched["project"]);
                 assert_eq!(after["revision"], mismatched["revision"]);

@@ -259,7 +259,7 @@ mod tests {
             assert!(state["history"]["gestureElapsedMs"].is_null());
             let log = fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
             let event = log.lines().find(|line|line.contains("create text operation failed")).unwrap();
-            assert!(event.contains(&reason), "{event}\n{reason}");
+            assert!(event.contains(&reason.to_string()), "{event}\n{reason}");
             assert!(event.contains("revision=0 size=48 width=320"));
             assert!(!event.contains("gesture close failed"));
             return;

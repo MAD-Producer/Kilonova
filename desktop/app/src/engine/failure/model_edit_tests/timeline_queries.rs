@@ -67,7 +67,7 @@ fn actual_timeline_refusals_keep_native_causes_and_default_error_channels() {
         let mut causes = Vec::new();
         for (request, error) in (511..514).zip(errors) {
             let original = error.to_string();
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_timeline_query",
@@ -79,7 +79,7 @@ fn actual_timeline_refusals_keep_native_causes_and_default_error_channels() {
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             causes.push(original);

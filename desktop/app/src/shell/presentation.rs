@@ -7,9 +7,9 @@ mod curve_playback_tests;
 
 impl Shell {
     pub(crate) fn present_ui_async(&self, ui: UiFrame)
-        -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
-        if self.audio_only_preview { self.engine.present_frozen_async(ui) }
-        else { self.engine.present_async(ui) }
+        -> Result<std::sync::mpsc::Receiver<Result<bool, crate::engine::Error>>, String> {
+        if self.audio_only_preview { Ok(self.engine.present_frozen_async(ui)?) }
+        else { Ok(self.engine.present_async(ui)?) }
     }
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
         if state["editorAction"]["operation"] == "effect_pick" && state["editorAction"]["cancelled"] == true {
@@ -89,7 +89,7 @@ impl Shell {
             self.exposure_presentations.remove(&window);
         }
     }
-    pub(crate) fn finish_exposure_present(&mut self, window:u64, result:&Result<bool,String>) {
+    pub(crate) fn finish_exposure_present(&mut self, window:u64, result:&Result<bool,crate::engine::Error>) {
         if !matches!(result,Ok(false)) { self.exposure_presentations.remove(&window); }
     }
     pub(crate) fn presentation_pending(&self) -> bool {

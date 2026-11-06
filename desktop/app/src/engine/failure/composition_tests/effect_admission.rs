@@ -55,7 +55,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
         let original = failure.to_string();
         assert!(original.contains("effect parameters pass=0 phase=allocate"));
         assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + scratch);
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 204,
             operation: "test_effect_prepare",
@@ -67,7 +67,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
             receive
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap()
-                .unwrap_err(),
+                .unwrap_err().to_string(),
             original
         );
         budget.set_limit(SYSTEM_BYTES + (1 << 20)).unwrap();

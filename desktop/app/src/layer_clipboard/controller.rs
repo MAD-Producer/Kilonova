@@ -43,17 +43,17 @@ pub(crate) struct Completion {
     pub state: Option<Value>,
 }
 enum Stage {
-    ReadingCurves(Receiver<Result<super::curves::Read, String>>, Vec<motion_core::KeyframeSelection>, Vec<motion_core::LocalKeyframeSelection>),
+    ReadingCurves(Receiver<Result<super::curves::Read, crate::engine::Error>>, Vec<motion_core::KeyframeSelection>, Vec<motion_core::LocalKeyframeSelection>),
     CurveIO(super::curves::Job, super::Stamp, Vec<motion_core::KeyframeSelection>, Vec<motion_core::LocalKeyframeSelection>),
-    ReadingPaths(Receiver<Result<super::PathRead, String>>, Option<motion_core::PathDestination>),
-    Reading(Receiver<Result<Read, String>>, PathBuf),
+    ReadingPaths(Receiver<Result<super::PathRead, crate::engine::Error>>, Option<motion_core::PathDestination>),
+    Reading(Receiver<Result<Read, crate::engine::Error>>, PathBuf),
     ReadingKeyframes(
-        Receiver<Result<KeyframeRead, String>>,
+        Receiver<Result<KeyframeRead, crate::engine::Error>>,
         Vec<motion_core::KeyframeTarget>,
     ),
     Working(Job, Option<u32>),
     Ready(Edit),
-    Committing(Receiver<Result<Value, String>>),
+    Committing(Receiver<Result<Value, crate::engine::Error>>),
 }
 struct Pending {
     domain: Domain,
@@ -234,7 +234,7 @@ impl Clipboard {
                     self.pending = Some(Pending { domain, intent, cancel, stage: Stage::ReadingCurves(receive, selections, local_selections) });
                     return None;
                 };
-                let source = match result { Ok(source) => source, Err(cause) => return Some(Err(cause)) };
+                let source = match result { Ok(source) => source, Err(cause) => return Some(Err(cause.to_string())) };
                 if cancelled() { return done(Status::Cancelled, None); }
                 if source.superseded { return done(Status::Superseded, None); }
                 let work = if intent == Intent::Copy {
@@ -275,7 +275,7 @@ impl Clipboard {
                     self.pending = Some(Pending { domain, intent, cancel, stage: Stage::ReadingPaths(receive, target) });
                     return None;
                 };
-                let source = match result { Ok(source) => source, Err(error) => return Some(Err(error)) };
+                let source = match result { Ok(source) => source, Err(error) => return Some(Err(error.to_string())) };
                 if cancelled() { return done(Status::Cancelled, None); }
                 if source.superseded { return done(Status::Superseded, None); }
                 match intent {
@@ -314,7 +314,7 @@ impl Clipboard {
                 };
                 let source = match result {
                     Ok(source) => source,
-                    Err(error) => return Some(Err(error)),
+                    Err(error) => return Some(Err(error.to_string())),
                 };
                 if cancelled() {
                     return done(Status::Cancelled, None);
@@ -365,7 +365,7 @@ impl Clipboard {
                 };
                 let source = match result {
                     Ok(source) => source,
-                    Err(error) => return Some(Err(error)),
+                    Err(error) => return Some(Err(error.to_string())),
                 };
                 if cancelled() {
                     return done(Status::Cancelled, None);
@@ -450,7 +450,7 @@ impl Clipboard {
                 if allow_commit {
                     match engine.request(|reply| Command::ClipboardCommit { edit, reply }) {
                         Ok(receive) => Stage::Committing(receive),
-                        Err(error) => return Some(Err(error)),
+                        Err(error) => return Some(Err(error.to_string())),
                     }
                 } else {
                     Stage::Ready(edit)
@@ -478,7 +478,7 @@ impl Clipboard {
                     // A cancellation arriving after the atomic transaction has
                     // committed cannot turn its successful result into a no-op.
                     Ok(state) => done(Status::Applied, Some(state)),
-                    Err(error) => Some(Err(error)),
+                    Err(error) => Some(Err(error.to_string())),
                 };
             }
         };

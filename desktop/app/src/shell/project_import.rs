@@ -25,7 +25,7 @@ pub(crate) struct Import {
     source: crate::layer_clipboard::KeyframeSource,
     folder: Option<u64>,
     request: String,
-    pending: Option<(Phase, Receiver<Result<Value, String>>)>,
+    pending: Option<(Phase, Receiver<Result<Value, crate::engine::Error>>)>,
     last: Instant,
 }
 pub(crate) struct ImageImport {
@@ -59,7 +59,7 @@ impl Import {
                 }
             }
         }
-        primary.map_or(Ok(()), Err)
+        primary.map_or(Ok(()), |error| Err(error.to_string()))
     }
 }
 impl Shell {

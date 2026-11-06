@@ -184,7 +184,7 @@ fn native_worker_group_uses_default_error_channels_and_recovers_without_project_
     let error = crate::native_test_support::receive(&mut events, &pending, Duration::from_secs(30))
         .unwrap()
         .unwrap_err();
-    assert!(error.contains("viewer_camera object=998"));
+    assert!(error.to_string().contains("viewer_camera object=998"));
     let pending = engine
         .request(|reply| Command::TestStudy {
             operation: healthy,

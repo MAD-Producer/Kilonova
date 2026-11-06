@@ -441,7 +441,7 @@ fn native_switches_change_pixels_and_persist_in_bilingual_main_and_float() {
                     .unwrap(),
                 )
                 .unwrap_err();
-            assert!(!error.is_empty());
+            assert!(!error.to_string().is_empty());
             let after = shell.engine.state().unwrap();
             assert_eq!(before["project"], after["project"]);
             assert_eq!(before["revision"], after["revision"]);
@@ -460,7 +460,7 @@ fn native_switches_change_pixels_and_persist_in_bilingual_main_and_float() {
                 revision - 1,
             )
             .unwrap_err();
-        assert!(error.contains("revision changed"));
+        assert!(error.to_string().contains("revision changed"));
         let after = shell.engine.state().unwrap();
         assert_eq!(before["project"], after["project"]);
         assert_eq!(before["revision"], after["revision"]);

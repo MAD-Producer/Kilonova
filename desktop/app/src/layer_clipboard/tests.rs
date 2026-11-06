@@ -401,7 +401,7 @@ fn actual_failures_and_worker_panic_reach_default_file_and_error_stderr_without_
         });
         assert!(result
             .unwrap_err()
-            .contains("paste frame outside composition"));
+            .to_string().contains("paste frame outside composition"));
         assert!(!path.exists());
         let mut job = Job::start_with(
             Work::Capture {
@@ -576,7 +576,7 @@ fn unrelated_edits_preserve_external_parent_but_changed_dependencies_cannot_alia
             reply,
         })
         .unwrap_err();
-    assert!(error.contains("external layer changed") && error.contains("dependency=1"));
+    assert!(error.to_string().contains("external layer changed") && error.to_string().contains("dependency=1"));
     let after = engine.state().unwrap();
     assert_eq!(after["revision"], before["revision"]);
     assert_eq!(after["project"], before["project"]);

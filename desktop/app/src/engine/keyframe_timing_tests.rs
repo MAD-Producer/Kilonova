@@ -30,7 +30,7 @@ fn local_identity_refusals_use_default_error_channels_and_allow_recovery_without
             (serde_json::json!({"kind":"translate","frames":[3],"delta_frame":40,"copy":false}),"outside composition"),
         ] {
             let error=engine.edit(request(edit)).unwrap_err();
-            assert!(error.contains(cause),"{error}");
+            assert!(error.to_string().contains(cause),"{error}");
             let after=engine.state().unwrap();
             for field in ["project","revision","history"] {assert_eq!(after[field],before[field]);}
         }
@@ -147,7 +147,7 @@ fn timing_refusals_reach_default_file_and_stderr_without_partial_history_then_re
         ] {
             let error = apply(&before, vec![target], settings).unwrap_err();
             assert!(
-                error.contains(reason) && error.contains("operation=timing"),
+                error.to_string().contains(reason) && error.to_string().contains("operation=timing"),
                 "{error}"
             );
             let after = engine.state().unwrap();

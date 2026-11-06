@@ -238,6 +238,6 @@ fn creating_multiple_cameras_selects_the_new_layer_and_errors_keep_the_previous_
     }
     let state = shell.state.clone();
     let error = shell.engine.edit(serde_json::json!({"op":"camera_mode","object":u64::MAX,"mode":"orbit"}).to_string()).unwrap_err();
-    assert!(error.contains("18446744073709551615"));
+    assert!(error.to_string().contains("18446744073709551615"));
     assert_eq!(shell.engine.state().unwrap()["project"], state["project"]);
 }

@@ -98,7 +98,7 @@ fn actual_dimension_conversion_failures_reach_native_reply_and_default_error_sin
                 &native,
                 motion_host::Error::Model(motion_core::Error::Invalid(_))
             ));
-            let (reply, receive) = channel::<Result<(), String>>();
+            let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_dimension_conversion",
@@ -110,7 +110,7 @@ fn actual_dimension_conversion_failures_reach_native_reply_and_default_error_sin
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             causes.push(original);

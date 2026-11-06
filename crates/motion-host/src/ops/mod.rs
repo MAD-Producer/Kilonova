@@ -52,16 +52,10 @@ pub fn envelope<T: serde::Serialize>(value: T) -> Value {
     json!({"ok": true, "data": value})
 }
 
-/// Legacy text-only failure envelope. New native operations use
-/// [`typed_error_envelope`]; the prefix decoder remains only for old text callers.
+/// Text-only failures have no native identity. Never infer structured details
+/// from their display text, including text which resembles a native error.
 pub fn error_envelope(error: &str) -> Value {
-    json!({
-        "ok": false,
-        "error": error,
-        "error_detail": error
-            .strip_prefix("composition_error:")
-            .and_then(|v| serde_json::from_str::<Value>(v).ok()),
-    })
+    json!({"ok": false, "error": error, "error_detail": null})
 }
 
 /// Preserve native identity without parsing the display text.

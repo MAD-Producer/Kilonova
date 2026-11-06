@@ -379,7 +379,7 @@ impl Shell {
                                 if self.workspace.locale == Locale::Zh { "添加效果失败" }
                                 else { "Could not add effect" }));
                         }
-                        return Err(error);
+                        return Err(error.to_string());
                     }
                 }
             }
@@ -434,7 +434,7 @@ impl Shell {
                     self.relinking_assets=false;
                     if let Err(primary)=cancelled {
                         if let Err(secondary)=released { log::error!("media cancel cleanup failed request={request} cause={secondary} primary={primary}"); }
-                        return Err(primary);
+                        return Err(primary.to_string());
                     }
                     released?;
                     self.panels.message=Some(if self.workspace.locale==Locale::Zh {"已取消，原素材保持不变"}else{"Cancelled; original asset retained"}.into());

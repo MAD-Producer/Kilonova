@@ -37,7 +37,7 @@ fn project_view_close_saves_pending_search_and_reports_actual_preference_io_fail
         failure.panels.project.browser.view = view;
         failure.finish_close();
         assert!(failure.closing);
-        std::fs::write(root.join("reason.txt"), reason).unwrap();
+        std::fs::write(root.join("reason.txt"), reason.to_string()).unwrap();
         return;
     }
     let temporary = tempfile::tempdir().unwrap();
@@ -125,7 +125,7 @@ fn project_open_rejects_stale_targets_reports_actual_failures_and_preserves_libr
         assert_eq!(stale["editorAction"]["cancelled"], true);
         assert_eq!(stale["project"], organized["project"]);
         let reason = open(&organized, "missing-project-composition").unwrap_err();
-        assert!(!reason.is_empty());
+        assert!(!reason.to_string().is_empty());
         assert_eq!(engine.state().unwrap()["project"], organized["project"]);
         let at_main = engine.seek(33.).unwrap();
         let detail = open(&at_main, "comp-detail").unwrap();
@@ -169,7 +169,7 @@ fn project_open_rejects_stale_targets_reports_actual_failures_and_preserves_libr
             reopened.state().unwrap()["project"]["library"],
             organized["project"]["library"]
         );
-        std::fs::write(root.join("reason.txt"), reason).unwrap();
+        std::fs::write(root.join("reason.txt"), reason.to_string()).unwrap();
         return;
     }
     let temporary = tempfile::tempdir().unwrap();
@@ -223,11 +223,11 @@ fn project_open_rejects_stale_targets_reports_actual_failures_and_preserves_libr
 }
 
 fn edit(engine: &Engine, state: &Value, action: LibraryAction) -> Result<Value, String> {
-    engine.call(|reply| Command::EditorAction {
+    Ok(engine.call(|reply| Command::EditorAction {
         source: KeyframeSource::of(state),
         commands: vec![motion_core::Command::ProjectLibrary { action }],
         reply,
-    })
+    })?)
 }
 
 #[test]

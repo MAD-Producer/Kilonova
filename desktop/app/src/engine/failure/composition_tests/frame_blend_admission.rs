@@ -29,7 +29,7 @@ fn blend_uniform_refusal_preserves_reply_and_reaches_default_file_and_stderr() {
         assert_eq!(renderer.video_blend_submissions, 0);
         assert!(!renderer.video_blend_source_ready(9, 12, 345, 0));
         let original = failure.to_string();
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 205,
             operation: "test_video_blend_cache",
@@ -41,7 +41,7 @@ fn blend_uniform_refusal_preserves_reply_and_reaches_default_file_and_stderr() {
             receive
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap()
-                .unwrap_err(),
+                .unwrap_err().to_string(),
             original
         );
         budget.set_limit(SYSTEM_BYTES + (1 << 20)).unwrap();

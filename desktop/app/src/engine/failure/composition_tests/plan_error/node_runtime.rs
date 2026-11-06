@@ -73,10 +73,10 @@ fn actual_owned_zip_failure_reaches_worker_reply_default_logs_and_rollback_then_
         let initial_entries = directory_entries();
         let error = engine.import_project(archive).unwrap_err();
         assert!(
-            error.starts_with("invalid compiled node runtime: invalid Zip archive:"),
+            error.to_string().starts_with("invalid compiled node runtime: invalid Zip archive:"),
             "{error}"
         );
-        assert!(error.contains("Could not find EOCD"), "{error}");
+        assert!(error.to_string().contains("Could not find EOCD"), "{error}");
         let after = engine.state().unwrap();
         for key in ["project", "revision", "history", "canUndo", "canRedo"] {
             assert_eq!(after[key], before[key], "failed request changed {key}");
@@ -93,7 +93,7 @@ fn actual_owned_zip_failure_reaches_worker_reply_default_logs_and_rollback_then_
         let recovered = engine.state().unwrap();
         assert_eq!(recovered["project"], serde_json::to_value(initial).unwrap());
         assert!(!engine.failed());
-        std::fs::write(root.join("reply.txt"), error).unwrap();
+        std::fs::write(root.join("reply.txt"), error.to_string()).unwrap();
         return;
     }
     let root = tempfile::tempdir().unwrap();

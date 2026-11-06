@@ -89,7 +89,7 @@ fn start(root: &Path, p: &Project, at: f64) -> Engine {
     engine.seek(at).unwrap();
     engine
 }
-fn pick(engine: &Engine, ticket: Ticket, point: [f64; 2]) -> Result<Value, String> {
+fn pick(engine: &Engine, ticket: Ticket, point: [f64; 2]) -> Result<Value, crate::engine::Error> {
     engine
         .request(|reply| Command::EffectPick {
             ticket,
@@ -176,7 +176,7 @@ fn mapped_pick_rejects_unrepresentable_animated_time_but_accepts_static_values_w
         );
         let before = engine.state().unwrap();
         let error = pick(&engine, ticket(&before, "start"), [40., 15.]).unwrap_err();
-        assert!(error.contains("continuous key addressing"), "{error}");
+        assert!(error.to_string().contains("continuous key addressing"), "{error}");
         let after = engine.state().unwrap();
         assert_eq!(after["project"], before["project"]);
         assert_eq!(after["history"], before["history"]);

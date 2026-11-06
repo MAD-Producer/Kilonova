@@ -53,6 +53,8 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
+    FileLock(#[from] std::fs::TryLockError),
+    #[error(transparent)]
     Image(#[from] image::ImageError),
     #[error(transparent)]
     Composition(#[from] CompositionError),

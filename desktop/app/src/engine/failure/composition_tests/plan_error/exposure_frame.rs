@@ -92,7 +92,7 @@ fn actual_exposure_io_and_terminal_replay_reach_default_reply_channels_then_new_
             } else {
                 pointer = Some(current);
             }
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_exposure_poll",
@@ -104,7 +104,7 @@ fn actual_exposure_io_and_terminal_replay_reach_default_reply_channels_then_new_
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             causes.push(original);

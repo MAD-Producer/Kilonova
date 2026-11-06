@@ -51,7 +51,7 @@ fn invalid_anchor_edit_reaches_reply_file_stderr_without_mutating_state() {
         engine.edit(serde_json::to_string(&Command::Add{layer:Layer::solid(7,"Anchor",[100.;2],[0.;3],[1.;4])}).unwrap()).unwrap();
         let before=engine.state().unwrap();
         let failure=engine.edit(serde_json::to_string(&Command::SetVector{object:7,property:Property::Anchor,frame:0,value:[0.,0.,1.]}).unwrap()).unwrap_err();
-        assert!(failure.contains(CAUSE));
+        assert!(failure.to_string().contains(CAUSE));
         let after=engine.state().unwrap();assert_eq!(before["project"],after["project"]);assert_eq!(before["revision"],after["revision"]);
         assert!(!engine.failed());
         let mut animated=before.clone();

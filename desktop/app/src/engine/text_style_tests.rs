@@ -7,11 +7,11 @@ mod export;
 fn apply(engine: &Engine, state: &Value, mut request: Value) -> Result<Value, String> {
     request["op"] = "font_edit_text".into();
     request["revision"] = state["revision"].clone();
-    engine.call(|reply| Command::TextLayout {
+    Ok(engine.call(|reply| Command::TextLayout {
         source: crate::layer_clipboard::KeyframeSource::of(state),
         request,
         reply,
-    })
+    })?)
 }
 fn request(state: &Value) -> Value {
     let layer = &state["project"]["layers"][0];

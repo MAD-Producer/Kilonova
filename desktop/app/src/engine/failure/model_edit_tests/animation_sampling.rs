@@ -88,7 +88,7 @@ fn actual_sampling_refusals_preserve_native_causes_and_default_reply_sinks() {
             };
             assert!(matches!(source, motion_core::Error::Invalid(_)));
             assert_eq!(source.to_string(), original);
-            let (reply, receive) = channel::<Result<(), String>>();
+            let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_animation_sampling",
@@ -100,7 +100,7 @@ fn actual_sampling_refusals_preserve_native_causes_and_default_reply_sinks() {
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             causes.push(original);

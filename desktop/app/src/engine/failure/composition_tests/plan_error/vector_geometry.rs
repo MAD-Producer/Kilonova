@@ -38,7 +38,7 @@ fn actual_vector_failures_preserve_native_causes_and_default_reply_channels() {
             for part in ["layer 7", "vector rasterize", "frame 5.5"] {
                 assert!(original.contains(part));
             }
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request: 1101 + index as u64,
                 operation: "test_vector_geometry",
@@ -50,7 +50,7 @@ fn actual_vector_failures_preserve_native_causes_and_default_reply_channels() {
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             assert!(Arc::ptr_eq(

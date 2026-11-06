@@ -19,7 +19,7 @@ pub(crate) struct Analysis {
     last: Instant,
     cancelled: Arc<AtomicBool>,
     worker: Option<mpsc::Receiver<Result<Vec<u32>, String>>>,
-    media: Option<mpsc::Receiver<Result<Value, String>>>,
+    media: Option<mpsc::Receiver<Result<Value, crate::engine::Error>>>,
 }
 
 #[cfg(test)]

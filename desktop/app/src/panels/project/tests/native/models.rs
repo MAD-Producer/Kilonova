@@ -100,7 +100,7 @@ fn capture_model_case(out: PathBuf) {
         .unwrap()
         .unwrap_err();
     assert!(
-        refusal.contains("model_register") && refusal.contains("missing-library.obj"),
+        refusal.to_string().contains("model_register") && refusal.to_string().contains("missing-library.obj"),
         "{refusal}"
     );
     assert_eq!(shell.engine.state().unwrap()["project"], before["project"]);

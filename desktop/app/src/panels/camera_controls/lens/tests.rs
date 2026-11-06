@@ -338,8 +338,8 @@ fn actual_lens_failures_reach_default_logs_and_stderr_with_recovery_and_stdout_i
                 .unwrap(),
             )
             .unwrap_err();
-        assert!(error.contains("film width"));
-        std::fs::write(root.join("expected-error.txt"), &error).unwrap();
+        assert!(error.to_string().contains("film width"));
+        std::fs::write(root.join("expected-error.txt"), &error.to_string()).unwrap();
         let mut broken = healthy.clone();
         broken["project"]["width"] = 0.into();
         let mut atlas = TextAtlas::from_system(12.).unwrap();

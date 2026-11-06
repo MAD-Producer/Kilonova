@@ -263,7 +263,7 @@ fn native_shy_switches_persist_and_keep_output_with_default_error_evidence() {
                 .unwrap(),
             )
             .unwrap_err();
-        assert!(error.contains("999999"));
+        assert!(error.to_string().contains("999999"));
         let after = shell.engine.state().unwrap();
         assert_eq!(before["project"], after["project"]);
         assert_eq!(before["revision"], after["revision"]);

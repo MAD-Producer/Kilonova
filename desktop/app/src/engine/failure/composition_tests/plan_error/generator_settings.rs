@@ -62,7 +62,7 @@ fn actual_generator_refusals_keep_native_sources_and_default_reply_log_channels(
                 motion_host::Error::Render(RenderError::Context { .. })
             ));
             assert_eq!(host.to_string(), original);
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_generator_settings",
@@ -74,7 +74,7 @@ fn actual_generator_refusals_keep_native_sources_and_default_reply_log_channels(
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             causes.push(original);

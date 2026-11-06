@@ -69,9 +69,9 @@ fn invalid_model_edits_keep_history_and_reach_default_error_channels() {
                 command,
             ]);
             let error = engine.edit(batch.to_string()).unwrap_err();
-            assert!(error.contains(cause), "{error}");
+            assert!(error.to_string().contains(cause), "{error}");
             if let Some(code) = code {
-                let envelope = motion_host::ops::error_envelope(&error);
+                let envelope = error.envelope();
                 assert_eq!(envelope["error_detail"]["code"], *code);
             }
             let after = engine.state().unwrap();

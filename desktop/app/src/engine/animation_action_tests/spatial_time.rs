@@ -133,10 +133,10 @@ fn mapped_spatial_worker_preserves_clocks_atomicity_and_default_error_outputs() 
             )
             .unwrap_err();
             assert!(
-                cause.contains("operation=spatial_keyframes")
-                    && cause.contains("object=7")
-                    && cause.contains("phase=time key=999")
-                    && cause.contains("selected spatial key identity is missing"),
+                cause.to_string().contains("operation=spatial_keyframes")
+                    && cause.to_string().contains("object=7")
+                    && cause.to_string().contains("phase=time key=999")
+                    && cause.to_string().contains("selected spatial key identity is missing"),
                 "{cause}"
             );
             let after = engine.state().unwrap();

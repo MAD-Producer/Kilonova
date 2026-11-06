@@ -24,7 +24,7 @@ impl Worker {
     }
 
     // Check before capturing source handles, not merely before spawning.
-    pub(super) fn available(&mut self) -> Result<(), String> {
+    pub(super) fn available(&mut self) -> motion_host::Result<()> {
         if self
             .active
             .as_ref()
@@ -66,10 +66,10 @@ impl Worker {
 
     pub(super) fn start<T: Send + 'static>(
         &mut self,
-        reply: Sender<Result<T, String>>,
+        reply: Sender<Result<T, Error>>,
         control: ExportControl,
-        freeze: impl FnOnce() -> Result<T, String> + Send + 'static,
-    ) -> Result<(), String> {
+        freeze: impl FnOnce() -> motion_host::Result<T> + Send + 'static,
+    ) -> motion_host::Result<()> {
         self.available()?;
         let flight = CURRENT_COMMAND.get();
         set_flight(&self.flight, flight);
@@ -94,7 +94,7 @@ impl Worker {
                         Err(format!(
                             "movie freeze worker failed: {}",
                             motion_media::panic_reason(payload)
-                        ))
+                        ).into())
                     });
                 // Handoff and shutdown cancellation share a short gate. Once
                 // the result is ready, closing this engine must not cancel a
@@ -115,7 +115,7 @@ impl Worker {
             Ok(worker) => worker,
             Err(error) => {
                 set_flight(&self.flight, None);
-                return Err(format!("movie freeze worker spawn failed: {error}"));
+                return Err(motion_host::Error::with_context("movie freeze worker spawn failed", error));
             }
         };
         self.active = Some((worker, control, flight, completed));
@@ -145,7 +145,7 @@ fn set_flight(observation: &Mutex<Option<Flight>>, flight: Option<Flight>) {
     );
 }
 
-pub(super) fn respond_movie<T>(reply: Sender<Result<T, String>>, result: motion_host::Result<T>) {
+pub(super) fn respond_movie<T>(reply: Sender<Result<T, Error>>, result: motion_host::Result<T>) {
     if result
         .as_ref()
         .err()
@@ -160,7 +160,7 @@ pub(super) fn respond_movie<T>(reply: Sender<Result<T, String>>, result: motion_
             );
         }
         // Cancellation is a normal terminal result; preserve the wire reply.
-        let _ = reply.send(result.map_err(String::from));
+        let _ = reply.send(result.map_err(Error::from));
     } else {
         respond(reply, result);
     }

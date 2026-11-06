@@ -313,7 +313,7 @@ fn oversized_report_replies_with_failure_and_reporter_remains_usable() {
     let huge: &'static str = Box::leak("x".repeat(MAX_REPORT_BYTES).into_boxed_str());
     d.record(1, "worker", huge, Duration::from_millis(1), None, None, Default::default());
     let error = d.export(path.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
-    assert!(error.contains("byte budget"));
+    assert!(error.to_string().contains("byte budget"));
     assert_eq!(d.status()["localWriteErrors"], 1);
     assert!(!path.exists());
     d.state.lock().unwrap().recent.clear();

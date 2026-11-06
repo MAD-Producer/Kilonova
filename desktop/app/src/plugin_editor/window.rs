@@ -29,7 +29,7 @@ pub(super) type Prepared = (
     motion_graph::plugin_project::PluginProject,
     crate::node_preview::PreparedPlugin,
 );
-type Reply<T> = Receiver<Result<T, String>>;
+type Reply<T, E = crate::engine::Error> = Receiver<Result<T, E>>;
 
 struct Scratch(PathBuf);
 impl Scratch {
@@ -188,10 +188,10 @@ struct App {
     preview: Option<Preview>,
     author: Option<super::author::Workspace>,
     author_path: Option<PathBuf>,
-    author_load: Option<Reply<motion_graph::plugin_project::PluginProject>>,
+    author_load: Option<Reply<motion_graph::plugin_project::PluginProject, String>>,
     author_installing: Option<(u64, Vec<motion_effects::ParamDefinition>)>,
     stamp: (u64, u64),
-    load: Option<Reply<Prepared>>,
+    load: Option<Reply<Prepared, String>>,
     prepared: Option<crate::node_preview::PreparedPlugin>,
     attach: Option<Reply<serde_json::Value>>,
     install: Option<Reply<bool>>,
@@ -216,12 +216,12 @@ struct App {
     // Last: engine/surfaces and author workers release before scratch cleanup.
     _scratch: Scratch,
 }
-fn poll<T>(slot: &mut Option<Reply<T>>, operation: &str) -> Option<Result<T, String>> {
+fn poll<T, E: Into<String>>(slot: &mut Option<Reply<T, E>>, operation: &str) -> Option<Result<T, String>> {
     let reply = slot.as_ref()?;
     match reply.try_recv() {
         Ok(result) => {
             *slot = None;
-            Some(result)
+            Some(result.map_err(Into::into))
         }
         Err(TryRecvError::Empty) => None,
         Err(TryRecvError::Disconnected) => {

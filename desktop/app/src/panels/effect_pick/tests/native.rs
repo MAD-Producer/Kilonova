@@ -9,7 +9,7 @@ use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows
 
 fn receive<T>(
     events: &mut EventLoop<()>,
-    pending: std::sync::mpsc::Receiver<Result<T, String>>,
+    pending: std::sync::mpsc::Receiver<Result<T, crate::engine::Error>>,
 ) -> T {
     crate::native_test_support::receive(events, &pending, Duration::from_secs(60))
         .unwrap()
@@ -697,7 +697,7 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
         crate::native_test_support::receive(&mut events, &result, Duration::from_secs(30)).unwrap();
     assert!(result
         .unwrap_err()
-        .contains("position pick requires a Vec2"));
+        .to_string().contains("position pick requires a Vec2"));
     assert_eq!(engine.state().unwrap()["project"], before["project"]);
     let ticket = Ticket::new(&before, 7, effect, "start", Kind::Position);
     engine.seek(1.).unwrap();

@@ -34,9 +34,9 @@ fn invalid_work_area_reaches_reply_file_and_stderr_without_mutation_at_default_l
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap()
                 .unwrap_err();
-            assert!(error.contains("invalid work area"), "{error}");
+            assert!(error.to_string().contains("invalid work area"), "{error}");
             assert!(
-                error.contains(&format!("in_frame={in_frame} out_frame={out_frame}")),
+                error.to_string().contains(&format!("in_frame={in_frame} out_frame={out_frame}")),
                 "{error}"
             );
             let after = engine.state().unwrap();
@@ -57,7 +57,7 @@ fn invalid_work_area_reaches_reply_file_and_stderr_without_mutation_at_default_l
         let error = engine.edit_async_at_revision(
             r#"{"op":"set_work_area","in_frame":20,"out_frame":80}"#.into(),before["revision"].as_u64().unwrap())
             .unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
-        assert!(error.contains("project revision changed"));
+        assert!(error.to_string().contains("project revision changed"));
         assert_eq!(engine.state().unwrap()["project"],valid["project"]);
         drop(engine);
         let project = motion_core::Project::new(64, 64, 30, 120).unwrap();

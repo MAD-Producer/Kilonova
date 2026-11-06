@@ -65,7 +65,7 @@ fn native_shader_failures_keep_default_channels_and_healthy_compilation() {
                 motion_host::Error::Render(motion_render::RenderError::Effects(_))
             ));
             assert_eq!(error.to_string(), original);
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_shader_compile",
@@ -77,7 +77,7 @@ fn native_shader_failures_keep_default_channels_and_healthy_compilation() {
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             causes.push(original);

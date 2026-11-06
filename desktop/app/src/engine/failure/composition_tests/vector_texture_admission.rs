@@ -36,10 +36,10 @@ fn native_vector_texture_refusal_keeps_old_pixels_cause_and_default_output_chann
             required_bytes: before.admitted_bytes + 66 * 66 * 4, budget_bytes: before.admitted_bytes,
         }));
         let original = failure.to_string();
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
         assert_eq!(budget.info().unwrap().live_allocations, before.live_allocations);
         assert_eq!(renderer.read_target(&target).unwrap(), pixels);

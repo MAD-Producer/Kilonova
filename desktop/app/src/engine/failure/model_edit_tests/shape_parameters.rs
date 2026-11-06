@@ -38,7 +38,7 @@ fn actual_missing_shape_parameters_reach_native_reply_and_default_error_sinks() 
                 &native,
                 motion_host::Error::Model(motion_core::Error::Invalid(_))
             ));
-            let (reply, receive) = channel::<Result<(), String>>();
+            let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_shape_parameter",
@@ -50,7 +50,7 @@ fn actual_missing_shape_parameters_reach_native_reply_and_default_error_sinks() 
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
         }

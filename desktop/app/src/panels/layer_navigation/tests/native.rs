@@ -136,12 +136,12 @@ fn native_layer_ordering_is_atomic_observes_stale_revision_and_renders_bilingual
             .recv_timeout(Duration::from_secs(10))
             .unwrap()
             .unwrap_err();
-        assert!(error.to_lowercase().contains("revision"), "{error}");
+        assert!(error.to_string().to_lowercase().contains("revision"), "{error}");
         shell.state = shell.engine.state().unwrap();
         for field in ["project", "revision", "history", "canUndo", "canRedo"] {
             assert_eq!(shell.state[field], current[field], "{field}");
         }
-        std::fs::write(root.join("expected-error.txt"), &error).unwrap();
+        std::fs::write(root.join("expected-error.txt"), error.to_string()).unwrap();
         for locale in [Locale::En, Locale::Zh] {
             shell.workspace.locale = locale;
             shell.panels.locale = locale;

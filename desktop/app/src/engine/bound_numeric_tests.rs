@@ -225,7 +225,7 @@ fn node_bound_worker_reuses_canonical_and_native_programs_with_default_failure_c
             crate::native_test_support::receive(&mut events, &reply, Duration::from_secs(60))
                 .unwrap()
                 .unwrap_err();
-        assert!(reason.contains("node canonical graph"), "{reason}");
+        assert!(reason.to_string().contains("node canonical graph"), "{reason}");
         let reply = engine
             .request(|reply| Command::TestStudy {
                 operation: probe,

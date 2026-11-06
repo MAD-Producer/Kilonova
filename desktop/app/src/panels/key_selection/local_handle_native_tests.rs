@@ -237,7 +237,7 @@ fn native_local_handles_edit_undo_save_pixels_and_reopen() {
                 .engine
                 .edit(serde_json::to_string(&invalid).unwrap())
                 .unwrap_err()
-                .contains("selected keyframe does not exist"));
+                .to_string().contains("selected keyframe does not exist"));
             assert_eq!(shell.engine.state().unwrap()["project"], after["project"]);
             for (speed, suffix) in [(false, "values"), (true, "speed")] {
                 p.timeline.speed_graph = speed;

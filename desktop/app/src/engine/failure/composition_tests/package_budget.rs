@@ -45,7 +45,7 @@ fn actual_package_install_refusal_reaches_default_worker_reply_file_and_stderr_t
             "required_bytes=",
             "budget_bytes=4",
         ] {
-            assert!(failure.contains(context), "{failure}");
+            assert!(failure.to_string().contains(context), "{failure}");
         }
         let after = engine.state().unwrap();
         for key in ["project", "revision", "canUndo"] {

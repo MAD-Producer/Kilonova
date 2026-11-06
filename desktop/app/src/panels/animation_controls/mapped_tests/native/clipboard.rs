@@ -209,7 +209,7 @@ fn fractional_curve_system_clipboard_native_copy_paste_and_reopen() {
                 .engine
                 .edit(serde_json::to_string(&invalid).unwrap())
                 .unwrap_err();
-            assert!(cause.contains("does not exist"), "{cause}");
+            assert!(cause.to_string().contains("does not exist"), "{cause}");
             assert_eq!(shell.engine.state().unwrap()["project"], after["project"]);
             record(
                 folder.join("failure.json"),

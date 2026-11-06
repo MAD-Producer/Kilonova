@@ -35,7 +35,7 @@ fn actual_path_refusals_keep_native_identity_and_reach_default_reply_file_and_st
                 &native,
                 motion_host::Error::Model(motion_core::Error::Invalid(_))
             ));
-            let (reply, receive) = channel::<Result<(), String>>();
+            let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_path_ops",
@@ -47,7 +47,7 @@ fn actual_path_refusals_keep_native_identity_and_reach_default_reply_file_and_st
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
         }

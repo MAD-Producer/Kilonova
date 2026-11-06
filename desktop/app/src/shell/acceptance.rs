@@ -1615,6 +1615,6 @@ impl Shell {
                 return Err("capture group presentation is not complete".into());
             }
         }
-        self.engine.capture_ui(ui,path)
+        Ok(self.engine.capture_ui(ui,path)?)
     }
 }

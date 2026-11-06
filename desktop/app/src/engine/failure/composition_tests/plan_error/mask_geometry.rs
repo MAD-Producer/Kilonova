@@ -40,7 +40,7 @@ fn actual_mask_failures_keep_causes_and_default_reply_channels_then_recover() {
             let host = motion_host::Error::from(failure);
             assert!(native_geometry(&host));
             let original = host.to_string();
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request: 1401 + index as u64,
                 operation: "test_mask_geometry",
@@ -52,7 +52,7 @@ fn actual_mask_failures_keep_causes_and_default_reply_channels_then_recover() {
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             assert!(Arc::ptr_eq(&scene.layers[0].masks, &input));
