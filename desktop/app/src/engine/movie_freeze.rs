@@ -115,7 +115,7 @@ impl Worker {
             Ok(worker) => worker,
             Err(error) => {
                 set_flight(&self.flight, None);
-                return Err(format!("movie freeze worker spawn failed: {error}").into());
+                return Err(motion_host::Error::with_context("movie freeze worker spawn failed", error));
             }
         };
         self.active = Some((worker, control, flight, completed));

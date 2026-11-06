@@ -106,7 +106,7 @@ impl Worker {
                 );
                 CURRENT_COMMAND.set(None);
             })
-            .map_err(|error| format!("PNG export worker spawn failed: {error}"))?;
+            .map_err(|cause| motion_host::Error::with_context("PNG export worker spawn failed", cause))?;
         self.active = Some((worker, control, flight));
         Ok(())
     }

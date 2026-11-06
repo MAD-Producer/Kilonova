@@ -241,3 +241,116 @@ fn timeout_remains_pending_and_publishes_typed_request_identity() {
     engine.request_shutdown().unwrap();
     assert!(matches!(engine.state(), Err(Error::ShuttingDown)));
 }
+
+#[test]
+fn startup_lock_and_capability_requests_preserve_native_errors_and_default_channels() {
+    const CHILD: &str = "MOTION_TYPED_STARTUP_ERROR_CHILD";
+    const TEST: &str = "engine::error::tests::startup_lock_and_capability_requests_preserve_native_errors_and_default_channels";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let project = root.join("project");
+        let engine =
+            Engine::start(project.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let before = engine.state().unwrap();
+        let lock = match Engine::start(project.clone(), motion_desktop_media::platform(), 8 << 30) {
+            Ok(_) => panic!("concurrent editor acquired the same project"),
+            Err(error) => error,
+        };
+        let Some(motion_host::Error::Context { context, cause }) = lock.host() else {
+            panic!("startup erased native lock identity: {lock:?}");
+        };
+        assert_eq!(context, "project is already open or cannot be locked");
+        assert!(matches!(
+            cause.as_ref(),
+            motion_host::Error::FileLock(std::fs::TryLockError::WouldBlock)
+        ));
+        assert!(lock
+            .to_string()
+            .starts_with("project is already open or cannot be locked: "));
+        let malformed = engine.media_capabilities("{}".into()).unwrap_err();
+        let Some(motion_host::Error::Context { context, cause }) = malformed.host() else {
+            panic!("capability request erased native JSON identity: {malformed:?}");
+        };
+        assert_eq!(context, "media request");
+        let motion_host::Error::Json(json) = cause.as_ref() else {
+            panic!("capability request has the wrong cause: {cause:?}");
+        };
+        assert!(json.is_data());
+        assert!(json.to_string().contains("op"));
+        let truncated = engine.media_capabilities("{".into()).unwrap_err();
+        assert!(matches!(truncated.host(), Some(motion_host::Error::Json(json)) if json.is_eof()));
+        assert!(engine
+            .media_capabilities(r#"{"op":"media_capabilities"}"#.into())
+            .unwrap()
+            .is_object());
+        let after = engine.state().unwrap();
+        for field in ["project", "revision", "history", "canUndo", "canRedo"] {
+            assert_eq!(after[field], before[field], "changed {field}");
+        }
+        assert!(!engine.failed());
+        drop(engine);
+        let reopened = Engine::start(project, motion_desktop_media::platform(), 8 << 30).unwrap();
+        assert_eq!(reopened.state().unwrap()["project"], before["project"]);
+        drop(reopened);
+        crate::logging::flush();
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    if let Some(evidence) = std::env::var_os("MOTION_ERROR_TRANSPORT_EVIDENCE") {
+        let evidence = PathBuf::from(evidence).join("startup-capabilities");
+        std::fs::create_dir_all(&evidence).unwrap();
+        std::fs::write(evidence.join("worker.stdout"), &output.stdout).unwrap();
+        std::fs::write(evidence.join("worker.stderr"), &output.stderr).unwrap();
+        std::fs::write(evidence.join("worker.log"), &file).unwrap();
+    }
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    for text in [&file, &stderr] {
+        assert_eq!(
+            text.lines()
+                .filter(|line| line.contains("worker startup lock failed:"))
+                .count(),
+            1,
+            "{text}"
+        );
+        assert_eq!(
+            text.lines()
+                .filter(|line| line.contains("error #") && line.contains(" media_capabilities "))
+                .count(),
+            2,
+            "{text}"
+        );
+    }
+    assert!(
+        file.find("worker startup phase=project_lock").unwrap()
+            < file.find("worker startup lock failed:").unwrap()
+    );
+    for line in file.lines().filter(|line| line.contains("error #")) {
+        let command = line
+            .split_once("error #")
+            .unwrap()
+            .1
+            .split_whitespace()
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(file.find(&format!("start #{command}")).unwrap() < file.find(line).unwrap());
+    }
+    assert!(!stdout.contains("worker startup lock failed"));
+    assert!(!stdout.contains("error #"));
+    assert!(!stdout.contains("start #"));
+}

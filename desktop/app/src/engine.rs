@@ -777,6 +777,9 @@ impl Engine {
         let worker = std::thread::Builder::new()
             .name("motion-engine".into())
             .spawn(move || {
+                log::info!("worker startup phase=project_lock root={}",
+                    crate::fallback_observation::short(root.display()));
+                crate::logging::flush();
                 let mut guard = match ProjectGuard::acquire(&root) {
                     Ok(guard) => guard,
                     Err(e) => {
@@ -1572,7 +1575,8 @@ impl ProjectGuard {
             .open(root.join(".motion-editor.lock"))
             ?;
         file.try_lock()
-            .map_err(|e| format!("project is already open or cannot be locked: {e}"))?;
+            .map_err(|cause| motion_host::Error::with_context(
+                "project is already open or cannot be locked", cause))?;
         Ok(Self {
             root,
             _file: file,
@@ -2405,7 +2409,7 @@ fn media_request(id: i64, text: &str) -> motion_host::Result<Value> {
 fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> motion_host::Result<Value> {
     let value = motion_host::ops::parse_request(text, 16 * 1024, "media request")?;
     let request = serde_json::from_value::<media::Request>(value)
-        .map_err(|error| format!("media request: {error}"))?;
+        .map_err(|cause| motion_host::Error::with_context("media request", cause))?;
     let media::Request::MediaCapabilities { video_query: query } = request else {
         return Err("expected media_capabilities request".into());
     };
