@@ -2142,6 +2142,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "wgpu",
+ "windows-sys 0.61.2",
  "winit",
 ]
 

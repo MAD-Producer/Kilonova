@@ -41,6 +41,7 @@ mod last_error_observation;
 mod resource_observation;
 mod sampling;
 pub(crate) mod pipeline_preparation;
+pub use pipeline_preparation::DriverPipelineCacheStorage;
 pub mod viewer;
 #[cfg(feature = "ai-depth")]
 mod depth;
@@ -415,6 +416,14 @@ impl Session {
         } else {
             Ok(())
         }
+    }
+
+    /// The desktop supplies a private-storage capability; projects and plugins
+    /// cannot configure this location through the command/JSON surface.
+    pub fn set_driver_pipeline_cache_storage(&mut self, storage: DriverPipelineCacheStorage) -> Result<()> {
+        self.check_thread()?;
+        self.pipeline_preparation.configure_cache(storage);
+        Ok(())
     }
 
     pub fn detach(&mut self) {
@@ -893,6 +902,9 @@ impl Session {
                     .map_err(crate::Error::from)?;
             }
             self.last_error = None;
+            self.pipeline_preparation.frame_presented(&mut g.renderer,
+                motion_render::PipelinePreparationContext { document_generation:self.document_generation,
+                    project_revision:self.engine.revision() })?;
             return Ok(true);
         }
         self.preview_memory_held = g.scratch.valid();

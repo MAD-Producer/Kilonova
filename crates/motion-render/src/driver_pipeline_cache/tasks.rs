@@ -146,6 +146,7 @@ pub struct DriverPipelineCacheJob {
     identity: [u8; 32],
     path: PathBuf,
     ticket: DriverPipelineCacheTicket,
+    context: Option<crate::PipelinePreparationContext>,
     finished: bool,
     #[cfg(test)]
     before_operation: Option<Box<dyn FnOnce() + Send>>,
@@ -234,6 +235,7 @@ impl DriverPipelineCacheJob {
             identity: renderer.driver_pipeline_cache.identity,
             path: path.to_owned(),
             ticket,
+            context: None,
             finished: false,
             #[cfg(test)]
             before_operation: None,
@@ -242,11 +244,26 @@ impl DriverPipelineCacheJob {
     pub fn ticket(&self) -> DriverPipelineCacheTicket {
         self.ticket.clone()
     }
+    pub fn with_context(mut self, context: crate::PipelinePreparationContext) -> Self {
+        self.context = Some(context);
+        self
+    }
     fn current(&self) -> bool {
         !self.ticket.cancelled() && self.owner.strong_count() != 0
     }
 
-    pub fn run(mut self) -> Result<DriverPipelineCacheCompletion> {
+    pub fn run(self) -> Result<DriverPipelineCacheCompletion> {
+        self.run_with_storage(|_| Ok(()))
+    }
+
+    /// Prepare/validate the caller's application-owned storage inside the same
+    /// published in-flight and panic/error boundary, before opening any file.
+    /// The callback receives the final file path. It must not import user data;
+    /// restore's provenance contract remains the caller's obligation.
+    pub fn run_with_storage(
+        mut self,
+        prepare: impl FnOnce(&Path) -> std::io::Result<()>,
+    ) -> Result<DriverPipelineCacheCompletion> {
         if !self.current() {
             self.ticket.phase(8);
             self.finished = true;
@@ -259,10 +276,11 @@ impl DriverPipelineCacheJob {
         let started = Instant::now();
         let path: String = self.path.to_string_lossy().chars().take(384).collect();
         log::info!(
-            "driver pipeline cache start request={} operation={:?} path={}",
+            "driver pipeline cache start request={} operation={:?} path={} context={:?}",
             self.ticket.0.request,
             self.ticket.0.operation,
-            path
+            path,
+            self.context
         );
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             if std::thread::current().id() == self.owner_thread {
@@ -271,6 +289,12 @@ impl DriverPipelineCacheJob {
             #[cfg(test)]
             if let Some(before) = self.before_operation.take() {
                 before();
+            }
+            if !self.current() {
+                return Ok(DriverPipelineCacheCompletion::Cancelled);
+            }
+            if self.cache.is_some() {
+                prepare(&self.path).map_err(|error| io("prepare storage", &self.path, error))?;
             }
             self.execute()
         }))
@@ -289,8 +313,8 @@ impl DriverPipelineCacheJob {
             Err(cause) => {
                 self.ticket.phase(9);
                 let cause: String = cause.to_string().chars().take(2048).collect();
-                log::error!("driver pipeline cache failed request={} operation={:?} path={} elapsed_ms={} cause={}",
-                    self.ticket.0.request, self.ticket.0.operation, path, started.elapsed().as_millis(), cause);
+                log::error!("driver pipeline cache failed request={} operation={:?} path={} elapsed_ms={} context={:?} cause={}",
+                    self.ticket.0.request, self.ticket.0.operation, path, started.elapsed().as_millis(), self.context, cause);
             }
             Ok(DriverPipelineCacheCompletion::Cancelled) => self.ticket.phase(8),
             Ok(DriverPipelineCacheCompletion::Saved { .. }) => self.ticket.phase(6),

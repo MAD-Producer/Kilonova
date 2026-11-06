@@ -725,6 +725,17 @@ impl Engine {
         platform: std::sync::Arc<dyn Platform>,
         total_memory: u64,
     ) -> Result<Self, Error> {
+        // Unit tests must never read/write the developer's account cache. Native
+        // cache acceptance supplies its own private fixture through this seam.
+        let storage = if cfg!(test) { None } else { crate::pipeline_cache::storage() };
+        Self::start_with_pipeline_cache(root, platform, total_memory, storage)
+    }
+    fn start_with_pipeline_cache(
+        root: PathBuf,
+        platform: std::sync::Arc<dyn Platform>,
+        total_memory: u64,
+        storage: Option<motion_host::session::DriverPipelineCacheStorage>,
+    ) -> Result<Self, Error> {
         let total_memory = i64::try_from(total_memory).map_err(|_| {
             let error = "physical memory exceeds the signed 64-bit preview budget".to_string();
             log::error!("worker startup rejected: root={} reason={error}", root.display());
@@ -812,6 +823,13 @@ impl Engine {
                     }
                 };
                 let lease = SessionLease(id);
+                if let Some(storage) = storage {
+                    if let Err(error) = motion_host::session::with_session(id, |session| session.set_driver_pipeline_cache_storage(storage)) {
+                        log::error!("worker cache configuration failed: session={id} cause={}", crate::fallback_observation::error_cause(&error));
+                        let _ = ready.send(Err(error.into()));
+                        return;
+                    }
+                }
                 let (initial_snapshot, allocation_budget) = match motion_host::session::with_session(id,
                     |s| Ok((s.engine.snapshot(), s.allocation_budget().clone()))) {
                     Ok(snapshot) => snapshot,

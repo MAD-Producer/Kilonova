@@ -15,6 +15,7 @@ mod engine;
 mod home;
 mod i18n;
 mod logging;
+mod pipeline_cache;
 mod mcp;
 mod movie_export;
 mod render_queue;

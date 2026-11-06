@@ -1,5 +1,5 @@
 //! One session-owned worker, one queued request, one retained pending request
-//! and one completed-result channel slot. A worker may hold one more completed
+//! plus one cache action and one completed-result channel slot. A worker may hold one more completed
 //! result while delivery is backpressured. Polling never waits for compilation.
 use motion_core::{Observer, Project};
 use motion_render::{
@@ -9,8 +9,10 @@ use motion_render::{
 use serde_json::{json, Value};
 use std::sync::{mpsc, Arc};
 
+mod driver_cache;
 #[cfg(test)]
 mod tests;
+pub use driver_cache::DriverPipelineCacheStorage;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -66,19 +68,30 @@ struct Completion {
     result: Result<PreparedEffectPipelines, motion_render::RenderError>,
     sampling_failures: Vec<motion_render::PipelineLookaheadFailure>,
 }
+enum Work {
+    Prepare(Request),
+    Cache(driver_cache::Request),
+}
+enum Reply {
+    Prepared(Completion),
+    Cache(driver_cache::Completion),
+}
 struct Worker {
-    sender: mpsc::SyncSender<Request>,
-    completed: mpsc::Receiver<Completion>,
+    sender: mpsc::SyncSender<Work>,
+    completed: mpsc::Receiver<Reply>,
     thread: std::thread::JoinHandle<()>,
 }
 impl Worker {
     fn new() -> Result<Self, Error> {
-        let (sender, requests) = mpsc::sync_channel::<Request>(1);
+        let (sender, requests) = mpsc::sync_channel::<Work>(1);
         let (completed, results) = mpsc::sync_channel(1);
         let thread = std::thread::Builder::new()
             .name("motion-pipeline-prepare".into())
             .spawn(move || {
-                while let Ok(request) = requests.recv() {
+                while let Ok(work) = requests.recv() {
+                    let reply = match work {
+                    Work::Cache(request) => Reply::Cache(request.run()),
+                    Work::Prepare(request) => {
                     let Request {
                         job,
                         project,
@@ -120,9 +133,12 @@ impl Worker {
                         }
                         Ok(())
                     });
+                    Reply::Prepared(Completion { ticket, result, sampling_failures })
+                    }
+                    };
                     // The receiver can leave when a session closes. This is a
                     // protocol-defined abandoned reply, not a compiler failure.
-                    if completed.send(Completion { ticket, result, sampling_failures }).is_err() {
+                    if completed.send(reply).is_err() {
                         break;
                     }
                 }
@@ -148,11 +164,13 @@ pub(crate) struct State {
     failure: Option<Arc<Error>>,
     limited: bool,
     lookahead_failures: Vec<motion_render::PipelineLookaheadFailure>,
+    cache: driver_cache::State,
     #[cfg(test)]
     before_sample: Option<Box<dyn FnOnce() + Send>>,
 }
 impl State {
     pub(crate) fn cancel(&mut self) {
+        self.cache.cancel();
         if let Some(ticket) = self.ticket.take() {
             ticket.cancel();
         }
@@ -168,8 +186,8 @@ impl State {
     }
     pub(crate) fn status(&self) -> Value {
         json!({"version":1,"task":self.ticket.as_ref().map(|ticket|ticket.status()),
-            "preparing":self.key.as_ref().is_some_and(|key|!self.ready.as_ref().is_some_and(|ready|ready.same_revision(key))) && self.failure.is_none(),
-            "limited":self.limited,"pendingEnqueue":self.pending.is_some(),
+            "preparing":(self.cache.preparing() || self.key.as_ref().is_some_and(|key|!self.ready.as_ref().is_some_and(|ready|ready.same_revision(key)))) && self.failure.is_none(),
+            "limited":self.limited,"pendingEnqueue":self.pending.is_some(),"driverCache":self.cache.status(),
             "workerStopped":self.worker.as_ref().is_some_and(|worker|worker.thread.is_finished()),
             "lookaheadErrors":self.lookahead_failures.iter().map(|failure|json!({"frame":failure.frame,
                 "cause":failure.cause.to_string().chars().take(2048).collect::<String>()})).collect::<Vec<_>>(),
@@ -196,6 +214,13 @@ impl State {
                     return Err(self.fail(Error::Disconnected, true))
                 }
                 Some(Ok(result)) => result,
+            };
+            let result = match result {
+                Reply::Cache(completion) => {
+                    self.cache.collect(completion, renderer);
+                    continue;
+                }
+                Reply::Prepared(result) => result,
             };
             if result.ticket.status().context != context
                 || !self
@@ -226,19 +251,39 @@ impl State {
         Ok(())
     }
     fn enqueue(&mut self) -> crate::Result<()> {
-        if let Some(request) = self.pending.take() {
+        let request = self
+            .pending
+            .take()
+            .map(Work::Prepare)
+            .or_else(|| self.cache.pending.take().map(Work::Cache));
+        if let Some(request) = request {
             let Some(worker) = self.worker.as_ref() else {
                 return Err(self.fail(Error::Invariant("enqueue without worker"), false));
             };
             match worker.sender.try_send(request) {
                 Ok(()) => {}
-                Err(mpsc::TrySendError::Full(request)) => self.pending = Some(request),
+                Err(mpsc::TrySendError::Full(request)) => match request {
+                    Work::Prepare(request) => self.pending = Some(request),
+                    Work::Cache(request) => self.cache.pending = Some(request),
+                },
                 Err(mpsc::TrySendError::Disconnected(_)) => {
                     return Err(self.fail(Error::Disconnected, true))
                 }
             }
         }
         Ok(())
+    }
+    pub(crate) fn configure_cache(&mut self, storage: DriverPipelineCacheStorage) {
+        self.cancel();
+        self.cache.configure(storage);
+    }
+    pub(crate) fn frame_presented(
+        &mut self,
+        renderer: &mut Renderer,
+        context: Context,
+    ) -> crate::Result<()> {
+        self.cache.frame_presented(renderer, context);
+        self.enqueue()
     }
     pub(crate) fn ensure(
         &mut self,
@@ -252,6 +297,13 @@ impl State {
             return Err(crate::Error::PipelinePreparation(error.clone()));
         }
         self.collect(renderer, key.context)?;
+        if !self.cache.begin_restore(renderer, key.context) {
+            if self.worker.is_none() {
+                self.worker = Some(Worker::new().map_err(|error| self.fail(error, true))?);
+            }
+            self.enqueue()?;
+            return Ok(false);
+        }
         let cancelled = self
             .ticket
             .as_ref()
@@ -273,7 +325,11 @@ impl State {
             ) {
                 Ok(job) => {
                     let job = job.with_best_effort_lookahead();
-                    let job = if key.exposure.is_some() { job.for_exposure() } else { job };
+                    let job = if key.exposure.is_some() {
+                        job.for_exposure()
+                    } else {
+                        job
+                    };
                     if key.preview {
                         job.for_preview()
                     } else {
@@ -307,7 +363,11 @@ impl State {
             self.pending = Some(Request {
                 job,
                 project: snapshot.clone(),
-                frames: if key.exposure.is_some() { Vec::new() } else { upcoming(project, scene.frame) },
+                frames: if key.exposure.is_some() {
+                    Vec::new()
+                } else {
+                    upcoming(project, scene.frame)
+                },
                 observer: observer.cloned(),
                 #[cfg(test)]
                 before_sample: self.before_sample.take(),
@@ -320,7 +380,10 @@ impl State {
             return Err(crate::Error::PipelinePreparation(error.clone()));
         }
         self.enqueue()?;
-        Ok(self.ready.as_ref().is_some_and(|ready| ready.same_revision(&key)))
+        Ok(self
+            .ready
+            .as_ref()
+            .is_some_and(|ready| ready.same_revision(&key)))
     }
 }
 impl Drop for State {

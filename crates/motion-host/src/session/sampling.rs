@@ -525,6 +525,11 @@ impl Session {
             }
             self.preview_memory.succeeded();
             self.last_error = None;
+            self.pipeline_preparation.frame_presented(&mut g.renderer,
+                motion_render::PipelinePreparationContext {
+                    document_generation: self.document_generation,
+                    project_revision: self.engine.revision(),
+                })?;
             return Ok(true);
         }
         self.preview_memory_held = g.scratch.valid();

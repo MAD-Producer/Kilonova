@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(windows)]
 mod native;
+mod cache;
 
 fn fixture() -> (Project, Scene) {
     let mut project = Project::new(16, 16, 30, 120).unwrap();

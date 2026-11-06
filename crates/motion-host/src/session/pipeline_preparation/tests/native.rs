@@ -3,6 +3,7 @@ use super::*;
 use crate::session::{Session, SurfaceTarget};
 use motion_render::Presenter;
 use winit::platform::windows::EventLoopBuilderExtWindows;
+mod cache;
 
 fn attach(events: &winit::event_loop::EventLoop<()>, session: &mut Session) {
     #[allow(deprecated)]

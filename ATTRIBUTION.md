@@ -1,5 +1,16 @@
 # 第三方归属说明 / Third-party attribution
 
+## Windows 私有驱动缓存目录的系统接口
+
+- 作者：Microsoft Corporation 与 windows-rs contributors。
+- 来源：官方 `microsoft/windows-rs`，`windows-sys` 0.61.2，revision
+  `32c3144490c016fe496a0aed769bce60987a2e9d`，目录 `crates/libs/sys`。
+  crates.io 校验和为 `ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc`。
+- 许可：MIT OR Apache-2.0；本次使用 MIT 选项，完整许可保留在 NOTICE。
+- 修改范围：上游绑定不作修改。将锁文件已有的间接依赖显式用于 Windows
+  目录创建、DACL/所有者验证及原生资源释放；策略、状态机和验收独立编写。
+  不新增图像、图标、字体或上游示例实现。
+
 ## Mathematical references for optional WGSL depth research
 
 - Authors: Milton Abramowitz and Irene A. Stegun (editors), US National Bureau

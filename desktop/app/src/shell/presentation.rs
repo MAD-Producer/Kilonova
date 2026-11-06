@@ -73,6 +73,7 @@ impl Shell {
             && !self.layer_clipboard.committing()
             && self.actions.is_empty()
             && (self.audio_only_preview || (self.attached
+                && !self.pending
                 && self.rendering.is_empty()
                 && self.exposure_presentations.is_empty()
                 && !self.present_due
