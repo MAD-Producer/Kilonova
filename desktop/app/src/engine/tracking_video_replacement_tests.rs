@@ -23,7 +23,7 @@ fn ready(engine: &Engine, request: &str) {
         if status["state"] == "ready" {
             return;
         }
-        assert_eq!(status["state"].to_string(), "running", "{status}");
+        assert_eq!(status["state"], "running", "{status}");
         assert!(began.elapsed() < Duration::from_secs(30), "{status}");
         std::thread::sleep(Duration::from_millis(10));
     }

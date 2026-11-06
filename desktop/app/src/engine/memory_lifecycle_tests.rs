@@ -467,7 +467,7 @@ fn actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload() {
         );
         assert!(error.to_string().contains(&(occupied + 64).to_string()));
         assert!(error.to_string().contains(&(occupied + 63).to_string()));
-        failures.push(error);
+        failures.push(error.to_string());
         let current = engine
             .plugin("{\"op\":\"allocation_budget\"}".into())
             .unwrap();
