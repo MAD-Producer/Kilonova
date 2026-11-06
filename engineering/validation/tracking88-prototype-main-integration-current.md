@@ -81,7 +81,8 @@ one failed, 78 originally ignored, none filtered or measured. The previous
 
 The sole failure was
 `motion-core::format_version_boundaries::unsupported_versions_cannot_load_or_replace_an_existing_project`.
-Its initial valid-project save failed before the version assertions, at line 36:
+Its valid-project save inside the version loop failed at line 36, after the
+unsupported-version load checks and before the later save/reload assertions:
 Windows returned OS error 5, `PermissionDenied`, from the publication phase for
 `project.json`, with `published: false`. The original test executable, PDB,
 sources, cause and output were retained. No assertion, ACL, return value,

@@ -1,13 +1,16 @@
 # Tracking #88: integrated acceptance map
 
 The [new prototype/current-main integration](tracking88-prototype-main-integration-current.md)
-includes maintained main `26c1d2d2` and the reference-depth branch. Fresh complete
-tools/CV/CLI gates passed on its recorded earlier integration source; native
-compilation, complete combined regression and final CI still require execution.
+includes maintained main `e02b1975` and the reference-depth branch. Fresh complete
+tools/CV/CLI gates passed on their recorded earlier source. The frozen
+`27084091` full run terminated with 4,934 passed, one failed and 78 original
+ignores across 421 targets; the sole publication failure remains unresolved.
+The later merged source adds two unchanged video-retirement targets and still
+requires a fresh full regression and final CI.
 The [retained support diagnostics](tracking88-support-diagnostics-current.md)
 do not repair or waive the original photographed tracking failure.
 
-Current integration: the [combined workspace record](3d-professional-workspace-current.md)
+Historical delivered integration: the [combined workspace record](3d-professional-workspace-current.md)
 passes 4,896 tests across all 417 maintained targets on `c190ab20`, including
 main `50bef478`. Matching-source three-platform CI and freshly built actual
 CPU inference/frozen output also pass. Earlier sections below retain their
