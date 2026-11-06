@@ -39,7 +39,7 @@
 1. 独立 worker 上创建真实非法 WGSL，保留 `wgpu::Error::Validation` 原始 cause
    身份、程序 key 和解析位置；同线程下一次合法创建恢复成功。同时保持渲染
    owner 的 validation scope 活跃，该 scope 不捕获 worker 的错误。此用例
-   已在编译器提取阶段通过；新增任务之后的完整单元复跑尚待记录。
+   在编译器提取阶段及最终任务代码的完整单元复跑中均已通过。
 2. 最终任务代码五项实际测试通过，0 失败、0 忽略：
    - worker 预热实际 invert/tint 工程，安装后首次 capture 不增加前台原生创建，
      复用计数增长；完整 16×16 RGBA 与独立冷 Renderer 一致。
@@ -55,6 +55,13 @@
    源码前后 2454 个文件一致，依赖字节前后相同；EXE SHA-256：
    `b3b44d3c14ad02ea4fd470786a93ce0d7c657183d3f3b96042c8b8b37215b087`。
    这是直接 rustc 验证，不能替代最后的 Cargo workspace/all-targets 检查。
+4. 同一最终 EXE 的全部 323 项渲染单元测试通过，0 失败、0 忽略，
+   耗时 192.046 秒（含包装记录）。源码校验前后相同；这不是对缓存阶段
+   978 项全量结果的简单复用。
+5. 最终任务源码的锁定 Cargo 检查通过：
+   `cargo check --locked -p motion-desktop -p motion-host --all-targets --features motion-desktop/ffmpeg,motion-host/diagnostics,motion-host/ai-depth`。
+   耗时 183.844 秒，源码校验前后相同。警告定位到的 34 个源码文件逐一
+   比对 `daf806b5` 原始字节，均未被本批修改，没有为清零警告改动其他工作。
 
 ## 失败记录与修正
 
@@ -81,7 +88,13 @@
 
 issue 仍需要：应用私有缓存路径及后台读写；宿主调度与首帧状态；独立进程
 cold/warm 和首次/再次添加效果的阻塞时间对照；DX12 的原生回退资格；
-最终提交的宿主/桌面编译和全量回归。当前仍不能宣称用户播放已无同步编译。
+最终提交的完整集成回归。宿主/桌面编译已通过，当前仍不能宣称用户播放已无同步编译。
 
 原始证据：`artifacts/issue-goal-current/native-pipeline-preparation/`；
 缓存阶段完整回归另见 `driver-pipeline-cache/render-full-summary.json`。
+
+[不可覆盖的原生证据包](pipeline-cache-and-preparation-evidence.zip) 包含 100 个成员，
+2,889,019 字节，SHA-256：
+`0acc57c71b1e60f6012df6f34466cc0797c72a41ef2e13ff91b2d7e242af582c`。
+包含原始命令及失败/成功输出、最终源码摘要与基线/缓存阶段/准备阶段的变更源码、
+逐成员校验清单和验证摘要。失败尝试保留输出与摘要，未声称归档每次失败编辑的全部源码字节。

@@ -72,5 +72,6 @@
 - [官方 adapter key](https://docs.rs/wgpu/30.0.1/wgpu/util/fn.pipeline_cache_key.html)
 - [Device 创建数据的安全约束](https://docs.rs/wgpu/30.0.1/wgpu/struct.Device.html#method.create_pipeline_cache)
 
-原始命令、stdout/stderr、源码摘要、EXE SHA-256、设备记录和失败记录暂存于
-`artifacts/issue-goal-current/driver-pipeline-cache/`，尚未打包为可复核发布证据。
+原始命令、stdout/stderr、源码摘要、EXE SHA-256、设备记录和失败记录已收入
+[原生证据包](pipeline-cache-and-preparation-evidence.zip)。本地原始目录为
+`artifacts/issue-goal-current/driver-pipeline-cache/`。
