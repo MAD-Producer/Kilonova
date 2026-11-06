@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "observedUtc": "2026-11-06T14:35:51.885508+00:00",
+  "scope": "Source-bound explicit-profile tests and controlled blocked-start observations; not complete integrated regression",
+  "sourceCommits": [
+    "4968ac214003dab3281502a7d1ba8d5c87ee45e1",
+    "2a08e053d1569306a9dd091db40e7eb1f264b2ca"
+  ],
+  "limits": [
+    "Profile test bodies passed on Linux, Windows and macOS Intel; Python profile tests passed in Linux Rust/GPU job",
+    "Two new blocked-start identity assertions are inspected in desktop Linux only; Rust/GPU excludes motion-host",
+    "Two evidence-collector invocation/scope failures are retained; neither was a product test failure",
+    "Rebased integrated source still requires its own complete regression and CI",
+    "Actual production file-sink experiment is prepared but has not executed",
+    "No models, third-party media, annotations, derived frames, tensors, executables or runtime libraries included"
+  ],
+  "archive": "depth75-ci-tests-v1.zip",
+  "bytes": 746636,
+  "sha256": "8f55f0d40c01092268dc78ad11504ec34f83611745b6080e791c7b970360463d",
+  "members": 38,
+  "readbackVerified": true
+}

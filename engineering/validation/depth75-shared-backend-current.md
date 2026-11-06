@@ -273,5 +273,47 @@ These new assertions have not yet compiled or executed locally: free disk is
 below the unchanged native-build admission. Scoped formatting/syntax and diff
 checks are separate static evidence. Whole-file formatting already differs on
 the original source, so no unrelated formatting rewrite was applied. The old
-exact-head CI and archives above do not qualify this new patch; it remains
-pending new-head CI and native regression.
+exact-head CI and archives above do not qualify this new patch. The additional
+source-bound CI evidence below covers the two controlled assertions; complete
+integrated native regression remains pending.
+
+## Explicit-profile integration and inspected CI test bodies
+
+The two blocked-start assertions actually passed in the desktop Linux job for
+`2a08e053d1569306a9dd091db40e7eb1f264b2ca`:
+[raw-job source](https://github.com/MAD-Producer/Kilonova/actions/runs/42224811554/job/127915508846).
+The separate Rust/GPU job explicitly excludes `motion-host`, so its green status
+does not prove these assertions. A collector initially expected both tests in
+that excluded job; its failed receipt is retained alongside the corrected,
+package-scoped verification. No product assertion or CI invocation changed.
+
+The explicit-resolution change also has inspected passing test bodies on Linux,
+Windows and macOS Intel, plus nine Python profile tests in Linux. Its complete
+workflow passed before [PR #628](https://github.com/MAD-Producer/Kilonova/pull/628)
+was merged with a Chinese commit message as
+`5a025a2d23f2cc35ee4d306550861b086e0b2378`.
+The [CI evidence archive](data/depth75-ci-tests-v1.zip) and
+[manifest](data/depth75-ci-tests-v1.json) retain raw logs, exact source snapshots,
+controllers and receipts, including a separate collector invocation that supplied
+leaf names for fully qualified Rust unit tests. All 38 archive members were read
+back and verified: 746,636 bytes, SHA-256
+`8f55f0d40c01092268dc78ad11504ec34f83611745b6080e791c7b970360463d`.
+
+The backend branch was then rebased onto that merged main commit. The
+[integration audit](data/depth75-rebase-integration-v1.json) verifies ten exact
+Git blobs and one fully inspected composition. The ONNX module matches the
+qualified resolution source except for `capture` retaining its existing
+`pub(super)` visibility, which the WGSL sibling already needs. The initial exact
+blob check correctly rejected that difference; a source-bound full-run controller
+must name the composed blob explicitly instead of disabling source checks.
+Profile/export/test code, backend/job/video code, production logger and the
+dependency lock otherwise remain exact qualified blobs. This is static source
+evidence, not an integrated test pass. The final source needs its own CI and complete
+workspace regression with the original feature set and runtime layout.
+
+The prepared production-sink probe must additionally demonstrate that each Info
+start reaches the actual log file while its controlled handler is still blocked,
+without an explicit flush, and that the released failure reaches both file and
+stderr while stdout remains isolated. That probe has not executed. These checks
+do not establish real-model quality transitions, sustained performance, thermal
+stability, capability selection or a frozen export policy.
