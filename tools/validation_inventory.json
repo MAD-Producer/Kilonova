@@ -1,6 +1,17 @@
 {
   "version": 1,
   "tools": {
+    "tools/depth_tensor.py": {
+      "mode": "manual",
+      "command": "python tools/depth_tensor.py <host-generated-transform-directory>",
+      "requires": ["Exact bounded transform request and RGB/scalar files", "Separately installed NumPy/OpenCV; no ONNX runtime or model required for transforms"],
+      "reason": "The optional WGSL backend owns each transform child directly; learned inference runs in a separate directly owned native child. No weights are downloaded by CI."
+    },
+    "tools/test_ci_depth_tensor.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by test_ci_*.py discovery; rejects malformed transforms and actual failed child responses under normal and optimized Python before optional imports."
+    },
     "tools/tracking/calibrate_photographs.py": {
       "mode": "manual",
       "command": "python tools/tracking/calibrate_photographs.py --source <pinned-photo-directory> --output <new-evidence-directory> [--download]",

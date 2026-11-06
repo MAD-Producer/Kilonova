@@ -11,6 +11,13 @@ and static-memory metadata for the already attributed external Small model.
 Its evidence archives contain no model weights, upstream implementation or
 image assets. Static inspection and integer shape folding do not qualify a
 second inference backend or authorize default model distribution.
+The subsequent optional host backend uses independently authored WGSL kernels,
+strict typed admission and directly owned child processes. It shares the
+existing owned color/letterbox/remap procedure; no reference implementation or
+model/weight/runtime binary is copied into the product. Its plan is an explicit
+pinned bootstrap profile, not a general SDK compute capability. Numerical and
+cancellation evidence does not authorize default model distribution or imply
+interactive/video quality acceptance.
 
 The COLMAP camera text adapter references the public format and coordinate
 conventions at a pinned upstream revision. Its parser, pose conversion boundary
