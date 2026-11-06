@@ -62,13 +62,13 @@ enum Work {
 }
 enum Stage {
     Reading(
-        Receiver<Result<Read, String>>,
+        Receiver<Result<Read, crate::engine::Error>>,
         Intent,
         crate::layer_clipboard::KeyframeSource,
     ),
     Working(Job),
     Ready(Output),
-    Committing(Receiver<Result<Value, String>>),
+    Committing(Receiver<Result<Value, crate::engine::Error>>),
 }
 struct Pending {
     stage: Stage,

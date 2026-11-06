@@ -53,7 +53,7 @@ fn draw(
 }
 fn receive<T>(
     events: &mut EventLoop<()>,
-    pending: std::sync::mpsc::Receiver<Result<T, String>>,
+    pending: std::sync::mpsc::Receiver<Result<T, crate::engine::Error>>,
 ) -> T {
     crate::native_test_support::receive(events, &pending, Duration::from_secs(60))
         .unwrap()
@@ -407,5 +407,5 @@ fn receive_error(events: &mut EventLoop<()>, engine: &Engine, ticket: Ticket) ->
         .unwrap();
     crate::native_test_support::receive(events, &pending, Duration::from_secs(60))
         .unwrap()
-        .unwrap_err()
+        .unwrap_err().to_string()
 }

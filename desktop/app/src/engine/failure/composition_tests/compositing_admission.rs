@@ -37,10 +37,10 @@ fn compositor_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
         }) if *budget_bytes == limit && *required_bytes > limit));
         let original = failure.to_string();
         assert!(original.contains("compositing frame=0 phase=initialize"), "{original}");
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         assert_eq!(renderer.compositing_pipeline_set_builds(), 0);
         budget.set_limit(8 << 20).unwrap();
         let recovered = renderer.capture(&scene, &target).unwrap().0;

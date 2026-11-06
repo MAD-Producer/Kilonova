@@ -348,7 +348,7 @@ impl Shell {
                 "{primary}; alignment fixture rollback also failed: {cleanup}"
             )),
             (Err(primary), Ok(_)) => Err(primary),
-            (Ok(()), Err(cleanup)) => Err(cleanup),
+            (Ok(()), Err(cleanup)) => Err(cleanup.to_string()),
             (Ok(()), Ok(after)) => {
                 for key in ["project", "canUndo", "canRedo"] {
                     if before[key] != after[key] {

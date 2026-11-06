@@ -284,19 +284,19 @@ impl Shell {
         let mut cleanup = vec![];
         if active {
             if let Err(e) = self.engine.history(4) {
-                cleanup.push(e);
+                cleanup.push(e.to_string());
             }
         }
         for _ in 0..undos {
             if let Err(e) = self.engine.history(0) {
-                cleanup.push(e);
+                cleanup.push(e.to_string());
                 break;
             }
         }
         match self.engine.state() {
             Ok(state) if state["project"] == before["project"] => {}
             Ok(_) => cleanup.push("timing capture did not restore project".into()),
-            Err(e) => cleanup.push(e),
+            Err(e) => cleanup.push(e.to_string()),
         }
         match (result, cleanup.is_empty()) {
             (Err(primary), false) => Err(format!(

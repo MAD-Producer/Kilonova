@@ -35,7 +35,7 @@ fn actual_time_failures_use_default_error_channels_and_stale_actions_cancel_with
             action: LayerTimeAction::Reverse {},
         };
         let error = apply(&before, vec![reverse(7), reverse(8)]).unwrap_err();
-        assert!(error.contains("locked"), "{error}");
+        assert!(error.to_string().contains("locked"), "{error}");
         let after = engine.state().unwrap();
         for field in ["project", "revision", "history"] {
             assert_eq!(after[field], before[field]);
@@ -52,7 +52,7 @@ fn actual_time_failures_use_default_error_channels_and_stale_actions_cancel_with
             }],
         )
         .unwrap_err();
-        assert!(error.contains("clip interval"), "{error}");
+        assert!(error.to_string().contains("clip interval"), "{error}");
         let after = engine.state().unwrap();
         for field in ["project", "revision", "history"] {
             assert_eq!(after[field], before[field]);

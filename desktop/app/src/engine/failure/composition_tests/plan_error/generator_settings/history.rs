@@ -75,7 +75,7 @@ fn deferred_particle_history_refusal_reaches_default_reply_file_and_stderr_then_
         assert!(!std::fs::read_to_string(root.join("motion-studio.log"))
             .unwrap()
             .contains(&original));
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         // Exercise the actual responder/logger, separately from worker
         // scheduling and in-flight publication, which are not under test here.
         CURRENT_COMMAND.set(Some(Flight {
@@ -89,7 +89,7 @@ fn deferred_particle_history_refusal_reaches_default_reply_file_and_stderr_then_
             receive
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap()
-                .unwrap_err(),
+                .unwrap_err().to_string(),
             original
         );
         scene

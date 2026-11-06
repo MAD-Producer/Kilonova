@@ -112,7 +112,7 @@ fn typed_transport_pastes_payload_larger_than_json_limit_and_undoes_once() {
         crate::engine::REQUEST_LIMIT
     );
     assert_eq!(
-        engine.edit(json).unwrap_err(),
+        engine.edit(json).unwrap_err().to_string(),
         "edit request exceeds 256 KiB"
     );
     let result = engine
@@ -633,7 +633,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
             Err(error) => error,
             Ok(_) => panic!("missing source accepted"),
         };
-        assert!(error.contains("phase=capture object=404"), "{error}");
+        assert!(error.to_string().contains("phase=capture object=404"), "{error}");
         let read = read_keys(&engine, vec![0, 1]);
         let clipboard = read.clipboard.unwrap();
         let apply = |stamp| {
@@ -661,7 +661,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
         let before = engine.state().unwrap();
         assert!(apply(read.stamp)
             .unwrap_err()
-            .contains("keyframe destination is occupied"));
+            .to_string().contains("keyframe destination is occupied"));
         let after = engine.state().unwrap();
         assert_eq!(before["project"], after["project"]);
         assert_eq!(before["revision"], after["revision"]);
@@ -717,9 +717,9 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
             assert!(began.elapsed() < Duration::from_secs(20));
             std::thread::sleep(Duration::from_millis(1));
         };
-        assert!(primary.contains("injected worker panic"), "{primary}");
+        assert!(primary.to_string().contains("injected worker panic"), "{primary}");
         assert_eq!(
-            queued,
+            queued.to_string(),
             format!("keyframe_clipboard_read response disconnected: {primary}")
         );
         drop(engine);

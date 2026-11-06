@@ -7,11 +7,11 @@ use serde_json::json;
 
 fn run(engine: &Engine, operation: Request) -> Result<Value, String> {
     let source = KeyframeSource::of(&engine.state().unwrap());
-    engine.call(|reply| Command::ProjectAsset {
+    Ok(engine.call(|reply| Command::ProjectAsset {
         source,
         operation,
         reply,
-    })
+    })?)
 }
 
 #[test]

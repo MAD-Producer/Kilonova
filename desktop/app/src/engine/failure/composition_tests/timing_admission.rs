@@ -48,13 +48,13 @@ fn check_timing_channels(timestamps: bool, name: &str) {
         }));
         assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
         let original = failure.to_string();
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 207, operation: "test_gpu_timer", started: Instant::now(),
         }));
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         return;
     }
     let root = tempfile::tempdir().unwrap();

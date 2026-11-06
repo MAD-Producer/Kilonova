@@ -37,7 +37,7 @@ fn native_image_failures_keep_default_output_channels_and_recover() {
         let mut causes = Vec::new();
         for (request, error) in [(621, missing), (622, invalid), (623, png)] {
             let original = error.to_string();
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_image_decode",
@@ -49,7 +49,7 @@ fn native_image_failures_keep_default_output_channels_and_recover() {
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
             causes.push(original);

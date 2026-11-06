@@ -30,7 +30,7 @@ impl ToolRouter<'_> {
             if !request.read_only() && matches!(self.access, Access::ReadOnly) {
                 return Err("editor writes are disabled for this agent".into());
             }
-            return self.engine.tracked_video_replacement(request);
+            return Ok(self.engine.tracked_video_replacement(request)?);
         }
         let fields: &[&str] = match name {
             "motion_state" => &[],
@@ -83,16 +83,16 @@ impl ToolRouter<'_> {
                     .ok_or("expectedRevision must be a nonnegative integer")?;
                 let generation = args.get("expectedDocumentGeneration").and_then(Value::as_u64)
                     .ok_or("expectedDocumentGeneration must be a nonnegative integer")?;
-                self.engine.import_tracking(path.into(), motion_core::media_assets::AssetRef { kind, id }, revision, generation)
+                Ok(self.engine.import_tracking(path.into(), motion_core::media_assets::AssetRef { kind, id }, revision, generation)?)
             }
             "import_model" => {
                 let path = args.get("path").and_then(Value::as_str)
                     .filter(|s| !s.is_empty() && s.len() <= 4096).ok_or("path must be a bounded nonempty string")?;
                 let revision = args.get("expectedRevision").and_then(Value::as_u64)
                     .ok_or("expectedRevision must be a nonnegative integer")?;
-                self.engine.import_model(path.into(), revision)
+                Ok(self.engine.import_model(path.into(), revision)?)
             }
-            "motion_state" => self.engine.state(),
+            "motion_state" => Ok(self.engine.state()?),
             "command_list" => Ok(motion_core::CommandRegistry::catalogue()),
             "command_run" => {
                 let command = args
@@ -103,17 +103,17 @@ impl ToolRouter<'_> {
                     .get("expectedRevision")
                     .and_then(Value::as_u64)
                     .ok_or("expectedRevision must be a nonnegative integer")?;
-                self.engine.edit_at_revision(
+                Ok(self.engine.edit_at_revision(
                     serde_json::to_string(command).map_err(|e| e.to_string())?,
                     revision,
-                )
+                )?)
             }
             "render_preview" => {
                 let frame = args
                     .get("frame")
                     .map(|v| v.as_f64().ok_or("frame must be a number"))
                     .transpose()?;
-                self.engine.render_preview(frame)
+                Ok(self.engine.render_preview(frame)?)
             }
             "motion_edit" | "command_batch" => {
                 let commands = args
@@ -127,25 +127,25 @@ impl ToolRouter<'_> {
                     .get("expectedRevision")
                     .and_then(Value::as_u64)
                     .ok_or("expectedRevision must be a nonnegative integer")?;
-                self.engine.edit_at_revision(
+                Ok(self.engine.edit_at_revision(
                     serde_json::to_string(commands).map_err(|e| e.to_string())?,
                     revision,
-                )
+                )?)
             }
-            "motion_seek" => self.engine.seek(
+            "motion_seek" => Ok(self.engine.seek(
                 args.get("frame")
                     .and_then(Value::as_f64)
                     .ok_or("frame must be a number")?,
-            ),
+            )?),
             "motion_history" => {
-                self.engine
+                Ok(self.engine
                     .history(match args.get("operation").and_then(Value::as_str) {
                         Some("undo") => 0,
                         Some("redo") => 1,
                         _ => return Err("operation must be undo or redo".into()),
-                    })
+                    })?)
             }
-            "motion_save" => self.engine.save(),
+            "motion_save" => Ok(self.engine.save()?),
             _ => unreachable!(),
         }
     }

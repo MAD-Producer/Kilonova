@@ -203,7 +203,7 @@ impl Harness {
             match result {
                 Ok(s) => self.state = s,
                 Err(e) => {
-                    errors.push(e);
+                    errors.push(e.to_string());
                     self.state = self.engine.state().unwrap();
                 }
             }

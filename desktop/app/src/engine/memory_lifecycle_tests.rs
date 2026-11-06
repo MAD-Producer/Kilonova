@@ -7,7 +7,7 @@ use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows
 fn reply<T>(
     events: &mut EventLoop<()>,
     engine: &Engine,
-    command: impl FnOnce(Sender<Result<T, String>>) -> Command,
+    command: impl FnOnce(Sender<Result<T, crate::engine::Error>>) -> Command,
 ) -> T {
     let result = engine.request(command).unwrap();
     crate::native_test_support::receive(events, &result, Duration::from_secs(30))
@@ -461,12 +461,12 @@ fn actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload() {
                 .unwrap()
                 .unwrap_err();
         assert!(
-            error.contains("window=0")
-                && error.contains("phase=atlas")
-                && error.contains("UI glyph atlas")
+            error.to_string().contains("window=0")
+                && error.to_string().contains("phase=atlas")
+                && error.to_string().contains("UI glyph atlas")
         );
-        assert!(error.contains(&(occupied + 64).to_string()));
-        assert!(error.contains(&(occupied + 63).to_string()));
+        assert!(error.to_string().contains(&(occupied + 64).to_string()));
+        assert!(error.to_string().contains(&(occupied + 63).to_string()));
         failures.push(error);
         let current = engine
             .plugin("{\"op\":\"allocation_budget\"}".into())

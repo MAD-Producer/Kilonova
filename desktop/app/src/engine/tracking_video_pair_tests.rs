@@ -65,7 +65,7 @@ fn captured(engine: &Engine, at: f64) -> image::RgbaImage {
                     .unwrap()
                     .to_rgba8()
             }
-            Err(reason) if reason == "video capture pending; request frames and retry" => {
+            Err(reason) if reason.to_string() == "video capture pending; request frames and retry" => {
                 assert!(began.elapsed() < Duration::from_secs(30), "{reason}");
                 std::thread::sleep(Duration::from_millis(10));
             }

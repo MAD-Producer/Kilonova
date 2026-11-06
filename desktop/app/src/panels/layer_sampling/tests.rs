@@ -463,7 +463,7 @@ fn malformed_sampling_and_rejected_edits_reach_default_file_and_error_stderr_onl
                 before["revision"].as_u64().unwrap()
             )
             .unwrap_err()
-            .contains(CAUSE));
+            .to_string().contains(CAUSE));
         let after = engine.state().unwrap();
         assert_eq!(before["project"], after["project"]);
         assert_eq!(before["revision"], after["revision"]);

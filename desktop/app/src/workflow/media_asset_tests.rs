@@ -39,7 +39,7 @@ fn start(engine: &Engine, id: &str, path: &Path, kind: &str) -> Value {
     }
 }
 fn finish(engine: &Engine, id: &str, target: AssetRef, revision: u64) -> Result<Value, String> {
-    engine.media(json!({"op":"finish_media_replacement","request_id":id,"target":target,"revision":revision}).to_string())
+    Ok(engine.media(json!({"op":"finish_media_replacement","request_id":id,"target":target,"revision":revision}).to_string())?)
 }
 fn release(engine: &Engine, id: &str) {
     request(engine, json!({"op":"release_media_task","request_id":id}));
@@ -50,7 +50,7 @@ fn replace_image(
     asset: u64,
     revision: u64,
 ) -> Result<Value, String> {
-    engine
+    Ok(engine
         .request(|reply| engine::Command::ReplaceImage {
             file: source,
             asset,
@@ -59,7 +59,7 @@ fn replace_image(
         })
         .unwrap()
         .recv()
-        .unwrap()
+        .unwrap()?)
 }
 fn wave(samples: u32) -> Vec<u8> {
     let mut data = Vec::new();

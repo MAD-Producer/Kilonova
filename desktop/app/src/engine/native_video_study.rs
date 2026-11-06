@@ -85,7 +85,7 @@ impl Evidence {
 }
 
 fn receive<T>(loop_: &mut EventLoop<()>, engine: &Engine,
-              reply: &Receiver<std::result::Result<T, String>>, phase: &str,
+              reply: &Receiver<std::result::Result<T, crate::engine::Error>>, phase: &str,
               evidence: &mut Evidence) -> Result<T> {
     match crate::native_test_support::receive(loop_, reply, REPLY_WAIT) {
         Ok(Ok(value)) => Ok(value),

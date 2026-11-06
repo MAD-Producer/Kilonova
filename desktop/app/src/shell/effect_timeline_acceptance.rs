@@ -44,7 +44,7 @@ impl Shell {
         match (captured, restored) {
             (Err(cause), Err(cleanup)) => Err(format!("{cause}; restoring screenshot surface also failed: {cleanup}")),
             (Err(cause), _) => Err(cause),
-            (Ok(()), restored) => restored.map(|_| ()),
+            (Ok(()), restored) => Ok(restored.map(|_| ())?),
         }
     }
 

@@ -173,9 +173,9 @@ fn native_failed_reattach_keeps_original_factory_front_and_default_error_channel
     let error = crate::native_test_support::receive(&mut events, &pending, Duration::from_secs(30))
         .unwrap()
         .unwrap_err();
-    assert!(error.contains("canvas navigation"), "{error}");
+    assert!(error.to_string().contains("canvas navigation"), "{error}");
     assert!(
-        error.contains(&limit.to_string()) && error.contains(&(limit + 1).to_string()),
+        error.to_string().contains(&limit.to_string()) && error.to_string().contains(&(limit + 1).to_string()),
         "{error}"
     );
     {

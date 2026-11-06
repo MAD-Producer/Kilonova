@@ -41,13 +41,13 @@ fn exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_l
         for context in ["exposure 1x1 phase=allocate", "buffer size=16 phase=allocate label=exposure phase weight", &format!("required_bytes={}", SYSTEM_BYTES + 28), &format!("budget_bytes={}", SYSTEM_BYTES + 27)] {
             assert!(original.contains(context), "missing {context}: {original}");
         }
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 203, operation: "test_exposure_target", started: Instant::now(),
         }));
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         budget.set_limit(SYSTEM_BYTES + 28).unwrap();
         let target = renderer.exposure_target(1, 1, &[1.]).unwrap();
         assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 28);
@@ -105,13 +105,13 @@ fn video_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_leve
         for context in ["object=2 source=11 pts_us=1 phase=yuv_prepare", "buffer size=48 phase=allocate", &format!("required_bytes={}", SYSTEM_BYTES + 86), &format!("budget_bytes={}", SYSTEM_BYTES + 85)] {
             assert!(original.contains(context), "missing {context}: {original}");
         }
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 202, operation: "test_upload_yuv", started: Instant::now(),
         }));
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         budget.set_limit(SYSTEM_BYTES + 86).unwrap();
         renderer.upload_video_yuv(2, 11, 1, &frame).unwrap();
         renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
@@ -177,7 +177,7 @@ fn combined_allocation_failure_reaches_reply_file_and_stderr_at_default_level() 
         ] {
             assert!(original.contains(context), "missing {context}: {original}");
         }
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 201,
             operation: "test_upload_image",
@@ -189,7 +189,7 @@ fn combined_allocation_failure_reaches_reply_file_and_stderr_at_default_level() 
             receive
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap()
-                .unwrap_err(),
+                .unwrap_err().to_string(),
             original
         );
         budget.set_limit(SYSTEM_BYTES + 16).unwrap();
@@ -281,7 +281,7 @@ fn video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level()
         ] {
             assert!(original.contains(context), "missing {context}: {original}");
         }
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         // Exercise an actual GPU allocation-budget refusal through the existing
         // process sink/reply boundary with a controlled origin request.
         CURRENT_COMMAND.set(Some(Flight {
@@ -295,7 +295,7 @@ fn video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level()
             receive
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap()
-                .unwrap_err(),
+                .unwrap_err().to_string(),
             original
         );
         renderer.set_memory_policy(Default::default()).unwrap();
@@ -373,7 +373,7 @@ fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
         ];
         for (index, error) in errors.into_iter().enumerate() {
             let original = error.to_string();
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request: 100 + index as u64,
                 operation: "present",
@@ -385,8 +385,8 @@ fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap()
                 .unwrap_err();
-            assert_eq!(received, original);
-            let envelope = motion_host::ops::error_envelope(&received);
+            assert_eq!(received.to_string(), original);
+            let envelope = received.envelope();
             assert_eq!(envelope["error_detail"]["composition"], child);
             assert_eq!(
                 envelope["error_detail"]["code"],
@@ -484,10 +484,10 @@ fn capacity_failure_reaches_reply_file_and_stderr_at_default_level() {
         .to_string();
         for _ in 0..2 {
             let error = engine.edit(commands.clone()).unwrap_err();
-            let reply = motion_host::ops::error_envelope(&error);
+            let reply = error.envelope();
             assert_eq!(reply["error_detail"]["code"], "resource_limit");
             assert_eq!(reply["error_detail"]["composition"], "comp-main");
-            assert!(error.contains("Composition limit exceeded"));
+            assert!(error.to_string().contains("Composition limit exceeded"));
             let after = engine.state().unwrap();
             for field in ["project", "revision", "history", "canUndo", "canRedo"] {
                 assert_eq!(after[field], before[field], "changed {field}");

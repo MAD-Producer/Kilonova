@@ -159,11 +159,11 @@ fn ui() -> UiFrame {
     }
 }
 fn present(engine: &Engine) -> Result<bool, String> {
-    engine
+    Ok(engine
         .present_async(ui())
         .unwrap()
         .recv_timeout(Duration::from_secs(10))
-        .unwrap()
+        .unwrap()?)
 }
 
 #[test]
@@ -209,7 +209,7 @@ fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_can
             seek.recv_timeout(Duration::from_secs(2)).unwrap().unwrap();
             assert!(capture.try_recv().is_err(), "blocked decoder must not publish a partial PNG");
             let duplicate = engine.capture_async(directory.join("duplicate.png"), Default::default()).unwrap();
-            assert!(duplicate.recv_timeout(Duration::from_secs(2)).unwrap().unwrap_err().contains("still running"));
+            assert!(duplicate.recv_timeout(Duration::from_secs(2)).unwrap().unwrap_err().to_string().contains("still running"));
             if cancel {
                 assert!(control.cancel());
                 std::thread::sleep(Duration::from_millis(40));
@@ -220,10 +220,10 @@ fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_can
             gate.ready.notify_all();
             let result = capture.recv_timeout(Duration::from_secs(30)).unwrap();
             if cancel {
-                assert_eq!(result.unwrap_err(), "PNG export cancelled");
+                assert_eq!(result.unwrap_err().to_string(), "PNG export cancelled");
             } else if fail {
                 let error = result.unwrap_err();
-                assert!(error.contains("controlled first video frame failure") && error.contains("PNG export revision=") && error.contains("frame=1"), "{error}");
+                assert!(error.to_string().contains("controlled first video frame failure") && error.to_string().contains("PNG export revision=") && error.to_string().contains("frame=1"), "{error}");
             } else {
                 let result = result.unwrap();
                 assert_eq!(result["frame"], 1.);
@@ -244,7 +244,7 @@ fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_can
             let cancelled = motion_desktop_media::movie::ExportControl::default();
             assert!(cancelled.cancel());
             let reply = engine.capture_async(directory.join("cancelled-before-start.png"), cancelled).unwrap();
-            assert_eq!(reply.recv_timeout(Duration::from_secs(2)).unwrap().unwrap_err(), "PNG export cancelled");
+            assert_eq!(reply.recv_timeout(Duration::from_secs(2)).unwrap().unwrap_err().to_string(), "PNG export cancelled");
             assert!(!directory.join("cancelled-before-start.png").exists());
         }
         return;
@@ -306,14 +306,14 @@ fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() 
                 invalid.composition_image = Some([0.,0.,0.,1.]);
                 let error = engine.present_async(invalid).unwrap()
                     .recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
-                assert!(error.contains("invalid composition canvas image"),"{error}");
+                assert!(error.to_string().contains("invalid composition canvas image"),"{error}");
                 for viewport in [[-1.,0.,8.,8.],[0.,0.,0.,8.],[60.,0.,8.,8.],[f32::NAN,0.,8.,8.]] {
                     let mut invalid = ui();
                     invalid.composition = Some(viewport);
                     let error = engine.present_async(invalid).unwrap()
                         .recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
                     for context in ["invalid composition viewport", "viewport=", "surface=64x64", "phase=render", "window=0", "logical_size=[64.0, 64.0]"] {
-                        assert!(error.contains(context), "missing {context}: {error}");
+                        assert!(error.to_string().contains(context), "missing {context}: {error}");
                     }
                 }
                 let after = engine.state().unwrap();
@@ -468,10 +468,10 @@ fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit
                     Ok(false)=>assert!(Instant::now()<deadline,"{}",engine.state().unwrap()["preview"]),
                     Ok(true)=>{assert!(!fail);break;},
                     Err(error)=>{
-                        assert!(fail && error.contains("controlled first video frame failure") && error.contains("preview exposure") && error.contains("media_prepare"),"{error}");
+                        assert!(fail && error.to_string().contains("controlled first video frame failure") && error.to_string().contains("preview exposure") && error.to_string().contains("media_prepare"),"{error}");
                         let failed=engine.state().unwrap();assert_eq!(failed["preview"]["exposure"]["state"],"failed");
                         let cpu=failed["preview"]["exposure"]["cpuPollUs"].clone();
-                        assert!(draw().unwrap_err().contains("controlled first video frame failure"));
+                        assert!(draw().unwrap_err().to_string().contains("controlled first video frame failure"));
                         assert_eq!(engine.state().unwrap()["preview"]["exposure"]["cpuPollUs"],cpu);
                         break;
                     }

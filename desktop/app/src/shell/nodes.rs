@@ -374,7 +374,7 @@ impl Shell {
             self.node_compile_due = None;
             if let Err(error) = self.engine.node_preview_available() {
                 self.panels.node_editor.cancel_compile(&snapshot);
-                return Err(error);
+                return Err(error.to_string());
             }
         }
         if let Err(error) = self.node_tasks.submit(
@@ -469,7 +469,7 @@ impl Shell {
                             code: motion_graph::ErrorCode::Shader,
                             node: None,
                             port: None,
-                            message: error,
+                            message: error.to_string(),
                         }),
                     );
                     self.dirty = true;
@@ -638,12 +638,12 @@ impl Shell {
 /// request and its reply can arrive later, so the caller must not treat this
 /// as a completed save.
 enum NodeSourceWait {
-    Completed(Result<Value, String>),
+    Completed(Result<Value, crate::engine::Error>),
     Pending(String),
 }
 
 fn await_node_source(
-    receive: &std::sync::mpsc::Receiver<Result<Value, String>>,
+    receive: &std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>,
     wait: Duration,
     snapshot: Option<&node_editor::EditorSnapshot>,
 ) -> NodeSourceWait {
@@ -731,7 +731,7 @@ mod source_wait_tests {
         assert_eq!(shell.node_sources.len(), 1);
         let error = shell.node_sources.pop().unwrap().1.recv_timeout(Duration::from_secs(5))
             .unwrap().unwrap_err();
-        assert!(error.contains("target layer was removed"), "{error}");
+        assert!(error.to_string().contains("target layer was removed"), "{error}");
     }
 
     #[test]
@@ -739,7 +739,7 @@ mod source_wait_tests {
         let (send, receive) = std::sync::mpsc::channel();
         drop(send);
         assert!(matches!(await_node_source(&receive, Duration::from_secs(1), None),
-            NodeSourceWait::Completed(Err(error)) if error.contains("disconnected")));
+            NodeSourceWait::Completed(Err(error)) if error.to_string().contains("disconnected")));
     }
 
     #[test]

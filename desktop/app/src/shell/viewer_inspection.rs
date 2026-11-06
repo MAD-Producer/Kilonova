@@ -9,7 +9,7 @@ pub(crate) struct Pending {
     cell:usize,
     source: Identity,
     capture: bool,
-    receive: Receiver<Result<Value, String>>,
+    receive: Receiver<Result<Value, crate::engine::Error>>,
 }
 
 impl Shell {
@@ -70,7 +70,7 @@ impl Shell {
                 } else if capture { "Snapshot captured" } else { "Snapshot saved" }.into()),
                 Err(error) => {
                     log::error!("viewer snapshot action failed: operation={} window={} reason={}",
-                        if capture { "capture" } else { "save" }, window, error.chars().take(512).collect::<String>());
+                        if capture { "capture" } else { "save" }, window, error.to_string().chars().take(512).collect::<String>());
                     self.panels.message = Some(self.workspace.locale.error(&error));
                 }
             }

@@ -40,10 +40,10 @@ fn parent_policy_failures_reach_default_sinks_and_a_valid_local_bind_recovers() 
                     .to_string(),
                 )
                 .unwrap_err();
-            assert!(error.contains(reason), "{error}");
-            assert!(error.contains("object=7"), "{error}");
-            assert!(error.contains(&format!("parent=Some({parent})")), "{error}");
-            assert!(error.contains(&format!("frame={frame}")), "{error}");
+            assert!(error.to_string().contains(reason), "{error}");
+            assert!(error.to_string().contains("object=7"), "{error}");
+            assert!(error.to_string().contains(&format!("parent=Some({parent})")), "{error}");
+            assert!(error.to_string().contains(&format!("frame={frame}")), "{error}");
             assert_eq!(engine.state().unwrap()["project"], before["project"]);
             assert_eq!(engine.state().unwrap()["revision"], before["revision"]);
         }

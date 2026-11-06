@@ -22,7 +22,7 @@ fn camera_time_failures_are_bounded_and_visible_on_default_channels() {
             {"op":"camera_lens","object":7,"frame":6.5,"film_width_mm":24.,"focal_length_mm":35.},
             {"op":"camera_lens","object":7,"frame":7.,"film_width_mm":36.,"focal_length_mm":50.}
         ]).to_string()).unwrap_err();
-        assert!(failure.contains("continuous key addressing"), "{failure}");
+        assert!(failure.to_string().contains("continuous key addressing"), "{failure}");
         assert_eq!(h.engine.state().unwrap()["project"], healthy["project"]);
         crate::logging::flush();
         let log = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();

@@ -413,7 +413,9 @@ impl Locale {
             })
             .unwrap_or(self.t(Text::Window))
     }
-    pub fn error(self, error: &str) -> String {
+    pub fn error(self, error: &(impl std::fmt::Display + ?Sized)) -> String {
+        let text = error.to_string();
+        let error = text.as_str();
         if self == Self::Zh {
             let message = match error {
                 "audio layers do not support visual effects" => {

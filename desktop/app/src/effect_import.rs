@@ -3,7 +3,7 @@ use crate::*;
 use std::sync::mpsc::{Receiver, TryRecvError};
 pub struct Task {
     path: PathBuf,
-    receiver: Receiver<Result<Value, String>>,
+    receiver: Receiver<Result<Value, crate::engine::Error>>,
     catalogue: bool,
 }
 pub enum Progress {
@@ -34,7 +34,7 @@ impl Task {
             Err(TryRecvError::Disconnected) => {
                 self.failed("Effect package import worker disconnected".into())
             }
-            Ok(Err(error)) => self.failed(error),
+            Ok(Err(error)) => self.failed(error.to_string()),
             Ok(Ok(value)) if self.catalogue => Progress::Ready(value),
             Ok(Ok(_)) => {
                 log::info!("effect package installed: path={}", self.path.display());
@@ -47,7 +47,7 @@ impl Task {
                         self.receiver = receiver;
                         Progress::LoadingCatalogue
                     }
-                    Err(error) => self.failed(error),
+                    Err(error) => self.failed(error.to_string()),
                 }
             }
         }

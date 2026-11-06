@@ -154,7 +154,7 @@ impl Shell {
                 Err(error)
             }
             (Err(error), Ok(state)) => { self.state = state; Err(error) }
-            (Ok(_), Err(error)) => Err(error),
+            (Ok(_), Err(error)) => Err(error.to_string()),
         }
     }
 

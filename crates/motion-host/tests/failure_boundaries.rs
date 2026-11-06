@@ -129,8 +129,8 @@ fn structured_composition_replies_require_native_identity() {
         assert_eq!(reply["error"], text);
         assert!(reply["error_detail"].is_null(), "text forged native detail: {reply}");
     }
-    // Explicit old text clients keep their original protocol adapter.
-    assert_eq!(motion_host::ops::error_envelope(&text)["error_detail"], json!(detail));
+    // Text-only bridge errors cannot forge native composition identity either.
+    assert!(motion_host::ops::error_envelope(&text)["error_detail"].is_null());
 }
 
 #[test]

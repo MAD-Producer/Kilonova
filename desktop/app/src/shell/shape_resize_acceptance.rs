@@ -253,19 +253,19 @@ impl Shell {
         let mut cleanup_errors = vec![];
         if active {
             if let Err(e) = self.engine.history(4) {
-                cleanup_errors.push(e);
+                cleanup_errors.push(e.to_string());
             }
         }
         for _ in 0..undos {
             if let Err(e) = self.engine.history(0) {
-                cleanup_errors.push(e);
+                cleanup_errors.push(e.to_string());
                 break;
             }
         }
         match self.engine.state() {
             Ok(state) if state["project"] == before["project"] => {}
             Ok(_) => cleanup_errors.push("resize capture did not restore project".into()),
-            Err(e) => cleanup_errors.push(e),
+            Err(e) => cleanup_errors.push(e.to_string()),
         }
         match (result, cleanup_errors.is_empty()) {
             (Err(e), false) => Err(format!(

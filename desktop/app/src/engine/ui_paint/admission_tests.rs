@@ -69,7 +69,7 @@ fn native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdou
             }));
             respond(reply, result.map_err(motion_host::Error::from));
             CURRENT_COMMAND.set(None);
-            assert_eq!(receive.recv().unwrap(), Err(original));
+            assert_eq!(receive.recv().unwrap().map_err(String::from), Err(original));
         }
         return;
     }

@@ -29,7 +29,7 @@ pub(crate) struct Prompt {
     pub error_scroll: motion_ui::widgets::ScrollArea,
 }
 
-pub(crate) type Pending = (Prompt, Receiver<Result<Value, String>>);
+pub(crate) type Pending = (Prompt, Receiver<Result<Value, crate::engine::Error>>);
 
 impl Shell {
     pub(crate) fn project_modal(&self) -> bool {
@@ -146,7 +146,7 @@ impl Shell {
 }
 
 impl Engine {
-    pub(crate) fn project_ticket(&self) -> Result<Ticket, String> {
+    pub(crate) fn project_ticket(&self) -> Result<Ticket, crate::engine::Error> {
         self.call(crate::engine::Command::ProjectTicket)
     }
     pub(crate) fn change_project(
@@ -154,7 +154,7 @@ impl Engine {
         target: Target,
         ticket: Ticket,
         save: bool,
-    ) -> Result<Receiver<Result<Value, String>>, String> {
+    ) -> Result<Receiver<Result<Value, crate::engine::Error>>, crate::engine::Error> {
         self.request(|reply| crate::engine::Command::ChangeProject {
             target,
             ticket,

@@ -225,7 +225,7 @@ fn native_audio_envelopes_keep_exact_time_and_cancel_in_both_owners_and_language
                         .unwrap(),
                     )
                     .unwrap_err();
-                assert!(error.contains("continuous key addressing"));
+                assert!(error.to_string().contains("continuous key addressing"));
                 assert_eq!(h.engine.state().unwrap()["project"], after);
                 let saved = h.engine.save().unwrap();
                 record(folder.join("saved.json"), &saved);

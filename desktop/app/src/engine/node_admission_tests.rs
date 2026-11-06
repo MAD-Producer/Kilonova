@@ -78,13 +78,13 @@ fn node_admission_refusal_preserves_installed_graph_and_default_log_channels() {
                 .unwrap()
                 .unwrap_err();
         assert!(
-            error.contains("node graph")
-                && error.contains("independent node preview")
-                && error.contains("phase=allocate"),
+            error.to_string().contains("node graph")
+                && error.to_string().contains("independent node preview")
+                && error.to_string().contains("phase=allocate"),
             "{error}"
         );
         assert!(
-            error.contains(&format!("budget_bytes={occupied}")),
+            error.to_string().contains(&format!("budget_bytes={occupied}")),
             "{error}"
         );
         let refused = engine.state().unwrap();
