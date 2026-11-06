@@ -1,5 +1,12 @@
 # Tracking #88: integrated acceptance map
 
+The [new prototype/current-main integration](tracking88-prototype-main-integration-current.md)
+includes maintained main `26c1d2d2` and the reference-depth branch. Fresh complete
+tools/CV/CLI gates passed on its recorded earlier integration source; native
+compilation, complete combined regression and final CI still require execution.
+The [retained support diagnostics](tracking88-support-diagnostics-current.md)
+do not repair or waive the original photographed tracking failure.
+
 Current integration: the [combined workspace record](3d-professional-workspace-current.md)
 passes 4,896 tests across all 417 maintained targets on `c190ab20`, including
 main `50bef478`. Matching-source three-platform CI and freshly built actual

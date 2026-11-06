@@ -1,5 +1,12 @@
 # #88 external point/planar prototype: review boundary
 
+The [new current-main integration](tracking88-prototype-main-integration-current.md)
+combines the maintained rational clock, imported-camera route and reference-depth
+branch. Its source-bound tools/CV/CLI gates pass; complete combined native and
+workspace acceptance remains pending. The [new support diagnostics](tracking88-support-diagnostics-current.md)
+retain the real-video failure rather than declaring it repaired. The historical
+increments below keep their original source and acceptance boundaries.
+
 This increment is stacked on PR #581, commit
 `8a1dfb7f57fc1bc65683942427214b18595ac625`. It is a developer prototype;
 its generated output now has the Windows native qualification below. It does not
