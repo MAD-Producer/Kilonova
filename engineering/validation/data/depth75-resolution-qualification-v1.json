@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "sourceCommit": "d9443b566595eb6bf5314f4f4bf46744e8a7d214",
+  "createdUtc": "2026-11-06T12:55:21.409851+00:00",
+  "source": {
+    "crates/motion-host/src/depth.rs": "85a684bb0fb5ab101d96989308498cdb607e5b527dd617a11fcb7c4f827a5412",
+    "crates/motion-host/src/depth/onnx.rs": "6513c14defa0ff0d9eba6c99567e684946da221f7c74de8fb478552c62b6fc7f",
+    "tools/ai_depth_onnx.py": "5a28dfaff61a3de470412364b46120de7a8bdb5855aaded9ff21e80d165b157a",
+    "desktop/app/src/logging.rs": "95d4fb7ed6704877ea2ba09c00913b6bfb49c974c38a331658cdeb2da290576a",
+    "Cargo.lock": "3afab6b8209104c68a44664866100237ac09a0feae0363409abb0581b9a76311"
+  },
+  "actualModelProfiles": 3,
+  "actualPythonComparisons": 9,
+  "actualJobsComparisons": 9,
+  "actualExpectedProfileFailures": 3,
+  "gates": {
+    "maxNormalized": 0.0002,
+    "meanNormalized": 2e-05
+  },
+  "worstMaxNormalized": 1.1488222992897823e-05,
+  "worstMeanNormalized": 7.660923655518214e-07,
+  "limits": [
+    "Explicit ONNX resolution candidates, not fast/standard/high quality tiers",
+    "Existing attributed static photo crops; no depth truth or actual video switching qualification",
+    "Native contracts and Jobs passed; external probe v1 compiler failure remains retained",
+    "Separate full workspace source064 run failed 16 loader targets; no full regression pass claimed",
+    "No model weights, ONNX graphs, original images, tensors or binaries included"
+  ],
+  "archive": "depth75-resolution-qualification-v1.zip",
+  "archiveBytes": 667283,
+  "archiveSha256": "a6c3d58ccc2742768d6857b8f7dbb5408510dfe13699afe222f28845425cc7c5",
+  "memberCount": 116
+}

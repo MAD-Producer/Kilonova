@@ -28,9 +28,10 @@ output directory, exports a fixed `1x3xSxS` Float32, single-file opset-17
 model, and checks an actual CPU ONNX prediction against the official PyTorch
 forward. It then publishes the model, upstream license and `model.json` together.
 `S` is the requested side; it defaults to 518. The three sides are explicit
-measurement candidates, not measured fast/standard/high quality tiers. Actual
-266/392 export and native host qualification remain pending in this change;
-see [current evidence](../validation/depth75-resolution-export-current.md).
+measurement candidates, not measured fast/standard/high quality tiers. All three
+real exports and native Jobs paths have passed same-weight reference comparisons;
+see [source-bound evidence and remaining limits](../validation/depth75-resolution-export-current.md).
+This does not qualify automatic quality switching, interactive latency or peak memory.
 The manifest records both the original weight hash and the exported ONNX hash,
 tool versions, processing identity and numerical bounds. Different export
 environments must retain their own manifest and pass the comparison.
