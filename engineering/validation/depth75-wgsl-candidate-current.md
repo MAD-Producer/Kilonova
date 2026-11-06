@@ -2,7 +2,8 @@
 
 Issue #75 remains **incomplete**. This checkpoint inspects the existing,
 separately installed Depth Anything V2 Small model and validates four standalone
-WGSL operator families against its actual intermediate tensors. It does not
+WGSL operator families against its actual intermediate tensors. A later
+qualification expands those four families to seven. It does not
 provide composed WGSL model inference, a default product backend, or performance
 and photographed/video quality acceptance.
 
@@ -110,7 +111,7 @@ the same separately exported model hash and optional environment.
 | Original #75 requirement | Current disposition |
 | --- | --- |
 | I1: licensed candidate, domain, operators/shapes/dtypes, weights/activation/device limits | Pinned candidate and complete static inventory recorded; deployment suitability and lightweight performance remain unqualified |
-| I2: same-weight per-operator and end-to-end WGSL/ONNX comparison | Four WGSL families passed 13 actual-model representatives and 21 edge controls; remaining families and composed inference pending |
+| I2: same-weight per-operator and end-to-end WGSL/ONNX comparison | Seven WGSL families passed 58 actual-model nodes and 27 edge controls; remaining indexing/broadcast/shape operations and composed inference pending |
 | I3: shared DepthResource/job contract; quality independent of backend | Existing ONNX route is separate evidence; adding a second execution backend remains pending |
 | I4: measured quality/backend resolution and explicit capability/model/operator fallback | Pending; no automatic backend selection is introduced |
 | I5: fast/high transitions, versioned alignment, hysteresis/generation and frozen export policy | Pending dual-backend integration and independent video tests |
@@ -185,3 +186,51 @@ Published mathematical references for Erf are recorded in `ATTRIBUTION.md` and
 This checkpoint supplies selected numerical primitives, not a selectable
 product backend, complete model, video quality switch, resource planner or
 desktop cross-platform acceptance. Those issue requirements remain open.
+
+## Expanded Conv, ConvTranspose and Erf qualification
+
+The next frozen attempt links three more independently authored shader entries:
+NCHW/OIHW Conv cross-correlation with explicit padding/stride and optional bias,
+NCHW/IOHW nonoverlapping ConvTranspose, and Float32 Erf. The transpose contract
+admits only the audited unpadded 2/stride-2 and 4/stride-4 forms with group one,
+dilation one and no output padding; it refuses overlapping requests rather than
+silently approximating them.
+
+The same pinned CPU model ran once more with identical authored RGB bytes,
+thread/provider/optimization options and final depth hash. All 31 Conv, two
+ConvTranspose and 12 Erf nodes supplied their actual inputs, weights and
+reference outputs. These 45 cases join every prior case. Five independently
+authored Float64 convolution references additionally exercise rectangular
+asymmetric padding, stride, batch/channel indexing, absent bias, patch-14
+embedding and both transpose kernels. Another Erf reference evaluates 20,025
+arguments, including signed zero, subnormal/small inputs, both sides of the
+series boundary, saturation and the largest finite Float32 arguments.
+
+| Expanded executed gate | Result |
+| --- | --- |
+| Complete host admission suite | 17 passed, none ignored or filtered |
+| Actual same-model node comparisons | All 58 passed; the earlier 13 plus all 45 newly selected nodes |
+| Authored numerical controls | All 27 passed; the earlier 21 plus six new controls |
+| Original normalized bounds | Maximum 0.0002 and mean 0.00002 retained for every case |
+| Largest measured normalized errors | Maximum 0.000005754542; largest case mean 0.000000166635 |
+| Additional Erf gate, fixed before execution | Maximum absolute 0.000001; measured 0.000000357628 across actual-node and authored inputs |
+| Real failure requests | All seven refused: original five plus unsupported transpose overlap and Erf shape mismatch |
+| Default channels | Info starts visible; seven original Error causes in file and stderr; stdout empty |
+
+The shader's Erf approximation combines an independently implemented
+small-argument power series and the published mathematical expression credited
+in the provenance ledgers. The separate scalar check did not substitute for
+this actual GPU comparison. The mathematical expression's ideal error bound
+alone is not a Float32 hardware guarantee.
+
+The [expanded source and execution archive](data/depth75-selected-operators-v4.zip)
+and [manifest](data/depth75-selected-operators-v4.json) retain the exact sources,
+Cargo.lock, tests, independent reference/observer controllers, hashes, actual
+logs and preceding qualification identity. All members were read back:
+142,002 bytes, SHA-256
+`40f32344bd0d857ac02097b042dfe0d4a7d9d6900ac7a771ea3dc092caff8727`.
+The same model/weight/tensor/binary exclusions apply. Preparatory source comments
+about unlinked kernels refer to the earlier snapshot; this later attempt
+actually executed all seven entries. Independent operators still do not compose
+the 598-node graph, qualify a resource arena, or establish product/backend
+selection, temporal consistency, full inference performance or other desktops.

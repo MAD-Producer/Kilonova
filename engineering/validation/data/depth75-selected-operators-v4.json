@@ -1,0 +1,351 @@
+{
+  "status": "successful_selected_operator_attempt_archived_readback_verified",
+  "createdUtc": "2026-11-06T05:24:09.515542+00:00",
+  "archive": "depth75-selected-operators-v4.zip",
+  "bytes": 142002,
+  "sha256": "40f32344bd0d857ac02097b042dfe0d4a7d9d6900ac7a771ea3dc092caff8727",
+  "entries": {
+    "archive-controller.py": {
+      "bytes": 4084,
+      "sha256": "14249fe5fa31832da40d7f16010ecd4a6e34b5b36e4966665acbaf816a2f9d28"
+    },
+    "execution/actual-gpu.stderr.log": {
+      "bytes": 586,
+      "sha256": "1488de162d4ad5d16e4851747f89c90d8f3e3a3edfab66e0a732768321e40fd1"
+    },
+    "execution/actual-gpu.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/build.stderr.log": {
+      "bytes": 1542,
+      "sha256": "4d39c0b3aaa786e9eac6013eaa33307a80d44406ca5824a479054bfa7080ab38"
+    },
+    "execution/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/comparison/controller.py": {
+      "bytes": 6485,
+      "sha256": "852f7090d52dc0dcd82e6352792cfb93a74ded9e919ab6c34ea62bda88da73d9"
+    },
+    "execution/comparison/receipt.json": {
+      "bytes": 62199,
+      "sha256": "3145c84f929991c868bf0ca2aeef2e5e8df42133a9065954d76222e60853f94d"
+    },
+    "execution/controller.py": {
+      "bytes": 9501,
+      "sha256": "b25cde42f887ae2261c5e86b0b5823f712f8954eb764ed570e53e680fb1f2575"
+    },
+    "execution/fault-axis.stderr.log": {
+      "bytes": 812,
+      "sha256": "d1ff4bf420a009033d3082f27e1ccd271ae16ee9731af8f186b6d7da52973672"
+    },
+    "execution/fault-axis.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-axis/observed/logs/motion-studio.log": {
+      "bytes": 1554,
+      "sha256": "d6575fad42b1d46fb2a0de13647c8d383a3ae538567c3d6c88cfc40b4261a92e"
+    },
+    "execution/fault-axis/observed/receipt.json": {
+      "bytes": 1314,
+      "sha256": "1aaeaef301de6376eddf34b9551dc9418df701f61e29bf21744de5405966b448"
+    },
+    "execution/fault-axis/request.json": {
+      "bytes": 1241,
+      "sha256": "549fe3971308548d7bbe177b7f1082725951a9d4c7cabfd1a98ea0d26323d39e"
+    },
+    "execution/fault-budget.stderr.log": {
+      "bytes": 781,
+      "sha256": "66bcc13094e376a249353fdb50ce0717ecefd893fc9dc814a179752f6b0da8e7"
+    },
+    "execution/fault-budget.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-budget/observed/logs/motion-studio.log": {
+      "bytes": 1523,
+      "sha256": "ed8dc9bf19adac2bc8d872dd2e77e9bbd8fb628edb1ba72a7c5b00826784c97d"
+    },
+    "execution/fault-budget/observed/receipt.json": {
+      "bytes": 1283,
+      "sha256": "c022987c9d1f38d37fb116e854c96668f2ea091eb4a9eaee9e23a71929f63305"
+    },
+    "execution/fault-budget/request.json": {
+      "bytes": 1234,
+      "sha256": "04e8b9bc596fb6e47a3eeb71303116cc9388cf51bc9c79f3a7c9e0e2f8290a4a"
+    },
+    "execution/fault-erf-shape.stderr.log": {
+      "bytes": 793,
+      "sha256": "69c20e637a5411a6332d7ca7bdd3705dd490fc4fcf4fadbe80a07d88b857da05"
+    },
+    "execution/fault-erf-shape.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-erf-shape/observed/logs/motion-studio.log": {
+      "bytes": 1535,
+      "sha256": "79dff92e8a435f11d0e15739ea0f7814fb9c3b6537bc8eccd46fa9db486aeeb7"
+    },
+    "execution/fault-erf-shape/observed/receipt.json": {
+      "bytes": 1294,
+      "sha256": "e085bad011996b8bd48abcd167df7a170c2064429cc5a2130569adaff1305a5b"
+    },
+    "execution/fault-erf-shape/request.json": {
+      "bytes": 1188,
+      "sha256": "2b452e099a815a6bb3fa6369bd3c3320484fa0330ff7d59551c9eeb278ab5660"
+    },
+    "execution/fault-model-identity.stderr.log": {
+      "bytes": 160,
+      "sha256": "5a70f8f7b772a43de99806a9834a1e7e854e9b0735f264e7d85e3aa9c01ec223"
+    },
+    "execution/fault-model-identity.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-model-identity/observed/logs/motion-studio.log": {
+      "bytes": 465,
+      "sha256": "1234082a6363b413b354b19ebe373d914a50c5b669bc312e17f19f63dc86bef2"
+    },
+    "execution/fault-model-identity/observed/receipt.json": {
+      "bytes": 612,
+      "sha256": "c008d677ff499da2b2dcad17e9a5dba7029759805c5514ea60f7a39cd5fb2d55"
+    },
+    "execution/fault-model-identity/request.json": {
+      "bytes": 1242,
+      "sha256": "14f46f9b746dd71b89202601f8dbb5add9d1a44992f8664f25d0e6ce2827973c"
+    },
+    "execution/fault-nonfinite.stderr.log": {
+      "bytes": 822,
+      "sha256": "0171fb5c43273f4edbaf6052965712d435333dbb7bd0d469346fd3bb227b0225"
+    },
+    "execution/fault-nonfinite.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-nonfinite/observed/logs/motion-studio.log": {
+      "bytes": 1900,
+      "sha256": "c51a7626f02d9a3168e7e922e8c68c0d5bec9e35671dfd61b582c12ca0976e29"
+    },
+    "execution/fault-nonfinite/observed/receipt.json": {
+      "bytes": 1338,
+      "sha256": "ca58288bd48a1ddaea1d0c62a3e3f9fe2df88e6b8fcbda2ab7d81947a32182c1"
+    },
+    "execution/fault-nonfinite/request.json": {
+      "bytes": 1242,
+      "sha256": "dc6a3e8e8b0e9cc7edcb0fd8595ced3eb9914712432d9351d62e9ec8d9277476"
+    },
+    "execution/fault-tensor-hash.stderr.log": {
+      "bytes": 815,
+      "sha256": "20f812d71cb627e1fdfb7cea0e5725b2852a41eb5ce275e024158393d1d6dbc0"
+    },
+    "execution/fault-tensor-hash.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-tensor-hash/observed/logs/motion-studio.log": {
+      "bytes": 1893,
+      "sha256": "2b7ebd26831adf62f95042ec799d6f8b0ed4daf4d035d48107ba336ef84be827"
+    },
+    "execution/fault-tensor-hash/observed/receipt.json": {
+      "bytes": 1330,
+      "sha256": "5bd19195ebf3bd664282ad38c5c670d58bf7d82aece78b2477d99e9dffa8f88a"
+    },
+    "execution/fault-tensor-hash/request.json": {
+      "bytes": 1242,
+      "sha256": "699ad2243cc75e4a221df8149c28f979113217beb73c47495feed31f0169e0fa"
+    },
+    "execution/fault-transpose-overlap.stderr.log": {
+      "bytes": 796,
+      "sha256": "849eb7ac309d03139f285d8355833d185e0d5502a1f5644d800625a1c4e8275a"
+    },
+    "execution/fault-transpose-overlap.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/fault-transpose-overlap/observed/logs/motion-studio.log": {
+      "bytes": 1538,
+      "sha256": "d4f0a7b0cd9bc047c40a96fd23c54b9af762f3c99d46e125ef8ae2911d08a733"
+    },
+    "execution/fault-transpose-overlap/observed/receipt.json": {
+      "bytes": 1298,
+      "sha256": "7e2fdd9503d8d01749640de17c8ee3470cc97617772f2aa7aeaa7f00c068e0e9"
+    },
+    "execution/fault-transpose-overlap/request.json": {
+      "bytes": 2451,
+      "sha256": "f0ff99674fc3313b3d6c4e4d97658426fdb8da4f69a87ed6d344636cffff71f2"
+    },
+    "execution/gpu/logs/motion-studio.log": {
+      "bytes": 60644,
+      "sha256": "ddf83b53d6cfb935f378d0b267cc2fefd3fd2b0b7443382dcea80a29eb371cdb"
+    },
+    "execution/gpu/receipt.json": {
+      "bytes": 62140,
+      "sha256": "8c15286642a01b9f3b7489e82808d67ff9361bcbe844b64108e69d1a60f217a1"
+    },
+    "execution/host-admission-tests.stderr.log": {
+      "bytes": 4668,
+      "sha256": "922c7ae768a201e8f4037c2f72d22f92d117338679e730b95f34c3a16db91295"
+    },
+    "execution/host-admission-tests.stdout.log": {
+      "bytes": 1471,
+      "sha256": "65488e2d7d58ab5716ea32cbc580375070e8d46204fbc0c093ac6c1c0524f1ef"
+    },
+    "execution/independent-comparison.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/independent-comparison.stdout.log": {
+      "bytes": 1386,
+      "sha256": "0dfbf2b56e2d2d43e63476027bac7deb64dbc97f263562ccb178be731b79ad28"
+    },
+    "execution/offline-lock.stderr.log": {
+      "bytes": 68,
+      "sha256": "f11b64900dd47d6f1b5833cfd8d714ee83df3e585de9f3ddc356458db6dbd4fd"
+    },
+    "execution/offline-lock.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/receipt.json": {
+      "bytes": 11970,
+      "sha256": "5862eb3d6d30f467e79a4b9a34994afeea80845070858973f00acc21a8a6ee36"
+    },
+    "execution/reference-fixtures.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "execution/reference-fixtures.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "independent-comparison-controller.py": {
+      "bytes": 6485,
+      "sha256": "852f7090d52dc0dcd82e6352792cfb93a74ded9e919ab6c34ea62bda88da73d9"
+    },
+    "previous-four-family-qualification-manifest.json": {
+      "bytes": 19944,
+      "sha256": "7fb59e77b0d0857b4c84ac3b514a6c48e532fe50155c5ce15f52941bffbd5c7e"
+    },
+    "reference-fixtures/controller.py": {
+      "bytes": 10682,
+      "sha256": "f39f4a58fa8d6e71a9ba2899b9510a1c31a2df538b70aa5d56d48338367f0a78"
+    },
+    "reference-fixtures/receipt.json": {
+      "bytes": 8706,
+      "sha256": "ee03f3ed987e26752c0219574c88098b4b6df1aaa737d34e5a19996931c3ecff"
+    },
+    "reference-fixtures/request.json": {
+      "bytes": 138593,
+      "sha256": "152fcd764a742ba70b5a456415216b04e02dc1b2745711b057fe2f0c7d3e0dc1"
+    },
+    "reference-fixtures/research.log": {
+      "bytes": 481,
+      "sha256": "13014d2cd67cfad494587c32993e47890bfc6ae78131e6a40f5f64d61a59f577"
+    },
+    "separate-static-and-math/depth75-convolution-layouts-v1/controller.py": {
+      "bytes": 4551,
+      "sha256": "a81e15706cbf6efe925788fdf46989353a852804adae05e29d38170b25c0f31b"
+    },
+    "separate-static-and-math/depth75-convolution-layouts-v1/receipt.json": {
+      "bytes": 35276,
+      "sha256": "9ece0feed31246bb4a28d43971dfc3ac8b3fcc74f6c9183943686a8f37b6ced0"
+    },
+    "separate-static-and-math/depth75-erf-math-v1/controller.py": {
+      "bytes": 3239,
+      "sha256": "d2023dde2c9fa3f93d3145643dd76b581bfb2b2cc61b2fd1175153ad73486fd6"
+    },
+    "separate-static-and-math/depth75-erf-math-v1/receipt.json": {
+      "bytes": 1208,
+      "sha256": "56c050881da53d27ce0f0d20bee649e42f71637f2495b477b46fa43ccaf2f010"
+    },
+    "separate-static-and-math/depth75-operator-layouts-v1/controller.py": {
+      "bytes": 5712,
+      "sha256": "992b82c93362f7e52e77e8b499b2d40cb4ab8afe5655b14433a99f7558bf8fee"
+    },
+    "separate-static-and-math/depth75-operator-layouts-v1/receipt.json": {
+      "bytes": 78158,
+      "sha256": "cb40cdc942982dee02f76e72999c4e436c4eceed9321841b4744cca731c4f91d"
+    },
+    "source/Cargo.lock": {
+      "bytes": 29182,
+      "sha256": "b606eacff1f79c96d4b14f1417be8fb964f4f2577eeb43c13e5099c376d200c9"
+    },
+    "source/Cargo.toml": {
+      "bytes": 640,
+      "sha256": "fefe51152b63590a6e01ae6bfa960a510501b8c7215abb3286d1444d0f6d57a9"
+    },
+    "source/README.md": {
+      "bytes": 4255,
+      "sha256": "199687fa967143e470c96d71b6ba3e6b078488c09f931e543569358ab2ea96f7"
+    },
+    "source/src/admission.rs": {
+      "bytes": 15461,
+      "sha256": "234fe15d478579b750f25b6e7c7e02bb7d656c8e7f53a6122615663421305c8a"
+    },
+    "source/src/convolution.wgsl": {
+      "bytes": 4052,
+      "sha256": "ec253c28d8714da5f637fea0a1213dae114bb548bf0cf914c958b1593ef10c0e"
+    },
+    "source/src/convolution_admission.rs": {
+      "bytes": 6880,
+      "sha256": "3e8b2fae2ec6205654fa41813683c800a15dadc022e683bead3d39a8bdfded75"
+    },
+    "source/src/erf.wgsl": {
+      "bytes": 1982,
+      "sha256": "7c0c8401876cad9e956154eeedbfb46cac12f8dcd3f0b09b924cd98b99d943cc"
+    },
+    "source/src/logging.rs": {
+      "bytes": 18160,
+      "sha256": "95d4fb7ed6704877ea2ba09c00913b6bfb49c974c38a331658cdeb2da290576a"
+    },
+    "source/src/main.rs": {
+      "bytes": 20649,
+      "sha256": "39155b42a434d3ee3a5255bbfe29f6f5cc9bfe0e6189a7e248c7c77186671d50"
+    },
+    "source/src/operators.wgsl": {
+      "bytes": 6998,
+      "sha256": "40228823a897ad2137d480e05cd620f957cbacdd8d79a99172844973c64d808f"
+    },
+    "source/tests/admission.rs": {
+      "bytes": 7406,
+      "sha256": "72969674e7b9f7b177603db12842fbb1e622e5cc1b5abfadb82d72d623f7c74b"
+    },
+    "source/tests/convolution_admission.rs": {
+      "bytes": 4515,
+      "sha256": "c44ee12a79a38b02f84dd80de8402e3b2ef07c648ef015434a31fb14c74ab7e3"
+    }
+  },
+  "numericalTotals": {
+    "same_model_intermediate": {
+      "cases": 58,
+      "failed": 0
+    },
+    "authored_control": {
+      "cases": 27,
+      "failed": 0
+    }
+  },
+  "adapter": {
+    "backend": "Vulkan",
+    "device": 10272,
+    "device_type": "DiscreteGpu",
+    "driver": "NVIDIA",
+    "driver_info": "591.86",
+    "name": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "vendor": 4318
+  },
+  "defaultInfoStartVisible": true,
+  "errorFileAndStderrFailures": 7,
+  "stdoutEmpty": true,
+  "limits": [
+    "Seven numerical operator families only, not a shipped backend or complete model output",
+    "All31Conv/2ConvTranspose/12Erf nodes compared independently; no composed graph execution is established",
+    "Model weights, RGB, learned activations, reference/GPU raw tensors, binaries and optional runtimes are excluded",
+    "Static layout/scalar mathematics records are separate evidence, not device execution results",
+    "External references require exact separately installed model and recorded input/output routing",
+    "No real video, temporal switching, allocator, full inference latency, thermal or mobile qualification"
+  ]
+}
