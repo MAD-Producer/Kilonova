@@ -100,6 +100,13 @@ This file lists third-party material currently intended for the repository or a 
 
 ## Optional desktop depth prototype
 
+The #75 static WGSL-candidate audit reuses this same pinned, external Small
+export and the existing optional ONNX installation. It adds independently
+authored metadata/inspection controllers, not another dependency, model or
+upstream implementation. Shape folding evaluates only a bounded integer
+constant program; no learned inference is executed by that audit. Its public
+archives exclude the external model, weights, upstream source and image assets.
+
 Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
 Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:
 [official source](https://github.com/DepthAnything/Depth-Anything-V2/tree/a561b849ebae10a6f5ef49e26c83cbbcd36c71bf),

@@ -1,5 +1,11 @@
 # Motion Studio 来源说明 / Provenance
 
+The #75 WGSL-depth checkpoint contains independently generated operator/shape
+and static-memory metadata for the already attributed external Small model.
+Its evidence archives contain no model weights, upstream implementation or
+image assets. Static inspection and integer shape folding do not qualify a
+second inference backend or authorize default model distribution.
+
 The COLMAP camera text adapter references the public format and coordinate
 conventions at a pinned upstream revision. Its parser, pose conversion boundary
 and numerical fixtures are independently authored. It does not embed COLMAP or

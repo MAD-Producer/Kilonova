@@ -1,0 +1,75 @@
+{
+  "status": "static_audit_archived_readback_verified",
+  "createdUtc": "2026-11-06T03:44:33.486195+00:00",
+  "sourceBaseline": "1aa57293a84e70734ff414e9450f1e880c62139d",
+  "modelSha256": "274368034c0fcef08f9b197d33b606bae9c578acca861ef72feb268143b21434",
+  "archive": "depth75-static-model-audit-v1.zip",
+  "bytes": 40185,
+  "sha256": "668341c2ba2c18778d32b31109928976d946656117cd7a75c481503dbbda2d5b",
+  "entries": {
+    "archive-controller.py": {
+      "bytes": 3886,
+      "sha256": "7a7b4ced04568d77a5354e259a3d3baf099a5dfc641026cfcbfdb0c9427891d5"
+    },
+    "depth75-operator-requirements-v1/controller.py": {
+      "bytes": 4363,
+      "sha256": "c9ab9494b030584a7a90b962aefd3f0a84abb4b0b1a65bccaaa93b68bc73d11e"
+    },
+    "depth75-operator-requirements-v1/receipt.json": {
+      "bytes": 5631,
+      "sha256": "1a42be5f00bf8a34c1fb4b2a75efb64d62e25c3c76edb8616bb08a48a11d60e9"
+    },
+    "depth75-static-model-audit-v1/controller.py": {
+      "bytes": 8227,
+      "sha256": "e93ab717c61bb3f9ab8d6ed9ccaed0c85c9139b46defd305d8f0211cf0cf97fc"
+    },
+    "depth75-static-model-audit-v1/receipt.json": {
+      "bytes": 7744,
+      "sha256": "85a99fcadfc185575976d7fb96571fc9877550017a69ecfcb2defad552bd6946"
+    },
+    "depth75-static-model-audit-v1/tensor-inventory.json": {
+      "bytes": 184531,
+      "sha256": "e043c656b2c86b306d4d88b882e918c9f1d6e875be73e13b7f7ddd668d941221"
+    },
+    "depth75-static-model-audit-v2/controller.py": {
+      "bytes": 8226,
+      "sha256": "3e30952052a9be766b04c0bab35fa83f11fed40d7c1e05e62044be8fc62ba60b"
+    },
+    "depth75-static-model-audit-v2/receipt.json": {
+      "bytes": 7137,
+      "sha256": "e66191d14add23330d530e6f6ba87769fbb6ebba5e28a36ad37f4191355288ea"
+    },
+    "depth75-static-model-audit-v2/tensor-inventory.json": {
+      "bytes": 183342,
+      "sha256": "378dabacaa1307b8d9f0e1b3fe4072e15de1733a3cb4a95bb74dd605efcb3546"
+    },
+    "depth75-static-model-audit-v3/controller.py": {
+      "bytes": 11096,
+      "sha256": "c17f643cfc1f3e804f99d338b015e4cf96c8133926f2792cc02ccf8051b283a4"
+    },
+    "depth75-static-model-audit-v3/receipt.json": {
+      "bytes": 7750,
+      "sha256": "8f85573a76b12504cece5f30e7f02cf8327a503821cc3cb254671cd73ef0b6ef"
+    },
+    "depth75-static-model-audit-v3/tensor-inventory.json": {
+      "bytes": 183327,
+      "sha256": "5752f1c012166a729741e7bc2e7114c7f102201e969da78da95e078256675b6c"
+    }
+  },
+  "nodes": 598,
+  "unknownShapesByStage": [
+    242,
+    2,
+    0
+  ],
+  "activationPeakBytes": 100612800,
+  "persistentBytes": 98844892,
+  "naiveCombinedBytes": 199457692,
+  "limits": [
+    "Only independent controllers, integer-shape/static-memory reports and metadata are included",
+    "No ONNX model, weights, upstream implementation, model-card prose, pictures or dataset assets",
+    "Does not implement WGSL kernels or qualify any inference backend",
+    "No model inference or additional GPU device was started during the live #88 full regression",
+    "Source branch contains documentation/evidence only; the separate frozen tracking source is unchanged"
+  ]
+}
