@@ -34,16 +34,25 @@ identity in its report and performs letterbox/remap at that resolution. The
 output resource still uses the source crop dimensions. Model hash checks,
 provider reporting, cancellation and ownership checks remain in place. Unknown
 identities are refused before runtime imports; no provider selects a resolution.
+The follow-up report validator also requires RGB Float32 input-copy bytes and
+scalar Float32 output-copy bytes to match the declared model side. Source-sized
+resource bytes remain a separate check. A mismatched profile cannot contribute
+another resolution's transfer statistics to later measurements.
 
 Nine focused Python admission tests pass, including real worker refusals with
 normal and optimized Python, and exact landscape/portrait/single-pixel crop
 rectangles with odd padding. The complete updated tool suite passes 119 tests
 with one original skip (120 total). Raw outputs and source hashes are retained
 in `artifacts/pr-queue/depth75-resolution-python-v2/receipt.json`. The new Rust
-processing-admission test and changed host
+processing-admission test, report identity/byte-count test and changed host
 implementation have only passed rustfmt parsing/checks so far; compilation and
 actual inference through this host remain pending. The full backend regression
 already running in another worktree does not cover this follow-up source.
+The report tests use typed protocol controls, not real inference output. They
+exercise each declared side, profile substitution, hash/schema/dimension
+mismatches, source-resource size and both tensor-copy sizes. Their runtime
+execution remains pending; the earlier Python receipt predates this additional
+Rust validator and does not qualify its changed source.
 
 Actual 266/392 exports and numerical reference runs are pending. No model hash,
 quality ranking, speed, memory reduction or temporal agreement is claimed for

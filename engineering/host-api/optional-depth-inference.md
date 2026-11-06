@@ -53,6 +53,10 @@ disagrees with the requested side are refused. Backend/provider choice does
 not select or silently change resolution. Native WGSL admission remains bound
 to its independently qualified 518 plan; this ONNX source change does not
 qualify new WGSL plans.
+The host also checks reported tensor-copy bytes against the selected square:
+`3 * S * S * 4` input bytes and `S * S * 4` output bytes. These are tensor
+payload counts; the final resource uses the oriented source crop dimensions.
+They do not measure provider-internal allocations or device transfers.
 
 `Key` carries asset ID, source revision, exact rational PTS, full geometry and
 `DepthModel`. The model's `sha256` is the **exported ONNX file hash** from

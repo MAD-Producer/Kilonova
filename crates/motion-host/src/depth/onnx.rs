@@ -55,6 +55,63 @@ mod profile_tests {
             assert_eq!(processing_side(value), None, "{value}");
         }
     }
+
+    fn report(processing: &str, input_bytes: u64, output_bytes: u64) -> Report {
+        serde_json::from_value(serde_json::json!({
+            "schema": 1, "sha256": "a".repeat(64), "processing": processing,
+            "width": 12, "height": 8, "resource_bytes": 384,
+            "providers": ["CPUExecutionProvider"], "cpu_fallback": false,
+            "runtime_version": "control", "input_host_copy_bytes": input_bytes,
+            "output_host_copy_bytes": output_bytes,
+            "costs_ns": {"load":1,"preprocess":1,"input_copy":1,
+                "inference":1,"output_copy":1,"postprocess":1}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn report_requires_the_exact_requested_profile_and_tensor_byte_counts() {
+        // Independent byte counts for RGB Float32 and scalar Float32 tensors.
+        for (side, input_bytes, output_bytes) in [
+            (266, 849_072, 283_024),
+            (392, 1_843_968, 614_656),
+            (518, 3_219_888, 1_073_296),
+        ] {
+            let processing = format!("dav2-small-rgb8-letterbox{side}-align-corners-relative-v1");
+            let digest = "a".repeat(64);
+            let original = report(&processing, input_bytes, output_bytes);
+            assert!(original
+                .validate_identity(&processing, &digest, [12, 8])
+                .is_ok());
+            assert!(original
+                .validate_identity("unknown", &digest, [12, 8])
+                .is_err());
+            let other = if side == 518 { 266 } else { 518 };
+            let other_processing =
+                format!("dav2-small-rgb8-letterbox{other}-align-corners-relative-v1");
+            assert!(original
+                .validate_identity(&other_processing, &digest, [12, 8])
+                .is_err());
+            for field in 0..7 {
+                let mut altered = report(&processing, input_bytes, output_bytes);
+                match field {
+                    0 => altered.schema = 2,
+                    1 => altered.sha256 = "b".repeat(64),
+                    2 => altered.width = 13,
+                    3 => altered.height = 9,
+                    4 => altered.resource_bytes += 4,
+                    5 => altered.input_host_copy_bytes += 4,
+                    _ => altered.output_host_copy_bytes += 4,
+                }
+                assert!(
+                    altered
+                        .validate_identity(&processing, &digest, [12, 8])
+                        .is_err(),
+                    "side={side} field={field}"
+                );
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -159,16 +216,7 @@ impl Onnx {
         let (stdout, stderr) = capture(&mut command, cancellation)?;
         let output_transport_began = Instant::now();
         let report: Report = serde_json::from_slice(&stdout)?;
-        if report.schema != 1
-            || report.sha256 != digest
-            || report.processing != *processing
-            || [report.width, report.height] != input.size()
-            || report.resource_bytes != u64::from(width) * u64::from(height) * 4
-        {
-            return Err(Error::Invalid(
-                "runtime report differs from requested resource identity",
-            ));
-        }
+        report.validate_identity(processing, &digest, input.size())?;
         if report.providers.is_empty()
             || report.providers.len() > 4
             || report
@@ -294,6 +342,26 @@ struct Report {
     input_host_copy_bytes: u64,
     output_host_copy_bytes: u64,
     resource_bytes: u64,
+}
+
+impl Report {
+    fn validate_identity(&self, processing: &str, digest: &str, size: [u32; 2]) -> Result<()> {
+        let side = processing_side(processing).map(u64::from);
+        if self.schema != 1
+            || self.sha256 != digest
+            || self.processing != processing
+            || [self.width, self.height] != size
+            || self.resource_bytes != u64::from(size[0]) * u64::from(size[1]) * 4
+            || side.is_none_or(|n| {
+                self.input_host_copy_bytes != n * n * 12 || self.output_host_copy_bytes != n * n * 4
+            })
+        {
+            return Err(Error::Invalid(
+                "runtime report differs from requested resource identity",
+            ));
+        }
+        Ok(())
+    }
 }
 
 struct ChildOwner {
