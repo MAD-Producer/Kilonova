@@ -4,8 +4,10 @@ Status: the coordinate inverse and registered CPU depth blend are implemented.
 The original blend-only execution passed all 31 selected model controls. The
 shared scalar compiler and actual GPU preset execution also passed. Native
 mixed-depth projection, surface construction and controlled moving occlusion
-have now passed. Full integration/CI and real-footage temporal acceptance remain pending. This
-record does not complete issue 76 or the 3D route.
+have now passed, including a 48-frame independent native temporal oracle.
+Final integration/CI remains pending. Natural-footage replay is diagnostic only;
+it has no independent physical/motion truth. This record does not close issue 76
+or complete the 3D route.
 
 The increment starts from maintained main
 `26c1d2d2bc83c8073d85a200a7cc78cd6284d4f4`. Existing open PRs and related branches
@@ -127,8 +129,8 @@ outputs, actual captures and verified tested source. Every member was read back:
 ## Remaining delivery
 
 - Complete final integration/CI on the published branch
-- Extend temporal quality evidence beyond the controlled authored motion;
-  retain explicit registration and accuracy limitations
+- Retain the declared temporal domain and registration/accuracy limitations in
+  delivery; arbitrary unregistered real-footage quality is not established
 
 Host authoring/history/persistence and UI controls are downstream consumers of
 this model/native API; they have not been added or accepted here. The issue's
@@ -222,3 +224,62 @@ The credited imagery and float-plane payloads remain external; their hashes and
 paths are recorded, so this archive alone is not a portable-input reproduction.
 It does not replace controlled native motion/ghosting proof or establish
 real-video temporal-quality acceptance.
+
+## Independent native masked sequence
+
+The final complete `scene_gpu` execution passed **52 tests, zero
+failed/ignored/filtered**, in 105.594 seconds including compilation. Product code
+remains identical to `4aecff0c`; the only tested source change adds the temporal
+control in `scene_gpu/mixed_depth.rs`. Existing assertions and thresholds remain
+unchanged. The new control runs 48 frames (four 12-frame outward/return cycles)
+through the actual native depth and mesh pass with a moving foreground,
+independently authored noisy AI depth, a fixed reference and black/gray/white
+linear weights. Every later frame also refuses the first frame's stale mapping.
+
+The independent source-grid, mask-weight and orthographic equations check all
+202,800 native depth/color pixels in this execution, with the original `1e-6`
+depth bound. The code treats exact raster-edge ownership separately; no pixel
+fell into that boundary exception in this sequence. Foreground motion must clear
+old depth/occlusion. Each repeated phase must match its first cycle's complete
+depth plane and color bytes exactly, detecting accumulation or stale attachments.
+Sample counts, invalid revealed regions, output bytes and native input bytes
+are independently specified for every frame.
+
+Observed blend CPU costs were 84–225 microseconds for the 16x8 controls; combined
+submission and readback wall times were 1,661–37,991 microseconds, including GPU
+waiting. These are separate quantities, not isolated GPU durations. All 48
+original 65x65 PNG captures remain in the archive. Frames 0, 6 and 12 were also
+visually inspected. A 24-fps, 520x520 nearest-upscaled MPEG-4 derivative shows
+the two-second sequence; compressed video is display evidence, not the pixel
+oracle. No encoding dependency or file I/O enters the ordinary product path.
+
+The [sequence archive](data/depth76-native-sequence-v1.zip) and
+[manifest](data/depth76-native-sequence-v1.json) were fully read back and verified:
+81,190 bytes, SHA-256
+`8640308a1f711baf7ee4503c1f6257d623199df9688a9ce4b983155fa3579d2b`.
+Its source delta changes only the new owned test file. The committed native-v3
+archive supplies the unchanged source base; the controller verified every frozen
+source against that base or the retained override. Both archives are needed to
+reconstruct the complete tested source. This extends controlled temporal proof,
+while the separate real-video replay retains its missing-ground-truth limits.
+
+## Original requirement dispositions
+
+The rows below correspond to issue 76's five implementation items and three
+acceptance items. They do not add a UI/history requirement or turn a diagnostic
+real-video replay into ground-truth quality acceptance.
+
+| ID | Requirement | Current evidence and limits |
+| --- | --- | --- |
+| R1 | Common direction/units/relative scale, geometry, PTS and validity | Calibration/physical-unit/ray controls, explicit camera basis and exact sample registration; differing crops, turns, mirrors and resolutions; unknown basis is refused |
+| R2 | Global and linear-mask weights, reference=0/AI=1, alpha separate | Exact unused-input endpoints and black/gray/white/invalid mask controls; validity and confidence are distinct; no RGBA conversion |
+| R3 | Generic scalar Lerp/Mask compiler and optional composition | Existing Multiply/Lerp group, shared constant-fold/model arithmetic, normal/editable compilation and five actual exported GPU cases; no new NodeOp |
+| R4 | Explicit depth/mask sampling and resize cost, internal float | Exact logical access/output counts, nearest mapping with no hidden resize allocation, R32Float retention; native upload and CPU/readback timing recorded separately |
+| R5 | Fixed-reference motion/registration/temporal policy and ghosting limits | Per-sample explicit map, stale refusal, wrong-map ghost counterexample, 48-frame native recovery; no automatic registration or guaranteed flicker cure |
+| A1 | Exact endpoints, mask correctness and no sRGB/alpha confusion | Independent scalar expectations, actual opaque GPU scalar output and masked native depth/color oracle |
+| A2 | Different extents/crop/rotation/PTS and invalid depth | Independently known coordinate controls plus actual reference/mask admission and normal missing-sample controls |
+| A3 | Moving sequence drift/ghosting/cost checks | 48-frame native independent oracle and exact return-cycle equality; 12 retained real-video fields/48 fresh mixer cases are additional diagnostics, not arbitrary-footage accuracy proof |
+
+These local dispositions still require the final published-head CI and delivery
+review. Tests passed at distinct frozen source boundaries; their counts must not
+be added together as unique coverage or substituted for full-workspace results.
