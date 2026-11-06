@@ -178,3 +178,47 @@ shared-kernel source; later source changes do not retroactively replace receipts
 The [API guide](../host-api/reference-depth-blending.md) records caller ownership,
 camera/source admission, missing-data behavior and the boundary between generic
 scalar ALU, depth sampling, CPU submission and actual GPU execution.
+
+## Current mixer on retained real-video inference
+
+A separate source-bound execution rebuilt the current model library and private
+probe against product commit `4aecff0c6a7c32798e1e61cfb742f0f13c522ab7`. It replayed
+the twelve consecutive NASA/ISS tour frames 450–461 already credited in
+`ATTRIBUTION.md`, at their exact PTS over timescale 15,000. The 320x180 float
+fields came from the retained real CPU ONNX execution of issue 74. Each input's
+image hash, retained provider/sample receipt, finite plane size and original
+official-reference numerical bound were checked again. This is a fresh execution
+of the mixer, not fresh inference or a new validation of ONNX deployment.
+
+One declared common calibration maps the diagnostic cohort's relative minimum
+and maximum to authored 10/1 metre endpoints. Those are not measured scene
+distances. The first calibrated field is held as a metric reference. Each later
+frame explicitly supplies a new identity registration; no motion alignment is
+inferred. Four modes (reference, half, AI and a black/gray/white linear mask)
+produce **48 cases, 57,600 pixels each**, with independently evaluated arithmetic
+and exact sample-cost controls. Maximum absolute numerical error was
+`4.7683657911079536e-7` metres, below the predeclared `2e-6` bound. All later frames
+also reject the first frame's stale registration. The probe's stdout/stderr
+stayed empty. Recorded sources stayed unchanged throughout the 66.516-second
+build/execution.
+
+Actual CPU blend timings were 16,685–41,628 microseconds for these inputs; each
+output retains 288,000 bytes. These debug-build observations include the mixer,
+not inference, decoding or a native render. They are not a realtime guarantee.
+The external diagnostic retains 48 float planes and a contact sheet of actual
+video/depth/mixed fields, which was visually inspected. Same-pixel temporal
+differences are recorded without a quality threshold: frozen reference gives
+zero change and half mixing reduces change algebraically, which proves neither
+alignment nor reduced flicker. Motion, illumination and occlusion remain mixed
+into those differences; there is no physical depth or tracking ground truth.
+
+The [replay evidence archive](data/depth76-natural-replay-v1.zip) and
+[manifest](data/depth76-natural-replay-v1.json) retain current sources, private
+probe/lockfile, controllers, original outputs, input provenance/hashes, every
+case's costs/errors and diagnostic limits. Every archive member was read back:
+565,344 bytes, SHA-256
+`11d9c55c54b04b330b492b7c8581e79387239adf4528f8c66d7b4c7989c15014`.
+The credited imagery and float-plane payloads remain external; their hashes and
+paths are recorded, so this archive alone is not a portable-input reproduction.
+It does not replace controlled native motion/ghosting proof or establish
+real-video temporal-quality acceptance.
