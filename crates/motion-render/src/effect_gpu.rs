@@ -101,6 +101,7 @@ mod pipeline_cache;
 pub(crate) mod native_pipeline;
 pub use native_pipeline::NativeEffectPipelineError;
 pub use pipeline_cache::EffectPipelineCacheInfo;
+pub(crate) use pipeline_cache::KnownPipeline;
 pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,

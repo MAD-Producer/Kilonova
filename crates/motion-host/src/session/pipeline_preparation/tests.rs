@@ -3,6 +3,9 @@ use motion_core::{EffectInstance, ExpressionEvaluator, Layer, LayerTimeline};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+#[cfg(windows)]
+mod native;
+
 fn fixture() -> (Project, Scene) {
     let mut project = Project::new(16, 16, 30, 120).unwrap();
     let package = motion_effects::builtin::package().unwrap();

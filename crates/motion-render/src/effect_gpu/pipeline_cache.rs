@@ -23,6 +23,47 @@ struct PreviousPipeline {
     sprite: bool,
     additive: bool,
 }
+
+// Snapshot only immutable shader proof and native handles. Large source copies
+// belong on the preparation worker, never the renderer owner. The WGSL bound
+// describes proof text; it is not a bound on driver allocations or GLSL metadata.
+enum ShaderProof {
+    Live(Arc<CompiledShader>),
+    Retired(Arc<str>),
+}
+pub(crate) struct KnownPipeline {
+    pipeline: wgpu::RenderPipeline,
+    proof: ShaderProof,
+    format: u32,
+    sprite: bool,
+    additive: bool,
+}
+impl KnownPipeline {
+    fn wgsl(&self) -> &str {
+        match &self.proof {
+            ShaderProof::Live(shader) => &shader.wgsl,
+            ShaderProof::Retired(wgsl) => wgsl,
+        }
+    }
+    pub(crate) fn matches(&self, shader: &CompiledShader, format: u32) -> bool {
+        self.format == format
+            && self.sprite == shader.sprite
+            && self.additive == shader.additive
+            && self.wgsl() == shader.wgsl
+    }
+    pub(crate) fn prepared(&self) -> crate::pipeline_preparation::PreparedPipeline {
+        crate::pipeline_preparation::PreparedPipeline {
+            pipeline: self.pipeline.clone(),
+            wgsl: match &self.proof {
+                ShaderProof::Live(shader) => Arc::from(shader.wgsl.as_str()),
+                ShaderProof::Retired(wgsl) => wgsl.clone(),
+            },
+            format: self.format,
+            sprite: self.sprite,
+            additive: self.additive,
+        }
+    }
+}
 #[derive(Default)]
 pub(super) struct PreviousPipelines {
     entries: Vec<PreviousPipeline>,
@@ -47,6 +88,55 @@ fn same_code(a: &CompiledShader, b: &CompiledShader) -> bool {
 }
 
 impl GpuState {
+    /// At most one bounded bank per queued/running preparation job. Reuse still
+    /// requires complete code, blend, vertex specialization and format equality.
+    pub(crate) fn preparation_snapshot(&self) -> Vec<KnownPipeline> {
+        let mut entries: Vec<KnownPipeline> = Vec::new();
+        let mut bytes = 0;
+        for ((_, format), entry) in &self.pipelines {
+            let shader = &entry.shader;
+            if entries.len() == MAX_PREVIOUS_PIPELINES {
+                break;
+            }
+            if shader.wgsl.len() > MAX_PREVIOUS_WGSL_BYTES - bytes
+                || entries.iter().any(|entry| entry.matches(shader, *format))
+            {
+                continue;
+            }
+            bytes += shader.wgsl.len();
+            entries.push(KnownPipeline {
+                pipeline: entry.pipeline.clone(),
+                proof: ShaderProof::Live(shader.clone()),
+                format: *format,
+                sprite: shader.sprite,
+                additive: shader.additive,
+            });
+        }
+        for entry in &self.previous_pipelines.entries {
+            if entries.len() == MAX_PREVIOUS_PIPELINES {
+                break;
+            }
+            if entry.wgsl.len() > MAX_PREVIOUS_WGSL_BYTES - bytes
+                || entries.iter().any(|known| {
+                    known.format == entry.format
+                        && known.sprite == entry.sprite
+                        && known.additive == entry.additive
+                        && known.wgsl() == entry.wgsl.as_ref()
+                })
+            {
+                continue;
+            }
+            bytes += entry.wgsl.len();
+            entries.push(KnownPipeline {
+                pipeline: entry.pipeline.clone(),
+                proof: ShaderProof::Retired(entry.wgsl.clone()),
+                format: entry.format,
+                sprite: entry.sprite,
+                additive: entry.additive,
+            });
+        }
+        entries
+    }
     /// Owner-approved work, with the same complete code/specialization proof as
     /// retired live pipelines. Replaces one bounded bank, never appends epochs.
     pub(crate) fn install_prepared(

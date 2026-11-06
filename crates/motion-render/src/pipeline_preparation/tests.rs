@@ -126,6 +126,66 @@ fn worker_preparation_preserves_pixels_and_avoids_foreground_native_compiles() {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn later_jobs_reuse_live_and_retired_pipelines_without_native_creation() {
+    let input = scene();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_pointwise_fusion(true);
+    let job = renderer
+        .prepare_effect_pipeline_job(vec![input.clone()], 16, 16, CONTEXT)
+        .unwrap();
+    let prepared = run(job).unwrap();
+    renderer
+        .install_prepared_effect_pipelines(prepared, CONTEXT)
+        .unwrap();
+    let target = renderer.capture_target(16, 16).unwrap();
+    let pixels = renderer.capture(&input, &target).unwrap().0;
+    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] != 0));
+    assert!(renderer.effect_pipeline_cache_info().current_entries > 0);
+    assert!(renderer.effect_pipeline_cache_info().previous_entries > 0);
+    let builds = renderer.effect_pipeline_builds();
+    for retired_only in [false, true] {
+        if retired_only {
+            // Builtin registries intentionally share package Arc identities.
+            // Reopen their real bytes to exercise actual retirement, preserving
+            // both the no-live-pipeline assertion and the zero-create oracle.
+            let mut registry = motion_effects::Registry::new_with_builtins().unwrap();
+            for package in registry.packages.values_mut() {
+                *package = Arc::new(
+                    motion_effects::EffectPackage::from_bytes(package.bytes.clone()).unwrap(),
+                );
+            }
+            renderer.set_effect_registry(registry);
+            assert_eq!(renderer.effect_pipeline_cache_info().current_entries, 0);
+        }
+        let job = renderer
+            .prepare_effect_pipeline_job(vec![input.clone()], 16, 16, CONTEXT)
+            .unwrap();
+        assert!(!job.known.is_empty() && job.known.len() <= MAX_PREPARED_PIPELINES);
+        let ticket = job.ticket();
+        let prepared = run(job).unwrap();
+        assert!(prepared.pipeline_count() > 0);
+        assert_eq!(
+            ticket.status().compiled_pipelines,
+            0,
+            "retired_only={retired_only}"
+        );
+        assert_eq!(
+            ticket.status().reused_pipelines,
+            prepared.pipeline_count() as u64
+        );
+        assert_eq!(prepared.native_compile_nanos(), 0);
+        assert_eq!(renderer.effect_pipeline_builds(), builds);
+        renderer
+            .install_prepared_effect_pipelines(prepared, CONTEXT)
+            .unwrap();
+        assert_eq!(renderer.capture(&input, &target).unwrap().0, pixels);
+        assert_eq!(renderer.effect_pipeline_builds(), builds);
+    }
+    renderer.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn owner_epoch_foreign_and_dropped_jobs_cannot_install_pipelines() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let job = renderer

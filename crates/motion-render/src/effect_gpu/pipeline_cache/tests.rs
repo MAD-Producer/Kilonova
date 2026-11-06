@@ -2,6 +2,88 @@ use super::*;
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn preparation_snapshot_bounds_native_handles_and_rejects_changed_proofs() {
+    let mut renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
+    let project = motion_model::Project::new(16, 16, 30, 60).unwrap();
+    let mut scene = Scene::new(&project).unwrap();
+    scene
+        .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    // A real effect plan supplies an actual native pipeline. Source variations
+    // below exercise only snapshot ownership/proof, never install fake matches.
+    let definition = motion_effects::builtin::package().unwrap();
+    let effect = definition
+        .manifest
+        .effects
+        .iter()
+        .find(|effect| effect.id == "tint")
+        .unwrap();
+    let mut project = project;
+    let mut layer = motion_model::Layer::solid(1, "native proof", [16.; 2], [8., 8., 0.], [1.; 4]);
+    layer.effects.push(motion_model::EffectInstance::new(
+        1,
+        &definition.manifest.id,
+        &definition.manifest.version,
+        &definition.hash,
+        effect,
+        layer.size,
+    ));
+    project.layers.push(layer);
+    project.rebuild_plugin_dependencies();
+    scene
+        .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    let target = renderer.capture_target(16, 16).unwrap();
+    renderer.capture(&scene, &target).unwrap();
+    let state = &mut renderer.effect_gpu.state;
+    let (&(_, format), original) = state.pipelines.iter().next().unwrap();
+    let pipeline = original.pipeline.clone();
+    let shader = original.shader.clone();
+    let snapshot = state.preparation_snapshot();
+    let known = snapshot
+        .iter()
+        .find(|known| known.matches(&shader, format))
+        .unwrap();
+    for change in 0..4 {
+        let mut changed = (*shader).clone();
+        let mut target = format;
+        match change {
+            0 => changed.wgsl.push_str("\n// source changed"),
+            1 => changed.sprite = !changed.sprite,
+            2 => changed.additive = !changed.additive,
+            _ => target = target.wrapping_add(1),
+        }
+        assert!(
+            !known.matches(&changed, target),
+            "unsafe proof change={change}"
+        );
+    }
+    state.pipelines.clear();
+    for id in 0..MAX_PREVIOUS_PIPELINES + 2 {
+        let mut different = (*shader).clone();
+        different.wgsl.push_str(&format!("\n// proof {id}"));
+        state.insert_pipeline((id as u32, format), &Arc::new(different), pipeline.clone());
+    }
+    let mut oversized = (*shader).clone();
+    oversized.wgsl = " ".repeat(MAX_PREVIOUS_WGSL_BYTES + 1);
+    state.insert_pipeline((u32::MAX, format), &Arc::new(oversized), pipeline);
+    let snapshot = state.preparation_snapshot();
+    assert_eq!(snapshot.len(), MAX_PREVIOUS_PIPELINES);
+    assert!(
+        snapshot
+            .iter()
+            .map(|entry| entry.wgsl().len())
+            .sum::<usize>()
+            <= MAX_PREVIOUS_WGSL_BYTES
+    );
+    assert!(snapshot
+        .iter()
+        .all(|entry| entry.wgsl().len() <= MAX_PREVIOUS_WGSL_BYTES));
+    renderer.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_pipeline_retirement_bounds_and_exact_static_proof() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let uploads = Arc::new(crate::allocation_uploads::AllocationUploads::new(

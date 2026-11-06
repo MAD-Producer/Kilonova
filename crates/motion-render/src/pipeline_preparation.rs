@@ -66,6 +66,7 @@ pub struct PipelinePreparationStatus {
     pub cancelled: bool,
     pub current_program: Option<u32>,
     pub compiled_pipelines: u64,
+    pub reused_pipelines: u64,
     pub elapsed_ms: u64,
 }
 
@@ -78,6 +79,7 @@ struct Progress {
     cancelled: AtomicBool,
     program: AtomicU32,
     compiled: AtomicU64,
+    reused: AtomicU64,
 }
 
 #[derive(Clone)]
@@ -105,6 +107,7 @@ impl PipelinePreparationTicket {
             cancelled: self.cancelled(),
             current_program: (program != u32::MAX).then_some(program),
             compiled_pipelines: self.0.compiled.load(Ordering::Acquire),
+            reused_pipelines: self.0.reused.load(Ordering::Acquire),
             elapsed_ms: self
                 .0
                 .created
@@ -163,6 +166,7 @@ impl PreparationState {
             cancelled: AtomicBool::new(false),
             program: AtomicU32::new(u32::MAX),
             compiled: AtomicU64::new(0),
+            reused: AtomicU64::new(0),
         }));
         self.current = Some(ticket.clone());
         ticket
@@ -186,12 +190,14 @@ pub struct PipelinePreparationJob {
     owner_thread: std::thread::ThreadId,
     ticket: PipelinePreparationTicket,
     compiler: NativePipelineCompiler,
+    known: Vec<crate::effect_gpu::KnownPipeline>,
     registry: motion_effects::Registry,
     policy: crate::resource_policy::MemoryPolicy,
     precision: motion_effects::image_contract::ChannelPrecision,
     target_format: wgpu::TextureFormat,
     device_dimension: u32,
     fusion: bool,
+    plane_coverage: bool,
     preview: bool,
     best_effort_lookahead: bool,
     assets: Vec<u64>,
@@ -342,12 +348,14 @@ impl PipelinePreparationJob {
                 .effect_gpu
                 .state
                 .pipeline_compiler(&renderer.device),
+            known: renderer.effect_gpu.state.preparation_snapshot(),
             registry: renderer.effect_gpu.builder.registry.clone(),
             policy: renderer.effect_gpu.builder.memory_policy(),
             precision: renderer.effect_gpu.builder.precision(),
             target_format: renderer.target_format,
             device_dimension: renderer.effect_gpu.builder.device_dimension,
             fusion: renderer.effect_gpu.builder.pointwise_fusion_enabled(),
+            plane_coverage: renderer.effect_gpu.builder.plane_coverage_enabled(),
             preview: false,
             best_effort_lookahead: false,
             assets: renderer.asset_order.clone(),
@@ -467,6 +475,9 @@ impl PipelinePreparationJob {
         builder.set_memory_policy(self.policy)?;
         builder.set_precision(self.precision);
         builder.set_pointwise_fusion(self.fusion);
+        if self.plane_coverage {
+            builder.enable_plane_coverage();
+        }
         builder.device_dimension = self.device_dimension;
         // Move the one bounded alpha snapshot; never duplicate it again in run.
         builder.alpha_images = std::mem::take(&mut self.alpha_images);
@@ -586,6 +597,16 @@ impl PipelinePreparationJob {
                 batch.limited = true;
                 return Ok(());
             }
+            if let Some(known) = self
+                .known
+                .iter()
+                .find(|entry| entry.matches(&program.shader, target as u32))
+            {
+                batch.wgsl_bytes += program.shader.wgsl.len();
+                batch.entries.push(known.prepared());
+                add(&self.ticket.0.reused, 1);
+                continue;
+            }
             self.ticket.0.program.store(pass.program, Ordering::Release);
             self.ticket.phase(2);
             let key: String = program.key.chars().take(128).collect();
@@ -613,10 +634,7 @@ impl PipelinePreparationJob {
                 sprite: program.shader.sprite,
                 additive: program.shader.additive,
             });
-            self.ticket
-                .0
-                .compiled
-                .store(batch.entries.len() as u64, Ordering::Release);
+            add(&self.ticket.0.compiled, 1);
         }
         Ok(())
     }
