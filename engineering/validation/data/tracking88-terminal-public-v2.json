@@ -1,0 +1,154 @@
+{
+  "status": "original_two_failures_archived_not_waived",
+  "createdUtc": "2026-11-06T07:18:18.847106+00:00",
+  "source": "a21c3c1c44282a4a0ad0cffef78083953f42f0cc",
+  "totals": {
+    "passed": 4935,
+    "failed": 2,
+    "originalIgnored": 78,
+    "measured": 0,
+    "filtered": 0,
+    "summaryCount": 423,
+    "invocations": 423,
+    "expectedInvocations": 423
+  },
+  "archive": "tracking88-terminal-public-v2.zip",
+  "bytes": 384993,
+  "sha256": "eaa32742f3aa8437a98f7e53aad36ef0b22df022bd9a188aebaca674929a1dea",
+  "entries": {
+    "archive-controller.py": {
+      "bytes": 4510,
+      "sha256": "7938404ab49cf7a092686ac52cea3a46c01d84a67cdb90970830caef679444db"
+    },
+    "ci582.json": {
+      "bytes": 4267,
+      "sha256": "13d4d2818e8da9260df6e1c77bded9a23f0464f6aad7a63a9c06924d523a5602"
+    },
+    "previous-terminal-manifest.json": {
+      "bytes": 5501,
+      "sha256": "8d445e2b898a26d4d23e4b2cfe21d843585028a174aa249c8d23b45f52f4b847"
+    },
+    "terminal-observer.py": {
+      "bytes": 6249,
+      "sha256": "786c157195b55fdaf04812ff465885b6a23f6642cc49bda8bf05c0dcc860343f"
+    },
+    "terminal-observer.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "terminal-observer.stdout.log": {
+      "bytes": 163571,
+      "sha256": "4d26a34720d3d02c10e0550732786d79a59aae72fc5353e980c1da94bd9c0abb"
+    },
+    "tracking88-plugin-child-diagnostic-v1/controller.py": {
+      "bytes": 2788,
+      "sha256": "e6f183e4522bef27df34062fda6b8fe678cad4c6c2f77e1f2fec724634644891"
+    },
+    "tracking88-plugin-child-diagnostic-v1/fixture/motion-studio.log": {
+      "bytes": 12497,
+      "sha256": "9126f931da984d17d2090465f90bad42ed8d88f1ff933eb73f6238fb24a4378e"
+    },
+    "tracking88-plugin-child-diagnostic-v1/receipt.json": {
+      "bytes": 1237,
+      "sha256": "6124506a5784ed522688d3bb3cb9e4f4369c24fd563aea0868e943ea7eba9e92"
+    },
+    "tracking88-plugin-child-diagnostic-v1/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-plugin-child-diagnostic-v1/stdout.log": {
+      "bytes": 237,
+      "sha256": "35e028936619bbedff837fd6b27c707db93db8c267e5c8057b954c2901732301"
+    },
+    "tracking88-prototype-workspace-integration-v4/controller.py": {
+      "bytes": 6981,
+      "sha256": "f41eee310e43549869e415967033d28e6293916e4ae6093de8f8dcbc9ce65ad8"
+    },
+    "tracking88-prototype-workspace-integration-v4/exit.json": {
+      "bytes": 410776,
+      "sha256": "6a09ab88b37a8f875854761be665646c9ea29644fcd1dc4527f4a83421a92dc3"
+    },
+    "tracking88-prototype-workspace-integration-v4/stderr.log": {
+      "bytes": 132383,
+      "sha256": "7ca8e094126244da4bc9e13a16556f818d94130c5224390f9dcee01cdec4d272"
+    },
+    "tracking88-prototype-workspace-integration-v4/stdout.log": {
+      "bytes": 586327,
+      "sha256": "c379eddd42e875324a9641d616e573edde51056e590845432f1e7529d03fb8d4"
+    },
+    "tracking88-prototype-workspace-terminal-v4/controller.py": {
+      "bytes": 6249,
+      "sha256": "786c157195b55fdaf04812ff465885b6a23f6642cc49bda8bf05c0dcc860343f"
+    },
+    "tracking88-prototype-workspace-terminal-v4/receipt.json": {
+      "bytes": 180438,
+      "sha256": "7ae678cedae207ee54119bda26eb56e04455d96d6e521600c7c381002082aa69"
+    },
+    "tracking88-workspace-v4-failures-v1/controller.py": {
+      "bytes": 2917,
+      "sha256": "70b6b73f02d747dd2210b1d6ac77cd47b8360717f20f70685269f0639e2be79f"
+    },
+    "tracking88-workspace-v4-failures-v1/failure-1.log": {
+      "bytes": 7296,
+      "sha256": "b85d2a75082719d06e56b333bf6dd49a11faee2808ce53091b9ef95c8f185e18"
+    },
+    "tracking88-workspace-v4-failures-v1/failure-2.log": {
+      "bytes": 7188,
+      "sha256": "27e03bbf4adcf439a8c57f63e5e8256f0221fea01cdaf40e76bf279f200aaf1b"
+    },
+    "tracking88-workspace-v4-failures-v1/receipt.json": {
+      "bytes": 3369,
+      "sha256": "3992b62cebfbc254a8341779f5ce16ad285100ca7ae70b0f510def8372fc4a2a"
+    },
+    "tracking88-workspace-v4-failures-v1/sources/crates/motion-core/src/storage.rs": {
+      "bytes": 24662,
+      "sha256": "ea046fc46ece93274ae19574530c5121d394c01e564e9ea11f2e60e11f1c4cb3"
+    },
+    "tracking88-workspace-v4-failures-v1/sources/crates/motion-core/src/storage/publication.rs": {
+      "bytes": 4120,
+      "sha256": "84409669f4679b969069f547a3ebc97cbc4fb031034e8d41b1a5dd3bcf355ae1"
+    },
+    "tracking88-workspace-v4-failures-v1/sources/crates/motion-core/tests/format_version_boundaries.rs": {
+      "bytes": 1796,
+      "sha256": "5e49bab3af5022e3595458c57ce55d02cb960477026bc3ef6a7eac322ff7f6b2"
+    },
+    "tracking88-workspace-v4-failures-v1/sources/desktop/app/src/engine/failure/project_tests.rs": {
+      "bytes": 22767,
+      "sha256": "96f1348f5c03cc10f634db43604c474b76279a1b4a07c12196477606af722160"
+    }
+  },
+  "diagnostic": {
+    "status": "single_diagnostic_passed_original_cause_unresolved",
+    "startedUtc": "2026-11-06T07:07:36.523367+00:00",
+    "command": [
+      "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-workspace-v4-failures-v1\\retained-binary\\motion_studio-782a930f79dba3a2.exe",
+      "--exact",
+      "engine::failure::project_tests::recovered_plugin_settings_reach_default_file_and_stderr_without_polling_noise",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "binarySha256": "2abc797e80c196003c20c94bf1a0b5e93829eef590bd693493e0638ceb2c5302",
+    "originalFullFailed": 2,
+    "source": "a21c3c1c44282a4a0ad0cffef78083953f42f0cc",
+    "limits": [
+      "One original valid-mode child, exact retained executable and assertions, no compilation or retry",
+      "Explicit new artifact fixture path replaces the original discarded tempfile path",
+      "A passing isolated diagnostic does not repair or pass the original full regression",
+      "Original parent did not report native exit status; this execution records its own status, not the lost original one"
+    ],
+    "pid": 56024,
+    "exitCode": 0,
+    "exitCodeHex": "0x00000000",
+    "elapsedSeconds": 11.281,
+    "completedUtc": "2026-11-06T07:07:47.804399+00:00",
+    "binaryUnchanged": true
+  },
+  "limits": [
+    "Full v4 failed two original tests; green exact-head CI is separate evidence",
+    "Original plugin parent omitted child exit code and cleaned fixture; no original native cause established",
+    "One retained-binary valid-mode diagnostic passed with an explicit new fixture; original cause remains unresolved",
+    "No original assertion, ignore, feature, backend, ACL or budget changed",
+    "Retained executable/PDB bytes and private complete source snapshots are identified, not duplicated",
+    "Real phone sequence still has 21 plane observations beyond original 15px; PR remains draft and issue open"
+  ]
+}

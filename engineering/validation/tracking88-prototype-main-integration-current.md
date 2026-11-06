@@ -1,5 +1,54 @@
 # Tracking prototype: current-main integration
 
+## Latest full regression: two failures retained
+
+The latest integrated source `a21c3c1c44282a4a0ad0cffef78083953f42f0cc`
+includes maintained main `e02b197517030d195cc66206bdcc3daf7d577527` and both
+video-retirement targets absent from v3. Full attempt v4 has terminated and
+was consumed. It ran the exact complete command recorded below, with unchanged
+source, features, original assertions/ignores, GPU/backend, stack and budgets.
+Cargo returned 101 after 5,463.953 seconds: **4,935 passed, two failed, 78
+originally ignored, none filtered**, across all 423 targets (413 native and ten
+documentation targets). Independent accounting matches both the target-name
+multiset and exact package/kind/source identities using retained executable
+dependency metadata. No missing target is explained away by a green subset.
+
+The original failures are:
+
+1. `unsupported_versions_cannot_load_or_replace_an_existing_project`: valid
+   project publication at `format_version_boundaries.rs:36` again receives
+   Windows OS error 5 (`PermissionDenied`, `published: false`). Its cause
+   remains unresolved; neither an antivirus diagnosis nor a retry is a repair.
+2. `recovered_plugin_settings_reach_default_file_and_stderr_without_polling_noise`:
+   the parent assertion at `project_tests.rs:212` observes an unsuccessful
+   **valid-mode** child. Captured child stdout contains only the test start;
+   stderr is empty. The original parent did not report the child's exit status,
+   so this record does not establish a native crash or its cause.
+
+Both original failing executables and their PDBs, source and output were retained
+before another build could replace them. One later diagnostic invokes that exact
+desktop executable once in valid mode, with a new explicit fixture directory.
+It passes unchanged assertions with exit 0 in 11.281 seconds. This changed
+fixture routing is recorded; isolated success does not repair, rerun or pass the
+original full regression. No ACL or cleanup policy was changed.
+
+The [v4 terminal archive](data/tracking88-terminal-public-v2.zip) and
+[manifest](data/tracking88-terminal-public-v2.json) preserve full original
+stdout/stderr, receipts, target accounting, failure sources, retained-binary
+identities, diagnostic output and exact-head CI status. Every member was read
+back: 384,993 bytes, SHA-256
+`eaa32742f3aa8437a98f7e53aad36ef0b22df022bd9a188aebaca674929a1dea`.
+Executable/PDB and private complete source snapshots remain identified rather
+than duplicated in the public archive.
+
+PR #582 at that exact source passed eight applicable CI checks; two other jobs
+were policy-skipped. CI does not waive these two local full-run failures or the
+21 real-sequence plane observations above the original 15 px gate. The PR
+remains a draft and issue #88 remains open. The sections below retain earlier
+source-bound checkpoints, including their original pending/failure statements.
+
+## Earlier integration checkpoint
+
 The optional prototype is integrated with maintained main
 `26c1d2d2bc83c8073d85a200a7cc78cd6284d4f4` and the imported-camera/professional
 workspace delivery `b25fa736bf9bfef169776a3151fef12ddfb894ae`.

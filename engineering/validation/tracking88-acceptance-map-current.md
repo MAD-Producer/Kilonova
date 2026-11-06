@@ -2,11 +2,15 @@
 
 The [new prototype/current-main integration](tracking88-prototype-main-integration-current.md)
 includes maintained main `e02b1975` and the reference-depth branch. Fresh complete
-tools/CV/CLI gates passed on their recorded earlier source. The frozen
-`27084091` full run terminated with 4,934 passed, one failed and 78 original
-ignores across 421 targets; the sole publication failure remains unresolved.
-The later merged source adds two unchanged video-retirement targets and still
-requires a fresh full regression and final CI.
+tools/CV/CLI gates passed on their recorded earlier source. The latest frozen
+`a21c3c1c` full run has terminated: 4,935 passed, **two failed**, 78 original
+ignores across all 423 targets, including the two video-retirement targets.
+Valid project publication still fails with OS error 5, and the plugin-settings
+valid-mode subprocess fails without an original exit-status record. Both
+original causes remain unresolved; a passing isolated child diagnostic is not
+a repair. Exact-head CI passed eight applicable checks, separately from these
+failed full-run and real-footage gates. #582 remains a draft. Earlier sections
+below retain historical source boundaries rather than current completion claims.
 The [retained support diagnostics](tracking88-support-diagnostics-current.md)
 do not repair or waive the original photographed tracking failure.
 
