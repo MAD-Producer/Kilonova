@@ -1,5 +1,11 @@
 # Tracking #88: integrated acceptance map
 
+Current integration: the [combined workspace record](3d-professional-workspace-current.md)
+passes 4,896 tests across all 417 maintained targets on `c190ab20`, including
+main `50bef478`. Matching-source three-platform CI and freshly built actual
+CPU inference/frozen output also pass. Earlier sections below retain their
+original source boundaries. The optional tracker's quality remains failed.
+
 The [complete combined workspace regression](3d-professional-workspace-current.md)
 passed all 414 maintained targets on source `84c17760`, including FFmpeg and
 optional depth features. Its 4,885 passes retain all 78 original ignores. This

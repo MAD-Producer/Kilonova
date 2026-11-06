@@ -1,5 +1,59 @@
 # Combined 3D and professional-compositing workspace regression
 
+## Current integration: complete execution and matching CI
+
+Source `c190ab209abdefce4511486f1f51020599312e8a`, including main
+`50bef478120a8f5295773042277b90c68d7f76ba`, passed the exact complete-workspace
+command below: **4,896 passed, zero failed, zero filtered, 78 original ignores**.
+All 417 target summaries and invocations match Cargo metadata. Original session
+14345 exited zero and was consumed; source hashes and HEAD remained unchanged.
+Execution took 7,024.281 seconds, 10:59:06 through 12:56:10 UTC on 2026-11-05.
+The desktop binary's 1,753 passes and six passing integration targets are
+included, not added to that total. The source comparison retains all 14 changed
+source files, no removed targets and three new targets since the older pass:
+`layer_time_frozen_export`, `panel_paint_pixels` and `panel_paint_reuse`.
+
+[Matching-source CI run 42015343857](https://github.com/MAD-Producer/Kilonova/actions/runs/42015343857)
+completed successfully: audit, Rust/GPU, three desktop test platforms and three
+builds (Windows, Ubuntu and Intel macOS). All eight complete logs and run/job
+metadata were retrieved and hashed. Each of 17 key/screen, child-protocol,
+parameter-animation and strict-clock controls passed exactly once on each
+desktop platform. Windows also passed both native rational-clock Surface
+controls. PR-policy skips for libav and publication are not runtime passes.
+
+After the workspace process terminated, the unchanged private depth probe was
+rebuilt with `--locked --offline` against that exact product source. Actual
+CPU ONNX inference, authored indexed-video calibration, frozen PNG export and
+the independent f64 ray/triangle oracle passed in 176.172 seconds. Product and
+probe hashes remained unchanged. The original 76,667-us request selects indexed
+PTS 50,000; prepared 52-by-80 RGB matches its retained fixture exactly.
+Normalized maximum/mean error against the pinned historical PyTorch reference
+is `7.787024532934269e-7` / `1.2020595162418164e-7`, within unchanged limits.
+The original oracle checks 27,884 far and 330 near pixels, maximum RGB error
+one byte; its 70,090 excluded pixels and qualification remain explicit.
+Both PNGs were visually inspected and export after live Estimate/Session
+closure while the original source remains available. Missing-index failure,
+default-Info start, file/Error-stderr output and stdout isolation also pass.
+
+The [current archive](data/3d-professional-workspace-c190ab20.zip) and
+[manifest](data/3d-professional-workspace-c190ab20.json) preserve all local output,
+current CI, the actual inference probe/outputs and 33 source-bound named controls.
+All 56 members were read back and hash-verified. Archive: 1,598,154 bytes;
+SHA-256 `9f855e55c08eeda47711f926efb18886901782b1b49e0c30f3dc24495cb32b45`.
+No runtime, executable, weights, installed cache or new third-party media is
+included. The generated video fixture is independently repository-authored.
+
+Assertions, ignores, budgets, stack, GPU backend and default Info were retained;
+cache/temp/target remained on E. Android is excluded by the user's scope.
+This is bounded SDR/model evidence, not physical accuracy, HDR or arbitrary
+footage acceptance. Historical natural-domain/reference records keep their own
+scope; no new PyTorch/domain matrix is claimed. Historical native crashes did
+not recur; this does not establish a diagnosed repair. The optional tracker's
+real-sequence quality remains failed. Issues 74/85/86/88 were open when this
+record was written; the entire 3D route is not declared complete.
+
+## Historical source-bound execution
+
 The complete maintained Windows workspace passed on
 `84c1776016a3d23193493097eecb27eb2c418895`, based on main
 `e314cc92232dcd366b01e10454ae1100d4e24d63`. This source combines the external
