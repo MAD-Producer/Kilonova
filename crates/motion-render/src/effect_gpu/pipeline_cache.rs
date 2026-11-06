@@ -47,6 +47,34 @@ fn same_code(a: &CompiledShader, b: &CompiledShader) -> bool {
 }
 
 impl GpuState {
+    /// Owner-approved work, with the same complete code/specialization proof as
+    /// retired live pipelines. Replaces one bounded bank, never appends epochs.
+    pub(crate) fn install_prepared(
+        &mut self,
+        batch: &mut crate::PreparedEffectPipelines,
+    ) -> Result<(), RenderError> {
+        let bytes = batch
+            .entries
+            .iter()
+            .try_fold(0usize, |sum, entry| sum.checked_add(entry.wgsl.len()))
+            .ok_or("prepared pipeline byte count overflow")?;
+        if batch.entries.len() > MAX_PREVIOUS_PIPELINES || bytes > MAX_PREVIOUS_WGSL_BYTES {
+            return Err("prepared pipelines exceed the bounded reuse bank".into());
+        }
+        let entries = std::mem::take(&mut batch.entries)
+            .into_iter()
+            .map(|entry| PreviousPipeline {
+                pipeline: entry.pipeline,
+                wgsl: entry.wgsl,
+                format: entry.format,
+                sprite: entry.sprite,
+                additive: entry.additive,
+            })
+            .collect();
+        self.previous_pipelines.entries = entries;
+        self.previous_pipelines.wgsl_bytes = bytes;
+        Ok(())
+    }
     pub fn pipeline_cache_info(&self) -> EffectPipelineCacheInfo {
         EffectPipelineCacheInfo {
             current_entries: self.pipelines.len(),

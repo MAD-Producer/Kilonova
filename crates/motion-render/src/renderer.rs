@@ -99,6 +99,10 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
     #[error(transparent)]
+    PipelinePreparation(#[from] crate::PipelinePreparationError),
+    #[error("GPU validation: {0}")]
+    EffectPipeline(#[from] crate::NativeEffectPipelineError),
+    #[error(transparent)]
     DriverPipelineCache(#[from] crate::DriverPipelineCacheError),
     #[error("no compatible GPU adapter: {0}")]
     Adapter(#[from] wgpu::RequestAdapterError),
@@ -248,7 +252,7 @@ fn texture_key(scene: &Scene, layer: &crate::DrawLayer) -> TextureKey {
         TextureKey::Static(layer.asset.unwrap_or(0))
     }
 }
-fn nested_size(parent:&Scene,child:&Scene,width:u32,height:u32)->(u32,u32) {
+pub(crate) fn nested_size(parent:&Scene,child:&Scene,width:u32,height:u32)->(u32,u32) {
     let scale=(f64::from(width)/f64::from(parent.width)).min(f64::from(height)/f64::from(parent.height));
     ((f64::from(child.width)*scale).ceil().max(1.) as u32,(f64::from(child.height)*scale).ceil().max(1.) as u32)
 }
@@ -305,7 +309,8 @@ pub struct Renderer {
     texture_bytes: u64,
     pub target_format: wgpu::TextureFormat,
     gpu_failure: Arc<Mutex<Option<String>>>,
-    effect_gpu: crate::effect_gpu::EffectGpu,
+    pub(crate) effect_gpu: crate::effect_gpu::EffectGpu,
+    pub(crate) pipeline_preparation: crate::pipeline_preparation::PreparationState,
     driver_pipeline_cache: crate::driver_pipeline_cache::DriverPipelineCache,
     layer_gpu: crate::layer_gpu::LayerGpu,
     mask_gpu: crate::mask_gpu::MaskGpu,
@@ -329,7 +334,7 @@ pub struct Renderer {
     pub video_conversion_submissions: u64,
     pub video_encoded_conversions: u64,
     pub(crate) image_readback: crate::readback::ImageReadbackCounters,
-    asset_order: Vec<u64>,
+    pub(crate) asset_order: Vec<u64>,
     image_sources: HashMap<u64, crate::image_resources::Source>,
     image_decode: crate::image_resources::DecodeTask,
     image_active: Vec<u64>,
@@ -594,6 +599,7 @@ impl Renderer {
             models: Default::default(),
             gpu_failure,
             effect_gpu,
+            pipeline_preparation: Default::default(),
             driver_pipeline_cache,
             layer_gpu,
             mask_gpu,
@@ -828,10 +834,14 @@ impl Renderer {
         self.effect_gpu.builder.preview_cache_hits
     }
     /// Successful native effect pipeline builds over this renderer's lifetime.
-    pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
+    pub fn effect_pipeline_builds(&self) -> u64 {
+        self.effect_gpu.state.pipeline_builds.saturating_add(
+            self.pipeline_preparation.counts.created.load(std::sync::atomic::Ordering::Relaxed))
+    }
     pub fn effect_pipeline_cache_info(&self) -> crate::EffectPipelineCacheInfo { self.effect_gpu.state.pipeline_cache_info() }
     pub fn driver_pipeline_cache_info(&self) -> crate::DriverPipelineCacheInfo {
-        self.driver_pipeline_cache.info(self.effect_gpu.state.driver_cached_pipeline_creations)
+        self.driver_pipeline_cache.info(self.effect_gpu.state.driver_cached_pipeline_creations.saturating_add(
+            self.pipeline_preparation.counts.driver_cached.load(std::sync::atomic::Ordering::Relaxed)))
     }
     /// Explicit checkpoint. Call outside Present; the driver extraction and file
     /// sync can block. False is the normal unsupported-backend result.
@@ -848,13 +858,40 @@ impl Renderer {
     /// detects accidental corruption; it does not authenticate malicious payloads.
     pub unsafe fn restore_driver_pipeline_cache(&mut self, path: &std::path::Path) -> Result<crate::DriverPipelineCacheLoad> {
         let result = self.driver_pipeline_cache.load(&self.device, path)?;
+        if result == crate::DriverPipelineCacheLoad::Restored { self.pipeline_preparation.cancel(); }
         self.effect_gpu.state.driver_pipeline_cache = self.driver_pipeline_cache.cache.clone();
         Ok(result)
     }
     /// CPU time spent creating and validating native effect pipelines, including
     /// the validation wait. This is not GPU execution time or a driver-only timer.
-    pub fn effect_pipeline_build_nanos(&self) -> u64 { self.effect_gpu.state.pipeline_build_nanos }
+    pub fn effect_pipeline_build_nanos(&self) -> u64 {
+        self.effect_gpu.state.pipeline_build_nanos.saturating_add(
+            self.pipeline_preparation.counts.nanos.load(std::sync::atomic::Ordering::Relaxed))
+    }
+    /// Scenes are already sampled immutable inputs. The host must bound both
+    /// snapshot production and its worker/queue; this API does not spawn threads.
+    pub fn prepare_effect_pipeline_job(&mut self, scenes: Vec<Scene>, width: u32, height: u32,
+        context: crate::PipelinePreparationContext) -> Result<crate::PipelinePreparationJob> {
+        crate::PipelinePreparationJob::new(self, scenes, width, height, context)
+    }
+    pub fn cancel_effect_pipeline_preparation(&mut self) { self.pipeline_preparation.cancel(); }
+    pub fn install_prepared_effect_pipelines(&mut self, mut prepared: crate::PreparedEffectPipelines,
+        context: crate::PipelinePreparationContext) -> Result<crate::PipelinePreparationInstall> {
+        if !prepared.accepts(&self.allocation_owner, &self.pipeline_preparation, context)?
+            || prepared.target_format != self.target_format {
+            prepared.cancel_superseded();
+            return Ok(crate::PipelinePreparationInstall::Superseded);
+        }
+        let pipelines = prepared.pipeline_count();
+        let limited = prepared.limited();
+        self.effect_gpu.state.install_prepared(&mut prepared)?;
+        prepared.mark_installed();
+        Ok(crate::PipelinePreparationInstall::Installed { pipelines, limited })
+    }
     pub fn set_pointwise_fusion(&mut self, enabled: bool) {
+        if self.effect_gpu.builder.pointwise_fusion_enabled() != enabled {
+            self.pipeline_preparation.cancel();
+        }
         self.effect_gpu.builder.set_pointwise_fusion(enabled);
     }
     pub fn pointwise_fusion_report(&self) -> &crate::effect_plan::FusionFrameReport {
@@ -1005,6 +1042,7 @@ impl Renderer {
         self.video_gpu.as_ref().map_or(0, |v| v.bytes())
     }
     pub fn set_effect_registry(&mut self, registry: motion_effects::Registry) {
+        self.pipeline_preparation.cancel();
         self.effect_gpu.set_registry(registry);
     }
     pub fn preflight_effects(&mut self, scene: &Scene, width: u32, height: u32) -> Result<()> {
@@ -1605,6 +1643,7 @@ impl Renderer {
             sources.insert(asset.id, source);
         }
         let model_sources = ModelSourceCatalog::prepare(project, root, catalog)?.prepared_sources();
+        self.pipeline_preparation.cancel();
         let stale: Vec<_> = self.images.keys().filter_map(|key| match key {
             TextureKey::Static(id) if *id != 0 && self.image_sources.get(id) != sources.get(id) => Some(*id),
             _ => None,
