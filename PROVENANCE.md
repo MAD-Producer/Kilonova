@@ -49,6 +49,10 @@ The optional desktop depth prototype uses independently authored host/process
 code and a separately installed, hash-verified Apache-2.0 Small model. The export
 tool requires the pinned official reference checkout and retains its original
 license and a model manifest next to the external ONNX artifact. No upstream
+implementation is modified by the optional 266/392/518 export selection. Those
+independently authored candidates retain distinct shape/processing identities
+and require their own original numerical reference gates before publication;
+export availability alone does not qualify a product quality tier. No upstream
 source, weights, images or inference runtime enter project/effect packages or
 the shipped product. Authors, revisions, hashes and modification scope are
 recorded in [ATTRIBUTION.md](ATTRIBUTION.md).

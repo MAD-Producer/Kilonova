@@ -20,13 +20,18 @@ before importing the upstream implementation. Base/Large/Giant are not inputs.
 With absolute paths, run:
 
 ```text
-<runtime-python> -B tools/export_ai_depth.py --reference <checkout> --weights <small-pth> --output <new-model-directory>
+<runtime-python> -B tools/export_ai_depth.py --reference <checkout> --weights <small-pth> --output <new-model-directory> [--side 266|392|518]
 ```
 
 The tool performs no download or package installation. It refuses an existing
-output directory, exports a fixed `1x3x518x518` float32, single-file opset-17
+output directory, exports a fixed `1x3xSxS` Float32, single-file opset-17
 model, and checks an actual CPU ONNX prediction against the official PyTorch
 forward. It then publishes the model, upstream license and `model.json` together.
+`S` is the requested side; it defaults to 518. The three sides are explicit
+measurement candidates, not measured fast/standard/high quality tiers. All three
+real exports and native Jobs paths have passed same-weight reference comparisons;
+see [source-bound evidence and remaining limits](../validation/depth75-resolution-export-current.md).
+This does not qualify automatic quality switching, interactive latency or peak memory.
 The manifest records both the original weight hash and the exported ONNX hash,
 tool versions, processing identity and numerical bounds. Different export
 environments must retain their own manifest and pass the comparison.
@@ -41,9 +46,18 @@ An input contains owned opaque **RGB8 in sRGB encoding**, after the declared
 crop, clockwise quarter-turn and horizontal mirror. Alpha compositing and
 conversion from the renderer's working space belong to the caller. Dimensions
 must match the oriented crop and are capped at 4096 per axis. The worker uses
-RGB bicubic letterboxing to 518 square, explicit normalization and NCHW layout,
+RGB bicubic letterboxing to the declared square, explicit normalization and NCHW layout,
 then inverse-crops and resamples scalar depth with aligned endpoints. The
-processing identity is `dav2-small-rgb8-letterbox518-align-corners-relative-v1`.
+processing identity is `dav2-small-rgb8-letterboxS-align-corners-relative-v1`,
+with `S` exactly 266, 392 or 518. Unknown identities or model metadata that
+disagrees with the requested side are refused. Backend/provider choice does
+not select or silently change resolution. Native WGSL admission remains bound
+to its independently qualified 518 plan; this ONNX source change does not
+qualify new WGSL plans.
+The host also checks reported tensor-copy bytes against the selected square:
+`3 * S * S * 4` input bytes and `S * S * 4` output bytes. These are tensor
+payload counts; the final resource uses the oriented source crop dimensions.
+They do not measure provider-internal allocations or device transfers.
 
 `Key` carries asset ID, source revision, exact rational PTS, full geometry and
 `DepthModel`. The model's `sha256` is the **exported ONNX file hash** from

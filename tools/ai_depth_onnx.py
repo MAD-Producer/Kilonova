@@ -17,17 +17,35 @@ SIDE = 518
 PROCESSING = "dav2-small-rgb8-letterbox518-align-corners-relative-v1"
 
 
+def processing_side(identity):
+    # Processing identity is part of the resource/cache key. Never infer it
+    # from a filename, provider choice or the dimensions of the source image.
+    for side in (266, 392, 518):
+        if identity == f"dav2-small-rgb8-letterbox{side}-align-corners-relative-v1":
+            return side
+    raise ValueError("unsupported depth inference procedure")
+
+
 def elapsed(start):
     return time.perf_counter_ns() - start
 
 
-def preprocess(rgb, width, height, np, cv2):
-    scale = min(SIDE / width, SIDE / height)
-    rw = max(1, min(SIDE, math.floor(width * scale + 0.5)))
-    rh = max(1, min(SIDE, math.floor(height * scale + 0.5)))
-    x = (SIDE - rw) // 2
-    y = (SIDE - rh) // 2
-    image = np.zeros((SIDE, SIDE, 3), dtype=np.uint8)
+def letterbox_rectangle(width, height, side=SIDE):
+    if type(side) is not int or side not in (266, 392, 518):
+        raise ValueError("unsupported depth preprocessing resolution")
+    if any(type(n) is not int or not 0 < n <= 4096 for n in (width, height)):
+        raise ValueError("dimensions exceed depth input budget")
+    scale = min(side / width, side / height)
+    rw = max(1, min(side, math.floor(width * scale + 0.5)))
+    rh = max(1, min(side, math.floor(height * scale + 0.5)))
+    x = (side - rw) // 2
+    y = (side - rh) // 2
+    return x, y, rw, rh
+
+
+def preprocess(rgb, width, height, np, cv2, side=SIDE):
+    x, y, rw, rh = letterbox_rectangle(width, height, side)
+    image = np.zeros((side, side, 3), dtype=np.uint8)
     image[y:y+rh, x:x+rw] = cv2.resize(rgb, (rw, rh), interpolation=cv2.INTER_CUBIC)
     mean = np.array([0.485, 0.456, 0.406], dtype=np.float64)
     std = np.array([0.229, 0.224, 0.225], dtype=np.float64)
@@ -63,8 +81,10 @@ def infer(directory):
         request = json.loads(path.read_text(encoding="utf-8"))
         if set(request) != {"schema", "model", "sha256", "processing", "width", "height", "provider"}:
             raise ValueError("unexpected or missing request fields")
-        if request["schema"] != SCHEMA or request["processing"] != PROCESSING:
+        if type(request["schema"]) is not int or request["schema"] != SCHEMA:
             raise ValueError("unsupported depth inference procedure")
+        processing = request["processing"]
+        side = processing_side(processing)
         width, height = request["width"], request["height"]
         if type(width) is not int or type(height) is not int or not (0 < width <= 4096 and 0 < height <= 4096):
             raise ValueError("dimensions exceed depth input budget")
@@ -113,15 +133,15 @@ def infer(directory):
         if len(session.get_inputs()) != 1 or len(session.get_outputs()) != 1:
             raise ValueError("expected exactly one image input and depth output")
         input_meta, output_meta = session.get_inputs()[0], session.get_outputs()[0]
-        if input_meta.shape != [1, 3, SIDE, SIDE] or input_meta.type != "tensor(float)":
-            raise ValueError("model input differs from fixed 1x3x518x518 float32 contract")
-        if output_meta.shape != [1, SIDE, SIDE] or output_meta.type != "tensor(float)":
-            raise ValueError("model output differs from fixed 1x518x518 float32 contract")
+        if input_meta.shape != [1, 3, side, side] or input_meta.type != "tensor(float)":
+            raise ValueError(f"model input differs from requested 1x3x{side}x{side} float32 contract")
+        if output_meta.shape != [1, side, side] or output_meta.type != "tensor(float)":
+            raise ValueError(f"model output differs from requested 1x{side}x{side} float32 contract")
         load_ns = elapsed(began)
         phase = "preprocess"
         started = time.perf_counter_ns()
         rgb = np.fromfile(source, dtype=np.uint8).reshape(height, width, 3)
-        tensor, _, rectangle = preprocess(rgb, width, height, np, cv2)
+        tensor, _, rectangle = preprocess(rgb, width, height, np, cv2, side)
         preprocess_ns = elapsed(started)
         phase = "input_host_copy"
         started = time.perf_counter_ns()
@@ -142,7 +162,7 @@ def infer(directory):
         started = time.perf_counter_ns()
         depth = result.astype(np.float32, copy=True)
         output_copy_ns = elapsed(started)
-        if depth.shape != (1, SIDE, SIDE) or not np.isfinite(depth).all():
+        if depth.shape != (1, side, side) or not np.isfinite(depth).all():
             raise ValueError("runtime returned invalid scalar depth")
         phase = "postprocess"
         started = time.perf_counter_ns()
@@ -152,7 +172,7 @@ def infer(directory):
             raise ValueError("postprocessing returned nonfinite depth")
         output.astype("<f4", copy=False).tofile(directory / "output.f32")
         postprocess_ns = elapsed(started)
-        return {"schema": SCHEMA, "sha256": expected, "processing": PROCESSING,
+        return {"schema": SCHEMA, "sha256": expected, "processing": processing,
                 "width": width, "height": height, "providers": actual,
                 "requested_provider": requested, "available_providers": available,
                 "cpu_fallback": requested != "CPUExecutionProvider" and requested not in actual,
