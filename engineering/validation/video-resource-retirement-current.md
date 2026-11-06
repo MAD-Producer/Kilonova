@@ -88,3 +88,25 @@ cargo test --locked -p motion-desktop-media --features ffmpeg \
 可携带的 [原始验证归档](video-resource-retirement-evidence.zip) 共 30 个成员，
 逐成员 SHA-256 已读回核对；整体 SHA-256：
 `70a7fb5186e814db8441b31725604dfa45685950905150620e161ce9bcf79502`。
+
+## 2026-11-06 主线原生验证已补齐
+
+上述待验状态是合入前的记录。#620 已合并为
+`72e8ef41bff397f8580bbd185861eb2860e56ff6`，最终 head `aa1aeb038dcfbe5f9527337360e4c3878ce4d986`
+的八项必需测试与构建全部成功；PR 跳过的 libav 未计为原生通过。
+
+main `5935e637170455100731a74139cf827e800d0395` 的
+[原生 FFmpeg job 127688566129](https://github.com/MAD-Producer/Kilonova/actions/runs/42152024103/job/127688566129)
+实际完成编译与测试。日志明确执行本批 `video_retirement_export.rs` 的
+`sixty_clip_frozen_exports_release_shared_admissions_after_cancel_success_and_nested_reopen`：
+1 passed、0 failed、0 ignored，13.67 秒。两份新增压力/电影测试与 PR 最终源码逐字节相同。
+
+此前主线原生作业的 FrameRate 类型编译失败仍保留；其修复来自 #606。
+没有把该失败、旧运行取消、PR 跳过或排队计为成功。
+据此已将 #68 作为既有回收实现的审计与回归补齐关闭；外部解码 surface 互操作仍由
+#70 单独验收，应用账本不是驱动驻留显存，整体发布仍待 #622 的 ARM runner 修复。
+
+原始主线日志、job 元数据、八项检查与源码身份核对、关闭记录、旧失败及处置见
+[主线补充证据](video-resource-retirement-main-evidence.zip)：11 个成员、130305 bytes，
+SHA-256 `027bf6717fd24630b8d5ec738ab5dd0112ac93f62ea63ff7a111ffd7dea85332`，
+已回读校验全部成员。它补充原本地证据，不覆盖或改写旧归档。
