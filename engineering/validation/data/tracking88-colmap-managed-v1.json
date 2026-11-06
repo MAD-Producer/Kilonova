@@ -1,0 +1,29 @@
+{
+  "audit": {
+    "status": "model_conversion_document_host_tracking_and_desktop_ffmpeg_check_passed",
+    "sourceBase": "5c3e0ff85feeb67ad8a5cbce10ed99870edd31a6",
+    "model": {
+      "passed": 18,
+      "targets": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "hostTracking": {
+      "passed": 54,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 126
+    },
+    "elapsedSeconds": 288.828,
+    "limits": [
+      "Complete two selected model targets and host tracking namespace only, no full workspace or GPU acceptance",
+      "CPU-only while unchanged desktop/UI static binary runs; one own GPU workload",
+      "No assertion, deadline, ignore, production-profile or UI change"
+    ]
+  },
+  "archive": "tracking88-colmap-managed-v1.zip",
+  "bytes": 141792,
+  "sha256": "d0fde59977b741497c7be4723f83a6f9e1249093c45186e55fff53974dd28db9",
+  "members": 25
+}

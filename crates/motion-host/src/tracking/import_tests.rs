@@ -6,6 +6,9 @@ use crate::tracking::{
 };
 use std::{error::Error as _, io::Cursor};
 
+#[path = "import_colmap_tests.rs"]
+mod colmap;
+
 struct Fixture {
     root: tempfile::TempDir,
     external: tempfile::TempDir,

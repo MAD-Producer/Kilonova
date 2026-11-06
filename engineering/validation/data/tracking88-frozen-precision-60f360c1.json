@@ -1,0 +1,413 @@
+{
+  "archive": "tracking88-frozen-precision-60f360c1.zip",
+  "bytes": 2770406,
+  "sha256": "c3aad312c8cfff7e99e515e1698b915c1b01fd90120aaae37aed4135f1cce92c",
+  "members": 102,
+  "everyMemberReadBack": true,
+  "manifest": {
+    "archive-controller.py": {
+      "bytes": 1760,
+      "sha256": "e10f1b13c59baecf967f6537dcb6c8683c65c7861db0f2df1caecb02940b0668"
+    },
+    "original-reference-receipt.json": {
+      "bytes": 9840,
+      "sha256": "288804106e711405f72802bde4be05f44bbc78eaa844625d2dc75f5919dc1c48"
+    },
+    "runs/tracking88-current-freeze-build-v1/controller.py": {
+      "bytes": 2376,
+      "sha256": "3832e851613bf958a80bb839a1339e7a0673e4d9bc53621874fcd7995c649507"
+    },
+    "runs/tracking88-current-freeze-build-v1/exit.json": {
+      "bytes": 299257,
+      "sha256": "cfc1c2f37163a14185c69d2dea5d26b113298599dc739a5dd0fdc50b7d7a39c0"
+    },
+    "runs/tracking88-current-freeze-build-v1/probe/Cargo.lock": {
+      "bytes": 77748,
+      "sha256": "6370e0dfe42c8aefed72fd8c1d985e9699883b62b319bdbd6eedbfe4a8170c62"
+    },
+    "runs/tracking88-current-freeze-build-v1/probe/Cargo.toml": {
+      "bytes": 859,
+      "sha256": "3ef9753ec8d86facd183f8a78ab73331003ebcb6943e259df280568a9f0c3037"
+    },
+    "runs/tracking88-current-freeze-build-v1/probe/src/main.rs": {
+      "bytes": 3584,
+      "sha256": "081c0e8b6912493f38b4c261ee2ebd7dd8012a88c320c7c34148275b9697e111"
+    },
+    "runs/tracking88-current-freeze-build-v1/stderr.log": {
+      "bytes": 1092,
+      "sha256": "30ce0f11f20d8e330add5c52c3f8362c437831e050e9adbfc26bc40c49d43c90"
+    },
+    "runs/tracking88-current-freeze-build-v1/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/tracking88-current-freeze-native-v1/build-receipt.json": {
+      "bytes": 299257,
+      "sha256": "cfc1c2f37163a14185c69d2dea5d26b113298599dc739a5dd0fdc50b7d7a39c0"
+    },
+    "runs/tracking88-current-freeze-native-v1/controller.py": {
+      "bytes": 7722,
+      "sha256": "31b90122d18562e7eae6ed24f5d53968be35a7e9efac275b158de48068439edb"
+    },
+    "runs/tracking88-current-freeze-native-v1/exit.json": {
+      "bytes": 306558,
+      "sha256": "6c35fb2c602aef064ca0542b28b14762836e424819120fa4606e5fbf5fb1fcdc"
+    },
+    "runs/tracking88-current-freeze-native-v1/float-review.png": {
+      "bytes": 207215,
+      "sha256": "b124efeb3217abfb41fc5e1df2bf1cee8ecff1a050c6e5b58ff40fb219e24dca"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/float16-captured-project.json": {
+      "bytes": 61109,
+      "sha256": "32b69b7dc15c7ed2c112e1ae87d437d613f7f2c1c91761a8e3fa0992794166b0"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/float16-live-after-delete.json": {
+      "bytes": 4862,
+      "sha256": "724a72e33324c0c4c41632a597f50a47b3ada74bce0b7b4b2e2a073435ba30e8"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/float16.png": {
+      "bytes": 44769,
+      "sha256": "3bb4708d34b158f259a516e5a71a233fba0cdfe37ad88b9053fedf1e394a5fc3"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/float32-captured-project.json": {
+      "bytes": 61109,
+      "sha256": "598e837671f34847341d26f872430ee3b05aade19b7e760d3e4ca4f4bec22a0f"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/float32-live-after-delete.json": {
+      "bytes": 4862,
+      "sha256": "4c863324aaccb0db93a09857be4ba41aece161d7823991114f95037a0db0936f"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/float32.png": {
+      "bytes": 44766,
+      "sha256": "0a7219f049d090aac1e53ee0d84d0cb2ca55742ad39e8616048f56780b0440dd"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/independent.png": {
+      "bytes": 8690,
+      "sha256": "f9bef1feda4110baec1cd89025df25aa44432016d5e7a7079a5189e3faad5dc4"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/logs/motion-studio.log": {
+      "bytes": 5778,
+      "sha256": "8541118cc6e4c297ee4ac48e441fe5f47a6fcd49c5b32a2b523514300b281c02"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx": {
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx": {
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx": {
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx": {
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx": {
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx": {
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx": {
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/project/assets/left03.jpg": {
+      "bytes": 29553,
+      "sha256": "c85b9426c3d8fcf161e1e727356105091009c3fd0b1b1a65bc2da91fea2724d2"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/project/assets/tracking/2-2bf0a97c2510e1701d0c69eb3ef70879a87c2e4610bc5ff4d970e035fa0569ac.mstrack": {
+      "bytes": 3670,
+      "sha256": "2bf0a97c2510e1701d0c69eb3ef70879a87c2e4610bc5ff4d970e035fa0569ac"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/project/project.json": {
+      "bytes": 61108,
+      "sha256": "a0524f7a60f57db0a4fe752eaaf7f0114f2dd283136133dc9ee438413d278f62"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/result.json": {
+      "bytes": 1524,
+      "sha256": "ce6ccc882fc4de2cfaa5eee22e172b95bade14e5019dee5c8927936d138e1cf2"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/stderr.log": {
+      "bytes": 2344,
+      "sha256": "612321466d87cf6028ed749f08cec91d0e4f219d0e67f182b9c32961eff8056a"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/unorm16-captured-project.json": {
+      "bytes": 61109,
+      "sha256": "08558e83d236e101ecf8450d7ce1bcc136e96af4e908bf0384056d51646ade6b"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/unorm16-live-after-delete.json": {
+      "bytes": 4862,
+      "sha256": "65994298c242bfa3eb0b1d9dabe5c8ec632ce0b56ac433f41120119ecb1f6ec0"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/unorm16.png": {
+      "bytes": 44771,
+      "sha256": "d7bc9c799b167f4934c71044b3d13047fd88d924027eede90552268f99dc66ad"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/unorm8-captured-project.json": {
+      "bytes": 61108,
+      "sha256": "a0524f7a60f57db0a4fe752eaaf7f0114f2dd283136133dc9ee438413d278f62"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/unorm8-live-after-delete.json": {
+      "bytes": 4861,
+      "sha256": "c6b6627b6a12bdb8e1834b2576d485f6a181e99009dc03f66bd8278f9c0b9ed5"
+    },
+    "runs/tracking88-current-freeze-native-v1/left03/unorm8.png": {
+      "bytes": 44934,
+      "sha256": "93547aff6bde4f7895614dd67d19cfa0f1aceda18b274fe7459e7ecdd839138c"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/float16-captured-project.json": {
+      "bytes": 61109,
+      "sha256": "2799a544c0ddb85c645675e5121349806e9b6c87f2fb6ca45447955b8138eef8"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/float16-live-after-delete.json": {
+      "bytes": 4862,
+      "sha256": "9a73aae3e9eb8f9b88a86fb500be79e82d85db1a5c954ba424e2037c0edbb943"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/float16.png": {
+      "bytes": 36289,
+      "sha256": "d1e646a00445049c361a41570ee29832af8ea6989b3ccb97fc6a0416a018c1af"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/float32-captured-project.json": {
+      "bytes": 61109,
+      "sha256": "97ee27c1793c2d202bf1cf3cabc766fdf08e9ff7fb6d2f932cddfae01ba67ebc"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/float32-live-after-delete.json": {
+      "bytes": 4862,
+      "sha256": "dde31d5927361b69c1c1c74351e0c606f328f374268792093634e93e92778bc5"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/float32.png": {
+      "bytes": 36291,
+      "sha256": "ae98b5f5f78931847937d4e9f53e23989cf688378be600be3f617bf4b36bde4b"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/independent.png": {
+      "bytes": 8125,
+      "sha256": "b1d56d371db69f4d717be6be893ad5f2c124e60b3aa6595aeea6ac3eee2032db"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/logs/motion-studio.log": {
+      "bytes": 5778,
+      "sha256": "400c9f78c14f3380506287818cc356d4115a4a5d52855ea7002555ff1d97fa88"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx": {
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx": {
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx": {
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx": {
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx": {
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx": {
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx": {
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/project/assets/left08.jpg": {
+      "bytes": 28689,
+      "sha256": "f7a0737894812a28243af5b409c5689f4fadfe7610958b8ca5fc79aec2f2cd1b"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/project/assets/tracking/2-81d271208610bb1b7d71c70d75d70135714d3ad9a382a1bca4f98e61629ab70a.mstrack": {
+      "bytes": 3697,
+      "sha256": "81d271208610bb1b7d71c70d75d70135714d3ad9a382a1bca4f98e61629ab70a"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/project/project.json": {
+      "bytes": 61108,
+      "sha256": "3f00dd5db1c7b1c12ca7827b79b4eefbc719740953c934c5d6cf2a6ab7f7f622"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/result.json": {
+      "bytes": 1524,
+      "sha256": "a7f4a862ec69ff0c9b34ee33b38fc643eeb75cbde41802429ff8c99eafb6a8fc"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/stderr.log": {
+      "bytes": 2344,
+      "sha256": "6f794eab07017de6b06c6be7bf7339c31e91685648701f2740d29e3965eb19fb"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/unorm16-captured-project.json": {
+      "bytes": 61109,
+      "sha256": "5584a10b07f6fa0e46c82a24e547d20e28c6029e11499dc12991044bf21e1768"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/unorm16-live-after-delete.json": {
+      "bytes": 4862,
+      "sha256": "a8343c4d9d049f79c595f8b50d2db5fbd90d35afb4e8b56d2f79d0f468bce28c"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/unorm16.png": {
+      "bytes": 36296,
+      "sha256": "bc3e607a9e4f1b3caf9fe59d9c8b7716b8d968376489419572af4f48dfb33d56"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/unorm8-captured-project.json": {
+      "bytes": 61108,
+      "sha256": "3f00dd5db1c7b1c12ca7827b79b4eefbc719740953c934c5d6cf2a6ab7f7f622"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/unorm8-live-after-delete.json": {
+      "bytes": 4861,
+      "sha256": "6e2025b919962a47f846f0894289eedba4778dfdee06550a5a64fffe072232ee"
+    },
+    "runs/tracking88-current-freeze-native-v1/left08/unorm8.png": {
+      "bytes": 36465,
+      "sha256": "6777e1815c04fc2ff9642ac9e743dbade56e0812046e4d19bb2c5e414909582d"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/float16-captured-project.json": {
+      "bytes": 61108,
+      "sha256": "a1389c9d9312ff048e0d5b5fb098b2f12dbb9de1bd2d263958d156c52ccd6450"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/float16-live-after-delete.json": {
+      "bytes": 4861,
+      "sha256": "e73bc7e8e662a2575fbe8dbe843f2af3ab8c795369118b1e2048b923dc3e7e07"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/float16.png": {
+      "bytes": 34705,
+      "sha256": "384186f19e754730b1477994a8ae647a3be3cc493e4cbc6bab05c6d0ee6b7b94"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/float32-captured-project.json": {
+      "bytes": 61108,
+      "sha256": "ead2e5fad273c06eba81fb43e0d93c15d536b94437e1b0ad3988af18e06861bb"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/float32-live-after-delete.json": {
+      "bytes": 4861,
+      "sha256": "2535fa89c3651a2af743cd434e5e9367770d19b1db47a16a29e26ccb8291c715"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/float32.png": {
+      "bytes": 34696,
+      "sha256": "3da21d2e92a3d123dbb5acfc5a7598d09abef3aa6b5dd46ee48ca7f684cb9247"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/independent.png": {
+      "bytes": 8465,
+      "sha256": "611023f767cb7f5f9789ec04b9d84413bf2f4dcc7b59a778cd6c78faad94c1bf"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/logs/motion-studio.log": {
+      "bytes": 5778,
+      "sha256": "bfb9d06b44f8eaf8ffdd7b6c662be279fb7772736ca535dc64579b578d0eaae2"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx": {
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx": {
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx": {
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx": {
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx": {
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx": {
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx": {
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/project/assets/left14.jpg": {
+      "bytes": 27875,
+      "sha256": "d4c032971dd7b859f9d6aed5090c9888bd8039b82e0604bee5bfe05444fce834"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/project/assets/tracking/2-0925ae37f14fe6df5e92b6f14dafbb7435fac650fad295b29837a8d02a6b3bcf.mstrack": {
+      "bytes": 3675,
+      "sha256": "0925ae37f14fe6df5e92b6f14dafbb7435fac650fad295b29837a8d02a6b3bcf"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/project/project.json": {
+      "bytes": 61107,
+      "sha256": "4aa110b6453a674272834ed2e21f2b098616a2c0983fdc7af3d0f4165b113573"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/result.json": {
+      "bytes": 1524,
+      "sha256": "f9950facfbb0c22b82b4df9bbfe6a3d1afff0cbd70b2092b6d769832f74be618"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/stderr.log": {
+      "bytes": 2344,
+      "sha256": "d1a5cd9ee732c77f24982d2b08c6c2bdeac895c5e7391b80ed7177181adca771"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/unorm16-captured-project.json": {
+      "bytes": 61108,
+      "sha256": "05609db4559e7fbfed39813a5ff1f832b4fc46118b31458dd87cacb40e573d9d"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/unorm16-live-after-delete.json": {
+      "bytes": 4861,
+      "sha256": "bd41e4ced281be8c07bf70053a2fbd1070728838d1d856e94e6b0e79f1d76a2f"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/unorm16.png": {
+      "bytes": 34699,
+      "sha256": "27107a3f6a695c75fe9d3de76a97f40cd64bd23f44af5af9042a64c3ac3a63f2"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/unorm8-captured-project.json": {
+      "bytes": 61107,
+      "sha256": "4aa110b6453a674272834ed2e21f2b098616a2c0983fdc7af3d0f4165b113573"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/unorm8-live-after-delete.json": {
+      "bytes": 4860,
+      "sha256": "3be2bb27ac4199fd3cf36334971cf259a2b78f4113966f80a2f0d1f646be44f4"
+    },
+    "runs/tracking88-current-freeze-native-v1/left14/unorm8.png": {
+      "bytes": 35003,
+      "sha256": "28df81f14d533d9a10216fe903e5313f7cefdb92efe9863352cbf7010916ca22"
+    },
+    "runs/tracking88-current-freeze-native-v1/probe/Cargo.lock": {
+      "bytes": 77748,
+      "sha256": "6370e0dfe42c8aefed72fd8c1d985e9699883b62b319bdbd6eedbfe4a8170c62"
+    },
+    "runs/tracking88-current-freeze-native-v1/probe/Cargo.toml": {
+      "bytes": 859,
+      "sha256": "3ef9753ec8d86facd183f8a78ab73331003ebcb6943e259df280568a9f0c3037"
+    },
+    "runs/tracking88-current-freeze-native-v1/probe/src/main.rs": {
+      "bytes": 3584,
+      "sha256": "081c0e8b6912493f38b4c261ee2ebd7dd8012a88c320c7c34148275b9697e111"
+    },
+    "runs/tracking88-current-freeze-native-v1/unorm-review.png": {
+      "bytes": 207202,
+      "sha256": "788b782763b17dcd30a1160ea2ed7c68b1ba9c1a62e4def01bd561f9a641c7f8"
+    },
+    "runs/tracking88-current-freeze-native-v1/verified.json": {
+      "bytes": 317017,
+      "sha256": "6e42a1b0fbfcbff3b28180d43f15c46de75dbc200492b659959e23586484c027"
+    },
+    "runs/tracking88-current-freeze-native-v1/visual-review-layout.json": {
+      "bytes": 3069,
+      "sha256": "2d7c7e8853a8bacc9115acd94f2c6f6cb78f2ff719f43312bd0d1cd375332171"
+    },
+    "source/crates/motion-desktop-media/src/movie/frame.rs": {
+      "bytes": 9725,
+      "sha256": "86d857ac417702dc75dbd04cc6450fbca1cd47341bd6fe34c5a5c991783de6a1"
+    }
+  }
+}

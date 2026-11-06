@@ -154,7 +154,9 @@ fn actual_exposure_io_and_terminal_replay_reach_default_reply_channels_then_new_
         .unwrap();
     assert!(
         output.status.success(),
-        "{}\n{}",
+        "child status={} code={:?}\n{}\n{}",
+        output.status,
+        output.status.code(),
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );

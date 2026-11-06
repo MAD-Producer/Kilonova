@@ -1,0 +1,20 @@
+{
+  "audit": {
+    "status": "conversion_target_and_host_check_passed",
+    "sourceBase": "351d09b2ffebb4ea1b445d2dc16f2920a9075207",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0,
+    "elapsedSeconds": 103.907,
+    "limits": [
+      "Pure conversion and host reexport only; no managed vendor-original attachment, IO import, photographic residual, GPU or full workspace acceptance",
+      "The controller expected Cargo lock serialization, but Cargo released its build lock during desktop runtime; CPU conversion/check actually overlapped the unchanged desktop test binary, with one own GPU workload only",
+      "No test assertions, thresholds, deadlines, ignores or production compiler profiles changed"
+    ]
+  },
+  "archive": "tracking88-colmap-adapter-v1.zip",
+  "bytes": 73145,
+  "sha256": "888e3b14f8f7c37a4d455a39b961e18150ff2a9438f61fdfc021f2b65d8c56fb",
+  "members": 14
+}

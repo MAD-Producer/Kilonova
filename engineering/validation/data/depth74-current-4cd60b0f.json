@@ -1,0 +1,685 @@
+{
+  "archive": "depth74-current-4cd60b0f.zip",
+  "bytes": 4202242,
+  "sha256": "9fd6389f1c69c646fb356ef6b5e52c824ba147c4b335f4a748ec5b7f5634091a",
+  "members": 170,
+  "everyMemberReadBack": true,
+  "manifest": {
+    "archive-controller.py": {
+      "bytes": 2553,
+      "sha256": "47022fc2d346f0e8bbe0f7c63adc2ed343f9f1707bf8ff15bbe23d5bc0c59223"
+    },
+    "reference/issue3d-final-color-staging-v1/known/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "reference/issue3d-final-color-staging-v1/verified.json": {
+      "bytes": 184715,
+      "sha256": "3f621cba5456664c88b9508cd539939f63bd67206ccf10f0f869b40865161076"
+    },
+    "reference/issue3d-final-native-depth-v1/controller.py": {
+      "bytes": 9035,
+      "sha256": "26ab820c4a5ff12649f4e79c89595d99e2be514533acf80dd271b48f5b3159ae"
+    },
+    "reference/issue3d-final-native-depth-v1/official-reference.f32": {
+      "bytes": 16640,
+      "sha256": "2695b67c87473b1d89fb56763d24ce87836983c5082a77ef5a72f0d4858eb546"
+    },
+    "reference/issue3d-final-native-depth-v1/verified.json": {
+      "bytes": 178979,
+      "sha256": "9ea7692c84512cd5ba805b5cfed0c5b82cb744d33290e6ab7e1893c1389145e7"
+    },
+    "runs/depth74-colmap-contracts-v1/controller.py": {
+      "bytes": 2737,
+      "sha256": "f7172581329dc577cac497e1184ffbecd91609139f745d85f003a0df6c1ba53f"
+    },
+    "runs/depth74-colmap-contracts-v1/exit.json": {
+      "bytes": 299799,
+      "sha256": "3c6fad37347ba4ed99bab3544a5293a1dddd823c94afeebd6ef0794c952fb175"
+    },
+    "runs/depth74-colmap-contracts-v1/jobs-session-video.stderr.log": {
+      "bytes": 1371,
+      "sha256": "606950f6356ec1f08c7ae458a143d254ce885d0e03a590adb6b891c26d4a4304"
+    },
+    "runs/depth74-colmap-contracts-v1/jobs-session-video.stdout.log": {
+      "bytes": 4887,
+      "sha256": "c4ad9ea7416f434b04a194ff637b5f8ba4af8d5dceca4421c8182e78fee987cd"
+    },
+    "runs/depth74-colmap-contracts-v2/controller.py": {
+      "bytes": 2916,
+      "sha256": "ecd2fb445ccd7896ef9f0a15f7c68e52334c2837b88eaac368f0c4aa3b2fbd05"
+    },
+    "runs/depth74-colmap-contracts-v2/exit.json": {
+      "bytes": 300453,
+      "sha256": "6764077871f371b4cf259cd0d32ce5d78542dffd61d5020f02033353ac84ff13"
+    },
+    "runs/depth74-colmap-contracts-v2/jobs-session-video.stderr.log": {
+      "bytes": 1371,
+      "sha256": "4fe0018d8b6b3195058276b4db193f56fcc46e40f941b8b764bba35d348af1aa"
+    },
+    "runs/depth74-colmap-contracts-v2/jobs-session-video.stdout.log": {
+      "bytes": 4657,
+      "sha256": "32afb1a64b09edadad152a27c0882f82485f854904778c115d539daf17fe764b"
+    },
+    "runs/depth74-colmap-contracts-v2/onnx-unit.stderr.log": {
+      "bytes": 1125,
+      "sha256": "c81018481f8dc01004442867ab5dfe19f711139d8f5708f9221f7ef8d55667bb"
+    },
+    "runs/depth74-colmap-contracts-v2/onnx-unit.stdout.log": {
+      "bytes": 512,
+      "sha256": "62f28d39f3fe7a195e5d47d0e1593baf9ddb906cffaeed9e92c6a971397fcfd8"
+    },
+    "runs/depth74-colmap-current-build-v1/controller.py": {
+      "bytes": 2294,
+      "sha256": "1cf4abc173b1f10a8119e39fbe283e6b98f0c38436396f36155dfdf34e2b69f4"
+    },
+    "runs/depth74-colmap-current-build-v2/controller.py": {
+      "bytes": 2375,
+      "sha256": "aabd21458e838a128fdcbd10ad33746cdcfee8594a87fbd00b5c4b7f4d98e713"
+    },
+    "runs/depth74-colmap-current-build-v2/exit.json": {
+      "bytes": 299258,
+      "sha256": "0545482e8e0a80135958ae39da36061abd7b51404a73c9ebb6ed4cba2755e3de"
+    },
+    "runs/depth74-colmap-current-build-v2/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-build-v2/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-build-v2/probe/src/main.rs": {
+      "bytes": 8271,
+      "sha256": "203fd7d1f9e62f9f9f92e060e5d490a70c8fa4711d9ab026596333adc3e18169"
+    },
+    "runs/depth74-colmap-current-build-v2/stderr.log": {
+      "bytes": 1872,
+      "sha256": "cc6e121ed6779eee27b2c724fa63a85b3fc1ca16fdde28fddfd681919073983a"
+    },
+    "runs/depth74-colmap-current-build-v2/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-build-v3/controller.py": {
+      "bytes": 2375,
+      "sha256": "ebcca49b960c53111619ebb6cdb2b2a05fe3470a3b516e55afd0de48496daf09"
+    },
+    "runs/depth74-colmap-current-build-v3/exit.json": {
+      "bytes": 299257,
+      "sha256": "66d4610d706c3877c064b7e562197eb9a0baf9f96726323ef564289f064cba7b"
+    },
+    "runs/depth74-colmap-current-build-v3/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-build-v3/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-build-v3/probe/src/main.rs": {
+      "bytes": 8884,
+      "sha256": "d5d4ce149eb895d50b8c161759655e42dd435c9a9825fcf8f52e8062560018e7"
+    },
+    "runs/depth74-colmap-current-build-v3/stderr.log": {
+      "bytes": 1093,
+      "sha256": "173cbc3ea728f377c8410979fa9977d0bf4a1b693e92f93d6ba59c1d0aedf185"
+    },
+    "runs/depth74-colmap-current-build-v3/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-build-v4/controller.py": {
+      "bytes": 2375,
+      "sha256": "da9a69f2a3ecb158ae7c3ccfa9814ba7ec82e15beac83b71877e08f3ea3e55e0"
+    },
+    "runs/depth74-colmap-current-build-v4/exit.json": {
+      "bytes": 299257,
+      "sha256": "24c11fec4758fa7c669a40623a0926dd79b609fcd837e799214bb951d0d59d13"
+    },
+    "runs/depth74-colmap-current-build-v4/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-build-v4/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-build-v4/probe/src/main.rs": {
+      "bytes": 9361,
+      "sha256": "aeb9ddde9f9cf674566e8624ed12383481179aae1bcd3622e24e9110fda8f000"
+    },
+    "runs/depth74-colmap-current-build-v4/stderr.log": {
+      "bytes": 1093,
+      "sha256": "e632f169767e72c3d76be2d2ea80181c82f6c50ef6a73a250120a206c2fb3eaa"
+    },
+    "runs/depth74-colmap-current-build-v4/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-build-v5/controller.py": {
+      "bytes": 2375,
+      "sha256": "cfdfedfc162e684e716f2ae7fea4ccb81e2430318fc67a967433b205b2865c09"
+    },
+    "runs/depth74-colmap-current-build-v5/exit.json": {
+      "bytes": 299257,
+      "sha256": "39e965b315a96227cd94bcaadae6cfa6886c516c1dc78b279de4937565704e26"
+    },
+    "runs/depth74-colmap-current-build-v5/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-build-v5/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-build-v5/probe/src/main.rs": {
+      "bytes": 10396,
+      "sha256": "45e1e87ec393ea141a53b84cc76714b1d143fc9a78d63503a0b41719281a5506"
+    },
+    "runs/depth74-colmap-current-build-v5/stderr.log": {
+      "bytes": 1093,
+      "sha256": "e7e71e52cbe5357f999611b8311686fcf565485847b9b862dd43831dc30fc52b"
+    },
+    "runs/depth74-colmap-current-build-v5/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-build-v6/controller.py": {
+      "bytes": 2375,
+      "sha256": "ee66aaa0f4e293b9254cdeafce5da285a69d8ab4cb8752da4e798f3df37dc5b9"
+    },
+    "runs/depth74-colmap-current-build-v6/exit.json": {
+      "bytes": 299257,
+      "sha256": "a8a689f1f322bd391feacd9fe76289bf0154c1d028cd2a47412455cc2285f048"
+    },
+    "runs/depth74-colmap-current-build-v6/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-build-v6/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-build-v6/probe/src/main.rs": {
+      "bytes": 10737,
+      "sha256": "36380e3a6ce671b4f9c35a3efa8b73e0269f7feba700c431488f96615a83ffe3"
+    },
+    "runs/depth74-colmap-current-build-v6/stderr.log": {
+      "bytes": 1093,
+      "sha256": "d411fa10937c3222d19cccbda34a4aa778f9ffd305f11e9aa6d08c3cc124d4b3"
+    },
+    "runs/depth74-colmap-current-build-v6/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v1/build-receipt.json": {
+      "bytes": 299258,
+      "sha256": "0545482e8e0a80135958ae39da36061abd7b51404a73c9ebb6ed4cba2755e3de"
+    },
+    "runs/depth74-colmap-current-native-v1/controller.py": {
+      "bytes": 7424,
+      "sha256": "734b4001b86c40ae4576199e5d710d825b6b9b5377f866d13e70f857b5c0adb7"
+    },
+    "runs/depth74-colmap-current-native-v1/exit.json": {
+      "bytes": 300913,
+      "sha256": "e0ec051de1016be5828c105aa2ccd05dd2bff730eed114dcf281979f14e935ed"
+    },
+    "runs/depth74-colmap-current-native-v1/known.stderr.log": {
+      "bytes": 47,
+      "sha256": "539972cddbb896a19ca074604ceaae7e973008cafe7f425b49ec2772a2e0cda1"
+    },
+    "runs/depth74-colmap-current-native-v1/known.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v1/known/logs/motion-studio.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v1/known/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-colmap-current-native-v1/known/original-decoded.rgb": {
+      "bytes": 18432,
+      "sha256": "e388c71e76f9fa668971ebe2c2d0550572c7298f94130df437614129e16a08ad"
+    },
+    "runs/depth74-colmap-current-native-v1/known/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-colmap-current-native-v1/known/project/cache/video-v2/source/index.pts": {
+      "bytes": 48,
+      "sha256": "11d156d38b00a942c471137ec3b024c29eddaf11bf4b2a4f502d43ea26b0d6dd"
+    },
+    "runs/depth74-colmap-current-native-v1/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-native-v1/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-native-v1/probe/src/main.rs": {
+      "bytes": 8271,
+      "sha256": "203fd7d1f9e62f9f9f92e060e5d490a70c8fa4711d9ab026596333adc3e18169"
+    },
+    "runs/depth74-colmap-current-native-v2/build-receipt.json": {
+      "bytes": 299257,
+      "sha256": "66d4610d706c3877c064b7e562197eb9a0baf9f96726323ef564289f064cba7b"
+    },
+    "runs/depth74-colmap-current-native-v2/controller.py": {
+      "bytes": 7535,
+      "sha256": "835654c4fbbacca229dd1aa247f8dc32d647be0906696f86959537878bb955d8"
+    },
+    "runs/depth74-colmap-current-native-v2/exit.json": {
+      "bytes": 300911,
+      "sha256": "dab38f01fddcd8a2f7e5f88bf6d29174a901e55b9d6881a38c8988e3f1d78c1f"
+    },
+    "runs/depth74-colmap-current-native-v2/known.stderr.log": {
+      "bytes": 247,
+      "sha256": "c79ba36a2a0027b75aee965648dc45800b5939a7fb14e7ce56fe46d9c5163a2b"
+    },
+    "runs/depth74-colmap-current-native-v2/known.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v2/known/logs/motion-studio.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v2/known/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-colmap-current-native-v2/known/original-decoded.rgb": {
+      "bytes": 18432,
+      "sha256": "e388c71e76f9fa668971ebe2c2d0550572c7298f94130df437614129e16a08ad"
+    },
+    "runs/depth74-colmap-current-native-v2/known/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-colmap-current-native-v2/known/project/cache/video-v2/source/index.pts": {
+      "bytes": 48,
+      "sha256": "11d156d38b00a942c471137ec3b024c29eddaf11bf4b2a4f502d43ea26b0d6dd"
+    },
+    "runs/depth74-colmap-current-native-v2/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-native-v2/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-native-v2/probe/src/main.rs": {
+      "bytes": 8884,
+      "sha256": "d5d4ce149eb895d50b8c161759655e42dd435c9a9825fcf8f52e8062560018e7"
+    },
+    "runs/depth74-colmap-current-native-v3/build-receipt.json": {
+      "bytes": 299257,
+      "sha256": "24c11fec4758fa7c669a40623a0926dd79b609fcd837e799214bb951d0d59d13"
+    },
+    "runs/depth74-colmap-current-native-v3/controller.py": {
+      "bytes": 7670,
+      "sha256": "c573f9f614bde21e1dc1f2ac3237d3bfd2a06f12ee53986f19df72890a81c541"
+    },
+    "runs/depth74-colmap-current-native-v3/exit.json": {
+      "bytes": 302281,
+      "sha256": "835ca7ed8a49076210665f31f61908aa2ee1b955ce9f6110af5c0bd24f73736a"
+    },
+    "runs/depth74-colmap-current-native-v3/inference.stderr.log": {
+      "bytes": 487,
+      "sha256": "aa5703dce415ae0daeb364020f95656261afd1c249f0b84a4630ae97a8cb9186"
+    },
+    "runs/depth74-colmap-current-native-v3/inference.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/logs/motion-studio.log": {
+      "bytes": 1189,
+      "sha256": "636047ccdf2bf94ea43f686867647073c4588ed5a16d2fd53f0e7b7ffce3af1b"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/output.f32": {
+      "bytes": 16640,
+      "sha256": "9831d5230dfed9b36d364c510ae10abf130e2f91e7b67c64a92b406d6058a0b4"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx": {
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx": {
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx": {
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx": {
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx": {
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx": {
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx": {
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/prepared.json": {
+      "bytes": 912,
+      "sha256": "c41b2feb6b09e4f71bfc5dc64f46669093b958eea505596538a452c104a4730b"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/project/cache/video-v2/source/index.pts": {
+      "bytes": 48,
+      "sha256": "11d156d38b00a942c471137ec3b024c29eddaf11bf4b2a4f502d43ea26b0d6dd"
+    },
+    "runs/depth74-colmap-current-native-v3/inference/result.json": {
+      "bytes": 318,
+      "sha256": "8a62fb6a6ea92d337e30a8925c89d65529ed566807703613d4f1e966baa0c779"
+    },
+    "runs/depth74-colmap-current-native-v3/known.stderr.log": {
+      "bytes": 592,
+      "sha256": "22341ad50cb54659156da8276d48ba0aa9e8a2abdcb496934a4ba16b6f08b1dd"
+    },
+    "runs/depth74-colmap-current-native-v3/known.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v3/known/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "runs/depth74-colmap-current-native-v3/known/logs/motion-studio.log": {
+      "bytes": 812,
+      "sha256": "f76076dabfaf1141a86cc1939afc9bc7d460656825e204b430ce07e8ba43bd11"
+    },
+    "runs/depth74-colmap-current-native-v3/known/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-colmap-current-native-v3/known/original-decoded.rgb": {
+      "bytes": 18432,
+      "sha256": "e388c71e76f9fa668971ebe2c2d0550572c7298f94130df437614129e16a08ad"
+    },
+    "runs/depth74-colmap-current-native-v3/known/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx": {
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    "runs/depth74-colmap-current-native-v3/known/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx": {
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    "runs/depth74-colmap-current-native-v3/known/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx": {
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    "runs/depth74-colmap-current-native-v3/known/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx": {
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    "runs/depth74-colmap-current-native-v3/known/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx": {
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    "runs/depth74-colmap-current-native-v3/known/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx": {
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    "runs/depth74-colmap-current-native-v3/known/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx": {
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    "runs/depth74-colmap-current-native-v3/known/prepared.json": {
+      "bytes": 912,
+      "sha256": "c41b2feb6b09e4f71bfc5dc64f46669093b958eea505596538a452c104a4730b"
+    },
+    "runs/depth74-colmap-current-native-v3/known/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-colmap-current-native-v3/known/project/cache/video-v2/source/index.pts": {
+      "bytes": 48,
+      "sha256": "11d156d38b00a942c471137ec3b024c29eddaf11bf4b2a4f502d43ea26b0d6dd"
+    },
+    "runs/depth74-colmap-current-native-v3/known/result.json": {
+      "bytes": 277,
+      "sha256": "15ad01d176ac1a5e315bc79775066f13868f381419fc92716da11098103d1091"
+    },
+    "runs/depth74-colmap-current-native-v3/prepared-source.png": {
+      "bytes": 7011,
+      "sha256": "8dc8e1975f7b4892b1fe2d9ddae8600e41e2e149f00339fd9284e3346d238162"
+    },
+    "runs/depth74-colmap-current-native-v3/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-colmap-current-native-v3/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-colmap-current-native-v3/probe/src/main.rs": {
+      "bytes": 9361,
+      "sha256": "aeb9ddde9f9cf674566e8624ed12383481179aae1bcd3622e24e9110fda8f000"
+    },
+    "runs/depth74-colmap-current-native-v3/relative-depth.png": {
+      "bytes": 1332,
+      "sha256": "5611ff8f0b539ec19bca75e653ea5ff23f1ee3afffe55fb17b5fb46d6e99739e"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown.stderr.log": {
+      "bytes": 612,
+      "sha256": "892060ece19694211d12eac2cf00bfe79a4f3b9771ac88cecbb71b4bde09150a"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/logs/motion-studio.log": {
+      "bytes": 668,
+      "sha256": "8b8f46af0f87f765b872d4625cab8b1a77a16ea8816bfdf4546517741480bfb3"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/native-probe.json": {
+      "bytes": 542,
+      "sha256": "23ad0f9de6c02b212193f180c2bb746bee488f5cdbf8cd4c8935103e3e730eb3"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx": {
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx": {
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx": {
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx": {
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx": {
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx": {
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx": {
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/project/assets/source.mp4": {
+      "bytes": 5667,
+      "sha256": "060b1a16ab4159be086a5ac7383c5cf3d906a0a0108fe1acb80a22f123d271dc"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/project/cache/video-v2/source/index.pts": {
+      "bytes": 48,
+      "sha256": "e10ec6580dd9d94b6f5657a5a8fb9bca19da543dbc29c09bbffad9a34082f1dd"
+    },
+    "runs/depth74-colmap-current-native-v3/unknown/result.json": {
+      "bytes": 337,
+      "sha256": "f4adfe19b4afc4ffae9d487736beafd989394b807b5d3e4531ffd7e63d32f018"
+    },
+    "runs/depth74-colmap-current-native-v3/verified.json": {
+      "bytes": 309219,
+      "sha256": "af415d96dfc535db59f9ee9693baf961211ac96634ea11ecfbd106dbacb4e4fe"
+    },
+    "runs/depth74-colmap-fallback-v1/available-providers.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-fallback-v1/available-providers.stdout.log": {
+      "bytes": 88,
+      "sha256": "fd4ba5124d6e658d082860b5bacf09d58d2279ab0cce73b910eca70f437208bb"
+    },
+    "runs/depth74-colmap-fallback-v1/build-receipt.json": {
+      "bytes": 299257,
+      "sha256": "a8a689f1f322bd391feacd9fe76289bf0154c1d028cd2a47412455cc2285f048"
+    },
+    "runs/depth74-colmap-fallback-v1/controller.py": {
+      "bytes": 6626,
+      "sha256": "8116cc8393af782cc675c70c9a57d4d7e2322d75ccdded7f0b290e584503670e"
+    },
+    "runs/depth74-colmap-fallback-v1/estimate-costs.json": {
+      "bytes": 418,
+      "sha256": "7c2c9dfd1d3be649c469a75c3bbd85f850758c632bacd8173eb04945a22ace43"
+    },
+    "runs/depth74-colmap-fallback-v1/exit.json": {
+      "bytes": 301539,
+      "sha256": "c0f10a81f6cda7bbeedde16d7440890114fc2d6b54c8aaf85fda91332b3014dc"
+    },
+    "runs/depth74-colmap-fallback-v1/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "runs/depth74-colmap-fallback-v1/logs/motion-studio.log": {
+      "bytes": 1189,
+      "sha256": "d3c367ec7f3f4d054f67f6ed4b166ea588e4e69391ef76730f69b2d739b6847f"
+    },
+    "runs/depth74-colmap-fallback-v1/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-colmap-fallback-v1/native-session.stderr.log": {
+      "bytes": 487,
+      "sha256": "aa5703dce415ae0daeb364020f95656261afd1c249f0b84a4630ae97a8cb9186"
+    },
+    "runs/depth74-colmap-fallback-v1/native-session.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-colmap-fallback-v1/output.f32": {
+      "bytes": 16640,
+      "sha256": "9831d5230dfed9b36d364c510ae10abf130e2f91e7b67c64a92b406d6058a0b4"
+    },
+    "runs/depth74-colmap-fallback-v1/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx": {
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    "runs/depth74-colmap-fallback-v1/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx": {
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    "runs/depth74-colmap-fallback-v1/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx": {
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    "runs/depth74-colmap-fallback-v1/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx": {
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    "runs/depth74-colmap-fallback-v1/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx": {
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    "runs/depth74-colmap-fallback-v1/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx": {
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    "runs/depth74-colmap-fallback-v1/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx": {
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    "runs/depth74-colmap-fallback-v1/prepared.json": {
+      "bytes": 912,
+      "sha256": "c41b2feb6b09e4f71bfc5dc64f46669093b958eea505596538a452c104a4730b"
+    },
+    "runs/depth74-colmap-fallback-v1/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-colmap-fallback-v1/project/cache/video-v2/source/index.pts": {
+      "bytes": 48,
+      "sha256": "11d156d38b00a942c471137ec3b024c29eddaf11bf4b2a4f502d43ea26b0d6dd"
+    },
+    "runs/depth74-colmap-fallback-v1/result.json": {
+      "bytes": 318,
+      "sha256": "8a62fb6a6ea92d337e30a8925c89d65529ed566807703613d4f1e966baa0c779"
+    },
+    "runs/depth74-colmap-fallback-v1/session-costs.json": {
+      "bytes": 159,
+      "sha256": "90c036096bcba7be031ad4710768b12d86f6f13fc0ae2a2901259de6b721cb4e"
+    },
+    "runs/depth74-colmap-fallback-v1/verified.json": {
+      "bytes": 304282,
+      "sha256": "98692468fd6bc86a3adce01d79b9a1649479f09e35dcc72d6cc802ca4e0e7414"
+    },
+    "source/crates/motion-host/src/depth.rs": {
+      "bytes": 28097,
+      "sha256": "85a684bb0fb5ab101d96989308498cdb607e5b527dd617a11fcb7c4f827a5412"
+    },
+    "source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 13304,
+      "sha256": "e1decd13175f0cf801dd830e55cdee29ed21c8495c17920788a14aa4e2756bf2"
+    },
+    "source/crates/motion-host/src/depth/video.rs": {
+      "bytes": 7382,
+      "sha256": "5c8317b6d62818175c86726ad010570193fee655a8f7a68d334e31d3cd37102f"
+    },
+    "source/crates/motion-host/src/session.rs": {
+      "bytes": 53860,
+      "sha256": "fb63cb287f4a064d7e7a0b21443ff4f82a897df045ed33b56f0065d0f21b3055"
+    },
+    "source/crates/motion-host/tests/depth_jobs.rs": {
+      "bytes": 13078,
+      "sha256": "792022775a0b5b851332b6f28df6daad212854791b97db1a5fd1c048fb93f112"
+    },
+    "source/crates/motion-host/tests/depth_session.rs": {
+      "bytes": 34521,
+      "sha256": "c36160e3b66182f3bcbf72e009f1963d9c19cf46ca33c26f7b51ccd0326ed113"
+    },
+    "source/crates/motion-host/tests/depth_video.rs": {
+      "bytes": 40788,
+      "sha256": "2f64aeb028d5ae069678769b032be9a020921fb8e0216be6c8c5dd52941641ac"
+    },
+    "source/desktop/app/src/logging.rs": {
+      "bytes": 18160,
+      "sha256": "95d4fb7ed6704877ea2ba09c00913b6bfb49c974c38a331658cdeb2da290576a"
+    },
+    "source/tools/ai_depth_onnx.py": {
+      "bytes": 9901,
+      "sha256": "d84157be02b2170302e763617fa710e0434def0da26419498c14d28937980637"
+    }
+  }
+}

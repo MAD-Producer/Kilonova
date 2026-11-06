@@ -62,6 +62,7 @@ pub fn import(
             }
             let mut state = s.snapshot()?;
             state["trackingImport"] = json!({"asset":prepared.descriptor().id,"source":source,
+                "format":prepared.descriptor().format,
                 "tracks":prepared.track_count(),"observations":prepared.observation_count(),
                 "originalPreserved":true,"encodedSourceVerified":true,
                 "decodedSourceVerified":true,"decodedTimelineVerified":source.kind==motion_core::media_assets::AssetKind::Video,

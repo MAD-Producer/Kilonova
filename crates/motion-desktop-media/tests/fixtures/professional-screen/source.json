@@ -1,0 +1,40 @@
+{
+  "author": "NASA / Expedition 7 ISS crew; individual photographer unspecified",
+  "source": "https://images-assets.nasa.gov/image/iss007e11800/iss007e11800~orig.jpg",
+  "revision": "ISS007-E-11800, 2003-08-03",
+  "license": "NASA informational/factual technical-evaluation media-use guidelines, no endorsement",
+  "licenseSource": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
+  "originalSha256": "2efb4c28adab8e70ed026856ed0d6e4472ea7de4d0576f37a87150775fdf8c5f",
+  "derivativeSha256": "e8ed893f990ba8850000064e153d57b84e6e1d5c0a0aa2ccc8dfd1254b2e379d",
+  "modification": "Interpret untagged SDR JPEG as sRGB, decode RGB8 and Lanczos resize 3032x2064 to 960x654",
+  "tool": "Pillow 13.0.0",
+  "screenQuad": [
+    [
+      168,
+      60
+    ],
+    [
+      219,
+      74
+    ],
+    [
+      205,
+      116
+    ],
+    [
+      154,
+      106
+    ]
+  ],
+  "quadAuthor": "Motion Studio contributors, manually authored from photograph before native execution",
+  "evaluation": {
+    "channelBudget": 3,
+    "edgeExclusionPixels": 2,
+    "minimumCheckedInsertPixels": 1500
+  },
+  "limits": [
+    "Static photograph, not automatic tracking or temporal footage",
+    "Independent authored insert, not a recovered original screen image",
+    "Technical test fixture only; no product/release artwork or NASA endorsement"
+  ]
+}

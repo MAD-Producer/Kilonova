@@ -1,6 +1,8 @@
 //! Managed original publication. Own Prepared outside any Session/business guard:
 //! rollback, including its unwind observation, must run after that guard exits.
-use super::{decode, decoded, project::Attachment, source};
+use super::{decoded, project::Attachment, source};
+#[cfg(test)]
+use super::decode;
 use motion_core::{
     media_assets::{self, AssetKind, AssetRef},
     storage, Engine, Project, TrackingAsset,
@@ -202,7 +204,8 @@ impl Prepared {
                         .map_err(|e| io("document_modified_after", document, e))?,
             "original document changed during read",
         )?;
-        let solve = decode::from_slice(&original).map_err(super::project::Error::Decode)?;
+        let solve = super::document::from_slice(&original)
+            .map_err(super::project::Error::from)?.asset;
         let media = media_assets::lookup(project, selected)
             .ok_or(Error::Invalid("selected original source is missing"))?;
         require(

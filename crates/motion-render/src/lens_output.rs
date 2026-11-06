@@ -333,7 +333,7 @@ fn uniform(
                     && raster.rect() == [0., 0., f64::from(w), f64::from(h)]
                     && raster.size() == target,
             )),
-            0.,
+            lens.inverse_step(),
         ],
         raster.rect(),
         [

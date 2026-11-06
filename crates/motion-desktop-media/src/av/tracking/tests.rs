@@ -49,7 +49,13 @@ impl Fixture {
         let root = tempfile::tempdir().unwrap();
         fs::create_dir(root.path().join("assets")).unwrap();
         let path = root.path().join("assets/plate.mp4");
-        let mut encoder = crate::encode::Mp4Encoder::new(&path, 64, 32, 30).unwrap();
+        let mut encoder = crate::encode::Mp4Encoder::new(
+            &path,
+            64,
+            32,
+            motion_core::FrameRate::integer(30).unwrap(),
+        )
+        .unwrap();
         for index in 0..6 {
             let pixels: Vec<u8> = (0..64 * 32)
                 .flat_map(|p| [index as u8 * 31, (p % 64) as u8 * 3, 79, 255])

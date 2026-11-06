@@ -11,6 +11,8 @@ const H: u32 = 49;
 mod ownership;
 #[path = "tracking_lens/photographed.rs"]
 mod photographed;
+#[path = "tracking_lens/relaxation.rs"]
+mod relaxation;
 #[path = "tracking_lens/resources.rs"]
 mod resources;
 #[path = "tracking_lens/routing.rs"]

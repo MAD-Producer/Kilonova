@@ -84,7 +84,7 @@ pub fn from_reader(reader: impl Read) -> Result<Asset, Error> {
         .map_err(Error::Read)?;
     from_slice(&bytes)
 }
-fn json_error(e: serde_json::Error) -> Error {
+pub(super) fn json_error(e: serde_json::Error) -> Error {
     let reason = match e.classify() {
         serde_json::error::Category::Io => "input failure",
         serde_json::error::Category::Eof => "incomplete input",
@@ -117,7 +117,9 @@ fn json_error(e: serde_json::Error) -> Error {
     }
 }
 
-struct List<T, const LIMIT: usize>(Vec<T>);
+#[derive(serde::Serialize)]
+#[serde(transparent)]
+pub(super) struct List<T, const LIMIT: usize>(pub(super) Vec<T>);
 /// Consume the array boundary explicitly: serde_json's tuple decoder otherwise
 /// reports an extra numeric component as a syntax error rather than a shape
 /// error. Allocation depends only on the schema's tiny fixed length.
