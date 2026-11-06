@@ -227,10 +227,27 @@ impl PreparationPlan {
         {
             return Ok(());
         }
-        let mut dependencies = vec![Vec::new(); scene.layers.len()];
-        let mut origins: Vec<_> = scene.layers.iter().map(|l| (l.id, None)).collect();
+        // A source has no predecessor; an effect has its preceding operation
+        // and at most one image input. Keep these two edges inline instead of
+        // allocating one Vec per operation. The validated scene bounds all
+        // temporary storage; nothing survives this dependency check.
+        const NO_INPUT: usize = usize::MAX;
+        let operation_count = self
+            .inputs
+            .iter()
+            .enumerate()
+            .filter(|(index, input)| {
+                matches!(input, Some(Ok(_)))
+                    && crate::scene::effect_has_output(&scene.effects[*index])
+            })
+            .count();
+        let capacity = scene.layers.len() + operation_count;
+        let mut dependencies = Vec::with_capacity(capacity);
+        dependencies.resize(scene.layers.len(), [NO_INPUT; 2]);
+        let mut origins = Vec::with_capacity(capacity);
+        origins.extend(scene.layers.iter().map(|l| (l.id, None)));
         let mut finals: Vec<_> = (0..scene.layers.len()).collect();
-        let mut operations = Vec::new();
+        let mut operations = Vec::with_capacity(operation_count);
         for (draw, effects) in self.effects_by_layer.iter().enumerate() {
             for &index in effects {
                 let Some(Ok(prepared)) = &self.inputs[index] else {
@@ -240,7 +257,7 @@ impl PreparationPlan {
                     continue;
                 }
                 let node = dependencies.len();
-                dependencies.push(vec![finals[draw]]);
+                dependencies.push([finals[draw], NO_INPUT]);
                 origins.push((scene.layers[draw].id, Some(scene.effects[index].instance)));
                 finals[draw] = node;
                 if prepared.consumes_image {
@@ -259,29 +276,40 @@ impl PreparationPlan {
                     *draw
                 };
                 if !dependencies[node].contains(&source) {
-                    dependencies[node].push(source);
+                    dependencies[node][1] = source;
                 }
             }
         }
-        let mut remaining: Vec<_> = dependencies.iter().map(Vec::len).collect();
-        let mut consumers = vec![Vec::new(); dependencies.len()];
-        let mut ready = BTreeSet::new();
+        let mut remaining: Vec<_> = dependencies
+            .iter()
+            .map(|inputs| inputs.iter().filter(|&&input| input != NO_INPUT).count())
+            .collect();
+        let mut consumer_heads = vec![NO_INPUT; dependencies.len()];
+        let mut consumers = Vec::with_capacity(dependencies.len() * 2);
+        let mut ready = Vec::with_capacity(dependencies.len());
         for (node, inputs) in dependencies.iter().enumerate() {
-            if inputs.is_empty() {
-                ready.insert(node);
+            if remaining[node] == 0 {
+                ready.push(node);
             }
-            for &input in inputs {
-                consumers[input].push(node);
+            for &input in inputs.iter().filter(|&&input| input != NO_INPUT) {
+                consumers.push((node, consumer_heads[input]));
+                consumer_heads[input] = consumers.len() - 1;
             }
         }
         let mut visited = 0;
-        while let Some(node) = ready.pop_first() {
+        // Only the residual graph is observed, not the topological order.
+        // Every node becomes ready exactly once; an unsorted worklist avoids
+        // per-tree-node allocation and leaves cycle diagnostics unchanged.
+        while let Some(node) = ready.pop() {
             visited += 1;
-            for &consumer in &consumers[node] {
+            let mut edge = consumer_heads[node];
+            while edge != NO_INPUT {
+                let (consumer, next) = consumers[edge];
                 remaining[consumer] -= 1;
                 if remaining[consumer] == 0 {
-                    ready.insert(consumer);
+                    ready.push(consumer);
                 }
+                edge = next;
             }
         }
         if visited == dependencies.len() {
@@ -326,11 +354,14 @@ impl PreparationPlan {
             cursor = dependencies[cursor]
                 .iter()
                 .copied()
+                .filter(|&p| p != NO_INPUT)
                 .find(|&p| remaining[p] != 0)
                 .ok_or("dependency residual has no predecessor")?;
         }
     }
 }
 
+#[cfg(test)]
+mod dependency_storage_tests;
 #[cfg(test)]
 mod tests;
