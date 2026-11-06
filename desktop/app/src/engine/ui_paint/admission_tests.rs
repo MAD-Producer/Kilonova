@@ -57,7 +57,7 @@ fn native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdou
             (906, Err("original host failure".into()), atlas),
         ] {
             let result = finish(result, Some(failure), 7);
-            let original = result.as_ref().unwrap_err().clone();
+            let original = result.as_ref().unwrap_err().to_string();
             if request == 906 {
                 assert!(original.starts_with("original host failure; UI overlay"));
             }

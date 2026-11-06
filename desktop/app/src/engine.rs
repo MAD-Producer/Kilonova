@@ -1923,13 +1923,13 @@ fn handle(
             #[cfg(test)]
             diagnostics.native_test_phase("capture.painter");
             let mut chrome = motion_ui::Painter::new_admitted(ui_paint::allocation::context(g.renderer.allocation_context()), wgpu::TextureFormat::Rgba8UnormSrgb)
-                .map_err(|e| format!("phase=capture.painter: {e}"))?;
+                .map_err(|e| ui_paint::error("phase=capture.painter", e))?;
             capture_phase = "capture.atlas";
             let upload = ui.atlas.take().ok_or("screenshot requires the complete glyph atlas")?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.atlas");
             chrome.upload_atlas_owned(&g.renderer.device, &g.renderer.queue, upload.pixels, upload.width, upload.height)
-                .map_err(|e| format!("phase=capture.atlas: {e}"))?;
+                .map_err(|e| ui_paint::error("phase=capture.atlas", e))?;
             capture_phase = "capture.presenter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
@@ -1962,7 +1962,7 @@ fn handle(
             diagnostics.native_test_phase("capture.paint");
             let plugin_content=node_preview.plugin_parameters.is_some();
             if plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,target.view(),viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}}
-            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,target.view(),&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
+            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,target.view(),&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|ui_paint::error(format!("capture_ui window={}",ui.window),e))?;
             capture_phase = "capture.node";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.node");
@@ -2015,7 +2015,7 @@ fn handle(
             let mut attached = false;
             let result = motion_host::session::with_session(id, |s| {
                 let next = motion_ui::Painter::new_admitted(ui_paint::allocation::context(target.renderer.allocation_context()), target.config.format)
-                    .map_err(|e| format!("phase=attach.painter: {e}"))?;
+                    .map_err(|e| ui_paint::error("phase=attach.painter", e))?;
                 s.attach(target)?;
                 *painter = Some(next);
                 attached = true;
@@ -2102,9 +2102,9 @@ fn handle(
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");
                 if let Some(upload)=ui.atlas.take() {painter.upload_atlas_owned(&g.renderer.device,&g.renderer.queue,upload.pixels,upload.width,upload.height)
-                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;}
+                    .map_err(|e|ui_paint::error(format!("present window={} phase=atlas",ui.window),e))?;}
                 painter.retry_atlas(&g.renderer.device,&g.renderer.queue)
-                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;
+                    .map_err(|e|ui_paint::error(format!("present window={} phase=atlas",ui.window),e))?;
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
@@ -2165,11 +2165,7 @@ fn handle(
                         (Ok(_),Some(error))=>Err(error.into()),
                         (Err(primary),Some(secondary))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(secondary.into())}),
                     };
-                    let result=match (result,paint_error) {
-                        (Ok(value),error)=>ui_paint::finish(Ok(value),error,ui.window).map_err(motion_host::Error::from),
-                        (Err(primary),None)=>Err(primary),
-                        (Err(primary),Some(error))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(motion_host::Error::from(format!("UI overlay window={}: {error}",ui.window)))}),
-                    };
+                    let result=ui_paint::finish(result,paint_error,ui.window);
                     presentation.retained=if batch.is_none() && result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
@@ -2198,7 +2194,7 @@ fn handle(
                     clear_target(&mut encoder,&view);
                     let plugin_content=node_preview.plugin_parameters.is_some();
                     if plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}}
-                    painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|format!("present window={}: {e}",ui.window))?;
+                    painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|ui_paint::error(format!("present window={}",ui.window),e))?;
                     if !plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}}
                     #[cfg(test)]
                     diagnostics.native_test_phase("present.submit");
