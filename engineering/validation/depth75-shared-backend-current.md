@@ -201,3 +201,77 @@ verified: 1,298,546 bytes, SHA-256
 The host retains bounded panic cause/location, not a permanent complete native
 backtrace after cleanup. Raw images, tensors, model resources, executables/PDBs
 and optional runtimes are excluded from the public archive.
+
+## Post-rebase complete run and loader isolation
+
+The complete maintained-workspace command ran against unchanged source
+`0646083d672b0d362901cc0a8c8992c41d59182c`, rebased onto maintained main
+`afebb5cd3d3cfb668d68641ea665377d2fa0c546`:
+
+```text
+cargo test --workspace --exclude motion-android --features motion-desktop/ffmpeg,motion-host/ai-depth,motion-desktop-media/ai-depth --no-fail-fast --locked -- --test-threads=1
+```
+
+It finished after 4,547.844 seconds with Cargo exit 101 and controller exit 1.
+All 430 source-bound invocations started, with no missing or unexpected targets.
+Only 414 produced summaries: 3,141 passed, zero ordinary assertions failed,
+four original ignores and zero filtered tests. Sixteen executables exited
+`0xc0000135 / STATUS_DLL_NOT_FOUND` before running their tests. This is a failed
+full regression. Its zero ordinary failures do not qualify the missing tests.
+The earlier run's distinct assertion, allocation and access-violation failures
+remain in their original source-bound evidence; no common cause is established.
+
+The exact head above completed eight applicable CI checks with two policy skips.
+That evidence does not qualify later source or replace local full feature coverage.
+
+Two subsequent isolated loader controls preserve the original failures:
+
+- Both affected test executables still fail `--list` with the original pinned
+  runtime on PATH, while the pinned `ffmpeg.exe -version` succeeds. Individual
+  library loading succeeds for avutil and fails for the other six libraries.
+- A byte-identical test executable, hardlinked into a separate owned directory,
+  fails listing without adjacent runtime libraries. Adding hardlinks to the exact
+  seven pinned DLLs makes the same executable's listing exit zero. Original
+  binaries, target directories, runtime installation, PATH, registry and
+  permissions are unchanged.
+- Fresh `LoadLibraryExW` controls for avcodec and swresample fail with default
+  search (Windows error 126) and succeed with `LOAD_WITH_ALTERED_SEARCH_PATH`.
+  This supports adjacent runtime placement as a working correction; it does
+  not identify a particular missing transitive DLL or execute any test bodies.
+
+The [failed-run and loader archive](data/depth75-loader-full-v1.zip) and
+[manifest](data/depth75-loader-full-v1.json) retain the original complete logs,
+metadata, controllers, terminal-session receipt, bounded environment
+observations, library hashes and exact source snapshots. All 61 members were
+read back and verified: 568,823 bytes, SHA-256
+`e0e9fc7c4ce24f2356e937b668c117d2e5e69af2a0635af52e79d620a52cfa88`.
+The source snapshots match the failed run's retained hashes, including the
+three files subsequently edited for the observation below. No executable,
+runtime library, model, image or tensor is included.
+
+A complete run of the final integrated source, with its pinned runtime correctly
+placed, is still required. The original 10 GiB free-space admission, feature set,
+GPU selection, assertions, ignores and serial workload policy remain unchanged.
+
+## Processing identity before a blocked operation
+
+The separate explicit ONNX resolution work uses the same model ID/revision for
+266, 392 and 518. Those fields alone cannot identify a hung job's actual profile.
+Sample and video Info start records now also contain the requested processing
+identity and complete model SHA-256 before the handler or video decoder runs.
+Existing request/source context, in-flight publication, completion timing,
+return values and stdout isolation remain unchanged. Disabled Info logging
+does not allocate the digest string. No Present path is involved.
+
+A new controlled-backend regression captures the default-Info log while each
+of three requests remains blocked. All three share ID/revision but differ in
+processing and hash; each snapshot must contain its exact requested identity.
+The existing video decoder-blocking test has an additional identity assertion;
+none of its previous assertions were changed.
+
+These new assertions have not yet compiled or executed locally: free disk is
+below the unchanged native-build admission. Scoped formatting/syntax and diff
+checks are separate static evidence. Whole-file formatting already differs on
+the original source, so no unrelated formatting rewrite was applied. The old
+exact-head CI and archives above do not qualify this new patch; it remains
+pending new-head CI and native regression.

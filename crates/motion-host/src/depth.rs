@@ -364,11 +364,23 @@ impl Identity {
         }
     }
     fn log_start(&self, request: u64) {
+        if !log::log_enabled!(log::Level::Info) {
+            return;
+        }
+        let model = match self {
+            Self::Sample(key) => &key.model,
+            Self::Video(key) => &key.model,
+        };
+        let digest: String = model
+            .sha256
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
         match self {
-            Self::Sample(key) => log::info!("start #{} depth_infer asset={} revision={} pts={}/{} model={} model_revision={}",
-                request,key.source.asset,key.source.revision,key.source.pts.ticks,key.source.pts.timescale,key.model.id,key.model.revision),
-            Self::Video(key) => log::info!("start #{} depth_infer asset={} revision={} target_us={} phase=video_decode object={} model={} model_revision={}",
-                request,key.asset,key.revision,key.target_us,key.object,key.model.id,key.model.revision),
+            Self::Sample(key) => log::info!("start #{} depth_infer asset={} revision={} pts={}/{} model={} model_revision={} processing={} model_sha256={}",
+                request,key.source.asset,key.source.revision,key.source.pts.ticks,key.source.pts.timescale,model.id,model.revision,model.processing,digest),
+            Self::Video(key) => log::info!("start #{} depth_infer asset={} revision={} target_us={} phase=video_decode object={} model={} model_revision={} processing={} model_sha256={}",
+                request,key.asset,key.revision,key.target_us,key.object,model.id,model.revision,model.processing,digest),
         }
     }
 }
