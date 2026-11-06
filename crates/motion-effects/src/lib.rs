@@ -4,6 +4,7 @@ pub mod image_contract;
 pub mod execution_plan;
 pub mod execution_template;
 pub mod pointwise;
+pub mod scalar;
 mod package;
 pub mod memory;
 mod scene;

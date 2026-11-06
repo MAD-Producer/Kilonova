@@ -1951,7 +1951,7 @@ fn fold_math(op: MathOp, ty: ValueType, args: &BTreeMap<&str, Symbol>) -> Option
                 at("min", i).min(at("max", i)),
                 at("min", i).max(at("max", i)),
             ),
-            Lerp => at("a", i) + (at("b", i) - at("a", i)) * at("factor", 0),
+            Lerp => motion_effects::scalar::lerp(at("a", i), at("b", i), at("factor", 0)),
             Smoothstep => {
                 let lo = at("edge0", i).min(at("edge1", i));
                 let hi = at("edge0", i).max(at("edge1", i));
