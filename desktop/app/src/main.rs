@@ -370,7 +370,7 @@ struct Shell {
     text_style_task: Option<shell::text_style::Task>,
     present_due: bool,
     present_deferrals: shell::presentation_observation::ActionDeferrals,
-    diagnostics_export: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
+    diagnostics_export: Option<std::sync::mpsc::Receiver<diagnostics::ReportResult>>,
     closing: bool,
     next_redraw: Instant,
     fatal: Option<String>,
@@ -740,7 +740,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             if let Some(result) = result {
                 self.panels.message = Some(match result {
                     Ok(()) => self.workspace.locale.t(T::DiagnosticsExported).into(),
-                    Err(e) => self.workspace.locale.error(&e),
+                    Err(e) => self.workspace.locale.error(&e.to_string()),
                 });
                 self.diagnostics_export = None;
                 self.dirty = true;
