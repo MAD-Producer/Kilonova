@@ -18,7 +18,44 @@ use std::{
 };
 
 pub const PROCESSING: &str = "dav2-small-rgb8-letterbox518-align-corners-relative-v1";
+/// Explicit processing profiles, independent of the requested provider.
+pub fn processing_side(processing: &str) -> Option<u32> {
+    match processing {
+        "dav2-small-rgb8-letterbox266-align-corners-relative-v1" => Some(266),
+        "dav2-small-rgb8-letterbox392-align-corners-relative-v1" => Some(392),
+        PROCESSING => Some(518),
+        _ => None,
+    }
+}
 const WORKER: &str = include_str!("../../../../tools/ai_depth_onnx.py");
+
+#[cfg(test)]
+mod profile_tests {
+    use super::*;
+
+    #[test]
+    fn processing_resolution_is_explicit_and_not_a_provider_choice() {
+        for side in [266, 392, 518] {
+            assert_eq!(
+                processing_side(&format!(
+                    "dav2-small-rgb8-letterbox{side}-align-corners-relative-v1"
+                )),
+                Some(side)
+            );
+        }
+        assert_eq!(processing_side(PROCESSING), Some(518));
+        for value in [
+            "",
+            "CPUExecutionProvider",
+            "dav2-small-rgb8-letterbox517-align-corners-relative-v1",
+            "dav2-base-rgb8-letterbox518-align-corners-relative-v1",
+            "dav2-small-rgb8-letterbox518-align-corners-relative-v2",
+            "dav2-small-rgb8-letterbox518-align-corners-relative-v1 ",
+        ] {
+            assert_eq!(processing_side(value), None, "{value}");
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum Provider {
@@ -78,7 +115,8 @@ impl Onnx {
     ) -> Result<Estimate> {
         let transport_began = Instant::now();
         cancellation.check()?;
-        if input.key().model.processing != PROCESSING {
+        let processing = &input.key().model.processing;
+        if processing_side(processing).is_none() {
             return Err(Error::Invalid(
                 "ONNX backend does not implement the requested preprocessing identity",
             ));
@@ -94,7 +132,7 @@ impl Onnx {
         fs::write(directory.join("input.rgb"), input.rgb())?;
         let [width, height] = input.size();
         let request = serde_json::json!({"schema":1,"model":self.config.model,"sha256":digest,
-            "processing":PROCESSING,"width":width,"height":height,"provider":self.config.provider.name()});
+            "processing":processing,"width":width,"height":height,"provider":self.config.provider.name()});
         fs::write(
             directory.join("request.json"),
             serde_json::to_vec(&request)?,
@@ -123,7 +161,7 @@ impl Onnx {
         let report: Report = serde_json::from_slice(&stdout)?;
         if report.schema != 1
             || report.sha256 != digest
-            || report.processing != PROCESSING
+            || report.processing != *processing
             || [report.width, report.height] != input.size()
             || report.resource_bytes != u64::from(width) * u64::from(height) * 4
         {

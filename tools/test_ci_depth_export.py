@@ -2,6 +2,7 @@
 from pathlib import Path
 import contextlib
 import io
+import json
 import subprocess
 import sys
 import tempfile
@@ -9,9 +10,59 @@ import unittest
 from unittest import mock
 
 import export_ai_depth as exporter
+import ai_depth_onnx as worker
 
 
 class DepthExportAdmission(unittest.TestCase):
+    def test_letterbox_geometry_preserves_crop_orientation_and_odd_padding(self):
+        cases = [
+            (400, 200, 266, (0, 66, 266, 133)),
+            (200, 400, 266, (66, 0, 133, 266)),
+            (400, 200, 392, (0, 98, 392, 196)),
+            (400, 200, 518, (0, 129, 518, 259)),
+            (3, 2, 392, (0, 65, 392, 261)),
+            (4096, 1, 266, (0, 132, 266, 1)),
+            (1, 4096, 518, (258, 0, 1, 518)),
+            (1, 1, 392, (0, 0, 392, 392)),
+        ]
+        for width, height, side, expected in cases:
+            with self.subTest(width=width, height=height, side=side):
+                self.assertEqual(worker.letterbox_rectangle(width, height, side), expected)
+        for invalid in (True, 0, -1, 4097, 12.0):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                worker.letterbox_rectangle(invalid, 12, 266)
+
+    def test_host_worker_and_exporter_agree_on_all_processing_profiles(self):
+        for side in (266, 392, 518):
+            self.assertEqual(worker.processing_side(exporter.processing_identity(side)), side)
+        for identity in (None, True, 266, "", worker.PROCESSING + " ",
+                         worker.PROCESSING.replace("518", "517"),
+                         worker.PROCESSING.replace("small", "base")):
+            with self.subTest(identity=identity), self.assertRaises(ValueError):
+                worker.processing_side(identity)
+
+    def test_preprocessing_rejects_unsupported_shape_before_array_or_cv_calls(self):
+        for side in (True, 518.0, 517, 0, 4096):
+            with self.subTest(side=side), self.assertRaisesRegex(ValueError, "resolution"):
+                worker.preprocess(None, 12, 8, None, None, side)
+
+    def test_real_worker_rejects_unknown_processing_before_loading_a_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            request = dict(schema=1, model=str(root / "missing.onnx"), sha256="a" * 64,
+                           processing=worker.PROCESSING.replace("518", "517"),
+                           width=12, height=8, provider="CPUExecutionProvider")
+            for optimized in (False, True):
+                (root / "request.json").write_text(json.dumps(request), encoding="utf-8")
+                command = [sys.executable, "-B"] + (["-O"] if optimized else [])
+                child = subprocess.run(command + [worker.__file__, str(root)],
+                                       capture_output=True, check=False)
+                self.assertEqual(child.returncode, 1)
+                error = json.loads(child.stdout)["error"]
+                self.assertIn("phase=manifest", error)
+                self.assertIn("unsupported depth inference procedure", error)
+                self.assertFalse((root / "output.f32").exists())
+
     def test_resolution_is_part_of_processing_identity(self):
         identities = {exporter.processing_identity(n) for n in (266, 392, 518)}
         self.assertEqual(len(identities), 3)

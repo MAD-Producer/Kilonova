@@ -24,11 +24,32 @@ with no assertion changes. They cover distinct processing identities,
 invalid resolution rejection before side effects or heavy imports, destination
 preservation and CLI defaults/choices. They do not invoke learned inference.
 
+## ONNX host source wiring (not yet native-qualified)
+
+The follow-up source change extends the ONNX host and its embedded Python worker
+to the same three explicit processing identities. The host sends and validates
+the requested identity rather than replacing it with 518. The worker checks the
+exact corresponding input/output shapes before inference, retains the declared
+identity in its report and performs letterbox/remap at that resolution. The
+output resource still uses the source crop dimensions. Model hash checks,
+provider reporting, cancellation and ownership checks remain in place. Unknown
+identities are refused before runtime imports; no provider selects a resolution.
+
+Nine focused Python admission tests pass, including real worker refusals with
+normal and optimized Python, and exact landscape/portrait/single-pixel crop
+rectangles with odd padding. The complete updated tool suite passes 119 tests
+with one original skip (120 total). Raw outputs and source hashes are retained
+in `artifacts/pr-queue/depth75-resolution-python-v2/receipt.json`. The new Rust
+processing-admission test and changed host
+implementation have only passed rustfmt parsing/checks so far; compilation and
+actual inference through this host remain pending. The full backend regression
+already running in another worktree does not cover this follow-up source.
+
 Actual 266/392 exports and numerical reference runs are pending. No model hash,
 quality ranking, speed, memory reduction or temporal agreement is claimed for
-those candidates. Existing host ONNX and optional native WGSL admission still
-accept only their explicitly implemented 518 processing/plan identity. Accepting
-new candidates into the host, independently lowering/qualifying WGSL plans,
+those candidates. Optional native WGSL admission still accepts only its
+explicitly implemented 518 processing/plan identity. Qualifying the new ONNX
+host paths, independently lowering/qualifying additional WGSL plans,
 measuring all stages and sustained operation, and validating video quality,
 generation checks, hysteresis and frozen export policy remain required.
 
