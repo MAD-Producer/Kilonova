@@ -24,7 +24,13 @@ pub enum Error {
     Render(#[from] motion_render::RenderError),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct ExposureScope {
+    pub composition: String,
+    pub frame: u64,
+    pub layers: Vec<u64>,
+}
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct Key {
     pub context: Context,
     pub surface: u64,
@@ -33,15 +39,17 @@ pub(crate) struct Key {
     pub height: u32,
     pub preview: bool,
     pub window: u64,
+    pub exposure: Option<ExposureScope>,
 }
 impl Key {
-    fn same_revision(self, other: Self) -> bool {
+    fn same_revision(&self, other: &Self) -> bool {
         self.context == other.context
             && self.surface == other.surface
             && self.view == other.view
             && self.width == other.width
             && self.height == other.height
             && self.preview == other.preview
+            && self.exposure == other.exposure
     }
 }
 
@@ -160,7 +168,7 @@ impl State {
     }
     pub(crate) fn status(&self) -> Value {
         json!({"version":1,"task":self.ticket.as_ref().map(|ticket|ticket.status()),
-            "preparing":self.key.is_some_and(|key|!self.ready.is_some_and(|ready|ready.same_revision(key))) && self.failure.is_none(),
+            "preparing":self.key.as_ref().is_some_and(|key|!self.ready.as_ref().is_some_and(|ready|ready.same_revision(key))) && self.failure.is_none(),
             "limited":self.limited,"pendingEnqueue":self.pending.is_some(),
             "workerStopped":self.worker.as_ref().is_some_and(|worker|worker.thread.is_finished()),
             "lookaheadErrors":self.lookahead_failures.iter().map(|failure|json!({"frame":failure.frame,
@@ -204,7 +212,7 @@ impl State {
                     let limited = prepared.limited();
                     match renderer.install_prepared_effect_pipelines(prepared, context) {
                         Ok(PipelinePreparationInstall::Installed { .. }) => {
-                            self.ready = self.key;
+                            self.ready = self.key.clone();
                             self.limited = limited;
                             self.lookahead_failures = failures;
                         }
@@ -248,12 +256,12 @@ impl State {
             .ticket
             .as_ref()
             .is_some_and(|ticket| ticket.status().cancelled);
-        if self.key != Some(key) || cancelled {
+        if self.key.as_ref() != Some(&key) || cancelled {
             if let Some(ticket) = &self.ticket {
                 ticket.cancel();
             }
             self.pending = None;
-            self.key = Some(key);
+            self.key = Some(key.clone());
             self.failure = None;
             self.limited = false;
             self.lookahead_failures.clear();
@@ -265,6 +273,7 @@ impl State {
             ) {
                 Ok(job) => {
                     let job = job.with_best_effort_lookahead();
+                    let job = if key.exposure.is_some() { job.for_exposure() } else { job };
                     if key.preview {
                         job.for_preview()
                     } else {
@@ -298,7 +307,7 @@ impl State {
             self.pending = Some(Request {
                 job,
                 project: snapshot.clone(),
-                frames: upcoming(project, scene.frame),
+                frames: if key.exposure.is_some() { Vec::new() } else { upcoming(project, scene.frame) },
                 observer: observer.cloned(),
                 #[cfg(test)]
                 before_sample: self.before_sample.take(),
@@ -311,7 +320,7 @@ impl State {
             return Err(crate::Error::PipelinePreparation(error.clone()));
         }
         self.enqueue()?;
-        Ok(self.ready.is_some_and(|ready| ready.same_revision(key)))
+        Ok(self.ready.as_ref().is_some_and(|ready| ready.same_revision(&key)))
     }
 }
 impl Drop for State {

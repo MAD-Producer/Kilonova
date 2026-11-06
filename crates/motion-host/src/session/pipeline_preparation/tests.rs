@@ -58,17 +58,44 @@ fn key() -> Key {
         height: 16,
         preview: false,
         window: 0,
+        exposure: None,
     }
 }
 fn finish(state: &mut State, renderer: &mut Renderer, project: &Project, scene: &Scene, key: Key) {
     let deadline = Instant::now() + Duration::from_secs(60);
     loop {
-        if state.ensure(renderer, project, scene, None, key).unwrap() {
+        if state.ensure(renderer, project, scene, None, key.clone()).unwrap() {
             return;
         }
         assert!(Instant::now() < deadline, "{}", state.status());
         std::thread::yield_now();
     }
+}
+
+#[test]
+fn exposure_readiness_requires_the_exact_sample_and_instance_scope() {
+    let ordinary = key();
+    let mut later = ordinary.clone();
+    later.window += 1;
+    assert!(ordinary.same_revision(&later));
+    let mut exposure = ordinary.clone();
+    exposure.exposure = Some(ExposureScope {
+        composition: "nested".into(), frame: 0.25f64.to_bits(), layers: vec![4, 9],
+    });
+    assert!(!ordinary.same_revision(&exposure));
+    assert!(exposure.same_revision(&exposure));
+    let mut changed = exposure.clone();
+    changed.exposure.as_mut().unwrap().frame = 0.75f64.to_bits();
+    assert!(!exposure.same_revision(&changed));
+    changed = exposure.clone();
+    changed.exposure.as_mut().unwrap().composition = "other".into();
+    assert!(!exposure.same_revision(&changed));
+    changed = exposure.clone();
+    changed.exposure.as_mut().unwrap().layers[1] = 10;
+    assert!(!exposure.same_revision(&changed));
+    changed = exposure.clone();
+    changed.width /= 2;
+    assert!(!exposure.same_revision(&changed));
 }
 
 #[test]
@@ -161,7 +188,7 @@ fn blocked_host_worker_retains_only_latest_pending_request_and_never_installs_ol
     for revision in 3..35 {
         newest.context.project_revision = revision;
         assert!(!state
-            .ensure(&mut renderer, &project, &scene, None, newest)
+            .ensure(&mut renderer, &project, &scene, None, newest.clone())
             .unwrap());
     }
     assert!(
@@ -173,7 +200,7 @@ fn blocked_host_worker_retains_only_latest_pending_request_and_never_installs_ol
     assert_eq!(renderer.effect_pipeline_cache_info().previous_entries, 0);
     assert_eq!(state.worker.as_ref().unwrap().thread.thread().id(), worker);
     release_tx.send(()).unwrap();
-    finish(&mut state, &mut renderer, &project, &scene, newest);
+    finish(&mut state, &mut renderer, &project, &scene, newest.clone());
     assert_eq!(
         state.ticket.as_ref().unwrap().status().context,
         newest.context

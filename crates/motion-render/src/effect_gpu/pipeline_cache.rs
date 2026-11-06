@@ -74,6 +74,9 @@ pub(super) struct PreviousPipelines {
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EffectPipelineCacheInfo {
+    /// Native creations on the renderer owner, excluding preparation workers.
+    /// Lifetime counter; registry changes do not reset it.
+    pub foreground_builds: u64,
     pub current_entries: usize,
     pub previous_entries: usize,
     /// UTF-8 bytes retained for comparison, excluding containers and driver code.
@@ -167,6 +170,7 @@ impl GpuState {
     }
     pub fn pipeline_cache_info(&self) -> EffectPipelineCacheInfo {
         EffectPipelineCacheInfo {
+            foreground_builds: self.pipeline_builds,
             current_entries: self.pipelines.len(),
             previous_entries: self.previous_pipelines.entries.len(),
             previous_wgsl_bytes: self.previous_pipelines.wgsl_bytes,

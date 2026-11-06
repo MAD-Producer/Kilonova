@@ -199,6 +199,7 @@ pub struct PipelinePreparationJob {
     fusion: bool,
     plane_coverage: bool,
     preview: bool,
+    exposure: bool,
     best_effort_lookahead: bool,
     assets: Vec<u64>,
     alpha_images: std::collections::HashMap<u64, crate::scene_generator::AlphaImage>,
@@ -357,6 +358,7 @@ impl PipelinePreparationJob {
             fusion: renderer.effect_gpu.builder.pointwise_fusion_enabled(),
             plane_coverage: renderer.effect_gpu.builder.plane_coverage_enabled(),
             preview: false,
+            exposure: false,
             best_effort_lookahead: false,
             assets: renderer.asset_order.clone(),
             alpha_images,
@@ -376,6 +378,13 @@ impl PipelinePreparationJob {
     /// paths also prepare the strict preflight plan used before the first draw.
     pub fn for_preview(mut self) -> Self {
         self.preview = true;
+        self
+    }
+    /// Prepare receiver materialization and phase adjustment plans for an
+    /// already sampled exposure context, rather than substituting an ordinary
+    /// center-frame plan. The host must wait for this exact context to install.
+    pub fn for_exposure(mut self) -> Self {
+        self.exposure = true;
         self
     }
     /// Keep the current scene authoritative. Future-scene failures are logged
@@ -536,6 +545,26 @@ impl PipelinePreparationJob {
             if self.ticket.cancelled() || batch.limited {
                 return Ok(());
             }
+        }
+        if self.exposure {
+            self.ticket.phase(1);
+            builder.build_exposure_context_checked(scene, &self.assets, width, height, self.preview)?;
+            self.compile_plan(builder, batch)?;
+            // Phase preflight can precede the first draw's coverage transition;
+            // retained materialization and later adjustments use the live plan.
+            if self.ticket.cancelled() || batch.limited { return Ok(()); }
+            builder.enable_plane_coverage();
+            builder.build_exposure_context_checked(scene, &self.assets, width, height, self.preview)?;
+            self.compile_plan(builder, batch)?;
+            for layer in scene.layers.iter().filter(|layer| !layer.adjustment) {
+                if self.ticket.cancelled() || batch.limited {
+                    break;
+                }
+                self.ticket.phase(1);
+                builder.build_materialized_checked(scene, &self.assets, width, height, layer.id, self.preview)?;
+                self.compile_plan(builder, batch)?;
+            }
+            return Ok(());
         }
         self.ticket.phase(1);
         builder.build(scene, &self.assets, width, height, true)?;
