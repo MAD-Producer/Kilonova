@@ -373,10 +373,26 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
         // explicitly before testing a second independent worker.
         drop(worker);
         let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
-        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || panic!("controlled freeze panic payload")).unwrap();
+        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || {
+            match std::env::var("MOTION_FREEZE_LOG_TEST_CONTROL").as_deref() {
+                Ok("no_reply") => loop { std::thread::park(); },
+                Ok("wrong_reason") => panic!("controlled unexpected freeze cause"),
+                Ok(other) => panic!("unknown freeze log test control: {other}"),
+                Err(_) => panic!("controlled freeze panic payload"),
+            }
+        }).unwrap();
         CURRENT_COMMAND.set(None);
-        assert!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string().contains("controlled freeze panic payload"));
+        // Wait for the actual panic hook and worker cleanup before checking the
+        // delivered channel result. The parent bounds the entire child process;
+        // symbol resolution is not this log-context test's channel latency SLA.
+        // Joining an active worker logs/flushes on the parent thread. Wait for
+        // the published flight to clear first, so this observer cannot occupy
+        // the file sink while the panic hook deliberately uses try_lock.
+        while !worker.status().is_null() {
+            std::thread::sleep(Duration::from_millis(1));
+        }
         drop(worker);
+        assert!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string().contains("controlled freeze panic payload"));
         let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
         let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {request:23,operation:"freeze_movie",started:Instant::now()}));
@@ -411,10 +427,33 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
         return;
     }
     let root=tempfile::tempdir().unwrap();
-    let output=std::process::Command::new(std::env::current_exe().unwrap())
+    let child_stdout = root.path().join("child.stdout");
+    let child_stderr = root.path().join("child.stderr");
+    let mut child=std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact","engine::failure::tests::asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_panic"])
-        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+        .env(CHILD,root.path()).env_remove("MOTION_LOG")
+        .stdout(fs::File::create(&child_stdout).unwrap())
+        .stderr(fs::File::create(&child_stderr).unwrap()).spawn().unwrap();
+    // Same total deadline as the existing real panic-hook subprocess control.
+    // This also bounds joins, which previously had no parent deadline.
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() { break status; }
+        if Instant::now() >= deadline {
+            let killed = child.kill();
+            let joined = child.wait();
+            let retained = retain_freeze_log_evidence(root.path(), &child_stdout, &child_stderr);
+            panic!("freeze log child exceeded 20s: kill={killed:?} wait={joined:?} evidence={retained:?}\nstdout:\n{}\nstderr:\n{}",
+                fs::read_to_string(&child_stdout).unwrap_or_default(),
+                fs::read_to_string(&child_stderr).unwrap_or_default());
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let retained = retain_freeze_log_evidence(root.path(), &child_stdout, &child_stderr);
+    let output = std::process::Output { status,
+        stdout: fs::read(child_stdout).unwrap(), stderr: fs::read(child_stderr).unwrap() };
     assert!(output.status.success(),"child status={}\nstdout:\n{}\nstderr:\n{}",output.status,String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    retained.expect("could not retain freeze log evidence");
     let text=fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
     assert!(text.contains("error #21 freeze_movie ") && text.contains("controlled freeze IO failure"));
     assert!(text.contains("panic command=Some((22, \"freeze_movie\","));
@@ -426,6 +465,17 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
     assert!(text.contains("movie freeze shutdown failed request=Some(24) phase=join cause=controlled reply cleanup failure"));
     assert!(String::from_utf8_lossy(&output.stderr).contains("movie freeze shutdown failed request=Some(24)"));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("movie freeze shutdown failed request=Some(24)"));
+}
+fn retain_freeze_log_evidence(root: &std::path::Path, stdout: &std::path::Path,
+    stderr: &std::path::Path) -> std::io::Result<()> {
+    let Some(destination) = std::env::var_os("MOTION_FREEZE_LOG_TEST_EVIDENCE") else { return Ok(()); };
+    let destination = PathBuf::from(destination);
+    fs::create_dir_all(&destination)?;
+    for (name, source) in [("worker.stdout", stdout.to_path_buf()),
+        ("worker.stderr", stderr.to_path_buf()), ("worker.log", root.join("motion-studio.log"))] {
+        fs::copy(source, destination.join(name))?;
+    }
+    Ok(())
 }
 mod image_errors;
 mod shader_errors;
