@@ -92,6 +92,12 @@ Every new third-party asset or adapted implementation must record its author, so
 
 This file records the repository's engineering process. It is not legal advice and does not replace review of a particular jurisdiction, asset, or distribution agreement.
 
+Native depth panic fixtures and the ordered CPU/WGSL crop observer are locally
+authored validation work. The observer transforms an existing attributed NASA
+fixture; it adds no third-party image or model asset. Public evidence records
+source revisions, bounded failure context and numerical results while excluding
+raw images, learned tensors, external model resources and optional runtimes.
+
 The CPU scene importer follows the public Khronos glTF 2.0 document and retains
 owned, content-identified resource bytes. Its implementation and adversarial
 fixtures are independently authored. External Khronos validation models are

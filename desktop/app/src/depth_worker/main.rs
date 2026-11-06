@@ -3,6 +3,7 @@ mod admission;
 mod convolution_admission;
 mod graph_admission;
 mod index_admission;
+mod panic_context;
 #[path = "../logging/sink.rs"]
 mod logging;
 
@@ -168,6 +169,7 @@ fn main() {
             std::process::exit(2);
         }
     };
+    panic_context::install(out.join("panic.json"));
     let mut report = json!({"status":"running","pid":std::process::id(),"request":0,"operation":"admission","phase":"read_request","encoded_operations":0,
         "limits":["Complete composed GPU research only; no product capability, temporal quality or performance qualification",
             "Software adapters and implicit backend/precision fallback refused",

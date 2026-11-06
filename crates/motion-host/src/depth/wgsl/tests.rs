@@ -201,3 +201,109 @@ fn native_failure_receipt_is_bounded_before_cleanup_and_never_replaces_a_primary
     let combined = native_error(Error::Backend(primary.into()), directory.path()).to_string();
     assert!(combined.contains(primary) && combined.contains("native_receipt unavailable"));
 }
+
+#[test]
+fn native_panic_cause_precedes_long_child_backtrace_before_temporary_cleanup() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("panic.json"),serde_json::to_vec(&serde_json::json!({
+        "schema":1,"status":"native_panic_original_cause_retained","cause":"original-panic-sentinel",
+        "location":"native-worker-source.rs:37:9"})).unwrap()).unwrap();
+    fs::write(
+        root.path().join("receipt.json"),
+        b"malformed receipt from an interrupted operation",
+    )
+    .unwrap();
+    let error =
+        native_error(Error::Backend("backtrace tail".repeat(4096)), root.path()).to_string();
+    assert!(error
+        .chars()
+        .take(512)
+        .collect::<String>()
+        .contains("original-panic-sentinel"));
+    assert!(error
+        .chars()
+        .take(768)
+        .collect::<String>()
+        .contains("native-worker-source.rs:37:9"));
+    assert!(error.contains("backtrace tail"));
+}
+
+#[test]
+fn completed_panic_observation_does_not_invent_failures_for_normal_completion() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("receipt.json"),
+        b"ordinary completion, not a panic",
+    )
+    .unwrap();
+    assert!(completed_panic(root.path()).is_none());
+    fs::write(
+        root.path().join("panic.json"),
+        serde_json::to_vec(&serde_json::json!({
+        "schema":1,"status":"native_panic_original_cause_retained","cause":"caught-native-panic"}))
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(completed_panic(root.path())
+        .unwrap()
+        .contains("caught-native-panic"));
+}
+
+#[test]
+fn later_fatal_panic_precedes_an_earlier_caught_panic_with_its_own_location() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("panic.json"),
+        serde_json::to_vec(&serde_json::json!({
+        "schema":1,"status":"native_panic_original_cause_retained","cause":"earlier-caught-panic",
+        "location":"earlier.rs:1:2"}))
+        .unwrap(),
+    )
+    .unwrap();
+    let child = Error::Backend(format!(
+        "{}\nERROR motion_depth_wgsl: panic cause=later-fatal-sentinel at=later.rs:37:9\n",
+        "backtrace".repeat(4096)
+    ));
+    let error = native_error(child, root.path()).to_string();
+    let default = error.chars().take(768).collect::<String>();
+    assert!(default.contains("later-fatal-sentinel") && default.contains("at=later.rs:37:9"));
+    assert!(
+        error.find("later-fatal-sentinel").unwrap() < error.find("earlier-caught-panic").unwrap()
+    );
+}
+
+#[test]
+fn a_recorded_model_failure_stays_primary_after_an_internally_caught_panic() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("panic.json"),
+        serde_json::to_vec(&serde_json::json!({
+        "schema":1,"status":"native_panic_original_cause_retained","cause":"earlier-caught-panic"}))
+        .unwrap(),
+    )
+    .unwrap();
+    fs::write(root.path().join("receipt.json"),serde_json::to_vec(&serde_json::json!({
+        "status":"failed_original_cause_retained","phase":"resource","failure":"actual-model-failure"})).unwrap()).unwrap();
+    let child = Error::Backend(
+        "ERROR motion_depth_wgsl: panic cause=earlier-caught-panic at=old.rs:1:2".into(),
+    );
+    let error = native_error(child, root.path()).to_string();
+    assert!(error
+        .chars()
+        .take(512)
+        .collect::<String>()
+        .contains("actual-model-failure"));
+    assert!(
+        error.find("actual-model-failure").unwrap() < error.find("earlier-caught-panic").unwrap()
+    );
+}
+
+#[test]
+fn panic_footer_requires_a_record_boundary_and_keeps_the_last_cause_and_location() {
+    assert!(last_panic(
+        "ordinary diagnostic containing ERROR motion_depth_wgsl: panic cause=not-a-record"
+    )
+    .is_none());
+    assert_eq!(last_panic("ERROR motion_depth_wgsl: panic cause=first at=first.rs:1:2\nERROR motion_depth_wgsl: panic cause=last at=last.rs:3:4\n").as_deref(),Some("last at=last.rs:3:4"));
+    assert_eq!(last_panic("runtime exit=101 response= stderr=ERROR motion_depth_wgsl: panic cause=wrapped at=wrapped.rs:5:6\n").as_deref(),Some("wrapped at=wrapped.rs:5:6"));
+}

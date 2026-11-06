@@ -32,6 +32,10 @@ path = "src/depth_worker/tests/index_admission.rs"
 name = "depth-worker-graph-admission"
 path = "src/depth_worker/tests/graph_admission.rs"
 
+[[test]]
+name = "depth-worker-panic"
+path = "src/depth_worker/tests/panic.rs"
+
 [features]
 default = ["gpu-tests"]
 # Test selection only; product rendering is always compiled.

@@ -115,7 +115,14 @@ impl Wgsl {
                     ))
                 }
             })?;
-        if !stderr.is_empty() && self.last_diagnostic.as_ref() != Some(&stderr) {
+        let panic = last_panic(&stderr);
+        if let Some(cause) = panic {
+            log::error!(
+                "operation=depth_wgsl asset={} phase={phase} native_panic={cause}",
+                input.key().source.asset
+            );
+            self.last_diagnostic = Some(stderr);
+        } else if !stderr.is_empty() && self.last_diagnostic.as_ref() != Some(&stderr) {
             log::warn!(
                 "operation=depth_wgsl asset={} phase={phase} runtime_diagnostic={stderr}",
                 input.key().source.asset
@@ -198,8 +205,13 @@ impl Wgsl {
             .env("TEMP", root);
         let gpu_began = Instant::now();
         let stdout = match self.child(command, input, "native_inference", cancellation) {
-            Ok(stdout) => stdout,
-            Err(Error::Canceled) => return Err(Error::Canceled),
+            Ok(result) => result,
+            Err(Error::Canceled) => {
+                if let Some(cause) = completed_panic(&native_root) {
+                    log::error!("operation=depth_wgsl asset={} phase=native_panic_during_cancellation cause={cause}", input.key().source.asset);
+                }
+                return Err(Error::Canceled);
+            }
             Err(primary) => {
                 // Preserve the bounded primary receipt before temporary cleanup.
                 // A long panic backtrace can otherwise displace its cause from
@@ -208,6 +220,14 @@ impl Wgsl {
             }
         };
         let gpu = gpu_began.elapsed();
+        if let Some(cause) = completed_panic(&native_root) {
+            // An internal catch_unwind must not erase an observed panic. Keep
+            // its cause before cleanup without replacing a successful result.
+            log::error!(
+                "operation=depth_wgsl asset={} phase=native_panic_after_completion first_observation={cause}",
+                input.key().source.asset
+            );
+        }
         if !stdout.is_empty() {
             return Err(Error::Invalid("native WGSL worker wrote to stdout"));
         }
@@ -318,23 +338,50 @@ fn digest(bytes: &[u8]) -> String {
 }
 fn native_failure(root: &Path) -> String {
     let cause = (|| -> Result<String> {
-        let value: serde_json::Value =
-            serde_json::from_slice(&read_limited(&root.join("receipt.json"), 65536)?)?;
-        let bounded = |field: &str, limit| {
-            value[field]
-                .as_str()
-                .unwrap_or("unavailable")
-                .chars()
-                .take(limit)
-                .map(|c| if c.is_control() { ' ' } else { c })
-                .collect::<String>()
-        };
-        Ok(format!(
-            "native_receipt status={} phase={} cause={}",
-            bounded("status", 128),
-            bounded("phase", 128),
-            bounded("failure", 1536)
-        ))
+        let native: Result<serde_json::Value> = read_limited(&root.join("receipt.json"), 65536)
+            .and_then(|bytes| Ok(serde_json::from_slice(&bytes)?));
+        if let Ok(value) = &native {
+            if value["failure"].as_str().is_some() {
+                // A model failure after an internally caught panic is still
+                // the primary failure of the operation that actually exited.
+                return Ok(receipt_failure(value));
+            }
+        }
+        let panic = root.join("panic.json");
+        match fs::File::open(&panic) {
+            Ok(_) => {
+                let value: serde_json::Value =
+                    serde_json::from_slice(&read_limited(&panic, 16384)?)?;
+                if value["schema"] != 1 || value["status"] != "native_panic_original_cause_retained"
+                {
+                    return Err(Error::Invalid("native panic receipt identity differs"));
+                }
+                let cause = value["cause"]
+                    .as_str()
+                    .ok_or(Error::Invalid("native panic cause absent"))?;
+                let cause = cause
+                    .chars()
+                    .take(384)
+                    .map(|c| if c.is_control() { ' ' } else { c })
+                    .collect::<String>();
+                let location = value["location"]
+                    .as_str()
+                    .unwrap_or("unavailable")
+                    .chars()
+                    .rev()
+                    .take(192)
+                    .collect::<String>();
+                let location = location
+                    .chars()
+                    .rev()
+                    .map(|c| if c.is_control() { ' ' } else { c })
+                    .collect::<String>();
+                return Ok(format!("native_panic cause={cause} location={location}"));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        Ok(receipt_failure(&native?))
     })();
     match cause {
         Ok(cause) => cause,
@@ -344,10 +391,57 @@ fn native_failure(root: &Path) -> String {
         ),
     }
 }
+fn receipt_failure(value: &serde_json::Value) -> String {
+    let bounded = |field: &str, limit| {
+        value[field]
+            .as_str()
+            .unwrap_or("unavailable")
+            .chars()
+            .take(limit)
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect::<String>()
+    };
+    format!(
+        "native_receipt status={} phase={} cause={}",
+        bounded("status", 128),
+        bounded("phase", 128),
+        bounded("failure", 1536)
+    )
+}
+fn completed_panic(root: &Path) -> Option<String> {
+    match fs::symlink_metadata(root.join("panic.json")) {
+        Ok(_) => Some(native_failure(root)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => Some(format!(
+            "native_panic receipt lookup unavailable: {}",
+            error.to_string().chars().take(384).collect::<String>()
+        )),
+    }
+}
 fn native_error(primary: Error, root: &Path) -> Error {
     // Jobs bounds its default Error record. Put the model's retained primary
     // cause before a possible long native backtrace tail; keep both failures.
-    Error::Backend(format!("{}; child_failure={primary}", native_failure(root)))
+    let retained = native_failure(root);
+    let child = primary.to_string();
+    if !retained.starts_with("native_receipt status=failed_original_cause_retained ") {
+        if let Some(final_panic) = last_panic(&child) {
+            // The first panic may have been caught internally. The final hook
+            // summary retains the later fatal cause and its actual location.
+            return Error::Backend(format!("native_panic final_cause={final_panic}; first_observation={retained}; child_failure={child}"));
+        }
+    }
+    Error::Backend(format!("{retained}; child_failure={child}"))
+}
+fn last_panic(message: &str) -> Option<String> {
+    const PREFIX: &str = "ERROR motion_depth_wgsl: panic cause=";
+    message.lines().rev().find_map(|line| {
+        line.strip_prefix(PREFIX)
+            .or_else(|| {
+                line.split_once(" stderr=")
+                    .and_then(|(_, value)| value.strip_prefix(PREFIX))
+            })
+            .map(|value| value.chars().take(512).collect())
+    })
 }
 fn hex(value: &str) -> bool {
     value.len() == 64

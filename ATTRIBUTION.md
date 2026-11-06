@@ -137,6 +137,12 @@ locally authored. The new worker ships no learned model/resource payload; static
 plan/resource installation remains separate. Real host acceptance reuses the
 already attributed NASA Destiny fixture with bounded crop, clockwise rotation
 and mirroring, without adding image assets to product or release resources.
+The native panic controls and twelve-frame crop observer are independently
+authored Motion Studio test data under this repository's MIT license. Their
+source hashes and base revision are recorded in the panic-retention evidence
+manifest. The ordered crops reuse that same credited NASA photograph; public
+evidence contains generated measurements and attribution, without image, model
+or learned tensor payloads.
 
 Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
 Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:
