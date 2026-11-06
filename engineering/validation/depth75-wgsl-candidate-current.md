@@ -1,18 +1,22 @@
-# WGSL depth research: candidate audit and selected operators
+# WGSL depth research: candidate, operators and composed inference
 
-Issue #75 remains **incomplete**. This checkpoint inspects the existing,
-separately installed Depth Anything V2 Small model and validates four standalone
-WGSL operator families against its actual intermediate tensors. A later
-qualification expands those four families to seven. It does not
-provide composed WGSL model inference, a default product backend, or performance
-and photographed/video quality acceptance.
+Issue #75 remains **incomplete**. The latest standalone research execution
+composes the pinned Depth Anything V2 Small model on a hardware GPU and compares
+its final depth against the same-weight CPU reference. It passes the original
+numerical bounds on one authored input. Shared product-backend integration,
+video quality transitions, complete pipeline latency, thermal and other desktop
+GPU qualification remain pending. Earlier sections retain the static and
+selected-operator checkpoints with their original, narrower evidence scopes.
 
-The documentation branch starts at maintained main
+The original documentation branch starts at maintained main
 `1aa57293a84e70734ff414e9450f1e880c62139d`. Its initial static audit used no GPU
 device or learned operator while the separate #88 workspace regression was
 active. The later selected-operator execution began after that original full
 run and the tracking experiment terminated. No product source, dependency, UI,
-model file or default distribution changed.
+model file or default distribution changed. The composed follow-up starts at
+maintained main `daf806b5f29c2ec0a70e41068445230fb7b13585`, after PR #623 passed
+all eight applicable CI checks and merged. Its numerical source is frozen in
+the archive below; green repository CI does not execute that external model.
 
 ## Candidate identity and permitted use
 
@@ -50,7 +54,7 @@ The weights, input and learned data path remain Float32. Integer/boolean
 shape-control tensors are retained. No quantization operators were found; this
 checkpoint does not provide an int8 or Float16 model.
 
-| Operation | Nodes | WGSL implementation boundary still requiring proof |
+| Operation | Nodes | Audited implementation boundary |
 | --- | ---: | --- |
 | MatMul | 72 | Batched attention/projection layouts, transpose/broadcast semantics and accumulation error |
 | Conv / ConvTranspose | 31 / 2 | Bias, layout, padding and stride; transpose kernels use 2x2/stride 2 and 4x4/stride 4 |
@@ -60,7 +64,7 @@ checkpoint does not provide an int8 or Float16 model.
 | Resize | 5 | Linear interpolation with **align_corners**; substituting half-pixel sampling changes results |
 | Add / Mul / Div / Relu | 95 / 61 / 12 / 17 | Exact broadcasting, layout and numerical comparison |
 | Transpose / Reshape / Gather / Slice / Concat / Squeeze | 41 / 29 / 36 / 9 / 6 / 1 | View-versus-materialization and index handling, not six unconditional copy kernels |
-| Constant / ConstantOfShape / Shape / Equal / Where / Expand | 120 / 1 / 5 / 1 / 1 / 1 | Fixed-shape planning may eliminate work, but that elimination is not implemented here |
+| Constant / ConstantOfShape / Shape / Equal / Where / Expand | 120 / 1 / 5 / 1 / 1 / 1 | Initial inventory only; the later fixed-shape research planner resolves controls and materializes the required Float32 Expand |
 
 The first shape-inference pass left 242 tensor sizes unresolved. ONNX's static
 shape-data propagation reduced that to two; an input-free seven-node integer
@@ -111,13 +115,13 @@ the same separately exported model hash and optional environment.
 | Original #75 requirement | Current disposition |
 | --- | --- |
 | I1: licensed candidate, domain, operators/shapes/dtypes, weights/activation/device limits | Pinned candidate and complete static inventory recorded; deployment suitability and lightweight performance remain unqualified |
-| I2: same-weight per-operator and end-to-end WGSL/ONNX comparison | Seven WGSL families passed 58 actual-model nodes and 27 edge controls; remaining indexing/broadcast/shape operations and composed inference pending |
+| I2: same-weight per-operator and end-to-end WGSL/ONNX comparison | Earlier 85 comparisons retained; 55 indexing/broadcast controls and one composed 429-pass model execution now pass; only one authored whole-model input and one hardware adapter are qualified |
 | I3: shared DepthResource/job contract; quality independent of backend | Existing ONNX route is separate evidence; adding a second execution backend remains pending |
 | I4: measured quality/backend resolution and explicit capability/model/operator fallback | Pending; no automatic backend selection is introduced |
 | I5: fast/high transitions, versioned alignment, hysteresis/generation and frozen export policy | Pending dual-backend integration and independent video tests |
-| I6: versioned compute-plan/weight resources and explicit execution capability negotiation | Pending; do not silently accept an unsupported plan or bypass the current msfx compute restriction |
+| I6: versioned compute-plan/weight resources and explicit execution capability negotiation | Strict version-1 research blueprint and typed admission now tested; product package/capability negotiation remains pending; msfx compute restrictions unchanged |
 | A1: license qualification before default distribution | Candidate source/model distinction checked; default distribution is not enabled |
-| A2: same-model error, whole-pipeline latency, weights/activations and thermal record | Static sizes and selected-operator numerical evidence recorded; composed-model error, latency, actual memory and thermal measurements pending |
+| A2: same-model error, whole-pipeline latency, weights/activations and thermal record | Same-model composed error and 227,968,156 retained buffer-capacity bytes measured; one fenced submission/readback wall observation recorded; preprocessing/remap/transport, physical VRAM, sustained latency and thermal qualification pending |
 | A3: explicit failure/fallback and no stale background result overwrite | Requires the real second backend, failure injection and generation tests |
 | A4: no additional scale drift or depth jumps when switching video quality | Pending; single-frame inventory cannot prove temporal behavior |
 
@@ -231,6 +235,90 @@ logs and preceding qualification identity. All members were read back:
 `40f32344bd0d857ac02097b042dfe0d4a7d9d6900ac7a771ea3dc092caff8727`.
 The same model/weight/tensor/binary exclusions apply. Preparatory source comments
 about unlinked kernels refer to the earlier snapshot; this later attempt
-actually executed all seven entries. Independent operators still do not compose
+actually executed all seven entries. That independent-operator execution does not compose
 the 598-node graph, qualify a resource arena, or establish product/backend
 selection, temporal consistency, full inference performance or other desktops.
+
+## Composed whole-model GPU qualification
+
+The new independently authored planner partitions all 598 original nodes into
+90 fixed integer controls, 30 contiguous aliases, 49 persistent Float32
+constants and 429 materialized Float32 operations. The latter comprise 162
+instances of the seven previously qualified numerical families and 267
+index/broadcast operations. Host lowering resolves controls without evaluating
+learned floating-point operators. It independently validates the exact model,
+resources, dimensions, operator contracts, data dependencies, aliases and
+inclusive producer/last-read lifetimes before device allocation or submission.
+
+The first two allocator attempts refused the unchanged 256 MiB capacity bound;
+both failures remain in the archive. The third uses offline descending-capacity
+interval coloring. Seven planner controls and an independent audit of 817
+reads, 430 owners and 860 lifetime events pass. The Rust admission layer
+recomputes graph ownership independently instead of trusting Python's intervals.
+It also refuses a slot that overlaps the current input or a final output that
+would be overwritten before readback.
+
+The missing index entries implement bounded rank-five broadcasting, Relu,
+Expand, Transpose, scalar Gather, nonempty signed Slice and two/three-input
+Concat. All 31 distinct layouts used by the 267 actual-model nodes and 24
+independently authored controls pass. Nonarithmetic copy/index/Relu results
+also require exact numerical value equality; signed zeros compare equally.
+All 31 host controls pass without ignored or filtered tests: the original 17
+plus seven indexing and seven graph-admission controls. Prior numerical
+sources, tests, logger and Cargo.lock remain byte-identical; Cargo.toml adds
+only the research binaries and test targets.
+
+The actual runtime uploads each externally retained, hash-checked finite
+resource through one bounded 8 MiB mapped staging buffer. It waits for each
+staging copy to complete before reuse. All 429 uniform blocks are reserved
+upfront; shader bindings use each tensor's logical range within its pool slot.
+One submission executes 429 separate ordered compute passes. No CPU reference
+output or intermediate is supplied to that executable. The ten pool buffers
+remain alive through actual completion and a single final readback.
+
+| Executed composed-model observation | Result |
+| --- | --- |
+| Hardware | NVIDIA GeForce RTX 4070 Laptop GPU, Vulkan, driver 591.86 |
+| Same authored normalized RGB SHA-256 | `088ded5bdd7d05def1fdbb056f93f420a49d1327104b097f46690779fe194b80` |
+| Retained CPU final depth SHA-256 | `518c5a098e453d98757197f1b8e6b53581dd956a0543fdfe35f6aa0435b54191` |
+| Actual GPU final depth SHA-256 | `73f9276f7aa02f5706787b898e67fd3de65cd1dfa857e4f21b938f12fad3e6d7` |
+| Output | 268,324 finite Float32 relative-inverse-depth values |
+| Absolute error | Maximum 0.000011920929; mean 0.000005013256 |
+| Normalized error | Maximum 0.000003775019; mean 0.000001587555 |
+| Original numerical gates | Maximum 0.0002 and mean 0.00002, unchanged; no affine fit, clamp or threshold tuning |
+| Retained buffer capacities | 298 buffers, 227,968,156 bytes (approximately 217.4 MiB), measured by actual buffer sizes |
+| Fixed-capacity breakdown | Pool 119,539,712; persistent 98,856,704; uniforms 109,824; readback 1,073,296; staging 8,388,608; dummy bindings 12 bytes |
+| One cold child-process wall observation | 7.734 seconds, including admission, device/pipelines, uploads and final result publication |
+| Submission through final-map wall observation | 0.4583472 seconds; fenced completion/readback wall time, not GPU timestamps |
+| Actual refusal requests | Eight indexing failures and six composed-model failures, all observed |
+| Default logging channels | Info before blocking phases; original Error causes in file and stderr; empty stdout |
+
+Composed failures cover program identity, input hash, nonfinite input, explicit
+backend selection, actual resource digest and missing actual resource. The last
+two use a byte-identical pinned program with isolated corrupt/missing resources;
+the original model resources are unchanged. Per-node logs describe encoding,
+not per-node GPU completion; the in-flight state covers the whole submitted
+model while waiting for device completion. This is standalone observation,
+not the product's shared job/generation contract.
+
+These are one-input numerical and retained-capacity results. Buffer capacities
+exclude driver/pipeline allocations, physical VRAM and the editor's other
+resources. The timed interval excludes RGB preprocessing, letterboxing, output
+remapping and transport. No sustained, thermal, photographed/video quality,
+quality-switch, desktop-cross-platform or real-time result follows from it.
+The static export retains the historical `static_program_only_not_executable`
+capability: the separately admitted research executable does not install a
+product capability or make that export consumable by msfx.
+
+The [source and execution archive](data/depth75-composed-model-v1.zip) and
+[manifest](data/depth75-composed-model-v1.json) preserve the exact Rust/WGSL,
+Cargo.lock, host controls, static blueprint metadata, all three allocator
+attempts, independent comparisons and actual default-level failure logs.
+Every archive member was read back and hash-verified: 303,941 bytes, SHA-256
+`f2479688412f9d592e73b3eaf0fa4dc73a28ccb8dfb988e2dc7c3abffbc9d704`.
+Raw model/weight/input/intermediate/final tensors, executables, PDBs and
+optional runtimes are excluded. Controllers retain explicit local routing;
+reproduction elsewhere must record the routing change and obtain the exact
+separately installed model/environment. This qualification does not replace
+the separate #88 original workspace regression, which terminated with two
+failures. Product integration and the remaining #75 acceptance remain open.

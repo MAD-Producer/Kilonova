@@ -123,6 +123,12 @@ authored metadata/inspection controllers, not another dependency, model or
 upstream implementation. Shape folding evaluates only a bounded integer
 constant program; no learned inference is executed by that audit. Its public
 archives exclude the external model, weights, upstream source and image assets.
+The follow-up standalone composed research adds independently authored WGSL
+indexing, typed plan admission, lifetime allocation and runtime controllers.
+Its archived static blueprint derives operation names, dimensions, attributes
+and resource hashes from the same external Small export; it contains no learned
+tensor payloads. Numerical references use locally authored normalized RGB;
+neither those raw tensors nor model/runtime binaries are redistributed.
 
 Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
 Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:
