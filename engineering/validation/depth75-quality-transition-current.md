@@ -23,6 +23,11 @@ as their normalization unit. The algorithm uses constant extra memory and
 bounded linear work over the existing validated resource size. Cancellation is
 polled before work and at most 256 iterations apart.
 
+An explicit minimum paired-coverage fraction also bounds support over the entire
+scalar grid. A handful of valid pairs cannot establish global support. Pair-count
+rejections report the population actually inspected; an unvisited holdout is not
+reported as having zero valid pairs.
+
 Validity masks remain authoritative. A requested confidence threshold requires
 both confidence planes; absent confidence is not promoted to one. Statistics
 retain skipped, fitted and validated counts. Constant/unstable populations,
@@ -41,11 +46,11 @@ plane or establish a persistent cache/export identity.
 
 ## Controls and remaining work
 
-Thirteen new Rust controls cover independent known affine coefficients, decoded
+Fourteen new Rust controls cover independent known affine coefficients, decoded
 scale/offset, equivalent rational clocks, source/geometry/grid rejection,
 relative/metric boundaries, constant/reversed data, explicit scale gates,
 full held-out coverage beyond the fit cap, fit-population residuals, missing
-confidence, masks, stale instances, cancellation and invalid limits.
+confidence, masks and paired coverage, stale instances, cancellation and invalid limits.
 These controls are written but unexecuted; no existing assertion was changed.
 
 The previously measured real 266/392/518 outputs are not globally affine

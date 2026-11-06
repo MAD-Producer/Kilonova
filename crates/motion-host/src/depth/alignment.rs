@@ -15,6 +15,8 @@ const MAX_FIT_PAIRS: usize = 4096;
 pub struct Limits {
     pub minimum_fit_pairs: usize,
     pub minimum_validation_pairs: usize,
+    /// Fraction of the entire scalar grid with a valid, eligible paired sample.
+    pub minimum_pair_fraction: f64,
     /// Require both confidence planes when supplied; absence is not confidence 1.
     pub minimum_confidence: Option<f32>,
     pub minimum_reference_stddev: f64,
@@ -30,8 +32,18 @@ pub enum Rejection {
     InvalidLimits(&'static str),
     #[error("depth alignment requires compatible resources: {0}")]
     Incompatible(&'static str),
-    #[error("depth alignment has too few eligible pairs: fit={fit} validation={validation}")]
-    InsufficientPairs { fit: usize, validation: usize },
+    #[error("depth alignment {population} has too few eligible pairs: {actual}/{minimum}")]
+    InsufficientPairs {
+        population: &'static str,
+        actual: usize,
+        minimum: usize,
+    },
+    #[error("depth alignment paired coverage={eligible}/{pixels} below fraction={minimum}")]
+    Coverage {
+        eligible: usize,
+        pixels: usize,
+        minimum: f64,
+    },
     #[error("depth alignment is degenerate: {0}")]
     Degenerate(&'static str),
     #[error("depth alignment scale={actual} outside [{minimum}, {maximum}]")]
@@ -86,6 +98,12 @@ impl Limits {
             || self.minimum_validation_pairs < 3
         {
             return Err(Rejection::InvalidLimits("pair counts"));
+        }
+        if !self.minimum_pair_fraction.is_finite()
+            || self.minimum_pair_fraction <= 0.
+            || self.minimum_pair_fraction > 1.
+        {
+            return Err(Rejection::InvalidLimits("paired coverage fraction"));
         }
         if self
             .minimum_confidence
@@ -234,8 +252,9 @@ impl Alignment {
         }
         if moments.count < limits.minimum_fit_pairs {
             return Err(Rejection::InsufficientPairs {
-                fit: moments.count,
-                validation: 0,
+                population: "fit",
+                actual: moments.count,
+                minimum: limits.minimum_fit_pairs,
             });
         }
         let sigma = (moments.yy / moments.count as f64).sqrt();
@@ -282,8 +301,17 @@ impl Alignment {
         }
         if validation.count < limits.minimum_validation_pairs {
             return Err(Rejection::InsufficientPairs {
-                fit: fit.count,
-                validation: validation.count,
+                population: "held-out",
+                actual: validation.count,
+                minimum: limits.minimum_validation_pairs,
+            });
+        }
+        let eligible = fit.count + validation.count;
+        if (eligible as f64) / (pixels as f64) < limits.minimum_pair_fraction {
+            return Err(Rejection::Coverage {
+                eligible,
+                pixels,
+                minimum: limits.minimum_pair_fraction,
             });
         }
         fit.check("fit", limits)?;
@@ -339,6 +367,10 @@ pub struct Aligned<'a> {
     resource: &'a DepthResource,
 }
 impl Aligned<'_> {
+    /// Original metadata, validity and confidence; scalar values are still raw.
+    pub fn resource(&self) -> &DepthResource {
+        self.resource
+    }
     pub fn sample(&self, index: usize) -> Result<Option<f64>> {
         let Some(raw) = self.resource.sample(index) else {
             return Ok(None);

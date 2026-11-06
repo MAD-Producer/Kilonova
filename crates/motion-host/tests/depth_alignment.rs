@@ -10,6 +10,7 @@ fn limits() -> Limits {
     Limits {
         minimum_fit_pairs: 3,
         minimum_validation_pairs: 3,
+        minimum_pair_fraction: 0.9,
         minimum_confidence: None,
         minimum_reference_stddev: 1e-8,
         scale_bounds: [0.1, 10.],
@@ -292,7 +293,27 @@ fn preserves_invalid_samples_and_reports_insufficient_support() {
     let sparse = resource(vec![1.; 20], Some(vec![0; 20]), None);
     assert!(matches!(
         Alignment::fit(&reference, &sparse, limits(), || false),
-        Err(Rejection::InsufficientPairs { fit: 0, .. })
+        Err(Rejection::InsufficientPairs {
+            population: "fit",
+            actual: 0,
+            minimum: 3
+        })
+    ));
+}
+
+#[test]
+fn a_few_valid_pairs_cannot_claim_support_for_the_entire_grid() {
+    let (reference, candidate) = affine_pair(20);
+    let mut mask = vec![0; 20];
+    mask[..8].fill(1);
+    let sparse = resource(candidate.values().to_vec(), Some(mask), None);
+    assert!(matches!(
+        Alignment::fit(&reference, &sparse, limits(), || false),
+        Err(Rejection::Coverage {
+            eligible: 8,
+            pixels: 20,
+            minimum
+        }) if minimum == 0.9
     ));
 }
 
@@ -332,12 +353,13 @@ fn cancellation_is_propagated_before_and_during_linear_validation() {
 #[test]
 fn rejects_invalid_limits_instead_of_clamping_them() {
     let (reference, candidate) = affine_pair(20);
-    let mut gates = vec![limits(); 5];
+    let mut gates = vec![limits(); 6];
     gates[0].minimum_fit_pairs = 4097;
     gates[1].minimum_validation_pairs = 0;
     gates[2].minimum_confidence = Some(f32::NAN);
     gates[3].scale_bounds = [0., 1.];
     gates[4].maximum_normalized_rms = f64::INFINITY;
+    gates[5].minimum_pair_fraction = f64::NAN;
     for gate in gates {
         assert!(matches!(
             Alignment::fit(&reference, &candidate, gate, || false),
