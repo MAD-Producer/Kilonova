@@ -7,8 +7,14 @@ use std::{
     path::Path,
 };
 
+mod tasks;
 #[cfg(test)]
 mod tests;
+pub use tasks::{
+    DriverPipelineCacheCompletion, DriverPipelineCacheInstall, DriverPipelineCacheJob,
+    DriverPipelineCacheOperation, DriverPipelineCachePhase, DriverPipelineCacheStatus,
+    DriverPipelineCacheTicket, LoadedDriverPipelineCache,
+};
 
 const MAGIC: &[u8; 8] = b"MSPCv001";
 const HEADER_BYTES: usize = 80;
@@ -34,6 +40,12 @@ pub enum DriverPipelineCacheError {
     TooLarge,
     #[error("supported GPU did not return pipeline cache data")]
     Unavailable,
+    #[error("driver pipeline cache task must execute away from its renderer owner")]
+    OwnerThread,
+    #[error("loaded driver pipeline cache belongs to another renderer")]
+    ForeignRenderer,
+    #[error("driver pipeline cache task panicked: {reason}")]
+    Panicked { reason: String },
     #[error("pipeline cache GPU creation: {0}")]
     Gpu(#[source] wgpu::Error),
     #[error("{primary}; additional GPU cache errors: {related:?}")]
@@ -75,6 +87,7 @@ pub(crate) struct DriverPipelineCache {
     pub(crate) cache: Option<wgpu::PipelineCache>,
     adapter_key: Option<String>,
     identity: [u8; 32],
+    pub(crate) tasks: tasks::TaskState,
 }
 
 fn io(operation: &'static str, path: &Path, source: std::io::Error) -> DriverPipelineCacheError {
@@ -109,6 +122,7 @@ impl DriverPipelineCache {
             cache,
             adapter_key,
             identity: identity.finalize().into(),
+            tasks: tasks::TaskState::default(),
         })
     }
 
@@ -131,24 +145,11 @@ impl DriverPipelineCache {
         if self.cache.is_none() {
             return Ok(DriverPipelineCacheLoad::Unsupported);
         }
-        let file = match File::open(path) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(DriverPipelineCacheLoad::Missing)
-            }
-            Err(error) => return Err(io("open", path, error)),
-        };
-        let mut bytes = Vec::new();
-        file.take((MAX_DRIVER_PIPELINE_CACHE_BYTES + HEADER_BYTES + 1) as u64)
-            .read_to_end(&mut bytes)
-            .map_err(|error| io("read", path, error))?;
-        let Some(data) = decode(&bytes, &self.identity)? else {
-            return Ok(DriverPipelineCacheLoad::Incompatible);
-        };
-        // Installation happens only after validation succeeds. The existing
-        // empty/working cache remains installed on every read/creation failure.
-        self.cache = Some(create(device, Some(data))?);
-        Ok(DriverPipelineCacheLoad::Restored)
+        let (result, cache) = load_candidate(device, path, &self.identity)?;
+        if let Some(cache) = cache {
+            self.cache = Some(cache);
+        }
+        Ok(result)
     }
 
     pub(crate) fn save(&self, path: &Path) -> Result<bool> {
@@ -162,6 +163,39 @@ impl DriverPipelineCache {
         write_atomic(path, &bytes)?;
         Ok(true)
     }
+}
+
+fn read_candidate(path: &Path, identity: &[u8; 32]) -> Result<(DriverPipelineCacheLoad, Vec<u8>)> {
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok((DriverPipelineCacheLoad::Missing, Vec::new()))
+        }
+        Err(error) => return Err(io("open", path, error)),
+    };
+    let mut bytes = Vec::new();
+    file.take((MAX_DRIVER_PIPELINE_CACHE_BYTES + HEADER_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| io("read", path, error))?;
+    let Some(_) = decode(&bytes, identity)? else {
+        return Ok((DriverPipelineCacheLoad::Incompatible, Vec::new()));
+    };
+    Ok((DriverPipelineCacheLoad::Restored, bytes))
+}
+
+fn load_candidate(
+    device: &wgpu::Device,
+    path: &Path,
+    identity: &[u8; 32],
+) -> Result<(DriverPipelineCacheLoad, Option<wgpu::PipelineCache>)> {
+    let (result, bytes) = read_candidate(path, identity)?;
+    // Only read_candidate's validated complete envelope reaches the driver.
+    let cache = if result == DriverPipelineCacheLoad::Restored {
+        Some(create(device, Some(&bytes[HEADER_BYTES..]))?)
+    } else {
+        None
+    };
+    Ok((result, cache))
 }
 
 fn create(device: &wgpu::Device, data: Option<&[u8]>) -> Result<wgpu::PipelineCache> {
@@ -238,6 +272,15 @@ fn decode<'a>(bytes: &'a [u8], identity: &[u8; 32]) -> Result<Option<&'a [u8]>> 
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    write_atomic_if(path, bytes, || true).map(|_| ())
+}
+
+// Cancellation is cooperative: the last check precedes rename, which is the
+// publication point. Never roll back a file already published successfully.
+fn write_atomic_if(path: &Path, bytes: &[u8], current: impl Fn() -> bool) -> Result<bool> {
+    if !current() {
+        return Ok(false);
+    }
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -258,7 +301,12 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
         file.sync_all()
             .map_err(|error| io("sync", &temporary, error))?;
         drop(file);
-        fs::rename(&temporary, path).map_err(|error| io("publish", path, error))
+        if !current() {
+            fs::remove_file(&temporary).map_err(|error| io("cancel cleanup", &temporary, error))?;
+            return Ok(false);
+        }
+        fs::rename(&temporary, path).map_err(|error| io("publish", path, error))?;
+        Ok(true)
     })();
     if let Err(primary) = result {
         return match fs::remove_file(&temporary) {
@@ -270,5 +318,5 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
             }),
         };
     }
-    Ok(())
+    result
 }

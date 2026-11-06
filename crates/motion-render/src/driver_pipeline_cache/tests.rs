@@ -66,7 +66,7 @@ fn atomic_publication_keeps_native_io_cause_and_removes_failed_temporary() {
     assert_eq!(fs::read(&path).unwrap(), b"second");
 }
 
-fn scene() -> crate::Scene {
+pub(super) fn scene() -> crate::Scene {
     let package = motion_effects::builtin::package().unwrap();
     let mut project = motion_model::Project::new(16, 16, 30, 60).unwrap();
     let mut layer = motion_model::Layer::solid(

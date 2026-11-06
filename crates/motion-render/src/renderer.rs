@@ -311,7 +311,7 @@ pub struct Renderer {
     gpu_failure: Arc<Mutex<Option<String>>>,
     pub(crate) effect_gpu: crate::effect_gpu::EffectGpu,
     pub(crate) pipeline_preparation: crate::pipeline_preparation::PreparationState,
-    driver_pipeline_cache: crate::driver_pipeline_cache::DriverPipelineCache,
+    pub(crate) driver_pipeline_cache: crate::driver_pipeline_cache::DriverPipelineCache,
     layer_gpu: crate::layer_gpu::LayerGpu,
     mask_gpu: crate::mask_gpu::MaskGpu,
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
@@ -848,6 +848,28 @@ impl Renderer {
     pub fn save_driver_pipeline_cache(&self, path: &std::path::Path) -> Result<bool> {
         self.driver_pipeline_cache.save(path).map_err(RenderError::from)
     }
+    /// Snapshot and publish on the caller's bounded worker. Construction only
+    /// clones handles; it never extracts driver data or accesses the filesystem.
+    /// Queue after publishing prepared pipelines so disk sync cannot delay their
+    /// installation. A newer cache job supersedes this renderer's previous job.
+    pub fn driver_pipeline_cache_save_job(&mut self, path: &std::path::Path) -> crate::DriverPipelineCacheJob {
+        crate::DriverPipelineCacheJob::new(self, path, crate::DriverPipelineCacheOperation::Save)
+    }
+    /// Read and create a driver cache on the caller's worker. Install its receipt
+    /// explicitly after returning to the renderer owner. No existing pipelines
+    /// or frames are discarded by a read, validation, or native creation failure.
+    ///
+    /// # Safety
+    /// The file must satisfy `restore_driver_pipeline_cache`'s application-private
+    /// provenance contract for the entire task, including while it is queued.
+    /// A checksum is not authentication. Never accept project/plugin/import paths.
+    pub unsafe fn driver_pipeline_cache_restore_job(&mut self, path: &std::path::Path) -> crate::DriverPipelineCacheJob {
+        crate::DriverPipelineCacheJob::new(self, path, crate::DriverPipelineCacheOperation::Restore)
+    }
+    pub fn install_loaded_driver_pipeline_cache(&mut self, loaded: crate::LoadedDriverPipelineCache) -> Result<crate::DriverPipelineCacheInstall> {
+        loaded.install(self).map_err(RenderError::from)
+    }
+    pub fn cancel_driver_pipeline_cache_task(&mut self) { self.driver_pipeline_cache.tasks.cancel(); }
     /// Restore before preparing effects; no existing pipeline or rendered frame
     /// is discarded on failure. Missing/incompatible caches are normal misses.
     ///
@@ -857,6 +879,7 @@ impl Renderer {
     /// pass project, plugin, downloaded or otherwise untrusted files. The envelope
     /// detects accidental corruption; it does not authenticate malicious payloads.
     pub unsafe fn restore_driver_pipeline_cache(&mut self, path: &std::path::Path) -> Result<crate::DriverPipelineCacheLoad> {
+        self.driver_pipeline_cache.tasks.cancel();
         let result = self.driver_pipeline_cache.load(&self.device, path)?;
         if result == crate::DriverPipelineCacheLoad::Restored { self.pipeline_preparation.cancel(); }
         self.effect_gpu.state.driver_pipeline_cache = self.driver_pipeline_cache.cache.clone();

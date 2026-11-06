@@ -21,6 +21,8 @@ mod gpu_command_tests;
 mod pointwise_compile_tests;
 #[cfg(all(test, feature = "gpu-tests"))]
 mod pipeline_preparation_tests;
+#[cfg(all(test, feature = "gpu-tests"))]
+mod driver_cache_tests;
 #[cfg(all(test, debug_assertions, feature = "gpu-tests"))]
 mod execution_ir_tests;
 #[cfg(test)]
