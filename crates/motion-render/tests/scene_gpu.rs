@@ -17,6 +17,8 @@ const SIZE: u32 = 65;
 
 #[path = "scene_gpu/calibrated_depth.rs"]
 mod calibrated_depth;
+#[path = "scene_gpu/mixed_depth.rs"]
+mod mixed_depth;
 #[path = "scene_gpu/cameras.rs"]
 mod cameras;
 #[path = "scene_gpu/morph.rs"]

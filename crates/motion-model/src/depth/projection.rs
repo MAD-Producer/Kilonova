@@ -1,7 +1,7 @@
 //! Explicit conversion from camera-Z metres into the actual camera projection.
 use super::{
-    CalibratedDepth, DepthDescriptor, MAX_DEPTH_DIMENSION, MAX_DEPTH_PIXELS,
-    MAX_DEPTH_RESOURCE_BYTES,
+    CalibratedDepth, DepthAxis, DepthDescriptor, DepthMeasure, DepthResource, MAX_DEPTH_DIMENSION,
+    MAX_DEPTH_PIXELS, MAX_DEPTH_RESOURCE_BYTES,
 };
 use crate::{ensure, CameraPose, Result};
 use glam::{DMat4, DVec3, DVec4};
@@ -82,8 +82,10 @@ impl DepthProjection {
     /// allowed: a transformed image can extend past the reference viewport.
     /// Near/far clipping belongs to the eventual rendering camera.
     pub fn unproject_camera_z(&self, uv: [f64; 2], meters: f64) -> Result<DVec3> {
-        ensure(uv.iter().all(|v| v.is_finite()) && meters.is_finite() && meters > 0.,
-            "invalid unprojected depth sample")?;
+        ensure(
+            uv.iter().all(|v| v.is_finite()) && meters.is_finite() && meters > 0.,
+            "invalid unprojected depth sample",
+        )?;
         let unproject = |z| -> Result<DVec3> {
             let p = self.inverse * DVec4::new(uv[0] * 2. - 1., 1. - uv[1] * 2., z, 1.);
             ensure(
@@ -131,6 +133,31 @@ impl ProjectedDepth {
         projection: DepthProjection,
         size: [u32; 2],
     ) -> Result<Self> {
+        Self::from_samples(depth.resource().descriptor(), projection, size, |index| {
+            depth.camera_z_meters(index)
+        })
+    }
+
+    /// Project explicit camera-Z metric data, including registered blend output.
+    /// Relative values and ray distances need their own calibration/conversion
+    /// before admission; a fabricated identity calibration is never introduced.
+    pub fn from_camera_z(
+        depth: &DepthResource,
+        projection: DepthProjection,
+        size: [u32; 2],
+    ) -> Result<Self> {
+        require_camera_z(depth)?;
+        Self::from_samples(depth.descriptor(), projection, size, |index| {
+            depth.camera_z_meters(index, None)
+        })
+    }
+
+    fn from_samples(
+        descriptor: &DepthDescriptor,
+        projection: DepthProjection,
+        size: [u32; 2],
+        camera_z: impl Fn(usize) -> Result<Option<f64>>,
+    ) -> Result<Self> {
         let [w, h] = size;
         ensure(
             w > 0 && h > 0 && w <= MAX_DEPTH_DIMENSION && h <= MAX_DEPTH_DIMENSION,
@@ -148,7 +175,6 @@ impl ProjectedDepth {
         samples
             .try_reserve_exact(count)
             .map_err(|_| crate::Error::Invalid("projected depth allocation failed".into()))?;
-        let descriptor = depth.resource().descriptor();
         let [dw, dh] = descriptor.size;
         for y in 0..h {
             for x in 0..w {
@@ -160,7 +186,7 @@ impl ProjectedDepth {
                     // An exact outer edge still denotes its adjacent last texel.
                     let dx = ((u * dw as f64) as usize).min(dw as usize - 1);
                     let dy = ((v * dh as f64) as usize).min(dh as usize - 1);
-                    let Some(z) = depth.camera_z_meters(dy * dw as usize + dx)? else {
+                    let Some(z) = camera_z(dy * dw as usize + dx)? else {
                         return Ok(None);
                     };
                     projection.project_camera_z(uv, z)
@@ -187,4 +213,20 @@ impl ProjectedDepth {
     pub fn samples(&self) -> &[[f32; 2]] {
         &self.samples
     }
+}
+
+pub(super) fn require_camera_z(depth: &DepthResource) -> Result<()> {
+    ensure(
+        matches!(
+            depth.descriptor().measure,
+            DepthMeasure::Metric {
+                axis: DepthAxis::CameraZ,
+                ..
+            } | DepthMeasure::InverseMetric {
+                axis: DepthAxis::CameraZ,
+                ..
+            }
+        ),
+        "camera-Z geometry requires explicit metric camera-Z depth",
+    )
 }
