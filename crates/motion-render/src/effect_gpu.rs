@@ -71,6 +71,8 @@ pub(crate) struct GpuState {
     luts: Vec<Lut>,
     pipelines: HashMap<(u32, u32), pipeline_cache::Pipeline>,
     previous_pipelines: pipeline_cache::PreviousPipelines,
+    pub(crate) driver_pipeline_cache: Option<wgpu::PipelineCache>,
+    pub(crate) driver_cached_pipeline_creations: u64,
     resource_textures: HashMap<(String, String), FxTexture>,
     pub resource_bytes: u64,
     pub parameter_resource_upload_bytes: u64,
@@ -299,6 +301,8 @@ impl EffectGpu {
                 luts: Vec::new(),
                 pipelines: HashMap::new(),
                 previous_pipelines: Default::default(),
+                driver_pipeline_cache: None,
+                driver_cached_pipeline_creations: 0,
                 resources: HashMap::new(),
                 resource_textures: HashMap::new(),
                 resource_bytes: 0,
@@ -669,7 +673,7 @@ impl GpuState {
                         })],
                     }),
                     multiview_mask: None,
-                    cache: None,
+                    cache: self.driver_pipeline_cache.as_ref(),
                 });
                 let validation = error_scope.pop();
                 // Native validation scopes are ready independently of queue
@@ -695,6 +699,9 @@ impl GpuState {
                 }
                 if let Some(observation) = observation { observation.done(program.shader.wgsl.len()); }
                 self.insert_pipeline(key, &program.shader, pipeline);
+                if self.driver_pipeline_cache.is_some() {
+                    self.driver_cached_pipeline_creations = self.driver_cached_pipeline_creations.saturating_add(1);
+                }
                 self.pipeline_builds += 1;
                 self.pipeline_build_nanos = self.pipeline_build_nanos.saturating_add(
                     pipeline_began.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64);

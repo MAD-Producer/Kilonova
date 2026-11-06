@@ -98,6 +98,8 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
+    #[error(transparent)]
+    DriverPipelineCache(#[from] crate::DriverPipelineCacheError),
     #[error("no compatible GPU adapter: {0}")]
     Adapter(#[from] wgpu::RequestAdapterError),
     #[error("GPU poll failed: {0}")]
@@ -304,6 +306,7 @@ pub struct Renderer {
     pub target_format: wgpu::TextureFormat,
     gpu_failure: Arc<Mutex<Option<String>>>,
     effect_gpu: crate::effect_gpu::EffectGpu,
+    driver_pipeline_cache: crate::driver_pipeline_cache::DriverPipelineCache,
     layer_gpu: crate::layer_gpu::LayerGpu,
     mask_gpu: crate::mask_gpu::MaskGpu,
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
@@ -426,7 +429,8 @@ impl Renderer {
                     // working modes retain floating storage and capabilities.
                     required_features: (adapter.features()
                         & (wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
-                            | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES))
+                            | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
+                            | wgpu::Features::PIPELINE_CACHE))
                         | precision_features
                         | if precision_changes {
                             adapter.features() & crate::image_formats::working_features(
@@ -552,6 +556,8 @@ impl Renderer {
         let mut effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
             allocation_budget.clone(), allocation_uploads.clone(),
             image_capabilities.clone())?;
+        let driver_pipeline_cache = crate::driver_pipeline_cache::DriverPipelineCache::new(&device, &adapter_info)?;
+        effect_gpu.state.driver_pipeline_cache = driver_pipeline_cache.cache.clone();
         effect_gpu.builder.set_precision(precision);
         let mut renderer = Self {
             memory_pressure_probe: Default::default(),
@@ -588,6 +594,7 @@ impl Renderer {
             models: Default::default(),
             gpu_failure,
             effect_gpu,
+            driver_pipeline_cache,
             layer_gpu,
             mask_gpu,
             video_gpu: None,
@@ -823,6 +830,27 @@ impl Renderer {
     /// Successful native effect pipeline builds over this renderer's lifetime.
     pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
     pub fn effect_pipeline_cache_info(&self) -> crate::EffectPipelineCacheInfo { self.effect_gpu.state.pipeline_cache_info() }
+    pub fn driver_pipeline_cache_info(&self) -> crate::DriverPipelineCacheInfo {
+        self.driver_pipeline_cache.info(self.effect_gpu.state.driver_cached_pipeline_creations)
+    }
+    /// Explicit checkpoint. Call outside Present; the driver extraction and file
+    /// sync can block. False is the normal unsupported-backend result.
+    pub fn save_driver_pipeline_cache(&self, path: &std::path::Path) -> Result<bool> {
+        self.driver_pipeline_cache.save(path).map_err(RenderError::from)
+    }
+    /// Restore before preparing effects; no existing pipeline or rendered frame
+    /// is discarded on failure. Missing/incompatible caches are normal misses.
+    ///
+    /// # Safety
+    /// This must be this application's private cache file previously produced by
+    /// `save_driver_pipeline_cache`, protected from arbitrary modification. Never
+    /// pass project, plugin, downloaded or otherwise untrusted files. The envelope
+    /// detects accidental corruption; it does not authenticate malicious payloads.
+    pub unsafe fn restore_driver_pipeline_cache(&mut self, path: &std::path::Path) -> Result<crate::DriverPipelineCacheLoad> {
+        let result = self.driver_pipeline_cache.load(&self.device, path)?;
+        self.effect_gpu.state.driver_pipeline_cache = self.driver_pipeline_cache.cache.clone();
+        Ok(result)
+    }
     /// CPU time spent creating and validating native effect pipelines, including
     /// the validation wait. This is not GPU execution time or a driver-only timer.
     pub fn effect_pipeline_build_nanos(&self) -> u64 { self.effect_gpu.state.pipeline_build_nanos }

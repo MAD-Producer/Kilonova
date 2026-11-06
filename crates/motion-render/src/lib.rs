@@ -2,6 +2,9 @@
 //! playback uploads only fixed-size layer uniforms.
 mod effect_gpu;
 pub use effect_gpu::EffectPipelineCacheInfo;
+mod driver_pipeline_cache;
+pub use driver_pipeline_cache::{DriverPipelineCacheError, DriverPipelineCacheInfo,
+    DriverPipelineCacheLoad, MAX_DRIVER_PIPELINE_CACHE_BYTES};
 mod pointwise_observation;
 pub use pointwise_observation::PointwiseLogScope;
 pub mod effect_plan;
