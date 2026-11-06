@@ -1,0 +1,481 @@
+{
+  "status": "manual_absence_fault_classification_fixed_and_actual_failure_paths_verified",
+  "oldHead": "cb7871f48e3ab62ddafe89eecd1bcbbaeb0c5845",
+  "audit": {
+    "status": "passed_final_audit_of_executed_v2_gates_without_rerunning",
+    "completedUtc": "2026-11-02T13:34:13.208183+00:00",
+    "source": {
+      "tools/tracking/calibrate_photographs.py": "3766b1fbb8ad5cdf602c746cce35513d4592a5390e281eff4b2e656d1268561c",
+      "tools/tracking/plate_contract.py": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f",
+      "tools/tracking/plate_flow.py": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188",
+      "tools/tracking/test_flow.py": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa",
+      "tools/tracking/track_plate.py": "46174e1296d5fe28390eb289ed34a661e59002312b49a2b7629407c6f61004e4",
+      "tools/tracking/validate_manual_absence.py": "f52738cb2b2e21df77437b00fabbdf29f2f2f828aefbc929b32d8e6a2ae91250",
+      "tools/tracking/validate_prototype.py": "aa2dadb753d3317221a534db1b4f60bb745a63999812a1eb815f927652f5dfd9",
+      "tools/test_ci_plate_tracking.py": "1d858ee8b2f7328f6d695dcdfd71d4f4c299b80621ce85272c2c32289717c176",
+      "tools/validation_inventory.json": "f9fcb1e70f7ff6cb924b797da232f63cdf0b255545c98a9db88b01df1437654b"
+    },
+    "executedSteps": [
+      {
+        "phase": "tools",
+        "command": [
+          "E:\\Dev\\aem\\.tools\\ai-depth74\\venv\\Scripts\\python.exe",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "tools",
+          "-p",
+          "test_ci_*.py",
+          "-v"
+        ],
+        "pid": 35492,
+        "exitCode": 0
+      },
+      {
+        "phase": "cv-controls",
+        "command": [
+          "E:\\Dev\\aem\\.tools\\ai-depth74\\venv\\Scripts\\python.exe",
+          "tools/tracking/test_flow.py",
+          "-v"
+        ],
+        "pid": 38724,
+        "exitCode": 0
+      },
+      {
+        "phase": "synthetic",
+        "command": [
+          "E:\\Dev\\aem\\.tools\\ai-depth74\\venv\\Scripts\\python.exe",
+          "tools/tracking/validate_prototype.py",
+          "--ffmpeg",
+          "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\ffmpeg.exe",
+          "--ffprobe",
+          "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\ffprobe.exe",
+          "--output",
+          "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-manual-absence-validation-v2\\synthetic"
+        ],
+        "pid": 38700,
+        "exitCode": 0
+      },
+      {
+        "phase": "full-real",
+        "command": [
+          "E:\\Dev\\aem\\.tools\\ai-depth74\\venv\\Scripts\\python.exe",
+          "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-manual-absence-validation-v2\\real-controller.py"
+        ],
+        "pid": 15940,
+        "exitCode": 0
+      }
+    ],
+    "observationSha256": {
+      "no-corrections": "4181647eae4a4d8e6acc2fb0e6ccf51395cb4141a7a71102e20df96552a56f9b",
+      "periodic-manual-200": "5dd567b7f1ec994a4120700fe529abdf97fdc27ffd7c10f327751ab91bc68dfa"
+    },
+    "realPlaneErrorSourceIndices": [
+      128,
+      762,
+      944,
+      1081,
+      1559,
+      1750,
+      1905,
+      2091
+    ],
+    "earlierFailure": "V1 lacked existing PyYAML path and new tool inventory. V2 passed all four commands, then used v1 instead of v2 in final observation lookup. Both receipts retained; no product/assertion/threshold repair was made to complete this audit.",
+    "realQuality": "Unchanged failed photographed quality; only false fault observation corrected. No native/full-workspace or final CI acceptance claimed."
+  },
+  "stagedSourceSha256": {
+    "tools/tracking/calibrate_photographs.py": "f031fca0fdcb3bb73986e9285c2093026cf6851f5aba11eb66c98fd0c46b2610",
+    "tools/tracking/plate_contract.py": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f",
+    "tools/tracking/plate_flow.py": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188",
+    "tools/tracking/test_flow.py": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa",
+    "tools/tracking/track_plate.py": "46174e1296d5fe28390eb289ed34a661e59002312b49a2b7629407c6f61004e4",
+    "tools/tracking/validate_manual_absence.py": "f52738cb2b2e21df77437b00fabbdf29f2f2f828aefbc929b32d8e6a2ae91250",
+    "tools/tracking/validate_prototype.py": "aa2dadb753d3317221a534db1b4f60bb745a63999812a1eb815f927652f5dfd9",
+    "tools/test_ci_plate_tracking.py": "1d858ee8b2f7328f6d695dcdfd71d4f4c299b80621ce85272c2c32289717c176",
+    "tools/validation_inventory.json": "f9fcb1e70f7ff6cb924b797da232f63cdf0b255545c98a9db88b01df1437654b"
+  },
+  "classification": {
+    "newObservation": "Source-index context for real degradation",
+    "fixedFault": "Normal authored absence no longer counted as automatic failure until explicit visible recovery",
+    "existingCoverage": "Default Info start, Error file/stderr, stdout isolation, counter suppression and retained primary causes",
+    "preservedBehavior": "All original photographed observation bytes, manual states and algorithm thresholds unchanged",
+    "pending": "Photographed tracking accuracy, Surface/cache, complete maintained regression/final CI and broader 3D route"
+  },
+  "exclusion": "Original third-party videos/JPEGs/annotations, permission HTML, diagnostic captures and per-frame derived payloads excluded. Included blank media and its requests/outputs are independently authored controls.",
+  "archive": {
+    "path": "tracking88-manual-absence-v1.zip",
+    "bytes": 130331,
+    "sha256": "65f4b0a4644d7112549479d9f9746d6fbd834b529cfa39db6cff34339db7edf1",
+    "members": {
+      "actual-cli-green/authored-absence.request.json": {
+        "bytes": 632,
+        "sha256": "48ccfd8c1b9e4815de7a999df7e5cb59e73468c0a796fd7feb38bcaeca3399d4"
+      },
+      "actual-cli-green/authored-absence.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/authored-absence.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/authored-absence/decode_original_frames.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/authored-absence/ffmpeg_version.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/authored-absence/ffprobe_version.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/authored-absence/probe_original_pts.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/authored-absence/probe_stream.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/authored-absence/report.json": {
+        "bytes": 13045,
+        "sha256": "9101bb874f54f0006282863ce5891232d27c821bf1d8924170a8be42cb52497d"
+      },
+      "actual-cli-green/authored-absence/tracking.log": {
+        "bytes": 925,
+        "sha256": "855615e674c9bd09354e2ee3d94a6f08f239722df5a46df587aa3158ae441154"
+      },
+      "actual-cli-green/authored-absence/tracks.mstrack": {
+        "bytes": 126956,
+        "sha256": "dc9e5a42a7c9684e33f8fe66c603d362abeb360fb232fc29a061cd4c3a674434"
+      },
+      "actual-cli-green/blank.encode.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/blank.webm": {
+        "bytes": 8448,
+        "sha256": "07f68825877459ee8734df02fe71c8415cfafc48bfcebce5a64b7f4738c87d45"
+      },
+      "actual-cli-green/evaluation.json": {
+        "bytes": 1352,
+        "sha256": "57299a87f6c26aac81c7fd09f9e5f2e7b8f64e6f2910db96df9fc5919eb7e990"
+      },
+      "actual-cli-green/failure-reset.request.json": {
+        "bytes": 2390,
+        "sha256": "a346571dcc5318d6865fb269d35fac9db619c3076bfe1e153252118bb08bb759"
+      },
+      "actual-cli-green/failure-reset.stderr.log": {
+        "bytes": 852,
+        "sha256": "7bff0509bac43d74f059080d1d5df193aecc0aef6b645db7f4a5e95224f10e1c"
+      },
+      "actual-cli-green/failure-reset.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/failure-reset/decode_original_frames.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/failure-reset/ffmpeg_version.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/failure-reset/ffprobe_version.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/failure-reset/probe_original_pts.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/failure-reset/probe_stream.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-green/failure-reset/report.json": {
+        "bytes": 13275,
+        "sha256": "4f17d4de85a5cda082dd0b2cca28e8ce32f1efcc48dfb2cd37354c0960b89319"
+      },
+      "actual-cli-green/failure-reset/tracking.log": {
+        "bytes": 1873,
+        "sha256": "dbcb9b63756fd016e8f55d0514c7f195b844d3f5c378acaa345c1d82031d8986"
+      },
+      "actual-cli-green/failure-reset/tracks.mstrack": {
+        "bytes": 127662,
+        "sha256": "f18258fde7b37e13e2529e1cb184e19acfedbf127da8e629d9d71226ec6b4ffc"
+      },
+      "actual-cli-red/authored-absence.request.json": {
+        "bytes": 632,
+        "sha256": "f28a734002c8f1522bae20add8cc74063dfde6676a1bf5503fa9309a10f5f634"
+      },
+      "actual-cli-red/authored-absence.stderr.log": {
+        "bytes": 330,
+        "sha256": "65796da1560e9dc371d9afe3236eb73d9d0d0e7d09c8700d7b91899208036493"
+      },
+      "actual-cli-red/authored-absence.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-red/authored-absence/decode_original_frames.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-red/authored-absence/ffmpeg_version.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-red/authored-absence/ffprobe_version.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-red/authored-absence/probe_original_pts.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-red/authored-absence/probe_stream.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-red/authored-absence/report.json": {
+        "bytes": 13205,
+        "sha256": "fb9b111eac328c5fc312e7d8514e18174fd60aa1986e4be9aa1655df16371769"
+      },
+      "actual-cli-red/authored-absence/tracking.log": {
+        "bytes": 1301,
+        "sha256": "93067b9642240e9b4c2b724ff47205f8ef906841d24b3cdf1be7fcb6c1ae5c74"
+      },
+      "actual-cli-red/authored-absence/tracks.mstrack": {
+        "bytes": 126956,
+        "sha256": "50f9f915ceeea9e16923cf4b9570c5876f7d28356061040f19a18fba850dc71a"
+      },
+      "actual-cli-red/blank.encode.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actual-cli-red/blank.webm": {
+        "bytes": 8448,
+        "sha256": "8ddb82e92bc9b01a11e541c9d3429de6bb228c15e5abdd9f1937603c1378ce42"
+      },
+      "actual-cli-red/evaluation.json": {
+        "bytes": 676,
+        "sha256": "34ce02586569f7127753505ecf9a2eadb31731e3663ccf4a2d18bf3a280dd885"
+      },
+      "archive-controller.py": {
+        "bytes": 5449,
+        "sha256": "9b8b8e3da07bc29dabb6a787060665082ddb6732358c75900d468441b83e23c0"
+      },
+      "baseline-source/plate_contract.py": {
+        "bytes": 6683,
+        "sha256": "f3c051d2cb83ed3ebdd33a09c4a88970985ca07e48e22246decd7888e7b1363e"
+      },
+      "baseline-source/plate_flow.py": {
+        "bytes": 13160,
+        "sha256": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188"
+      },
+      "baseline-source/track_plate.py": {
+        "bytes": 14694,
+        "sha256": "da9a363cad2b2ac56d8d577c3cb5cbff8b20ae60643bfab9433191f0d71dda92"
+      },
+      "controllers/audit-tracking88-manual-absence-v3.py": {
+        "bytes": 2895,
+        "sha256": "48f9e2e4906cd2183ff7709ebdbff27b4fa10cae074770de5ff6777f53c577a5"
+      },
+      "controllers/measure-tracking88-photographed-v5.py": {
+        "bytes": 6904,
+        "sha256": "82bd29a4e6e0955194ccede2f821d1be4ee53496f805dd819c8c8521f51ed1b0"
+      },
+      "controllers/validate-tracking88-manual-absence-v1.py": {
+        "bytes": 4275,
+        "sha256": "61dc08f9c3c0ebff7eaf52da62b146372d7b99281cec26ec581003545746cbc8"
+      },
+      "controllers/validate-tracking88-manual-absence-v2.py": {
+        "bytes": 4501,
+        "sha256": "7d7dc073e0c06707ad8c80e510db7250b9c4eb5fbd5d1097a02528ba3020ba90"
+      },
+      "controllers/verify-tracking88-original-image-checks-v1.py": {
+        "bytes": 2568,
+        "sha256": "57089649cd0385ef9a6059024669e5a48b070574a391ee3008233edc69647cfe"
+      },
+      "diagnostic/tracking88-local-motion-v1/controller.py": {
+        "bytes": 7252,
+        "sha256": "b49a0d1e2d0aa3b3f07e7c84842960ea76fd57fd5f6d1d8ac39a4fe02dbbf593"
+      },
+      "diagnostic/tracking88-local-motion-v1/diagnostic.json": {
+        "bytes": 3011,
+        "sha256": "ba1efbfcb010de8e64a63d24bce12bbb31a22bebc99bb87fd6f79dbd54eb7af9"
+      },
+      "diagnostic/tracking88-original-frames-v1/acquisition.json": {
+        "bytes": 767,
+        "sha256": "14609f66a426c00994efaf20e6d3fbc43a59b2899c8a3eb60af95b657fab41c7"
+      },
+      "diagnostic/tracking88-original-frames-v1/controller.py": {
+        "bytes": 2109,
+        "sha256": "e37d0637eb8015e63da93dc11f0185b082e965c2c180d509b09e95546caab785"
+      },
+      "diagnostic/tracking88-preview-alignment-v1/controller.py": {
+        "bytes": 4053,
+        "sha256": "b34a7c8a94a3e4ec998da4d69e7172887b64350ab5d8cd2d7488b69cfd2edc87"
+      },
+      "diagnostic/tracking88-preview-alignment-v1/diagnostic.json": {
+        "bytes": 5033,
+        "sha256": "e09ad29e4f4f86c3fbf8bdc97ca5c0359c6b703f720baf2c9ce06d76a4a095dc"
+      },
+      "diagnostic/tracking88-preview-alignment-v1/identical-image-annotation-check.json": {
+        "bytes": 2553,
+        "sha256": "d870a3481c7fe984929c6e214a8075e8d794a0a70ac2e44ec65ad42383183cf0"
+      },
+      "diagnostic/tracking88-preview-alignment-v1/nearest-tie-summary.json": {
+        "bytes": 550,
+        "sha256": "fba9201d67c2b51ca3c7255849ab5baa03a74b37dcb70beeb6938c61b859818c"
+      },
+      "final-source/tools/test_ci_plate_tracking.py": {
+        "bytes": 8399,
+        "sha256": "1d858ee8b2f7328f6d695dcdfd71d4f4c299b80621ce85272c2c32289717c176"
+      },
+      "final-source/tools/tracking/calibrate_photographs.py": {
+        "bytes": 6784,
+        "sha256": "3766b1fbb8ad5cdf602c746cce35513d4592a5390e281eff4b2e656d1268561c"
+      },
+      "final-source/tools/tracking/plate_contract.py": {
+        "bytes": 7382,
+        "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+      },
+      "final-source/tools/tracking/plate_flow.py": {
+        "bytes": 13160,
+        "sha256": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188"
+      },
+      "final-source/tools/tracking/test_flow.py": {
+        "bytes": 7265,
+        "sha256": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa"
+      },
+      "final-source/tools/tracking/track_plate.py": {
+        "bytes": 14676,
+        "sha256": "46174e1296d5fe28390eb289ed34a661e59002312b49a2b7629407c6f61004e4"
+      },
+      "final-source/tools/tracking/validate_manual_absence.py": {
+        "bytes": 5247,
+        "sha256": "f52738cb2b2e21df77437b00fabbdf29f2f2f828aefbc929b32d8e6a2ae91250"
+      },
+      "final-source/tools/tracking/validate_prototype.py": {
+        "bytes": 7929,
+        "sha256": "aa2dadb753d3317221a534db1b4f60bb745a63999812a1eb815f927652f5dfd9"
+      },
+      "final-source/tools/validation_inventory.json": {
+        "bytes": 49583,
+        "sha256": "f9fcb1e70f7ff6cb924b797da232f63cdf0b255545c98a9db88b01df1437654b"
+      },
+      "real/baseline-measurement.json": {
+        "bytes": 4556,
+        "sha256": "7e5e729f8fe5a92ad884f38fa017e653ba7434619283bf5fd84eb9eb62a37cdc"
+      },
+      "real/measurement.json": {
+        "bytes": 4575,
+        "sha256": "e435995dca077781c477f0ecb744a9cce486136bca510c5cd0d5a56f2cf22a62"
+      },
+      "real/no-corrections.stderr.log": {
+        "bytes": 419,
+        "sha256": "6b07dcdd44f95c27a639de15a4aaf65bfc98254f87e07cc0a01a5070d8bf60a7"
+      },
+      "real/no-corrections.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "real/no-corrections/tracking.log": {
+        "bytes": 1397,
+        "sha256": "743e42a69a5db4928665f0c475abd27ac2191e1e361ad780001ce9a405aa6ba9"
+      },
+      "real/periodic-manual-200.stderr.log": {
+        "bytes": 3880,
+        "sha256": "63510c9c144eb358e4f075e64deb24959e50ed529e97e52d380c68bca2f2cb66"
+      },
+      "real/periodic-manual-200.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "real/periodic-manual-200/tracking.log": {
+        "bytes": 5243,
+        "sha256": "d866f7f439bd0f89f93452abb1363e6cd825ab30123c25e281cb24aad9469141"
+      },
+      "validation-v1/controller.py": {
+        "bytes": 4275,
+        "sha256": "61dc08f9c3c0ebff7eaf52da62b146372d7b99281cec26ec581003545746cbc8"
+      },
+      "validation-v1/exit.json": {
+        "bytes": 1427,
+        "sha256": "c49f5527d53c7015c4fbbb9f9f112e2b7d2e8f57501e9d121e8b2250db5854c1"
+      },
+      "validation-v1/real-controller.py": {
+        "bytes": 6909,
+        "sha256": "c9e1cc132b467aba1b7db73a091647e93bb7e29001b90063cafa3894a4eebb62"
+      },
+      "validation-v1/tools.stderr.log": {
+        "bytes": 20292,
+        "sha256": "e2603a3f6d3c9bc04941e71e4191c6358fe13b50fc542e5157bb4687dc8acfee"
+      },
+      "validation-v1/tools.stdout.log": {
+        "bytes": 1787,
+        "sha256": "aa44602f8f78a9aebdd5968ce6a940476b023dc4428f99010b9aa1aad9a2fabd"
+      },
+      "validation-v2/controller.py": {
+        "bytes": 4501,
+        "sha256": "7d7dc073e0c06707ad8c80e510db7250b9c4eb5fbd5d1097a02528ba3020ba90"
+      },
+      "validation-v2/cv-controls.stderr.log": {
+        "bytes": 1531,
+        "sha256": "fc72bb52f0d70c2023d1573dbb970a089a65173528bf8a00022b8d2974a1da5d"
+      },
+      "validation-v2/cv-controls.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "validation-v2/exit.json": {
+        "bytes": 2702,
+        "sha256": "0ee810dfadf5c0f196882b587732339cbd150e83270819a9722afda1fe1a4f6a"
+      },
+      "validation-v2/full-real.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "validation-v2/full-real.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "validation-v2/real-controller.py": {
+        "bytes": 6909,
+        "sha256": "cb38e27df0e123ddf441f7bb12d4bca801f16590c2acf6214c10f589c93cf9c4"
+      },
+      "validation-v2/synthetic.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "validation-v2/synthetic.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "validation-v2/synthetic/evaluation.json": {
+        "bytes": 1160,
+        "sha256": "efe9b6907736833b8577c53764f7a9ae3df0baaf680fdf521d844cedb5007b3c"
+      },
+      "validation-v2/tools.stderr.log": {
+        "bytes": 22695,
+        "sha256": "04f255630d2229baea508c662ae5b0c4e01f21a44b2acbceb448bf6c6ba0e4b9"
+      },
+      "validation-v2/tools.stdout.log": {
+        "bytes": 2045,
+        "sha256": "af9ed581a7296c404ab9c02daf3f3a3e5cbae92683f42eb90edafc2b6e287b4e"
+      },
+      "validation-v3/controller.py": {
+        "bytes": 2895,
+        "sha256": "48f9e2e4906cd2183ff7709ebdbff27b4fa10cae074770de5ff6777f53c577a5"
+      },
+      "validation-v3/exit.json": {
+        "bytes": 3401,
+        "sha256": "82ed2e9dd688a1f75331632d1e48ebef1179c2f1b948ef0830eb267de81aabd8"
+      }
+    }
+  }
+}

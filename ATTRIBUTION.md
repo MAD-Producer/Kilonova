@@ -41,6 +41,59 @@
 - The example chroma classifier, shader, core-region annotations, operation
   scripts and tests are independently authored under the repository MIT license
 
+## External photographed planar-tracking qualification data
+
+- Authors: Karel Zimmermann, Jiri Matas and Tomas Svoboda; the source page
+  credits collection of ground truth and support code to Karel Zimmermann
+- Source: [Ground truth data for tracking of (almost) planar objects](https://cmp.felk.cvut.cz/cmp/demos/Tracking/linTrack/data/index.html),
+  phone/mouse-pad published 100 fps overview videos, corresponding ground-truth
+  ZIPs, and the original named phone JPEG sequence
+- Revision: source page last-change stamp 2009-03-02; retrieved 2026-11-01.
+  Exact URLs, byte lengths and SHA-256 identities are retained per local run
+- Original phone images: retrieved 2026-11-02 from
+  `https://cmp.felk.cvut.cz/cmp/demos/Tracking/linTrack/data/phone/phone_img.zip`,
+  69,298,425 bytes, SHA-256
+  `468c86c52d5ac91c9a3b93082853b904240e212b6d4ead5963cefed58e0ea667`;
+  upstream Last-Modified 2010-06-09. Used unmodified, locally, to verify named
+  image/overview-video correspondence and annotation consistency; not bundled
+- Permission statement: the authors describe the provided data as entirely
+  public and request citation of the publication below. No standard SPDX license
+  is specified. This is recorded as the source's custom public-use statement,
+  not represented as Apache/MIT/Creative Commons permission
+- Citation: K. Zimmermann, J. Matas, T. Svoboda, "Tracking by an Optimal Sequence
+  of Linear Predictors", IEEE TPAMI 31(4), 2009
+- Scope: external local validation only. Original images/videos/annotations and copied
+  source-page permission evidence stay outside version control and product/CI
+  packages. No upstream MATLAB implementation is copied or executed. Independently
+  authored code reads the four manually annotated corners and compares them to
+  automatic observations. Any coordinate/index convention and derived artifacts
+  must be documented separately before claiming an accepted measurement
+
+## Optional external point and planar tracking prototype
+
+- Authors and revisions: OpenCV team/wheel contributors, separately installed
+  `opencv-python-headless` 5.0.0.93; NumPy Developers, NumPy 2.4.6; FFmpeg
+  developers, explicitly selected local FFmpeg/ffprobe executables whose version
+  output and SHA-256 are recorded in each run
+- Sources: [OpenCV Python](https://github.com/opencv/opencv-python),
+  [NumPy](https://github.com/numpy/numpy), [FFmpeg](https://ffmpeg.org/)
+- Licenses: OpenCV Apache-2.0 plus installed wheel third-party notices; NumPy
+  BSD-3-Clause; FFmpeg licensing follows the selected installation (the desktop
+  shared-runtime installation is separately credited below)
+- Scope: optional developer prototype only, no new product or CI dependency,
+  binary redistribution or upstream source modification. Independently authored
+  orchestration uses documented optical-flow/homography APIs and original PTS;
+  synthetic plates and evaluation geometry are authored within this repository.
+  No tutorial code, photographs, icons or UI assets are copied
+- Frozen validation outputs: `desktop/app/tests/fixtures/tracking-prototype`
+  contains the contributors' MIT synthetic video and actual measured solve from
+  revision `6bfb541b9bb3cf2b3ada479f31cfc5dfb7f28183`. Both are unmodified copies;
+  exact hashes, generation tools and use limits are recorded in that directory's
+  README. Native tests consume the frozen files without a Python/CV dependency
+- References: [OpenCV optical flow](https://docs.opencv.org/5.0/tutorials/others/optical_flow.html),
+  [homography](https://docs.opencv.org/4.13.0/d9/d0c/group__calib3d.html),
+  [ffprobe](https://ffmpeg.org/ffprobe.html), [FFmpeg](https://ffmpeg.org/ffmpeg.html)
+
 ## External photographed camera calibration acceptance data
 
 - Authors: OpenCV contributors; the sample photographs are distributed in the

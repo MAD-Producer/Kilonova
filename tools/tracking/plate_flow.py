@@ -1,0 +1,230 @@
+"""Forward/backward LK and independently checked planar correspondences.
+
+Optional external CV tooling, not imported by ordinary CI admission tests.
+No fallback to camera motion, inferred timestamps, or synthesized visible data.
+"""
+import math
+import cv2
+import numpy as np
+
+from plate_contract import require
+
+LIMITS = dict(forwardBackwardPixels=1.0, photometricError=12.0,
+              planeFitPixels=1.5, heldOutRmsPixels=1.5, heldOutMaxPixels=3.0,
+              minimumFeatures=16, minimumFitInliers=12, minimumInlierRatio=0.7,
+              maximumFeatures=200, prefilterSigmaPixels=1.0, prefilterKernel=5,
+              referenceAgreementPixels=1.0, planeConsensusMaxPixels=3.0)
+
+
+def prepare(gray):
+    # LK's brightness model is unstable on subpixel-warped near-Nyquist detail.
+    # Filter both frames before feature detection/flow, preserving source pixel
+    # coordinates. This changes the measurement, not its acceptance thresholds.
+    return cv2.GaussianBlur(gray,(LIMITS['prefilterKernel'],)*2,LIMITS['prefilterSigmaPixels'])
+
+
+def transform(matrix, points):
+    points = np.asarray(points, np.float64).reshape(-1, 2)
+    homogeneous = np.column_stack((points, np.ones(len(points)))) @ matrix.T
+    require(np.isfinite(homogeneous).all() and np.all(np.abs(homogeneous[:, 2]) > 1e-10), 'plane crosses projective infinity')
+    return homogeneous[:, :2] / homogeneous[:, 2:]
+
+
+def plane_matrix(value, roi):
+    matrix = np.asarray(value, np.float64)
+    require(matrix.shape == (3, 3) and np.isfinite(matrix).all(), 'invalid plane matrix')
+    require(np.linalg.cond(matrix) < 1e10, 'ill-conditioned plane matrix')
+    x, y, w, h = roi
+    corners = np.array([[x,y], [x+w,y], [x+w,y+h], [x,y+h]], np.float64)
+    denominator = np.column_stack((corners, np.ones(4))) @ matrix[2]
+    require(np.all(denominator > 1e-10) or np.all(denominator < -1e-10), 'plane ROI crosses projective infinity')
+    quad = transform(matrix, corners)
+    edges = np.roll(quad, -1, axis=0) - quad
+    cross = edges[:, 0]*np.roll(edges[:, 1], -1)-edges[:, 1]*np.roll(edges[:, 0], -1)
+    require(np.all(cross > 1e-6) or np.all(cross < -1e-6), 'plane ROI folds or collapses')
+    area = abs(np.sum(quad[:, 0]*np.roll(quad[:, 1], -1)-quad[:, 1]*np.roll(quad[:, 0], -1)))*0.5
+    require(0.1 <= area/(w*h) <= 10., 'plane area change exceeds prototype budget')
+    return matrix
+
+
+def flow(previous, current, points, initial=None, check_appearance=True):
+    points = np.asarray(points, np.float32).reshape(-1, 1, 2)
+    if len(points) == 0:
+        return np.empty((0,2)), np.zeros(0, bool), np.zeros(0)
+    # A supplied correspondence already comes from adjacent-frame pyramidal LK.
+    # Reference refinement stays at the full-resolution level: a coarse
+    # pyramid can select an unrelated basin even for a two-pixel true motion.
+    options = dict(winSize=(21,21), maxLevel=3 if initial is None else 0,
+                   criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, .01),
+                   minEigThreshold=1e-4)
+    guess = None if initial is None else np.asarray(initial,np.float32).reshape(-1,1,2).copy()
+    flags = 0 if guess is None else cv2.OPTFLOW_USE_INITIAL_FLOW
+    moved, status, error = cv2.calcOpticalFlowPyrLK(previous, current, points, guess, flags=flags, **options)
+    if moved is None:
+        return np.zeros((len(points),2)), np.zeros(len(points),bool), np.zeros(len(points))
+    finite = np.isfinite(moved).all(axis=(1,2))
+    safe = moved.copy()
+    safe[~finite] = 0
+    returned, backward, _ = cv2.calcOpticalFlowPyrLK(current, previous, safe,
+        points.copy() if initial is not None else None, flags=flags, **options)
+    if returned is None:
+        return moved.reshape(-1,2), np.zeros(len(points),bool), np.zeros(len(points))
+    distance = np.linalg.norm(returned.reshape(-1,2)-points.reshape(-1,2),axis=1)
+    moved = moved.reshape(-1,2)
+    width, height = current.shape[1], current.shape[0]
+    error = error.reshape(-1)
+    valid = ((status.reshape(-1) != 0) & (backward.reshape(-1) != 0) & finite
+             & np.isfinite(distance) & np.isfinite(error)
+             & (distance <= LIMITS['forwardBackwardPixels'])
+             & ((error <= LIMITS['photometricError']) if check_appearance else True)
+             & (moved[:,0] >= 0) & (moved[:,0] < width)
+             & (moved[:,1] >= 0) & (moved[:,1] < height))
+    score = np.zeros(len(points))
+    score[valid] = np.exp(-distance[valid]**2)*(np.exp(-error[valid]/12.) if check_appearance else 1.)
+    return moved, valid, score
+
+
+def check_plane_extrapolation(matrix, reference, points, roi):
+    # Small feature residuals do not bound error at the ROI edges when the
+    # remaining features occupy a narrow strip. An independently estimated
+    # held-out transform must also agree over the requested plane extent.
+    independent, _ = cv2.findHomography(reference, points, 0)
+    require(independent is not None, 'plane independent extrapolation fit failed')
+    independent = plane_matrix(independent, roi)
+    x, y, w, h = roi
+    probes = [[x,y], [x+w,y], [x+w,y+h], [x,y+h]]
+    disagreement = np.linalg.norm(transform(matrix,probes)-transform(independent,probes),axis=1)
+    require(float(disagreement.max()) <= LIMITS['planeConsensusMaxPixels'],
+            'plane independent extrapolation disagreement exceeds limit')
+
+
+class Tracker:
+    def __init__(self, seed, gray):
+        self.seed = seed
+        self.active = True
+        self.reason = None
+        self.reference = self.points = self.holdout = None
+        if seed['kind'] == 'point':
+            self.points = np.array([seed['position']], np.float32)
+            # Share immutable image storage rather than copying it for every
+            # point. Only explicit manual corrections reset this reference.
+            self.reference_gray,self.reference_points = gray,self.points.copy()
+            self.initial = dict(kind='point', pixels=list(seed['position']))
+        else:
+            self.initial = dict(kind='plane', matrix=np.eye(3).tolist())
+            try:
+                self.reseed(gray, np.eye(3))
+            except ValueError as cause:
+                self.active, self.reason, self.initial = False, str(cause), None
+
+    def reseed(self, gray, matrix):
+        x, y, w, h = self.seed['roi']
+        quad = transform(matrix, [[x,y],[x+w,y],[x+w,y+h],[x,y+h]])
+        mask = np.zeros(gray.shape, np.uint8)
+        cv2.fillConvexPoly(mask, np.rint(quad).astype(np.int32), 255)
+        found = cv2.goodFeaturesToTrack(gray, LIMITS['maximumFeatures'], .01, 5, mask=mask, blockSize=5)
+        require(found is not None and len(found) >= LIMITS['minimumFeatures'], 'plane has too few source features')
+        points = found.reshape(-1,2)
+        reference = transform(np.linalg.inv(matrix), points)
+        inside = ((reference[:,0] >= x) & (reference[:,0] <= x+w)
+                  & (reference[:,1] >= y) & (reference[:,1] <= y+h))
+        self.points, self.reference = points[inside], reference[inside]
+        require(len(self.points) >= LIMITS['minimumFeatures'], 'plane has too few reference features')
+        self.reference_gray,self.image_reference = gray,self.points.copy()
+        self.reference_matrix = matrix.copy()
+        self.holdout = np.arange(len(self.points)) % 4 == 0
+
+    def observe(self, previous, current):
+        if not self.active:
+            return None, 0.
+        moved, valid, scores = flow(previous, current, self.points)
+        if self.seed['kind'] == 'point':
+            if not valid[0]:
+                self.active, self.reason = False, 'point forward/backward or appearance check failed'
+                return None, 0.
+            # The existing adjacent-frame photometric check remains mandatory.
+            # A long-baseline reference tests geometric consistency: its raw
+            # unwarped patch brightness is not invariant to scale/perspective.
+            anchored,checked,quality = flow(self.reference_gray,current,self.reference_points,
+                initial=moved,check_appearance=False)
+            if not checked[0] or np.linalg.norm(anchored[0]-moved[0])>LIMITS['referenceAgreementPixels']:
+                self.active,self.reason = False,'point explicit-reference cycle or agreement check failed'
+                return None,0.
+            self.points = anchored
+            return dict(kind='point', pixels=anchored[0].astype(float).tolist()), float(min(scores[0],quality[0]))
+        # Fit only the fitting partition to predict a perspective warp. The
+        # independent holdouts do not contribute to that initialization.
+        fit_valid = valid & ~self.holdout
+        if np.count_nonzero(fit_valid) < LIMITS['minimumFitInliers']:
+            self.active,self.reason=False,'plane lost prediction features'
+            return None,0.
+        predicted,_ = cv2.findHomography(self.reference[fit_valid],moved[fit_valid],
+            cv2.RANSAC,LIMITS['planeFitPixels'],maxIters=2000,confidence=.995)
+        if predicted is None:
+            self.active,self.reason=False,'plane prediction RANSAC failed'
+            return None,0.
+        try:
+            plane_matrix(predicted,self.seed['roi'])
+            warp=predicted @ np.linalg.inv(self.reference_matrix)
+            extent=(self.reference_gray.shape[1],self.reference_gray.shape[0])
+            aligned=cv2.warpPerspective(current,warp,extent,
+                flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+            support=cv2.warpPerspective(np.full(current.shape,255,np.uint8),warp,extent,
+                flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+            # Include the 21-pixel LK window and its interpolation neighbours.
+            support=cv2.erode(support,np.ones((23,23),np.uint8),borderType=cv2.BORDER_CONSTANT,borderValue=0)
+            residual,checked,_=flow(self.reference_gray,aligned,self.image_reference,
+                initial=self.image_reference)
+            # Invalid flow coordinates must not enter integer conversion or a
+            # projective division. They remain rejected by the original mask.
+            residual=np.where(checked[:,None],residual,self.image_reference)
+            nearest=np.rint(residual).astype(np.int32)
+            nearest[:,0]=np.clip(nearest[:,0],0,extent[0]-1)
+            nearest[:,1]=np.clip(nearest[:,1],0,extent[1]-1)
+            checked &= support[nearest[:,1],nearest[:,0]]==255
+            anchored=transform(warp,residual)
+        except ValueError as cause:
+            self.active,self.reason=False,str(cause)
+            return None,0.
+        valid &= checked & (np.linalg.norm(anchored-moved,axis=1)<=LIMITS['referenceAgreementPixels'])
+        self.points,self.reference,self.holdout,self.image_reference = (
+            anchored[valid],self.reference[valid],self.holdout[valid],self.image_reference[valid])
+        fit = ~self.holdout
+        if np.count_nonzero(fit) < LIMITS['minimumFitInliers'] or np.count_nonzero(self.holdout) < 4:
+            self.active, self.reason = False, 'plane lost fit or held-out features'
+            return None, 0.
+        matrix, inliers = cv2.findHomography(self.reference[fit], self.points[fit], cv2.RANSAC,
+            LIMITS['planeFitPixels'], maxIters=2000, confidence=.995)
+        if matrix is None or inliers is None:
+            self.active, self.reason = False, 'plane RANSAC failed'
+            return None, 0.
+        try:
+            matrix = plane_matrix(matrix, self.seed['roi'])
+            errors = np.linalg.norm(transform(matrix, self.reference[self.holdout])-self.points[self.holdout], axis=1)
+            ratio = float(np.mean(inliers))
+            rms = float(np.sqrt(np.mean(errors**2)))
+            require(int(np.sum(inliers)) >= LIMITS['minimumFitInliers'] and ratio >= LIMITS['minimumInlierRatio'], 'plane fit has too few inliers')
+            require(rms <= LIMITS['heldOutRmsPixels'] and float(errors.max()) <= LIMITS['heldOutMaxPixels'], 'plane held-out residual exceeds limit')
+            check_plane_extrapolation(matrix,self.reference[self.holdout],self.points[self.holdout],self.seed['roi'])
+        except ValueError as cause:
+            self.active, self.reason = False, str(cause)
+            return None, 0.
+        return dict(kind='plane', matrix=matrix.tolist()), ratio*math.exp(-rms)
+
+    def correct(self, gray, edit):
+        self.reason = None
+        self.active = edit['visibility'] == 'visible'
+        if self.active:
+            observation = edit['observation']
+            if self.seed['kind'] == 'point':
+                self.points = np.asarray([observation['pixels']], np.float32)
+                self.reference_gray,self.reference_points = gray,self.points.copy()
+            else:
+                matrix = plane_matrix(observation['matrix'], self.seed['roi'])
+                try:
+                    self.reseed(gray, matrix)
+                except ValueError as cause:
+                    # Keep the explicit authored correction, but never invent
+                    # evidence for subsequent automatic observations.
+                    self.active, self.reason = False, str(cause)
+        return edit['observation'], 1. if edit['visibility'] == 'visible' else 0.

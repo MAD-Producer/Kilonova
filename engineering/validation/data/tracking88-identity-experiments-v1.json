@@ -1,0 +1,304 @@
+{
+  "status": "two_failed_blind_identity_candidates_archived_not_adopted",
+  "base": "147ced69e08189b73d53760873c9ed72bc34fa36",
+  "baseline": {
+    "track": "plane",
+    "automaticVisible": 915,
+    "automaticLost": 1373,
+    "manualSamples": 11,
+    "firstLost": 69,
+    "maxPixels": 56.6400304460409,
+    "rmsPixels": 5.552521925956851,
+    "p95Pixels": 7.019804939538657,
+    "automaticOver5Pixels": 60,
+    "automaticOver15Pixels": 21
+  },
+  "variants": [
+    {
+      "candidate": "persistent-descriptors",
+      "decision": "rejected_not_adopted",
+      "plane": {
+        "track": "plane",
+        "automaticVisible": 890,
+        "automaticLost": 1398,
+        "manualSamples": 11,
+        "firstLost": 69,
+        "maxPixels": 56.63820588444511,
+        "rmsPixels": 5.621686091068053,
+        "p95Pixels": 7.382928212120004,
+        "automaticOver5Pixels": 59,
+        "automaticOver15Pixels": 21
+      },
+      "originalRequestCanonicalSha256": "8a24f72a7560aca2ec23ed96de18c33e000856c86dd761de71ad3b5c019a4d82",
+      "reason": "All 21 over-15-pixel failures remain and automatic coverage is lower. Analytic control success does not qualify photographed motion."
+    },
+    {
+      "candidate": "manual-photometric-support",
+      "decision": "rejected_not_adopted",
+      "plane": {
+        "track": "plane",
+        "automaticVisible": 836,
+        "automaticLost": 1452,
+        "manualSamples": 11,
+        "firstLost": 69,
+        "maxPixels": 57.93787310591938,
+        "rmsPixels": 5.82546673448141,
+        "p95Pixels": 8.6207683365619,
+        "automaticOver5Pixels": 58,
+        "automaticOver15Pixels": 21
+      },
+      "originalRequestCanonicalSha256": "8a24f72a7560aca2ec23ed96de18c33e000856c86dd761de71ad3b5c019a4d82",
+      "reason": "All 21 over-15-pixel failures remain and automatic coverage is lower. Analytic control success does not qualify photographed motion."
+    }
+  ],
+  "scope": "Original 2300 frames, source/timeline/truth/ROI/corrections and all existing assertions unchanged. No native, Surface, CI or full-issue acceptance follows.",
+  "exclusion": "No third-party video, photographs, derived captures, annotations, original requests containing annotations, or per-frame observation payloads redistributed.",
+  "nextBoundary": "Initialization and manual support selection alone did not resolve the common-mode residual failure. Investigate correspondence/model uncertainty before more initializer variants; do not tune confidence or loss suppression against this sequence.",
+  "archive": {
+    "path": "tracking88-identity-experiments-v1.zip",
+    "bytes": 137126,
+    "sha256": "81783ef51d8733346a708fe73a5789d66c633e9497c74af74b7bc059262daf13",
+    "members": {
+      "archive-controller.py": {
+        "bytes": 5803,
+        "sha256": "aa6cbceb73cb1067b40904e11042b7784e2e6dd35a9263600d90d962ef664d42"
+      },
+      "baseline/measurement.json": {
+        "bytes": 4556,
+        "sha256": "7e5e729f8fe5a92ad884f38fa017e653ba7434619283bf5fd84eb9eb62a37cdc"
+      },
+      "manual-photometric-support/controllers/experiment-tracking88-manual-support-v1.py": {
+        "bytes": 3187,
+        "sha256": "76174537a9e5e293e5cf1a4ee59604924b1fcce3fa63ec3f76a0c5422705ebfc"
+      },
+      "manual-photometric-support/controllers/prepare-tracking88-manual-support-candidate-v1.py": {
+        "bytes": 5071,
+        "sha256": "c453a257733fc575d8bfda21015b84579539587f20a1355bde2ea94a5474575a"
+      },
+      "manual-photometric-support/controls.stderr.log": {
+        "bytes": 1531,
+        "sha256": "59b93f63f89851d218b2980ef86dcc3b5b8f6dd891f212c91b7b3ea9a6893bf1"
+      },
+      "manual-photometric-support/controls.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/exit.json": {
+        "bytes": 2554,
+        "sha256": "08230549aa728cbc9abd51da2b947e6c5012e1aa863e96ce324656e027a2cd9b"
+      },
+      "manual-photometric-support/experiment-controller.py": {
+        "bytes": 3187,
+        "sha256": "76174537a9e5e293e5cf1a4ee59604924b1fcce3fa63ec3f76a0c5422705ebfc"
+      },
+      "manual-photometric-support/full-real.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/full-real.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/measurement.json": {
+        "bytes": 4656,
+        "sha256": "b1195b98e9b7c983b887a111e04c363c8837fbf3c7bb13c19904fe13f544b2de"
+      },
+      "manual-photometric-support/proposal.json": {
+        "bytes": 791,
+        "sha256": "1b3febf7c13fb549d882a27eef9275a93f46f84eeb19aa025c0109645c41b5a7"
+      },
+      "manual-photometric-support/real-controller.py": {
+        "bytes": 6960,
+        "sha256": "55e315b8da0916d122525ff05602b475cb9d69f1c90cdd2ba6a30c8f5376e0cb"
+      },
+      "manual-photometric-support/real/no-corrections.stderr.log": {
+        "bytes": 385,
+        "sha256": "dae4a36bc8c51320b8e45cd9bacba1b56532edce69f4a85135fa0de83bbb366f"
+      },
+      "manual-photometric-support/real/no-corrections.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/real/periodic-manual-200.stderr.log": {
+        "bytes": 3948,
+        "sha256": "d3c70a32aca04806537949fa02a3668ab86404e63cc46bb8b75a6f6890d12f3b"
+      },
+      "manual-photometric-support/real/periodic-manual-200.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/source/plate_contract.py": {
+        "bytes": 6683,
+        "sha256": "f3c051d2cb83ed3ebdd33a09c4a88970985ca07e48e22246decd7888e7b1363e"
+      },
+      "manual-photometric-support/source/plate_flow.py": {
+        "bytes": 13613,
+        "sha256": "a59e7a559661e3bef8d08c64c3438cd07dbc720873072637121a8c6ecbafc576"
+      },
+      "manual-photometric-support/source/plate_manual_support.py": {
+        "bytes": 1989,
+        "sha256": "ed9852e3330dbb14138069d9a8806b5168e5b90de2640616923a647898c63c46"
+      },
+      "manual-photometric-support/source/test_flow.py": {
+        "bytes": 7265,
+        "sha256": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa"
+      },
+      "manual-photometric-support/source/test_manual_support.py": {
+        "bytes": 1723,
+        "sha256": "578ead716cf26c5542f5a9ebcc408087d9c3a4ae73814d4dd02107afb5d5e18a"
+      },
+      "manual-photometric-support/source/track_plate.py": {
+        "bytes": 14694,
+        "sha256": "da9a363cad2b2ac56d8d577c3cb5cbff8b20ae60643bfab9433191f0d71dda92"
+      },
+      "manual-photometric-support/source/validate_prototype.py": {
+        "bytes": 7929,
+        "sha256": "aa2dadb753d3317221a534db1b4f60bb745a63999812a1eb815f927652f5dfd9"
+      },
+      "manual-photometric-support/support-controls.stderr.log": {
+        "bytes": 285,
+        "sha256": "6b97602667cf2a7757d6b07941ef657d810d96efffb2a0761badaab050ffd585"
+      },
+      "manual-photometric-support/support-controls.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/synthetic.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/synthetic.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "manual-photometric-support/synthetic/evaluation.json": {
+        "bytes": 1160,
+        "sha256": "9080404558e69e3e9bd0c0201e20aa9f72c32207839a695d3e148df10308ca28"
+      },
+      "persistent-descriptors/controllers/experiment-tracking88-identity-v1.py": {
+        "bytes": 3158,
+        "sha256": "338374a3a9e5bd698e9c53222606ed8cccd2435e40287ebc5e24fc454d4141bf"
+      },
+      "persistent-descriptors/controllers/prepare-tracking88-identity-candidate-v1.py": {
+        "bytes": 8762,
+        "sha256": "e497283800ef123363cf80d53b7682565cca68fb45c9a53a161eef01ca15702e"
+      },
+      "persistent-descriptors/controls.stderr.log": {
+        "bytes": 1531,
+        "sha256": "0a626147f7fe37871060051981a3f5ba03e98b931b66e00c8628af88e6b7b747"
+      },
+      "persistent-descriptors/controls.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/exit.json": {
+        "bytes": 2506,
+        "sha256": "e379187b09cdc39df68637ca53c0f13abe09d945aac287b78a29217c395d72e0"
+      },
+      "persistent-descriptors/experiment-controller.py": {
+        "bytes": 3158,
+        "sha256": "338374a3a9e5bd698e9c53222606ed8cccd2435e40287ebc5e24fc454d4141bf"
+      },
+      "persistent-descriptors/full-real.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/full-real.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/identity-controls.stderr.log": {
+        "bytes": 449,
+        "sha256": "596ece635aa7594a7ad3ce171f3a8754a4d32464ad6dea3ea81b52ee1c41331a"
+      },
+      "persistent-descriptors/identity-controls.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/measurement.json": {
+        "bytes": 4621,
+        "sha256": "ce1736a4615554b5533060a4793c8c84365e954e4ee139771ca810a5c3a56b9d"
+      },
+      "persistent-descriptors/proposal.json": {
+        "bytes": 896,
+        "sha256": "7f484c30963dbb346e5673a245d15140eb28b138dfc7600185a2fca05f816f9d"
+      },
+      "persistent-descriptors/real-controller.py": {
+        "bytes": 6948,
+        "sha256": "5806392da57560508badb006cc979622fda9cee7eefa76973f4b8afd7b164d13"
+      },
+      "persistent-descriptors/real/no-corrections.stderr.log": {
+        "bytes": 385,
+        "sha256": "dae4a36bc8c51320b8e45cd9bacba1b56532edce69f4a85135fa0de83bbb366f"
+      },
+      "persistent-descriptors/real/no-corrections.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/real/periodic-manual-200.stderr.log": {
+        "bytes": 3728,
+        "sha256": "efedcc564aadef6227b00997c60664100d583ccbd347b23fe2bdd8a648316f5e"
+      },
+      "persistent-descriptors/real/periodic-manual-200.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/source/plate_contract.py": {
+        "bytes": 6683,
+        "sha256": "f3c051d2cb83ed3ebdd33a09c4a88970985ca07e48e22246decd7888e7b1363e"
+      },
+      "persistent-descriptors/source/plate_flow.py": {
+        "bytes": 13958,
+        "sha256": "94edbf845825cba01b111318e7037d3e97eb6c8ad4e6bacbc1682d0dfa9b2917"
+      },
+      "persistent-descriptors/source/plate_identity.py": {
+        "bytes": 3962,
+        "sha256": "4625a267ed634a0d1dad099a51c8d075ca4af6db4c1f9e0872c6acf41550a9a8"
+      },
+      "persistent-descriptors/source/test_flow.py": {
+        "bytes": 7265,
+        "sha256": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa"
+      },
+      "persistent-descriptors/source/test_identity.py": {
+        "bytes": 2604,
+        "sha256": "c39af3cf8a964f69b46f91d32cb0ff2095e2d0f7c3469231e5c79007c3e37438"
+      },
+      "persistent-descriptors/source/track_plate.py": {
+        "bytes": 14694,
+        "sha256": "da9a363cad2b2ac56d8d577c3cb5cbff8b20ae60643bfab9433191f0d71dda92"
+      },
+      "persistent-descriptors/source/validate_prototype.py": {
+        "bytes": 7929,
+        "sha256": "aa2dadb753d3317221a534db1b4f60bb745a63999812a1eb815f927652f5dfd9"
+      },
+      "persistent-descriptors/synthetic.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/synthetic.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "persistent-descriptors/synthetic/evaluation.json": {
+        "bytes": 1161,
+        "sha256": "ed3a999a5558cb13205e7dda238d1fa108288cd44e7a6dae3c546879812370ad"
+      },
+      "preceding/tracking88-descriptor-rejected-v1.json": {
+        "bytes": 11570,
+        "sha256": "7b769a630dbed8ea82d2d96fb37b30ec945f322181ef146d861a41d9b5b959c9"
+      },
+      "preceding/tracking88-descriptor-rejected-v1.zip": {
+        "bytes": 34425,
+        "sha256": "9dd22983a221ca0505a45792904a4b170c821faf122a4b29a14c005e7bf5ed4b"
+      },
+      "preceding/tracking88-reference-identity-v1.json": {
+        "bytes": 6454,
+        "sha256": "93adbd8cec7151265629ff0610d6bac7a985c0eb3c84e626f3ebe1273e8c8d6b"
+      },
+      "preceding/tracking88-reference-identity-v1.zip": {
+        "bytes": 26227,
+        "sha256": "8c39b24fdd09a6183b93bf09f7ee1b06089ad24ea88eebd0eee29c7981b3ddde"
+      }
+    }
+  }
+}
