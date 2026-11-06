@@ -7,6 +7,8 @@ use motion_core::composition::CompositionError;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
+    PipelinePreparation(#[from] std::sync::Arc<crate::PipelinePreparationError>),
+    #[error(transparent)]
     TrackingSource(#[from] crate::tracking::project::Error),
     #[error(transparent)]
     TrackingImport(#[from] crate::tracking::import::Error),
@@ -82,6 +84,10 @@ impl Error {
 
     pub fn composition_detail(&self) -> Option<&CompositionError> {
         match self {
+            Self::PipelinePreparation(error) => match error.as_ref() {
+                crate::PipelinePreparationError::Render(error) => render_composition_detail(error),
+                _ => None,
+            },
             Self::Composition(detail) | Self::CompositionContext { detail, .. } => Some(detail),
             Self::Model(motion_core::Error::Composition(detail)) => Some(detail),
             Self::Render(error) => render_composition_detail(error),

@@ -113,6 +113,9 @@ impl PipelinePreparationTicket {
                 .min(u128::from(u64::MAX)) as u64,
         }
     }
+    pub fn same_request(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
     fn cancelled(&self) -> bool {
         self.0.cancelled.load(Ordering::Acquire)
     }
@@ -190,6 +193,7 @@ pub struct PipelinePreparationJob {
     device_dimension: u32,
     fusion: bool,
     preview: bool,
+    best_effort_lookahead: bool,
     assets: Vec<u64>,
     alpha_images: std::collections::HashMap<u64, crate::scene_generator::AlphaImage>,
     scenes: Vec<Scene>,
@@ -218,6 +222,12 @@ pub struct PreparedEffectPipelines {
     ticket: PipelinePreparationTicket,
     limited: bool,
     installed: bool,
+    lookahead_failures: Vec<PipelineLookaheadFailure>,
+}
+#[derive(Debug)]
+pub struct PipelineLookaheadFailure {
+    pub frame: f64,
+    pub cause: RenderError,
 }
 impl PreparedEffectPipelines {
     pub fn pipeline_count(&self) -> usize {
@@ -237,6 +247,9 @@ impl PreparedEffectPipelines {
     }
     pub fn uses_driver_cache(&self) -> bool {
         self.driver_cache
+    }
+    pub fn take_lookahead_failures(&mut self) -> Vec<PipelineLookaheadFailure> {
+        std::mem::take(&mut self.lookahead_failures)
     }
     pub(crate) fn mark_installed(&mut self) {
         self.installed = true;
@@ -336,6 +349,7 @@ impl PipelinePreparationJob {
             device_dimension: renderer.effect_gpu.builder.device_dimension,
             fusion: renderer.effect_gpu.builder.pointwise_fusion_enabled(),
             preview: false,
+            best_effort_lookahead: false,
             assets: renderer.asset_order.clone(),
             alpha_images,
             scenes,
@@ -356,10 +370,26 @@ impl PipelinePreparationJob {
         self.preview = true;
         self
     }
+    /// Keep the current scene authoritative. Future-scene failures are logged
+    /// and retained in the result, so invalid future content cannot prevent a
+    /// valid current frame from rendering. The default multi-scene API is strict.
+    pub fn with_best_effort_lookahead(mut self) -> Self {
+        self.best_effort_lookahead = true;
+        self
+    }
     /// Execute on a host-owned bounded worker. CPU plans and GPU scopes are local
     /// to this call. Cancellation cannot interrupt one blocking driver operation;
     /// it is checked before planning, between native creates, and before install.
-    pub fn run(mut self) -> Result<PreparedEffectPipelines, RenderError> {
+    pub fn run(self) -> Result<PreparedEffectPipelines, RenderError> {
+        self.run_with_scenes(|_| Ok(()))
+    }
+    /// Sample additional immutable inputs on the same bounded host worker.
+    /// Planning state and Info start are published before this callback. It is
+    /// subject to the same panic boundary and 1..=3 scene admission as planning.
+    pub fn run_with_scenes(
+        mut self,
+        sample: impl FnOnce(&mut Vec<Scene>) -> Result<(), RenderError>,
+    ) -> Result<PreparedEffectPipelines, RenderError> {
         if std::thread::current().id() == self.owner_thread {
             self.ticket.phase(5);
             return Err(PipelinePreparationError::OwnerThread.into());
@@ -375,6 +405,12 @@ impl PipelinePreparationJob {
             #[cfg(test)]
             if let Some(before) = self.before_plan.take() {
                 before();
+            }
+            if !self.ticket.cancelled() {
+                sample(&mut self.scenes)?;
+                if self.scenes.is_empty() || self.scenes.len() > MAX_PIPELINE_PREPARATION_SCENES {
+                    return Err(PipelinePreparationError::SceneCount.into());
+                }
             }
             self.run_inner()
         }))
@@ -419,6 +455,7 @@ impl PipelinePreparationJob {
             ticket: self.ticket.clone(),
             limited: false,
             installed: false,
+            lookahead_failures: Vec::new(),
         };
         if self.owner.upgrade().is_none() {
             self.ticket.cancel();
@@ -434,8 +471,8 @@ impl PipelinePreparationJob {
         // Move the one bounded alpha snapshot; never duplicate it again in run.
         builder.alpha_images = std::mem::take(&mut self.alpha_images);
         let mut nodes = 0;
-        for scene in &self.scenes {
-            self.compile_scene(
+        for (index, scene) in self.scenes.iter().enumerate() {
+            let result = self.compile_scene(
                 &mut builder,
                 scene,
                 self.width,
@@ -443,7 +480,21 @@ impl PipelinePreparationJob {
                 0,
                 &mut nodes,
                 &mut batch,
-            )?;
+            );
+            if let Err(cause) = result {
+                if index == 0 || !self.best_effort_lookahead {
+                    return Err(cause);
+                }
+                let bounded: String = cause.to_string().chars().take(2048).collect();
+                log::error!(target: "motion_render::pipeline_preparation",
+                    "pipeline lookahead failed request={} generation={} revision={} frame={} elapsed_ms={} cause={}",
+                    self.ticket.0.request, self.ticket.0.context.document_generation,
+                    self.ticket.0.context.project_revision, scene.frame, self.ticket.status().elapsed_ms, bounded);
+                batch.lookahead_failures.push(PipelineLookaheadFailure {
+                    frame: scene.frame,
+                    cause,
+                });
+            }
             if self.ticket.cancelled() || batch.limited {
                 break;
             }

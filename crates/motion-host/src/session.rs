@@ -40,6 +40,7 @@ mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 mod sampling;
+pub(crate) mod pipeline_preparation;
 pub mod viewer;
 #[cfg(feature = "ai-depth")]
 mod depth;
@@ -141,6 +142,7 @@ pub struct Session {
     pub preview_memory: motion_render::preview_memory::PreviewMemoryPolicy,
     pub preview_video: crate::preview_video::PreviewVideoCache,
     pub(crate) sampling: sampling::SamplingPreview,
+    pub(crate) pipeline_preparation: pipeline_preparation::State,
     pub preview_memory_held: bool,
     pub(crate) preview_memory_clock: Instant,
     memory_context: Option<(u64, u64, u32, u32)>,
@@ -249,6 +251,7 @@ impl Session {
             preview_memory: Default::default(),
             preview_video: Default::default(),
             sampling,
+            pipeline_preparation: Default::default(),
             preview_memory_held: false,
             preview_memory_clock: Instant::now(),
             memory_context: None,
@@ -375,6 +378,7 @@ impl Session {
         self.media_compositions.clear();
         self.engine = engine;
         self.document_generation = document_generation;
+        self.pipeline_preparation.cancel();
         self.audio_jobs = audio_jobs;
         self.video_jobs = video_jobs;
         // Frozen package exports stay queryable across project replacement, but
@@ -414,6 +418,7 @@ impl Session {
     }
 
     pub fn detach(&mut self) {
+        self.pipeline_preparation.cancel();
         self.sampling.discard_request();
         self.preview_video.clear();
         self.preview_memory = Default::default();
@@ -643,6 +648,23 @@ impl Session {
                 }
             }
             let (rw, rh) = quality.dimensions(base.0, base.1);
+            let key = pipeline_preparation::Key {
+                context: motion_render::PipelinePreparationContext {
+                    document_generation: self.document_generation,
+                    project_revision: self.engine.revision(),
+                },
+                surface: self.surface_epoch, view: self.view_revision,
+                width: rw, height: rh, preview: self.preview.mode != PreviewMode::High,
+                window: (frame.max(0.) / (self.engine.project().fps.as_f64() * 2.)).floor() as u64,
+            };
+            if !self.pipeline_preparation.ensure(&mut g.renderer, self.engine.project(), &self.scene,
+                self.observing.then_some(&self.observer), key)? {
+                let retained = g.scratch.valid().then_some(viewport);
+                let overlay = overlay.take().ok_or("composition overlay already consumed while preparing pipelines")?;
+                let painted = present_chrome(g, retained, image, overlay)?;
+                self.presented += u64::from(painted);
+                return Ok(false);
+            }
             if let Err(error) = g.scratch.prepare(&g.renderer, rw, rh) {
                 if preview_refused(
                     g,

@@ -3,7 +3,7 @@
 mod effect_gpu;
 pub use effect_gpu::{EffectPipelineCacheInfo, NativeEffectPipelineError};
 mod pipeline_preparation;
-pub use pipeline_preparation::{PipelinePreparationContext, PipelinePreparationError,
+pub use pipeline_preparation::{PipelineLookaheadFailure, PipelinePreparationContext, PipelinePreparationError,
     PipelinePreparationInstall, PipelinePreparationJob, PipelinePreparationPhase,
     PipelinePreparationStatus, PipelinePreparationTicket, PreparedEffectPipelines,
     MAX_PIPELINE_PREPARATION_SCENES, MAX_PREPARED_PIPELINES, MAX_PREPARED_WGSL_BYTES};
