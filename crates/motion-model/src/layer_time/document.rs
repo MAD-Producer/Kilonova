@@ -71,12 +71,20 @@ impl Layer {
     }
     /// Final video timestamp, with reverse half-open quantization applied once.
     /// Property time and source-remapped time are separate coordinates.
-    pub fn video_source_time_us(&self, composition_frame: f64, fps: crate::FrameRate) -> Result<i64> {
+    pub fn video_source_time_us(
+        &self,
+        composition_frame: f64,
+        fps: crate::FrameRate,
+    ) -> Result<i64> {
         let input = SourceTimeSample::new(composition_frame, 1.)
             .map_err(|source| failure(self.id, "source_input", source))?;
         self.video_source_time_at(input, fps)
     }
-    pub fn video_source_time_at(&self, input: SourceTimeSample, fps: crate::FrameRate) -> Result<i64> {
+    pub fn video_source_time_at(
+        &self,
+        input: SourceTimeSample,
+        fps: crate::FrameRate,
+    ) -> Result<i64> {
         let Content::Video { video } = &self.content else {
             return Err(failure(
                 self.id,
@@ -201,64 +209,64 @@ pub fn apply(layer: &mut Layer, frames: u32, action: LayerTimeAction) -> Result<
             return Err(Error::Locked(id));
         }
         let mut candidate = layer.clone();
-        if matches!(action, LayerTimeAction::Reset {}) {
-            candidate.time_mapping = None;
+        // Reset must not clone the remap keys a second time merely to discard
+        // them; other actions retain the candidate's old clock during resize.
+        let mut mapping = if matches!(&action, LayerTimeAction::Reset {}) {
+            LayerTimeMapping::default()
         } else {
-            let mut mapping = candidate.time_mapping.clone().unwrap_or_default();
-            let offset = candidate.timeline.map_or(0, |t| t.offset_frame);
-            match action {
-                LayerTimeAction::Stretch {
-                    stretch,
-                    anchor_frame,
-                    resize_clip,
-                } => {
-                    if !anchor_frame.is_finite() || anchor_frame.abs() > f64::from(MAX_FRAMES) {
-                        return Err(Error::Invalid(
-                            "time stretch anchor is outside the composition time budget".into(),
-                        ));
-                    }
-                    let old = mapping.clock;
-                    if stretch != old.stretch() {
-                        mapping.clock =
-                            old.with_rate_at(stretch, old.direction(), anchor_frame, offset)?;
-                        if resize_clip {
-                            let factor = stretch.duration_scale() / old.stretch().duration_scale();
-                            let range = candidate.interval(frames);
-                            candidate.set_interval(
-                                frames,
-                                ClipRange {
-                                    in_frame: anchor_frame
-                                        + (range.in_frame - anchor_frame) * factor,
-                                    out_frame: anchor_frame
-                                        + (range.out_frame - anchor_frame) * factor,
-                                },
-                            )?;
-                        }
+            candidate.time_mapping.clone().unwrap_or_default()
+        };
+        let offset = candidate.timeline.map_or(0, |t| t.offset_frame);
+        match action {
+            LayerTimeAction::Stretch {
+                stretch,
+                anchor_frame,
+                resize_clip,
+            } => {
+                if !anchor_frame.is_finite() || anchor_frame.abs() > f64::from(MAX_FRAMES) {
+                    return Err(Error::Invalid(
+                        "time stretch anchor is outside the composition time budget".into(),
+                    ));
+                }
+                let old = mapping.clock;
+                if stretch != old.stretch() {
+                    mapping.clock =
+                        old.with_rate_at(stretch, old.direction(), anchor_frame, offset)?;
+                    if resize_clip {
+                        let factor = stretch.duration_scale() / old.stretch().duration_scale();
+                        let range = candidate.interval(frames);
+                        candidate.set_interval(
+                            frames,
+                            ClipRange {
+                                in_frame: anchor_frame + (range.in_frame - anchor_frame) * factor,
+                                out_frame: anchor_frame + (range.out_frame - anchor_frame) * factor,
+                            },
+                        )?;
                     }
                 }
-                LayerTimeAction::Reverse {} => {
-                    let interval = candidate.interval(frames);
-                    let center = interval.in_frame + (interval.out_frame - interval.in_frame) / 2.;
-                    let direction = match mapping.clock.direction() {
-                        TimeDirection::Forward => TimeDirection::Reverse,
-                        TimeDirection::Reverse => TimeDirection::Forward,
-                    };
-                    mapping.clock = mapping.clock.with_rate_at(
-                        mapping.clock.stretch(),
-                        direction,
-                        center,
-                        offset,
-                    )?;
-                }
-                LayerTimeAction::Remap { remap } => mapping.remap = remap,
-                LayerTimeAction::Reset {} => unreachable!(),
             }
-            candidate.time_mapping = if mapping == LayerTimeMapping::default() {
-                None
-            } else {
-                Some(mapping)
-            };
+            LayerTimeAction::Reverse {} => {
+                let interval = candidate.interval(frames);
+                let center = interval.in_frame + (interval.out_frame - interval.in_frame) / 2.;
+                let direction = match mapping.clock.direction() {
+                    TimeDirection::Forward => TimeDirection::Reverse,
+                    TimeDirection::Reverse => TimeDirection::Forward,
+                };
+                mapping.clock = mapping.clock.with_rate_at(
+                    mapping.clock.stretch(),
+                    direction,
+                    center,
+                    offset,
+                )?;
+            }
+            LayerTimeAction::Remap { remap } => mapping.remap = remap,
+            LayerTimeAction::Reset {} => mapping = LayerTimeMapping::default(),
         }
+        candidate.time_mapping = if mapping == LayerTimeMapping::default() {
+            None
+        } else {
+            Some(mapping)
+        };
         candidate.validate_time_mapping(frames)?;
         *layer = candidate;
         Ok(())

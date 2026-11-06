@@ -1,6 +1,9 @@
 //! Clipboard identity stays authored; only transfer coordinates are continuous.
 use super::*;
 use crate::layer_time::{LayerClock, TimeDirection};
+#[cfg(test)]
+#[path = "transfer_time_tests.rs"]
+mod invariant_tests;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -269,15 +272,14 @@ pub(super) fn move_keys<T: Clone>(
     }
     if source.reversed() != destination.reversed() {
         moved.reverse();
-        for (i, key) in moved.iter_mut().enumerate() {
+        // A reversed segment takes the easing of the original preceding key;
+        // the terminal key keeps its own metadata. Pairing iterators also
+        // preserves the empty-input case without a nonempty assertion.
+        let originals = keys.iter().rev().skip(1).chain(keys.last());
+        for ((i, key), original) in moved.iter_mut().enumerate().zip(originals) {
             if let Some(spatial) = key.spatial.as_mut() {
                 std::mem::swap(&mut spatial.incoming, &mut spatial.outgoing);
             }
-            let original = if i + 1 < keys.len() {
-                &keys[keys.len() - 2 - i]
-            } else {
-                keys.last().expect("nonempty validated clipboard")
-            };
             let easing = crate::Easing {
                 ease: original.ease,
                 curve: original.curve,

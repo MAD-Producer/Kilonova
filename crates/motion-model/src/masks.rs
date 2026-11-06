@@ -348,7 +348,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
                 | MaskAction::MoveKey { property, .. }
                 | MaskAction::CopyKey { property, .. }
                 | MaskAction::Curve { property, .. } => property,
-                _ => unreachable!(),
+                _ => return Err(Error::Invalid("mask property dispatch requires a key action".into())),
             };
             macro_rules! update {
                 ($track:expr,$len:expr) => {{
@@ -382,7 +382,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
                         MaskAction::Curve { frame, easing, .. } => {
                             t.set_curve(local(*frame)?, *easing)?
                         }
-                        _ => unreachable!(),
+                        _ => return Err(Error::Invalid("mask vector dispatch requires a key action".into())),
                     }
                 }};
             }
@@ -425,7 +425,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
                         MaskAction::Curve { frame, easing, .. } => {
                             t.set_curve(local(*frame)?, *easing)?
                         }
-                        _ => unreachable!(),
+                        _ => return Err(Error::Invalid("mask scalar dispatch requires a key action".into())),
                     }
                 }
             }
