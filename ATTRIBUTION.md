@@ -1,5 +1,22 @@
 # 第三方归属说明 / Third-party attribution
 
+## Mathematical references for optional WGSL depth research
+
+- Authors: Milton Abramowitz and Irene A. Stegun (editors), US National Bureau
+  of Standards; the original approximation credits C. Hastings, Jr. NIST DLMF
+  and its contributors provide the separate power-series reference
+- Sources/revision: AMS55, *Handbook of Mathematical Functions*, printed page 299,
+  equation 7.1.26, identified by the
+  [primary handbook facsimile](https://digital.library.unt.edu/ark:/67531/metadc40302/m1/315/ocr/);
+  [NIST DLMF equation 7.6.1](https://dlmf.nist.gov/7.6.E1), accessed 2026-11-06
+- Rights/scope: mathematical formulas and coefficient facts are references only.
+  No upstream program, book prose, scan, figure, font or other asset is copied
+  or distributed. The independently authored evaluation and tests use the
+  repository MIT license; no broader rights in the reference works are claimed
+- Modification scope: independent FP32 coefficient evaluation, a small-argument
+  series and scalar numerical controls. The mathematical approximation bound
+  does not establish actual WGSL/GPU rounding, model quality or performance
+
 ## COLMAP camera text interchange reference
 
 - Authors: ETH Zurich, UNC Chapel Hill and the COLMAP contributors
@@ -99,6 +116,13 @@ This file lists third-party material currently intended for the repository or a 
 | zlib 1.3.2 (Unix FFmpeg) | 解码压缩头 MOV；静态链接进 Unix libav，不依赖构建机 libz / Compressed MOV headers, statically linked into Unix libav | Jean-loup Gailly and Mark Adler; [official 1.3.2 source](https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz), SHA-256 `bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16`; no source changes, static PIC build | Zlib license; original `LICENSE` accompanies archives as `licenses/ffmpeg/zlib-LICENSE.txt`; source, revision, checksum and linkage in `FFmpeg-SOURCE.json` |
 
 ## Optional desktop depth prototype
+
+The #75 static WGSL-candidate audit reuses this same pinned, external Small
+export and the existing optional ONNX installation. It adds independently
+authored metadata/inspection controllers, not another dependency, model or
+upstream implementation. Shape folding evaluates only a bounded integer
+constant program; no learned inference is executed by that audit. Its public
+archives exclude the external model, weights, upstream source and image assets.
 
 Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
 Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:

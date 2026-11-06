@@ -1,5 +1,17 @@
 # Motion Studio 来源说明 / Provenance
 
+Optional WGSL-depth numerical research references the mathematical error-function
+approximation in AMS55 equation 7.1.26 and the NIST DLMF 7.6.1 series. Evaluation
+and tests are independently authored. No reference implementation, scan, figure
+or prose is copied. Attribution records the exact mathematical references and
+the distinction between scalar mathematics and unqualified GPU execution.
+
+The #75 WGSL-depth checkpoint contains independently generated operator/shape
+and static-memory metadata for the already attributed external Small model.
+Its evidence archives contain no model weights, upstream implementation or
+image assets. Static inspection and integer shape folding do not qualify a
+second inference backend or authorize default model distribution.
+
 The COLMAP camera text adapter references the public format and coordinate
 conventions at a pinned upstream revision. Its parser, pose conversion boundary
 and numerical fixtures are independently authored. It does not embed COLMAP or
