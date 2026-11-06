@@ -1,0 +1,94 @@
+{
+  "status": "verified_coordinate_foundation_not_complete_blend",
+  "baseCommit": "26c1d2d2bc83c8073d85a200a7cc78cd6284d4f4",
+  "sourceUnchanged": true,
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-model",
+    "--test",
+    "depth",
+    "--test",
+    "depth_prepared",
+    "--test",
+    "depth_blend_coordinates",
+    "--locked",
+    "--offline",
+    "--",
+    "--test-threads=1"
+  ],
+  "tests": {
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0,
+    "targets": 3
+  },
+  "elapsedSeconds": 171.70299999999997,
+  "bytes": 50622,
+  "archive": "depth76-coordinate-inverse-v1.zip",
+  "sha256": "0a72cc1a526e12bb6ccb642780005dbabe381068752bb2954178c9ea44a7f11e",
+  "members": [
+    {
+      "path": "archive-controller.py",
+      "bytes": 2888,
+      "sha256": "35fe44b657d1107d7d4a0623b824bb5a515ed1d3596d6abc33f16b8d476f86dd"
+    },
+    {
+      "path": "controller.py",
+      "bytes": 2872,
+      "sha256": "0d93789962829ac7f2dd16dccbbc41ec6d5e9fd01a10d5fecd0fa9e94b7e2f03"
+    },
+    {
+      "path": "exit.json",
+      "bytes": 1387,
+      "sha256": "958a6cb41567372118834f498b35ef12935232fae223bccf78b3252b3883b41b"
+    },
+    {
+      "path": "source/Cargo.lock",
+      "bytes": 147434,
+      "sha256": "3afab6b8209104c68a44664866100237ac09a0feae0363409abb0581b9a76311"
+    },
+    {
+      "path": "source/crates/motion-model/Cargo.toml",
+      "bytes": 408,
+      "sha256": "ffa837e5927be0908e462fd07ff2e479b7134d2990e21bbb9cb55e5838137c23"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth.rs",
+      "bytes": 14897,
+      "sha256": "825de28b63f6410719ddcb75d279154f9a3c0fcbc935b3d7189df96b4c9fa4f1"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth.rs",
+      "bytes": 8927,
+      "sha256": "97e233c87519bf04c121faa99ae470e270d7c6a74bfc8a7c73d5cfa58433be53"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_blend_coordinates.rs",
+      "bytes": 3338,
+      "sha256": "4a69d549afd936cda28b6727a133700e798280e89d0fad7257274359662fe015"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_prepared.rs",
+      "bytes": 1116,
+      "sha256": "78447ba6b5d2b91703293312eab24155df05532acb90cd01c76c10e6df3ca29e"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 2784,
+      "sha256": "f8fd59af6d447e194c09ef76f891811032c95149844f8627d2a261f4f715faf7"
+    },
+    {
+      "path": "stdout.log",
+      "bytes": 1338,
+      "sha256": "4605e3600d0c7a043a3a7fcb945a036774da99ddf959ff0ed27e28cc1e1e97e0"
+    }
+  ],
+  "limits": [
+    "Coordinate inverse foundation only; no depth blending or registration is delivered yet",
+    "No GPU, UI, temporal sequence or complete-workspace acceptance is claimed",
+    "Existing assertions, dependencies and source geometry policies remain unchanged"
+  ]
+}

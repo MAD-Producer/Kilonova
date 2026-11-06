@@ -1,0 +1,1483 @@
+{
+  "status": "verified_registered_model_and_scalar_gpu_not_whole_issue",
+  "baseCommit": "63d4398262014afd6f51505a600cbf6907b93b05",
+  "sourceUnchanged": true,
+  "commands": [
+    [
+      "cargo",
+      "test",
+      "-p",
+      "motion-model",
+      "--test",
+      "depth",
+      "--test",
+      "depth_prepared",
+      "--test",
+      "depth_blend_coordinates",
+      "--test",
+      "depth_blend",
+      "--test",
+      "depth_calibration",
+      "--locked",
+      "--offline",
+      "--",
+      "--test-threads=1"
+    ],
+    [
+      "cargo",
+      "test",
+      "-p",
+      "motion-graph",
+      "--test",
+      "compiler",
+      "--test",
+      "groups",
+      "--test",
+      "input_defaults",
+      "--test",
+      "scalar_presets",
+      "--locked",
+      "--offline",
+      "--",
+      "--test-threads=1"
+    ]
+  ],
+  "tests": {
+    "passed": 50,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0,
+    "targets": 9
+  },
+  "elapsedSeconds": 451.82800000000043,
+  "archive": "depth76-registered-blend-v2.zip",
+  "bytes": 729362,
+  "sha256": "aa930e73aea4e98d349053d084b308fb9839bb35aeed0afeff5bf74afdbd0575",
+  "members": [
+    {
+      "path": "0-stderr.log",
+      "bytes": 911,
+      "sha256": "b0718e349db3db4d119811b63b765803beab236d00ef9287205011a30385f252"
+    },
+    {
+      "path": "0-stdout.log",
+      "bytes": 3236,
+      "sha256": "aba94ae4b755bc16a663a09fc099ec6b08f5e70a54e8101607350f5c938973ae"
+    },
+    {
+      "path": "1-stderr.log",
+      "bytes": 7254,
+      "sha256": "cb0ca2aa4b97edfd056ef13f00e9e4cd7d8a633dc63919b3cc3618b56639c890"
+    },
+    {
+      "path": "1-stdout.log",
+      "bytes": 1965,
+      "sha256": "69370ef8df00b3175e827aca7c92dea3823e46b8f8b3ab540d053cc1d8684899"
+    },
+    {
+      "path": "archive-controller.py",
+      "bytes": 2569,
+      "sha256": "02514331d89888ca4de7fdb8fbefe90f5c006c41087b46b4505898e1b3d7075e"
+    },
+    {
+      "path": "controller.py",
+      "bytes": 3792,
+      "sha256": "341f33d5570664369c0e28397fd8d14dbb120f9e62b7baccdc3b45b8fc811bca"
+    },
+    {
+      "path": "exit.json",
+      "bytes": 34605,
+      "sha256": "25fbcffaa6682760a8283106f14cb9ddca1e6989cec0ce968bc553296632f924"
+    },
+    {
+      "path": "native/masked-scalar.glsl",
+      "bytes": 8906,
+      "sha256": "2a95b61d75813240a0009abdc1f5d861534447fc010da1669c4ee14e41b1b22a"
+    },
+    {
+      "path": "native/masked-scalar.msgraph",
+      "bytes": 8372,
+      "sha256": "16e31c83c35c88a75987009fb8c51244abf116d0425fe569dfd52d13e841c55a"
+    },
+    {
+      "path": "native/masked-scalar.wgsl",
+      "bytes": 8492,
+      "sha256": "ff4ad4201a64a9e71b2d0d99642561b72a5471924c1c88abaa53e10dd7e70e3c"
+    },
+    {
+      "path": "native/scalar-0.png",
+      "bytes": 146,
+      "sha256": "8b833b7b34a7d3f03043827f38b1e27db32da678f2edb79ed73960253c108d99"
+    },
+    {
+      "path": "native/scalar-1.png",
+      "bytes": 146,
+      "sha256": "ef331b0265321490e383139cfca1cd5aac56356cadf80b59b60e248f8c2fb5b5"
+    },
+    {
+      "path": "native/scalar-2.png",
+      "bytes": 146,
+      "sha256": "8b833b7b34a7d3f03043827f38b1e27db32da678f2edb79ed73960253c108d99"
+    },
+    {
+      "path": "native/scalar-3.png",
+      "bytes": 146,
+      "sha256": "d045eebc03d84477c628978abf679f456ccc2f8e9b1272ea43167d1fc53bc131"
+    },
+    {
+      "path": "native/scalar-4.png",
+      "bytes": 146,
+      "sha256": "df31c8923af2ec1fd6ab06cc2cae4a0d3605ad7cfbf6cad856171fa78591112c"
+    },
+    {
+      "path": "source/Cargo.lock",
+      "bytes": 147434,
+      "sha256": "3afab6b8209104c68a44664866100237ac09a0feae0363409abb0581b9a76311"
+    },
+    {
+      "path": "source/Cargo.toml",
+      "bytes": 1009,
+      "sha256": "436d98e1b7d08ff15d2a742703f59f48d2797ab985689bb300a16ba83a8375e7"
+    },
+    {
+      "path": "source/crates/motion-effects/Cargo.toml",
+      "bytes": 474,
+      "sha256": "3dddb194485dc3a98f0b53b05f8813ec2472394db294bb52a7fe214b8bd8c84b"
+    },
+    {
+      "path": "source/crates/motion-effects/src/bin/effect_tool.rs",
+      "bytes": 2205,
+      "sha256": "bba2f07d96f632a1c1cd2b75d6be1ad4fc15713f2b5439b7f70bf4a112952010"
+    },
+    {
+      "path": "source/crates/motion-effects/src/builtin.rs",
+      "bytes": 6194,
+      "sha256": "987b0f108a90bc1898d83411f645ae8b40f3065e47ccebe653cc3d821a63a70d"
+    },
+    {
+      "path": "source/crates/motion-effects/src/execution_plan.rs",
+      "bytes": 8739,
+      "sha256": "d39c9881c3a43bae2bc1c85ff8b5f3e3ade20fe57a82ade70068839ce9ddb5c7"
+    },
+    {
+      "path": "source/crates/motion-effects/src/execution_plan/tests.rs",
+      "bytes": 13942,
+      "sha256": "254f30271511a610d33753ec44f2004aace0c80efbeaa6c061273f970e10ee72"
+    },
+    {
+      "path": "source/crates/motion-effects/src/execution_plan/validation.rs",
+      "bytes": 16416,
+      "sha256": "dc699a13df9a3c48759bef58cdafb43c9b466e870d28247f901ba7fb3b1163e9"
+    },
+    {
+      "path": "source/crates/motion-effects/src/execution_template.rs",
+      "bytes": 12002,
+      "sha256": "2e0b003a51211b7220b738891dd60787e0ee274ebdeb7a222372fe84ee3f1b78"
+    },
+    {
+      "path": "source/crates/motion-effects/src/execution_template/tests.rs",
+      "bytes": 9244,
+      "sha256": "c86d0c40e27f372ecf0b0bb030d7778ea91c2c49af0381b879cc91daa758d559"
+    },
+    {
+      "path": "source/crates/motion-effects/src/image_contract.rs",
+      "bytes": 10044,
+      "sha256": "ff0cd9dda0d3d3bd1ad166959f7ba7affd730fce1d63e33743f1ad5fb0b99b72"
+    },
+    {
+      "path": "source/crates/motion-effects/src/lib.rs",
+      "bytes": 2415,
+      "sha256": "802f5ce0d6cde8952a096716bf109d4dd1e931538c6b5e007576bb5e2c87180f"
+    },
+    {
+      "path": "source/crates/motion-effects/src/memory.rs",
+      "bytes": 5080,
+      "sha256": "f64d805e08cec4573dc0a4f46e636fb29bcda4a492bf2d65a93aa48acf985c0b"
+    },
+    {
+      "path": "source/crates/motion-effects/src/memory/shaders.rs",
+      "bytes": 3093,
+      "sha256": "330ffb4ac4382b8645a615d115ba33f14c49aeb2bdac52ef2e1ed64077121e7c"
+    },
+    {
+      "path": "source/crates/motion-effects/src/memory/shaders/tests.rs",
+      "bytes": 3040,
+      "sha256": "cdc302f0891ceb9821f7b2a9f2aa1ea3ddfed9763ab2f1d334f33add0e279df0"
+    },
+    {
+      "path": "source/crates/motion-effects/src/memory/tests.rs",
+      "bytes": 3411,
+      "sha256": "c6a5aee00a163a13fd7a717506bca4bb8f8e1ed8ab4cc9cddd95beb5ae152f99"
+    },
+    {
+      "path": "source/crates/motion-effects/src/native_layout.rs",
+      "bytes": 10846,
+      "sha256": "7a1f023369d5bf38900f3fea62b763ff1df80c6eae2068c7094401b4af617cf7"
+    },
+    {
+      "path": "source/crates/motion-effects/src/native_ui.rs",
+      "bytes": 4989,
+      "sha256": "ab079fedeedc6988738405936df1d5bbac85f84f7fa28fa4e0fae47ef51c258b"
+    },
+    {
+      "path": "source/crates/motion-effects/src/package.rs",
+      "bytes": 25996,
+      "sha256": "44b0d87cf634b4a7822b190de99a458f279a43ffc5f612474de1be79283af899"
+    },
+    {
+      "path": "source/crates/motion-effects/src/pointwise.rs",
+      "bytes": 12511,
+      "sha256": "667883db6902066088b52877e1a8ad33a941a020b46a21221f84b607c52ee9f5"
+    },
+    {
+      "path": "source/crates/motion-effects/src/pointwise/codegen.rs",
+      "bytes": 6077,
+      "sha256": "282cbf2ff20e9fea66e4dfc1f5c47b760878acfb67f50088bb12d46705b98b47"
+    },
+    {
+      "path": "source/crates/motion-effects/src/pointwise/tests.rs",
+      "bytes": 9477,
+      "sha256": "b792fa72943f7623780495599aec8290d5ee5fc29eff91a0e18b88bb167c9fd2"
+    },
+    {
+      "path": "source/crates/motion-effects/src/scalar.rs",
+      "bytes": 523,
+      "sha256": "1c79501d4fc94715c6c4a2e93c3fbddf8dc40bb4a2fc7d335b4a70a828cae37e"
+    },
+    {
+      "path": "source/crates/motion-effects/src/scene.rs",
+      "bytes": 8331,
+      "sha256": "743980204f94434e74163ef5acbde995cb59d629f608d84b49b1e08fcca36a12"
+    },
+    {
+      "path": "source/crates/motion-effects/src/schema.rs",
+      "bytes": 23673,
+      "sha256": "7834b06fe488d2e00588c99b92be4bd720b04e59b80a549ba3ad4b795cafdf35"
+    },
+    {
+      "path": "source/crates/motion-effects/src/shader.rs",
+      "bytes": 21274,
+      "sha256": "c81ea92b813c4c4dd89f20c5addff02f07dd4687c347201cb22d8f4e5d9381fe"
+    },
+    {
+      "path": "source/crates/motion-effects/src/shader/identity.rs",
+      "bytes": 1761,
+      "sha256": "7302a3be8f7f14cc25802a17204da71dadc383aab5ad47c557bd2789b801454b"
+    },
+    {
+      "path": "source/crates/motion-effects/src/shader/legacy_select.rs",
+      "bytes": 3938,
+      "sha256": "c2c78e3037a5d12d3ba21e0589db4fc713870f348945a16752119a9d7b36911a"
+    },
+    {
+      "path": "source/crates/motion-effects/src/shader/sample_bounds.rs",
+      "bytes": 2664,
+      "sha256": "e751be12a77a67b3652fda564a5af3e484e072724c0bc5aa99de175f060b047c"
+    },
+    {
+      "path": "source/crates/motion-effects/src/shader/store_policy_tests.rs",
+      "bytes": 2072,
+      "sha256": "49cf289489bcee4d413de8e506b2381d7ca83d0fad9c93f9c43a2c203df93fcd"
+    },
+    {
+      "path": "source/crates/motion-effects/src/shader_data.rs",
+      "bytes": 6308,
+      "sha256": "fd037343afe9543137989835789ea6ebf57d64bd7a292b60351323e403bf9063"
+    },
+    {
+      "path": "source/crates/motion-effects/src/shader_data/values.rs",
+      "bytes": 8005,
+      "sha256": "21c48ec7b5085fd9fc5a2dd647df128206e8f137073e44c653d644c9ef5b6650"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/archive_identity.rs",
+      "bytes": 3714,
+      "sha256": "807cd1cca587301f71171dc73f3e2a04841a6d1ac183a576b3e4106e8ba18653"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/execution_template_package.rs",
+      "bytes": 4797,
+      "sha256": "278ef5195a4a2c327410ce8c20b195c92bfd6bc1fca82a5d7f04aa3a014d177a"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/image_contract.rs",
+      "bytes": 12562,
+      "sha256": "e56c4339aa6e9874b285d047a96c79195029911edb60a84dc9583da7c95d54d5"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/loop_work.rs",
+      "bytes": 2555,
+      "sha256": "56aeb3d13ececadbc28c21a0f073f47688d9ee3af3f35052d85c3a1bfa609970"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/motion_package.rs",
+      "bytes": 3420,
+      "sha256": "4acca68f94b34655e0ed141e946da14e3fda935fbb1efff89d203cc0dc2f52bc"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/native_layout.rs",
+      "bytes": 6331,
+      "sha256": "56ca771edb86b043f205c46f43366e0fe7316bb0d97e288c5717bf56c3337a5d"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/package_budget.rs",
+      "bytes": 9006,
+      "sha256": "ce0379fca6ba0be8159fb3e13f34bad38c76e7384d1da4289a4fb247310397ef"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/packages.rs",
+      "bytes": 15372,
+      "sha256": "86a69ec9ff175082a4db474ba744ef55ad8ee5ae0cd9736adf6d6754f30d3dae"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/parameter_ranges.rs",
+      "bytes": 2180,
+      "sha256": "e43f36375488d37df8c3b7b9a88b45534f5e9cdc97680da79f90c669d6aaa478"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/rectangle_bounds.rs",
+      "bytes": 4911,
+      "sha256": "5b964310a7ffbca27091792ce98ee1e015b3aceceaed0473d880b7027b8d366e"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/registry_failures.rs",
+      "bytes": 4201,
+      "sha256": "322b68087fefe71bd9424449ac32b243551c7a438336634229de6fb7ac032a73"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/registry_recovery.rs",
+      "bytes": 1560,
+      "sha256": "9d782ebd0e8969c029ccfa17e3747d922270bd72bc7f123067e4e3e3dce11fc0"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/retired_builtins.rs",
+      "bytes": 5405,
+      "sha256": "bc56d087c9a6d1786916afae65be04635f64eafdd38f703f24f69040014aa8cf"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/sample_bounds.rs",
+      "bytes": 2629,
+      "sha256": "fd559e93396115a1cefa486bc486175bd1731a2bdb620442f89920badd9e6f5d"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/scene_packages.rs",
+      "bytes": 7236,
+      "sha256": "b3c9d68a01fe116e74aa4f8e0e58624bfe587970bce5c65e2a82a39811819749"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/semantic_meanings.rs",
+      "bytes": 4464,
+      "sha256": "451639168141752be35efa8b0a770553fc140aeaa41e84495ef343d358c90a65"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/shader_error_identity.rs",
+      "bytes": 6054,
+      "sha256": "8b791ba9ab65696acb259bc6caf25e620d7f208decfe99d2085ccea92ac58cc9"
+    },
+    {
+      "path": "source/crates/motion-effects/tests/support/scene_packages.rs",
+      "bytes": 3060,
+      "sha256": "38591e555034ba0de718496bd28d930dc17fcdb2575aeee0f49ad4c76ae21cc0"
+    },
+    {
+      "path": "source/crates/motion-graph/Cargo.toml",
+      "bytes": 799,
+      "sha256": "67fd31f5eb31fa51d896a6cf7da5c4ec9958e14922b800385127be786d9320e0"
+    },
+    {
+      "path": "source/crates/motion-graph/src/blend.rs",
+      "bytes": 1797,
+      "sha256": "5b2a3a5b3cc47c099eb1abea3135a3cb7ad76171ac88df270a1013507092171c"
+    },
+    {
+      "path": "source/crates/motion-graph/src/compiler.rs",
+      "bytes": 75769,
+      "sha256": "d0e6fa0815b12f267c40d725c879ba9b3e7bc51cc4efb1ef28fd3e6e15c8e75b"
+    },
+    {
+      "path": "source/crates/motion-graph/src/compiler_order.rs",
+      "bytes": 1426,
+      "sha256": "13bd57d3e0d55b933165744b7942345fb273fd19606579097be871cdffed7811"
+    },
+    {
+      "path": "source/crates/motion-graph/src/demo.rs",
+      "bytes": 270,
+      "sha256": "11cb4878af7d4f002293ba9faee8d1814c92f56630e30dfa5897514192060dec"
+    },
+    {
+      "path": "source/crates/motion-graph/src/document.rs",
+      "bytes": 21216,
+      "sha256": "5710d473c45bc1fc5e4af637b1a15089749583f0812276262bdc38c2851b0ad0"
+    },
+    {
+      "path": "source/crates/motion-graph/src/editable_compiler.rs",
+      "bytes": 3860,
+      "sha256": "77ce02b76800e30b2e643200f7ea0edab2c9baa72bbb6b94b7ee97c54dc9546c"
+    },
+    {
+      "path": "source/crates/motion-graph/src/error.rs",
+      "bytes": 3381,
+      "sha256": "0a54dc3645ddc4829529527774fc612d485fbeac3993ac97064257a66edb0b03"
+    },
+    {
+      "path": "source/crates/motion-graph/src/examples.rs",
+      "bytes": 25863,
+      "sha256": "2dbb5cf8f4fbe709c9cc3ea95d0a4347b7a634502961d1ce89022f34ba54131a"
+    },
+    {
+      "path": "source/crates/motion-graph/src/export.rs",
+      "bytes": 8898,
+      "sha256": "8c30a7943557217e6b7fae290cdc42f62a9e1ff51dab3078534388a985f62761"
+    },
+    {
+      "path": "source/crates/motion-graph/src/groups.rs",
+      "bytes": 14348,
+      "sha256": "bf5d2041b8d27305f9de694a937531fba50499101d86e0f45cf5cfe67c2b4c5c"
+    },
+    {
+      "path": "source/crates/motion-graph/src/images.rs",
+      "bytes": 14738,
+      "sha256": "a28426dd0caa6903b83ef358adc77a9c0ffe1142094f71c27318cfac67838916"
+    },
+    {
+      "path": "source/crates/motion-graph/src/input_defaults.rs",
+      "bytes": 4997,
+      "sha256": "e4202e6c23e798fa0773d302b10d4ec0bc8da4a920458b45fc072bbe7ae436c4"
+    },
+    {
+      "path": "source/crates/motion-graph/src/lib.rs",
+      "bytes": 1375,
+      "sha256": "5373772d999c2b59ae91874383a323fb88aa0d4dba4cfbf8f0d3d19c6edea68f"
+    },
+    {
+      "path": "source/crates/motion-graph/src/plugin_project.rs",
+      "bytes": 9426,
+      "sha256": "04875939ecac4507008f6b256a3c006e05e1d8708d94bbf25e1abb1f3a8c61d1"
+    },
+    {
+      "path": "source/crates/motion-graph/src/plugin_project/compile.rs",
+      "bytes": 6167,
+      "sha256": "d28a214c71f32720198b51333269c79b9c5839be1e7dd12e8df33e7f816e64e2"
+    },
+    {
+      "path": "source/crates/motion-graph/src/plugin_project/error.rs",
+      "bytes": 6161,
+      "sha256": "c1cf2ac26ad97f6a8e600444bcdfab3be9057a5dd2318085dedb631f58a251ce"
+    },
+    {
+      "path": "source/crates/motion-graph/src/plugin_project/storage.rs",
+      "bytes": 3281,
+      "sha256": "bc633a1445f077d78a6f2a06b9f5892f3012e2eb0b774dadab22a204b5abb0e1"
+    },
+    {
+      "path": "source/crates/motion-graph/src/ports.rs",
+      "bytes": 42603,
+      "sha256": "db214e7b3efc7e8c020873774226b2fe6026f27c4a5e530bf463099566876e48"
+    },
+    {
+      "path": "source/crates/motion-graph/src/runtime_data.rs",
+      "bytes": 5212,
+      "sha256": "fe6f45178e198eecbbf0618159628d89c8f1eb715978c07f18ee47d35c9a2997"
+    },
+    {
+      "path": "source/crates/motion-graph/src/scalar_presets.rs",
+      "bytes": 2354,
+      "sha256": "289c94ffeb8d978002db4f5b0ede81ed675b34a11998662bbb8d73aabf60f49d"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/blend.rs",
+      "bytes": 3029,
+      "sha256": "2f754735e59765e8480224c4c08e167eb0398321938cba41bc989d56b8951d7b"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/compiler.rs",
+      "bytes": 11568,
+      "sha256": "874505c703d95391218b195e7e02c6a8b2a2445e5587dd2a20cac84a79349e5a"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/drafts.rs",
+      "bytes": 9982,
+      "sha256": "e9fceb7f0d11491dc8028d9332dcbbc87eb394d5ce7c25720b38ed7906c19fb0"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/editable_compiler.rs",
+      "bytes": 5947,
+      "sha256": "27aaa3eb13084e7b7a5bcbe77bbc0a36ce8daee2e40181d2a250322be12814e7"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/editable_data.rs",
+      "bytes": 13904,
+      "sha256": "bef35009aeba5f478dbad2aeb148674302e375748acfc30a922a13232f877686"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/examples.rs",
+      "bytes": 4953,
+      "sha256": "994ccaf404c8564caaaa6a24902bab49d782175234fc74b8fc88477d408aa37c"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/export.rs",
+      "bytes": 2471,
+      "sha256": "cae1537ce5abe8c79c672d58cfd09f5c66b8ac4e01c53fb76105c46b301fe102"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/gpu.rs",
+      "bytes": 31165,
+      "sha256": "10db2496eaf05203e9872fc669616ee75cc95bec2671503b4b8aab46b6af3653"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/gradient.rs",
+      "bytes": 2616,
+      "sha256": "f795f4813975b88d6cb9dff229ffc04730bccf85ce6c57b98e7ccfa3009adfed"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/groups.rs",
+      "bytes": 8435,
+      "sha256": "11489ef51b6537a0d43ab5349a82f3b1c934cd15e5b289f76ccbd8b8cdd41ece"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/images.rs",
+      "bytes": 9465,
+      "sha256": "a510f9a790c3d419b4be5d08e55d4552ae965f23fdfb4bacb737d199b41d9273"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/images_gpu.rs",
+      "bytes": 5991,
+      "sha256": "c3ab51f9a5738a6cdb7da1322d30f7e42257244e5aa3cc1d0067623474be0719"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/input_defaults.rs",
+      "bytes": 10942,
+      "sha256": "6473ae548483e741b6905d73806611f0875f9fbbad5745fed56960e901ba8289"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/naming.rs",
+      "bytes": 1729,
+      "sha256": "0704d6ea5a118a9e1669d5bf60340f338feffcffcde4c2e96c76aafd4289cd26"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/native_effect_causes.rs",
+      "bytes": 4105,
+      "sha256": "5d690853b14f4cd53d76337c6eb778a3d6aeab9d9f7d216de61a8964f463c678"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/noise.rs",
+      "bytes": 4012,
+      "sha256": "c03664915dd50e032d5f27e015de344752624ea919b8b8af6a20097f4aea8511"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/output_antialiasing.rs",
+      "bytes": 26758,
+      "sha256": "c30e41ede68a3518e89bb15c5b709edc6c4543cd6ee81a6c8b8954ea9e14ddb5"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/plugin_project.rs",
+      "bytes": 13666,
+      "sha256": "9e15a5b293530b9e3e7bd52788dc0a723d35007cfdd08b2fd535d6be368eb6b1"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/ports.rs",
+      "bytes": 6588,
+      "sha256": "7b304e462147ba20c86027107a663ca759d56150d33c4671207998673d056169"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/preview.rs",
+      "bytes": 4081,
+      "sha256": "a68f16d60bb4e9424d5988d3f453a7e21fae7b5efe2aa5781fc3597463cccaac"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/scalar_presets.rs",
+      "bytes": 7174,
+      "sha256": "403a60a296659b3bb4f9fd8520f216e2c98537a3ce7d4dea3fbc267dcb33dbb8"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/blend_fixture.rs",
+      "bytes": 1645,
+      "sha256": "bac7dd6137137467f36b2e5cde643c291a58dec28b2fd76accd8cf5b3d5f5cbc"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/blend_gpu.rs",
+      "bytes": 7185,
+      "sha256": "bbdbec6f6a90e1b4fa4bb326db1ba7a57f053895c38ff533bbe55737b84adf49"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/compact_examples_gpu.rs",
+      "bytes": 7518,
+      "sha256": "2bfbbdfb18614f6ea9faefe2bff479a2006db598a5853aa86404ee439c23f0b1"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/gradient_fixture.rs",
+      "bytes": 445,
+      "sha256": "17e204d689d6d913428049aabf80170522ae513984a97ce158d60e1621da9138"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/group_fixture.rs",
+      "bytes": 3313,
+      "sha256": "d64d10b0e70cab70f9b846963f0cb26ac2ab64a465e6e24b0931730e0cec65e7"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/image_fixture.rs",
+      "bytes": 3241,
+      "sha256": "b9cd2233ef0c134f970b8e9be9ccb18ea9d67677b75ea93416df27d524ffa9c8"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/noise_fixture.rs",
+      "bytes": 277,
+      "sha256": "3bf85a821c265bfff32a41b2a8fd234a1b79f2810d48136eb7fb5cf933d31351"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/noise_gpu.rs",
+      "bytes": 5547,
+      "sha256": "6316efae9ced5a57a2d5bc6cbd2ae8e1832edd57a1216fa9dc97b8ee00703009"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/support/uv_mapping_fixture.rs",
+      "bytes": 1429,
+      "sha256": "992389d6700888a8bd24bc819fae263aa173075459e7729f488be54f57b19b95"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/uv_mapping.rs",
+      "bytes": 3131,
+      "sha256": "bc2ff04f07e2504e1488532812fbe82191cfdcbc25b667aeaf45b7117f0da86d"
+    },
+    {
+      "path": "source/crates/motion-graph/tests/validation.rs",
+      "bytes": 6410,
+      "sha256": "523ee43bf362b3fc8989d289599be1ece37a003a931451384b96193a2b25fef1"
+    },
+    {
+      "path": "source/crates/motion-model/Cargo.toml",
+      "bytes": 408,
+      "sha256": "ffa837e5927be0908e462fd07ff2e479b7134d2990e21bbb9cb55e5838137c23"
+    },
+    {
+      "path": "source/crates/motion-model/src/animation.rs",
+      "bytes": 35103,
+      "sha256": "a0711d2c05941e6e73cc05e64676d5814600d63b7e58432d97fd419d01c17d48"
+    },
+    {
+      "path": "source/crates/motion-model/src/animation/automatic.rs",
+      "bytes": 8296,
+      "sha256": "f92334a64365bc37699808b26531bc3e42663265a2a99b5dc293ba9d305758d3"
+    },
+    {
+      "path": "source/crates/motion-model/src/animation/path_metric.rs",
+      "bytes": 20481,
+      "sha256": "a4ba54c6b2c3daccfb1925be71415264690612649d67a6d733822a641b069f7f"
+    },
+    {
+      "path": "source/crates/motion-model/src/animation/spatial_animation.rs",
+      "bytes": 23956,
+      "sha256": "d2c29911e8327e057348ab2f95a7c5b9fe937127f1ff95fa9bc62f9686d82140"
+    },
+    {
+      "path": "source/crates/motion-model/src/animation/spatial_schedule.rs",
+      "bytes": 14168,
+      "sha256": "225f9f9e4f0819b39da8fbd03de7d52c1ecf78c33071da9e7d70a5e307c5fb63"
+    },
+    {
+      "path": "source/crates/motion-model/src/animation/track_serde.rs",
+      "bytes": 3918,
+      "sha256": "fddc3ff68bcb019e36b3870bb6ad73f209e762a7cfe526e1057071a95d0ade41"
+    },
+    {
+      "path": "source/crates/motion-model/src/animation_presets.rs",
+      "bytes": 18337,
+      "sha256": "9edbd79021b89c13b48236051572858e3c21c8f9e072b472a8e1513cbc0367fe"
+    },
+    {
+      "path": "source/crates/motion-model/src/audio.rs",
+      "bytes": 2650,
+      "sha256": "bb8248169cbfe0c362909068dd7cc8bb863d298c7362dcf71ffdc5222eb719dc"
+    },
+    {
+      "path": "source/crates/motion-model/src/audio_edit.rs",
+      "bytes": 5301,
+      "sha256": "9a45f9d04aa6eff8b47886423c99c2e4f0bdce8a3ff56e27fc1cc27e5ab26bd0"
+    },
+    {
+      "path": "source/crates/motion-model/src/audio_levels.rs",
+      "bytes": 5745,
+      "sha256": "84f814a65cea0b4279a67522e5d5e35951c03b0b5dbdd0a8bffa0517d639b954"
+    },
+    {
+      "path": "source/crates/motion-model/src/boundaries.rs",
+      "bytes": 1553,
+      "sha256": "0ca3cd29f6f3f91d2fbd0313924f6938270c0b99a4439bc55b75f5deef880928"
+    },
+    {
+      "path": "source/crates/motion-model/src/camera.rs",
+      "bytes": 17514,
+      "sha256": "fbd404e3769c682c7795a5357dc3698dc8eb0156130a640b2348f0d4a5b5f456"
+    },
+    {
+      "path": "source/crates/motion-model/src/camera/depth_of_field.rs",
+      "bytes": 2955,
+      "sha256": "76fcc2ed07294568c018e35c6f5730beef2bffed81b82752128e3c54fe9792b1"
+    },
+    {
+      "path": "source/crates/motion-model/src/camera/imported.rs",
+      "bytes": 3145,
+      "sha256": "2d26ab7fcb2bc763d44dc9d8356329c0a10852086e7fcdba0e2235584f646a83"
+    },
+    {
+      "path": "source/crates/motion-model/src/camera/lens.rs",
+      "bytes": 3020,
+      "sha256": "5f2a082891adaac7368b10c7b9571a5afa0f50382c38a321452a39dd01f125c8"
+    },
+    {
+      "path": "source/crates/motion-model/src/clip_range.rs",
+      "bytes": 1931,
+      "sha256": "aa181238fe41bf5fcf93f536ad6b5dbd3ff7f81e618924550fb1b1da45097d2c"
+    },
+    {
+      "path": "source/crates/motion-model/src/color_curves.rs",
+      "bytes": 4428,
+      "sha256": "eef6058105ded1f069e51605aa55903edcceb48dcd52e78fbd4c9dba710fe190"
+    },
+    {
+      "path": "source/crates/motion-model/src/commands.rs",
+      "bytes": 14558,
+      "sha256": "03b9b78cfcd9579d9df2099ca1f8d89190cb1e9890ff8ce78397851080bef971"
+    },
+    {
+      "path": "source/crates/motion-model/src/compositing.rs",
+      "bytes": 6274,
+      "sha256": "ce77207035fb8c43d59a896a4eb6a1693f7a3fbddb9a09b928d03b4d0c68f529"
+    },
+    {
+      "path": "source/crates/motion-model/src/composition.rs",
+      "bytes": 54518,
+      "sha256": "5f34043f2408be56ac3a88a21322ff040e672f8b4f6ad7babf460fe2e765f98a"
+    },
+    {
+      "path": "source/crates/motion-model/src/composition/audio_time.rs",
+      "bytes": 5586,
+      "sha256": "be5f05ae24da632c24dc7bc905b7fa7d8cced390858b986b60634b6cf9c59280"
+    },
+    {
+      "path": "source/crates/motion-model/src/curve.rs",
+      "bytes": 13354,
+      "sha256": "8bedfa98a19482d8c87f4c1a8e25940c90d2dfd626ddd9e98229f44eb1b382ca"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth.rs",
+      "bytes": 14912,
+      "sha256": "ac8cda058f283aac9ce73afe37edba7aea5d911e2c7cef5795706d80181f91f4"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/blend.rs",
+      "bytes": 17016,
+      "sha256": "e3601e32d1495102adfabc866366858a550a6e1687bf6c2d6346da249b8b8712"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/calibration.rs",
+      "bytes": 6918,
+      "sha256": "f388ba6ab2b3be8fa6a29df023f6b0d4c07df640ba5c866567aff761d65f7b78"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/prepared.rs",
+      "bytes": 1113,
+      "sha256": "f9c26b0c1c1d514af9d02c15c3f7a75e98d4213b09a35842b6bc92fe280bedce"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/projection.rs",
+      "bytes": 7453,
+      "sha256": "b5adfe864d0d70c57f5a7744f8af493887f89de329e993000979e18cd80c2a04"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/saved.rs",
+      "bytes": 5670,
+      "sha256": "8662096ccd45e069bbc31800be0256f7dac4a23bc09d66b2d945de8dffb536c1"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/surface.rs",
+      "bytes": 7295,
+      "sha256": "7935de6ab0aed7b1c6a77cd8719fc5f083db7f829735752d146533bf6221fbb2"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/video.rs",
+      "bytes": 7218,
+      "sha256": "df491fb72a3fe8117bf45ad24f4b51a35cdcc966f2f1a7c6f80777f65c6b9cc5"
+    },
+    {
+      "path": "source/crates/motion-model/src/effects.rs",
+      "bytes": 35673,
+      "sha256": "b01c1c86820d0de1fb2d3261ce08ef708308c5819d21384d0e8f5f7fca4e9873"
+    },
+    {
+      "path": "source/crates/motion-model/src/effects/curve_sampling.rs",
+      "bytes": 8485,
+      "sha256": "b5be02e0247e6bd9ee4bedc6c5f7b2d70daca69729471f538aaeef7700f0a40a"
+    },
+    {
+      "path": "source/crates/motion-model/src/expressions.rs",
+      "bytes": 8090,
+      "sha256": "5913ea45f4007903525a6c4d183271fcaca21d1f8b5fed3914f1908b9a62104b"
+    },
+    {
+      "path": "source/crates/motion-model/src/frame_rate.rs",
+      "bytes": 8443,
+      "sha256": "107876821d9e184f397b4afbf455b7f37976232c5fc558d561589ac1c6e4da85"
+    },
+    {
+      "path": "source/crates/motion-model/src/frame_rate/parse.rs",
+      "bytes": 1938,
+      "sha256": "af4196fbe29bf45684b774f91a7d32f4f5f77c805f7cf2874ff2c144a02aaca8"
+    },
+    {
+      "path": "source/crates/motion-model/src/geometry.rs",
+      "bytes": 2005,
+      "sha256": "2ed3d4e53805deb4cdd35b1dea8ca43d5891b5f1d1573a911983308a7bc2a86d"
+    },
+    {
+      "path": "source/crates/motion-model/src/guides.rs",
+      "bytes": 5623,
+      "sha256": "c858adb90197fcb45dff334ddae5843190d1698628963265f6da2cb5b0ab5aee"
+    },
+    {
+      "path": "source/crates/motion-model/src/hierarchy.rs",
+      "bytes": 10021,
+      "sha256": "86d77cba41e0c5a9780d1b0ab64a41cf3fea90f0d43afbeee23f7dd2c0e8bdd8"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard.rs",
+      "bytes": 21221,
+      "sha256": "004768ab70247cd8b0e6d3cdc2eb0d7bc7abf524f8be2a3a2ce5335c90cb6899"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/authoring.rs",
+      "bytes": 15657,
+      "sha256": "c57885821247a0d22b72d81761c7399b1a3637c0340676308019e9c8d2412c47"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/authoring/anchor.rs",
+      "bytes": 5551,
+      "sha256": "96eb8124dc210f166a363d2d4d8adae8fd9d8e1e3753de1b7688251220fea756"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/automatic.rs",
+      "bytes": 2863,
+      "sha256": "4740242df15868e9df8d6374aed0fab754426d82d7bf24fc87c5446cc1ca184b"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/channels.rs",
+      "bytes": 14139,
+      "sha256": "a4b1ab9e251377bc533eed210aee960de68495cf54dee940a8db2355c5aa515d"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/curve_clipboard.rs",
+      "bytes": 8987,
+      "sha256": "4c15f85093092ebc736854869e66fd980c6eeea8b5e088d95f7758f0f4ab8a76"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/curve_clipboard/local.rs",
+      "bytes": 6178,
+      "sha256": "e2a0541826f019615022e5db3ce33e5fe568a7d2c4ab5bedee0761963c11bc5e"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/easing.rs",
+      "bytes": 4436,
+      "sha256": "74a9aefd26fea4c10caf8188f1906fb11df9d03691b35275bf2a24909fb3ce3d"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/handle.rs",
+      "bytes": 4052,
+      "sha256": "92707edf0baeabc127260687061b7225e26ec4ff26f467c2b078c9fafbe9f1d5"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/interpolation.rs",
+      "bytes": 4908,
+      "sha256": "7fdf8ca3d48bfef206a3fec8ffa668d1177df27969234ade358b6155072abdbd"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/local.rs",
+      "bytes": 13779,
+      "sha256": "a817aea7a891ced434174fc960582da451b1ac591bff28209f76413d9f268660"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/spatial.rs",
+      "bytes": 8847,
+      "sha256": "e9ed4ea3ff466c3d00cd98dc7317ef2f7558aae95fdcdfdf09679765ee52bb92"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/timing.rs",
+      "bytes": 20504,
+      "sha256": "4cbeb11cd6de257409f45597ca613f83f1c1b0673a0c8f7331cc28860eb52a4e"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/timing/units.rs",
+      "bytes": 5105,
+      "sha256": "097ef038b5cbc65d00e3302d31512dd2b389cb44c95bec9ff0d726be2775688f"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/transfer_time.rs",
+      "bytes": 12538,
+      "sha256": "177e828f3fd24241adb622426001037809c882f422e67f8768e403bb48024998"
+    },
+    {
+      "path": "source/crates/motion-model/src/keyframe_clipboard/transform.rs",
+      "bytes": 6699,
+      "sha256": "be1a46d4f2a81553dae3bdaf790f8672b96572cfc734c179161112c9073a82b9"
+    },
+    {
+      "path": "source/crates/motion-model/src/layer_clipboard.rs",
+      "bytes": 6957,
+      "sha256": "0a6f6e24a433b2bd72d7ba70b0c51cd14ea5fa122dfac4e313ae06cf76497b05"
+    },
+    {
+      "path": "source/crates/motion-model/src/layer_switches.rs",
+      "bytes": 3024,
+      "sha256": "20f9ec0ff50b773ecb8174427c253987713c8a49467d188ad6307451ecd16b00"
+    },
+    {
+      "path": "source/crates/motion-model/src/layer_time.rs",
+      "bytes": 19602,
+      "sha256": "a57fc36fa01a7a5902e6531357cd6bcb4849d6bfc4bd0ae829d7dffaabf6b5da"
+    },
+    {
+      "path": "source/crates/motion-model/src/layer_time/document.rs",
+      "bytes": 11119,
+      "sha256": "777f1790fdb49be67a0d3175ff3e5a9a9d313902442271c0b2786d7a7f99ee29"
+    },
+    {
+      "path": "source/crates/motion-model/src/layer_time/media.rs",
+      "bytes": 3349,
+      "sha256": "60b0b1ec5623eaa7e17e7b8a9587237b1c91373184e3639767735ab07d4ed9e8"
+    },
+    {
+      "path": "source/crates/motion-model/src/lib.rs",
+      "bytes": 10602,
+      "sha256": "4215bb0bd20d0bb552103a5e10068491a592821cada7ed44fac3234d0d3c9d91"
+    },
+    {
+      "path": "source/crates/motion-model/src/masks.rs",
+      "bytes": 15444,
+      "sha256": "401c92da6f6078aa43228cb8e883d412ba83603ffaa7f95d7497f1e8f79ae9c0"
+    },
+    {
+      "path": "source/crates/motion-model/src/media_assets.rs",
+      "bytes": 10169,
+      "sha256": "0f91de747ac184a1990a6f47e1f57b35580070261d9055b01045484532899289"
+    },
+    {
+      "path": "source/crates/motion-model/src/model.rs",
+      "bytes": 38730,
+      "sha256": "ad55fcf9a869e85075803693dff6bdb98cd5a894620d123d2debbfc94da59623"
+    },
+    {
+      "path": "source/crates/motion-model/src/model_assets.rs",
+      "bytes": 3779,
+      "sha256": "b32733513ed7b05fc8af18e28dbd71f288797f6e25411bf24ebcf4eefcdde4cb"
+    },
+    {
+      "path": "source/crates/motion-model/src/node_resources.rs",
+      "bytes": 4543,
+      "sha256": "217bc3a913e9362ec45adf9dd45e044fab27e9283f01a012640bf3748d4f5614"
+    },
+    {
+      "path": "source/crates/motion-model/src/observability.rs",
+      "bytes": 1163,
+      "sha256": "34b29cc94818d48f92e9e6575d37731a4c373d931c2842f0f01364008ba586aa"
+    },
+    {
+      "path": "source/crates/motion-model/src/particle_history.rs",
+      "bytes": 5477,
+      "sha256": "a67c40f580cea5384a9c5b758c31cc316f09c50662aac2487bc7801d7e902a08"
+    },
+    {
+      "path": "source/crates/motion-model/src/path_clipboard.rs",
+      "bytes": 9545,
+      "sha256": "67f7a1eb8b52b2332c999d73596da09044798b5833f5eace3a395b8ea0b75a00"
+    },
+    {
+      "path": "source/crates/motion-model/src/path_clipboard/editing.rs",
+      "bytes": 8601,
+      "sha256": "70c097449ed69167e8f6c4d35c549323b394b17e08aba9bf1ead7b4e5cfb60c1"
+    },
+    {
+      "path": "source/crates/motion-model/src/path_conversion.rs",
+      "bytes": 7671,
+      "sha256": "4fbfed3cca4bff491e7ecf02b9dc2fba8738d04b08e2c6d3aa2712d60724de7b"
+    },
+    {
+      "path": "source/crates/motion-model/src/project_library.rs",
+      "bytes": 10111,
+      "sha256": "d0f3521f2b5fb9cfd20346a52c440728f6ff005d75cf265ada61784ebc3256be"
+    },
+    {
+      "path": "source/crates/motion-model/src/render_sampling.rs",
+      "bytes": 8225,
+      "sha256": "dcc7c65ba7ad7c319a84a9f61bc8f53053f432e95f20fed95bd3f12fea7e066e"
+    },
+    {
+      "path": "source/crates/motion-model/src/render_sampling/exposure_clock.rs",
+      "bytes": 8759,
+      "sha256": "050c590a138a52ccb3f758e926771bf6b060c29134fbe1f508451b3ab0697feb"
+    },
+    {
+      "path": "source/crates/motion-model/src/storage.rs",
+      "bytes": 879,
+      "sha256": "28ce20e5a5fd79acea218d2d15d9223c9c9df213df283e7576cbebbf44385771"
+    },
+    {
+      "path": "source/crates/motion-model/src/text.rs",
+      "bytes": 2726,
+      "sha256": "9e48411154c8c15f92593cc589e542056690afff796aa9b9baa7db7ac862c982"
+    },
+    {
+      "path": "source/crates/motion-model/src/timecode.rs",
+      "bytes": 5522,
+      "sha256": "5f30bcbf1dd088cd54f4f0357615adf9e73be6419708cbe0d0a51d7b03768753"
+    },
+    {
+      "path": "source/crates/motion-model/src/timeline.rs",
+      "bytes": 12546,
+      "sha256": "10efd0b116e4aa735dee4ae05970c494ef7c053464b6029fcb5b902acd85fba0"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking.rs",
+      "bytes": 340,
+      "sha256": "1db018d50154c6f33da6ea266b8cd9e2206541f7a4b243fd76c2e427265f0170"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/asset.rs",
+      "bytes": 12344,
+      "sha256": "861059d13b29c02690c8eca9faf7f17072ec6d2b60f68e42cb5543b468363d64"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/asset_tests.rs",
+      "bytes": 9283,
+      "sha256": "3b84706de957ff553430d4fd70218e0451c2f36e50aef4389e9d812f4c06fe58"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/camera.rs",
+      "bytes": 16657,
+      "sha256": "831ff5e1a69451ba8d6e5d995c313e1fb912fafd8a1326164562b9d6365133db"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/decode.rs",
+      "bytes": 14455,
+      "sha256": "dd693b25fd7c6ebc67bff6fbeb9c5c091b11e152c33aff10ce53663bff0f4c4d"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/decode_tests.rs",
+      "bytes": 11719,
+      "sha256": "3d78ed9c60484c919226247a8feb98c27a3a65f880cfa815b1845acc540b1acc"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/encode.rs",
+      "bytes": 6686,
+      "sha256": "3f8a99976f9a10f9bce5b27e666a3eff37f10ade66e0f6dc1b17f5cddab5f611"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/encode_tests.rs",
+      "bytes": 9376,
+      "sha256": "e3a6bd93e1521389559513ace61505a27c72ba03f639815e2608ed4081ddc490"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/lens.rs",
+      "bytes": 13633,
+      "sha256": "559a61e382d3da1fd41cb15c59b4ff0b9e45748cfba51fcc7e13ae5d51a9acd9"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/lens/certificate.rs",
+      "bytes": 3154,
+      "sha256": "33c3edb3f493e2d9034297ad45aee4be4e773c8a93c2cd192ebb252f985fc33e"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/plane.rs",
+      "bytes": 14717,
+      "sha256": "ed856ead72b9eaf67e61d9fd6db879acef08cc3ac38f3fb2b20e6ac30a673270"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/plate.rs",
+      "bytes": 7571,
+      "sha256": "3e3c6d2e012dc933cde2ae65c6d3742bc976efbf5e658733d4866edde15a8d5e"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/plate_tests.rs",
+      "bytes": 4843,
+      "sha256": "0dabb97ef1b95947facb293366c9ef298ab7804f8920419c1b6efbc3b4be67cf"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/point.rs",
+      "bytes": 8859,
+      "sha256": "50a4dfe800c124d66d7e2fe696df24ec70437024eb9a5c8f3609a813b353422b"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/pose.rs",
+      "bytes": 7180,
+      "sha256": "13cbf0bacb745f469dfa7e0676b8834c04cea972eb2c4db4e3e11b3c4268cf34"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/pose_tests.rs",
+      "bytes": 11018,
+      "sha256": "9dfeb7ae885abe8dd2a23a417424b2d1d4422729e170dc36f3d57615586279b7"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/shared.rs",
+      "bytes": 1469,
+      "sha256": "be2c4852fd2359d842b8e029f560646701f700f6d77a982cc71527f533453088"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/time.rs",
+      "bytes": 8987,
+      "sha256": "2651567bbe189f73acd2a16d46a51010367e6fb52cf9798566f3ae89a15da4f6"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking/time_tests.rs",
+      "bytes": 9352,
+      "sha256": "01e0d1e6751b429bbe93d5b65715f3282ea8c13c203aa90bd98872c305e435dd"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking_assets.rs",
+      "bytes": 2886,
+      "sha256": "a97dffb8ab56d6d96e3bf961c140b39a66da0d489f53b09c87fd65168d53c250"
+    },
+    {
+      "path": "source/crates/motion-model/src/tracking_assets/replacement.rs",
+      "bytes": 7930,
+      "sha256": "3e5e6abed91ad37f3c2151487abbd4b3a2ed8d8bb14a713e11df6562d503cb1b"
+    },
+    {
+      "path": "source/crates/motion-model/src/vector.rs",
+      "bytes": 37780,
+      "sha256": "8c4d4196943b01367472aaa29ad449ca321b2999401a6c2cce142d10b8c908cb"
+    },
+    {
+      "path": "source/crates/motion-model/src/vector/authored.rs",
+      "bytes": 3295,
+      "sha256": "0f27f28c5a78d1328738314f424016574b90d0766b25731d9b6709fc03eb1aab"
+    },
+    {
+      "path": "source/crates/motion-model/src/vector/auto_tangents.rs",
+      "bytes": 3100,
+      "sha256": "49c03490a48e3df927934a423b5588c77bd3de0d16286fff47d7da24ccf3aa8f"
+    },
+    {
+      "path": "source/crates/motion-model/src/vector/groups.rs",
+      "bytes": 29374,
+      "sha256": "c27ac4419130b0444bcc0e2e02838d762f8c759e173a39111d8dfa49b7207437"
+    },
+    {
+      "path": "source/crates/motion-model/src/vector/groups/sampling.rs",
+      "bytes": 18464,
+      "sha256": "1ad763e84a387054c80caedd5ce971fce833b90a62ae2460765c64243102e6ec"
+    },
+    {
+      "path": "source/crates/motion-model/src/vector/path_ops.rs",
+      "bytes": 13602,
+      "sha256": "9593dc916ed02340099c81c516215f41d899187e2ad40cb35ef138fedfd66172"
+    },
+    {
+      "path": "source/crates/motion-model/src/vector/path_ops/tests.rs",
+      "bytes": 1441,
+      "sha256": "de18f21bebe0d266f48a4f8b91b6038074efff4c1f40d40a248d5c1a81ca2953"
+    },
+    {
+      "path": "source/crates/motion-model/src/video.rs",
+      "bytes": 5348,
+      "sha256": "0f6c05a9a78b4fcf45776b4db40e6181f72ff756bda4a56489242f7cec527582"
+    },
+    {
+      "path": "source/crates/motion-model/src/work_area.rs",
+      "bytes": 3252,
+      "sha256": "ff888348ad1e9bf643cfab9dba97bdac421178fc94298f25a3c29506124cdec1"
+    },
+    {
+      "path": "source/crates/motion-model/tests/animation_sampling_errors.rs",
+      "bytes": 5083,
+      "sha256": "5a995d69ef4756357ba36a51739e4eb4f20ec56d610aaee8c2e15237cd406fea"
+    },
+    {
+      "path": "source/crates/motion-model/tests/arithmetic_policy.rs",
+      "bytes": 1250,
+      "sha256": "4f963f651d5cf3cd7cc2524c8077292bc88640f3e4a5f83f65ce62e02e9941f5"
+    },
+    {
+      "path": "source/crates/motion-model/tests/audio_plan_time_bounds.rs",
+      "bytes": 10300,
+      "sha256": "306e97a3f7ac9d88afd5ca9a208daa3b8a1ec74c262a3481c7d631868050521b"
+    },
+    {
+      "path": "source/crates/motion-model/tests/automatic_bezier.rs",
+      "bytes": 8317,
+      "sha256": "5a4eb1a2f8aa4eef9094e99cfc546859b046dcbe1675c12dac96be9084420e6c"
+    },
+    {
+      "path": "source/crates/motion-model/tests/color_curve_failures.rs",
+      "bytes": 4816,
+      "sha256": "a47ef6e68dac7a80dc44f0de7e02987a736156ac98f2ea51491412e6c157abf0"
+    },
+    {
+      "path": "source/crates/motion-model/tests/composition_boundaries.rs",
+      "bytes": 4683,
+      "sha256": "980c53e2dd2e93c7ea1f9ffae52fb3867a475b3c66c3427621ce9fdc7bf11da0"
+    },
+    {
+      "path": "source/crates/motion-model/tests/composition_candidate_oracle.rs",
+      "bytes": 6217,
+      "sha256": "f5d618525a789823e5a10b6548117e8d601a38bb21ce9dd502b310211ed7da0b"
+    },
+    {
+      "path": "source/crates/motion-model/tests/composition_frame_mapping.rs",
+      "bytes": 2489,
+      "sha256": "d5403173aa99d364721e968de36c884edb43cc46460163e3585ee1d0e5bbaa9c"
+    },
+    {
+      "path": "source/crates/motion-model/tests/composition_queries.rs",
+      "bytes": 5234,
+      "sha256": "2b6b7a2c0562303f5fdead3ab8e26d96f4e6a47772f425ebcf9f94c8db6832e5"
+    },
+    {
+      "path": "source/crates/motion-model/tests/dense_color_curves.rs",
+      "bytes": 4535,
+      "sha256": "c1ec199bf0a279ab04f2313aae4922bef3b1a92657f7c2f6e399468906d273cf"
+    },
+    {
+      "path": "source/crates/motion-model/tests/dependency_boundaries.rs",
+      "bytes": 4232,
+      "sha256": "b0d560370d051f2abc87f2128ce4099fb9c9cfd09e2abd5b662f7c07cfd26ba7"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth.rs",
+      "bytes": 8927,
+      "sha256": "97e233c87519bf04c121faa99ae470e270d7c6a74bfc8a7c73d5cfa58433be53"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_blend.rs",
+      "bytes": 16664,
+      "sha256": "16dd13d713b1641d0889db5f7a8f1a3f5b9636bc095aac00617d5454b85452ee"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_blend_coordinates.rs",
+      "bytes": 3338,
+      "sha256": "4a69d549afd936cda28b6727a133700e798280e89d0fad7257274359662fe015"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_calibration.rs",
+      "bytes": 15810,
+      "sha256": "dc8ce4d402d578f8838a414bf069446d19ec13a6917959d9ccdbafd3a134d703"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_of_field.rs",
+      "bytes": 2156,
+      "sha256": "4c5267926f6a3a35ff201d01000828698a55af814a11a6955049cf4cbf09f8dc"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_prepared.rs",
+      "bytes": 1116,
+      "sha256": "78447ba6b5d2b91703293312eab24155df05532acb90cd01c76c10e6df3ca29e"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_saved.rs",
+      "bytes": 4821,
+      "sha256": "c8179c6999a02e7fdb166d529981f90ebec10eeb17d34e817d4dbc92f1bc2f49"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_surface.rs",
+      "bytes": 7543,
+      "sha256": "05e65023abf00fc74ac818b61c4967bad0b044200297fbc19719867d9208f163"
+    },
+    {
+      "path": "source/crates/motion-model/tests/depth_video_track.rs",
+      "bytes": 4626,
+      "sha256": "f472a08350e658c6f93399a1522813a5a8ed007ff4bb7d87b58f29d6be10423d"
+    },
+    {
+      "path": "source/crates/motion-model/tests/dimension_conversion_errors.rs",
+      "bytes": 5257,
+      "sha256": "34db2a9bc5a651c1b09845ce06175db58f74b8ac70eabf2e5f87e4b97d651359"
+    },
+    {
+      "path": "source/crates/motion-model/tests/dimension_edit_errors.rs",
+      "bytes": 4660,
+      "sha256": "395822620eef102ad93c9ef0f99b27edccb177c178833a9f720dff002acf8495"
+    },
+    {
+      "path": "source/crates/motion-model/tests/effect_parameter_errors.rs",
+      "bytes": 2742,
+      "sha256": "f715a2abd98e2c4b37990f56244dd8e1f3d0359c922b0abdc145d4bee4e4ae4e"
+    },
+    {
+      "path": "source/crates/motion-model/tests/frame_rate.rs",
+      "bytes": 6324,
+      "sha256": "3dd798e499774ac7719f3e92738db3d91d0c99eed96dbd0a6bf89e295a7f7dbd"
+    },
+    {
+      "path": "source/crates/motion-model/tests/key_collisions.rs",
+      "bytes": 8835,
+      "sha256": "66019091235f75f663aadc212830cdab26b1343b0c2525382fb4315c87f32a8a"
+    },
+    {
+      "path": "source/crates/motion-model/tests/layer_time.rs",
+      "bytes": 24375,
+      "sha256": "f952764db82b7e812edd582b09e978ae20853be312ebce0c01321053015348bd"
+    },
+    {
+      "path": "source/crates/motion-model/tests/layer_time_direction.rs",
+      "bytes": 3395,
+      "sha256": "c5ec67928481ee104eba488118262c95e75b9b1b0614d3075c270beb5a274be1"
+    },
+    {
+      "path": "source/crates/motion-model/tests/layer_time_document.rs",
+      "bytes": 7846,
+      "sha256": "449de38155c1c0ec913729cba41632cbc6770c434a0f19d0fbe2cc7cb4aa1127"
+    },
+    {
+      "path": "source/crates/motion-model/tests/layer_time_projection.rs",
+      "bytes": 11572,
+      "sha256": "02f32f277cdd4fba77899a7a915af06c620a0d14c6db700bce59ffbcff8f5cf9"
+    },
+    {
+      "path": "source/crates/motion-model/tests/layer_time_stationary.rs",
+      "bytes": 8401,
+      "sha256": "77cbea8683ebc918cbb8503b7a4785065f8b981b19e58c2a7359afe665013f74"
+    },
+    {
+      "path": "source/crates/motion-model/tests/layer_time_video.rs",
+      "bytes": 4837,
+      "sha256": "d30b3255b3b095fe6d9036a9a9cf0cca32d1e0d68a4b108db863c69a66332bd2"
+    },
+    {
+      "path": "source/crates/motion-model/tests/node_resources.rs",
+      "bytes": 2769,
+      "sha256": "5d404188faac5596cd2b80ee64694bec143fcb163db6893d17821de1ed1dff02"
+    },
+    {
+      "path": "source/crates/motion-model/tests/observability.rs",
+      "bytes": 5832,
+      "sha256": "b0cf28c8802c2192a97ad994ca3f1fbf0526ea9d604df06fcc5b23f827e5a4e6"
+    },
+    {
+      "path": "source/crates/motion-model/tests/path_auto_tangents.rs",
+      "bytes": 4335,
+      "sha256": "f9bc382fc58e05928ed243044bb9fd5f54bcd516963d056cbd4d566be412af3a"
+    },
+    {
+      "path": "source/crates/motion-model/tests/path_tangent_sampling.rs",
+      "bytes": 5507,
+      "sha256": "af89e467f05ab963328109d30a673897b7dc469e87f9fb62e6014da241162920"
+    },
+    {
+      "path": "source/crates/motion-model/tests/photographed_lens.rs",
+      "bytes": 4705,
+      "sha256": "8ceeae33ce883e27d4654cda05aafe8e9dc793a8bb812d703ae888bd584a6e8e"
+    },
+    {
+      "path": "source/crates/motion-model/tests/rational_project_clock.rs",
+      "bytes": 6186,
+      "sha256": "e02be89acd7202bd8ad16c3779f3b97219b1a8a7f68185014b2ecd0c7a649080"
+    },
+    {
+      "path": "source/crates/motion-model/tests/sample_time.rs",
+      "bytes": 1183,
+      "sha256": "6afd047abc292afff82731b9615232081e253ac0c2a4deb3a50e3f9bb2dcf70d"
+    },
+    {
+      "path": "source/crates/motion-model/tests/shape_parameter_errors.rs",
+      "bytes": 4257,
+      "sha256": "4fa3a839aaf8d27a533d18efdfc9eb5cfbf44dcb2eb1102a4ee334f1100612e5"
+    },
+    {
+      "path": "source/crates/motion-model/tests/spatial_hot_path.rs",
+      "bytes": 3840,
+      "sha256": "258e7d4321f2c38ebff89b177b5332b81d753d8ad74e7e8cd498f331996e1496"
+    },
+    {
+      "path": "source/crates/motion-model/tests/spatial_schedule.rs",
+      "bytes": 17841,
+      "sha256": "b29d100eb0b8c47550deea06a9e51560ac3c26097c6db2df62c1301312d7002c"
+    },
+    {
+      "path": "source/crates/motion-model/tests/spatial_timing.rs",
+      "bytes": 12291,
+      "sha256": "56cee8bfa3c74928c06a514c6dd820e081f1c86782db158d70618f0013365d90"
+    },
+    {
+      "path": "source/crates/motion-model/tests/spatial_track.rs",
+      "bytes": 12321,
+      "sha256": "d24460b708a0be6dcefa89e16266020577f19829baa673f0fd64c2460e4abcf1"
+    },
+    {
+      "path": "source/crates/motion-model/tests/spatial_velocity.rs",
+      "bytes": 5182,
+      "sha256": "60e4774bcde78f34deb0278fd14d13bb4c1ab0740a4f2a0afa41498766886706"
+    },
+    {
+      "path": "source/crates/motion-model/tests/support/photographed_camera.rs",
+      "bytes": 4116,
+      "sha256": "37e4f28242aad80a1a1b42600efff05c37ad42041c4e9c5ed00abeb1df20e1ee"
+    },
+    {
+      "path": "source/crates/motion-model/tests/support/tracking_camera.rs",
+      "bytes": 1955,
+      "sha256": "7faf47ea5f149a9b9dfb63d75890d270aff01dc14a9d382b9b01e012087c1761"
+    },
+    {
+      "path": "source/crates/motion-model/tests/support/tracking_plane.rs",
+      "bytes": 4665,
+      "sha256": "0aaf1908e326cef597f5f1661c6cd6f7df3e2cd82920ab2fb40b6b349302f40c"
+    },
+    {
+      "path": "source/crates/motion-model/tests/timecode.rs",
+      "bytes": 6484,
+      "sha256": "c4cdcc2a5cada53b360b982dd04d98b4b5cf496540b7fc4d47ba17e5f3d1c092"
+    },
+    {
+      "path": "source/crates/motion-model/tests/timeline_errors.rs",
+      "bytes": 8395,
+      "sha256": "fc4b42f2beccd80ad72d4d12403ae2b5ab1848a75482f224be9bda85ac255691"
+    },
+    {
+      "path": "source/crates/motion-model/tests/tracking_camera.rs",
+      "bytes": 11037,
+      "sha256": "e0a59719e851fa2afc731a874089b343e612589507862e8ecedb8316d2077b53"
+    },
+    {
+      "path": "source/crates/motion-model/tests/tracking_layer_time/camera.rs",
+      "bytes": 3222,
+      "sha256": "febcb73381e539c54bb217709d5e5b8257dd5782ee4e17902eac2bdc4f0cd552"
+    },
+    {
+      "path": "source/crates/motion-model/tests/tracking_layer_time/plane.rs",
+      "bytes": 2617,
+      "sha256": "176d99276252a8a332d7320526681f50568cea6bdfda26732d4de95025d35b61"
+    },
+    {
+      "path": "source/crates/motion-model/tests/tracking_layer_time/point.rs",
+      "bytes": 2693,
+      "sha256": "ade188400f705b1055fa92a8e23b8bd77821a0957518bde30827a841bb6bd5b8"
+    },
+    {
+      "path": "source/crates/motion-model/tests/tracking_lens.rs",
+      "bytes": 7832,
+      "sha256": "e4b380799779f85cafd22c3ebd9e8998acb01f54a1e147a6db937b0fd212beed"
+    },
+    {
+      "path": "source/crates/motion-model/tests/tracking_plane.rs",
+      "bytes": 9041,
+      "sha256": "01e2b315d963364d25898cd5040093c760ddb002630bbef8013e5d7acef28452"
+    },
+    {
+      "path": "source/crates/motion-model/tests/tracking_point.rs",
+      "bytes": 10713,
+      "sha256": "c382f675b6620fe393693c0795aac130b9b551cd0fc2ed8bab173c5846d6e50f"
+    },
+    {
+      "path": "source/crates/motion-model/tests/vector_path_inputs.rs",
+      "bytes": 4223,
+      "sha256": "00237f1bbb57a18fcedae56b941d272ce175c65705874cf350b31cf5425b3769"
+    },
+    {
+      "path": "source/crates/motion-model/tests/working_precision.rs",
+      "bytes": 1981,
+      "sha256": "e7a06dfb15ef3c0f03951ff74e63e2225a56d33b07ec1e60012af95a4c5a4a05"
+    }
+  ],
+  "limits": [
+    "GPU proof covers generic scalar display, not depth texture/native scene integration",
+    "Moving depth control is authored data, not real footage or automatic registration",
+    "No host persistence, UI or full-workspace acceptance is claimed"
+  ]
+}

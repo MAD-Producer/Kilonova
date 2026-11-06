@@ -20,6 +20,7 @@ mod video;
 pub use video::{VideoDepthSample, VideoDepthTrack, MAX_VIDEO_DEPTH_SAMPLES};
 mod surface;
 pub use surface::{DepthReference, DepthSurface, DepthVertex};
+pub mod blend;
 
 pub const MAX_DEPTH_DIMENSION: u32 = 4096;
 pub const MAX_DEPTH_PIXELS: usize = 4096 * 4096;
@@ -189,6 +190,34 @@ impl DepthGeometry {
             u = 1.0 - u;
         }
         Ok(Some([u, v]))
+    }
+
+    /// Map an oriented depth sample back to full source-image UV. Coordinates
+    /// denote continuous edges, so a texel centre is `(index + .5) / size`.
+    /// This does not register a different camera or presentation time. An
+    /// out-of-plane coordinate is a normal miss rather than an edge clamp.
+    pub fn depth_uv_to_source_uv(&self, uv: [f64; 2]) -> Result<Option<[f64; 2]>> {
+        self.validate()?;
+        ensure(uv.iter().all(|v| v.is_finite()), "nonfinite depth UV")?;
+        let [mut u, v] = uv;
+        if !(0.0..=1.0).contains(&u) || !(0.0..=1.0).contains(&v) {
+            return Ok(None);
+        }
+        if self.mirror_x {
+            u = 1.0 - u;
+        }
+        let [u, v] = match self.quarter_turns {
+            0 => [u, v],
+            1 => [v, 1.0 - u],
+            2 => [1.0 - u, 1.0 - v],
+            3 => [1.0 - v, u],
+            _ => return Err(Error::Invalid("unsupported depth rotation".into())),
+        };
+        let [x, y, width, height] = self.crop;
+        Ok(Some([
+            (f64::from(x) + u * f64::from(width)) / f64::from(self.source_size[0]),
+            (f64::from(y) + v * f64::from(height)) / f64::from(self.source_size[1]),
+        ]))
     }
 }
 

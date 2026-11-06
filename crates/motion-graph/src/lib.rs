@@ -13,6 +13,7 @@ mod images;
 mod input_defaults;
 mod ports;
 mod runtime_data;
+pub mod scalar_presets;
 pub mod plugin_project;
 pub use blend::ColorBlendMode;
 pub use compiler::{
