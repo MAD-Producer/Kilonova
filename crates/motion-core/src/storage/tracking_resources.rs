@@ -66,9 +66,10 @@ pub fn open_tracking_resource(root: &Path, asset: &TrackingAsset) -> Result<File
     )?;
     file.seek(SeekFrom::Start(0))
         .map_err(|e| io("rewind", asset, e))?;
-    let decoded = crate::tracking::decode::from_reader(&mut file)
+    let decoded = crate::tracking::document::from_reader(&mut file)
         .map_err(|cause| Error::Invalid(format!("tracking resource decode: {cause}")))?;
-    ensure(decoded == *asset.data,
+    ensure(decoded.format == asset.format, "tracking original format differs from descriptor")?;
+    ensure(decoded.asset == *asset.data,
         &format!("tracking runtime data differs from original: {}", asset.path))?;
     file.seek(SeekFrom::Start(0)).map_err(|e| io("rewind_decoded", asset, e))?;
     Ok(file)

@@ -1,0 +1,161 @@
+{
+  "archive": "professional86-screen-photo-v1.zip",
+  "bytes": 19521179,
+  "sha256": "36bbc25c29f46fb412e7127323251217abf0806ed433650016877c4c601bab79",
+  "members": 38,
+  "everyMemberReadBack": true,
+  "manifest": {
+    "archive-controller.py": {
+      "bytes": 2097,
+      "sha256": "6636a854d8caf9fc8846f4ba3a3326ee457150a8cab20645b9235c370dc2684b"
+    },
+    "prepare-controller.py": {
+      "bytes": 2840,
+      "sha256": "5dfb082f1ded576085d4f06a3d8389547b7e1000ae732412dcc32cee16e3abcf"
+    },
+    "runs/professional86-screen-photo-link-v1/controller.py": {
+      "bytes": 3588,
+      "sha256": "8587e72ae4408c3b11f3b8b224af4c2247e16c31796fe85e5b6ca9400ce0de85"
+    },
+    "runs/professional86-screen-photo-link-v1/exit.json": {
+      "bytes": 304965,
+      "sha256": "c58497ca745d59dd5db5413317eaf78d48662ab90b0b7f9cf1ca816f019cca94"
+    },
+    "runs/professional86-screen-photo-link-v1/stderr.log": {
+      "bytes": 176,
+      "sha256": "2a119688b9f6b3fdc96b7ad5cbb791ce3378e9072b84e1c6bc8b8965154793e8"
+    },
+    "runs/professional86-screen-photo-link-v1/stdout.jsonl": {
+      "bytes": 363343,
+      "sha256": "96313e9b60dc50bd07bf3d1815a9cb93b6ed919e7ec080c6bc5fec8892d58c63"
+    },
+    "runs/professional86-screen-photo-native-v1/controller.py": {
+      "bytes": 3722,
+      "sha256": "1580c37605c380ff0164c2a5706371ea4a422b93ff57ab74246ad7553ed3860b"
+    },
+    "runs/professional86-screen-photo-native-v1/exit.json": {
+      "bytes": 306484,
+      "sha256": "531775a9e606f43070f6db9f3bafa2a46021c1068caa2cfdd78ca2027930ced6"
+    },
+    "runs/professional86-screen-photo-native-v1/native/assets/insert.png": {
+      "bytes": 14004,
+      "sha256": "935cb12b6e1fc5772d2730343448fc54877b899d8ccc8017749ac1eb5edd3b66"
+    },
+    "runs/professional86-screen-photo-native-v1/native/assets/photo.png": {
+      "bytes": 1197975,
+      "sha256": "e8ed893f990ba8850000064e153d57b84e6e1d5c0a0aa2ccc8dfd1254b2e379d"
+    },
+    "runs/professional86-screen-photo-native-v1/native/commands.json": {
+      "bytes": 5461,
+      "sha256": "a704530303cd6ec40cef11e207c1995e5160edd508f5f49c6fce8c1665d79d00"
+    },
+    "runs/professional86-screen-photo-native-v1/native/frozen-15.png": {
+      "bytes": 1389134,
+      "sha256": "13671a8af9a3186a904d11412605f4431f8d61ba9b40f2d64cd7c423cfb80ab4"
+    },
+    "runs/professional86-screen-photo-native-v1/native/frozen-5.png": {
+      "bytes": 1389169,
+      "sha256": "edd28d4d0dcfbea6f8d05edf1fb6174aadd69cc51ebe2d50b70b6fa505d8f81a"
+    },
+    "runs/professional86-screen-photo-native-v1/native/frozen-7.5.png": {
+      "bytes": 1389185,
+      "sha256": "f8fa627862fe7cb2726957d5710cf278a5125ade43b467863e34bee7832cbef6"
+    },
+    "runs/professional86-screen-photo-native-v1/native/golden-0.png": {
+      "bytes": 1389774,
+      "sha256": "af0962173a07525b4e9965b710b28195993131cccebbaf9ba508ccf33d0f7fd7"
+    },
+    "runs/professional86-screen-photo-native-v1/native/golden-15.png": {
+      "bytes": 1389108,
+      "sha256": "ceb88f30923feff5ac8ba8904d07833ad7350ca77f09a8502b39a5cba1eb6e38"
+    },
+    "runs/professional86-screen-photo-native-v1/native/golden-26.png": {
+      "bytes": 1389774,
+      "sha256": "af0962173a07525b4e9965b710b28195993131cccebbaf9ba508ccf33d0f7fd7"
+    },
+    "runs/professional86-screen-photo-native-v1/native/golden-5.png": {
+      "bytes": 1389082,
+      "sha256": "bc3b858e15c555fbd47d98f21fadbf91c5ea0c8a996abe4d5db63d916d383de5"
+    },
+    "runs/professional86-screen-photo-native-v1/native/golden-7.5.png": {
+      "bytes": 1389073,
+      "sha256": "c391778b9b3586c152a10ee1369fcc7e3138a27c8b38b43fafe17787b4a9c6a2"
+    },
+    "runs/professional86-screen-photo-native-v1/native/initial-project.json": {
+      "bytes": 2579,
+      "sha256": "ea1ff9f5977881b28f2c3b101b37839e38d3f4d3447a706e734b52a8912a561a"
+    },
+    "runs/professional86-screen-photo-native-v1/native/native-0.png": {
+      "bytes": 1389774,
+      "sha256": "af0962173a07525b4e9965b710b28195993131cccebbaf9ba508ccf33d0f7fd7"
+    },
+    "runs/professional86-screen-photo-native-v1/native/native-15.png": {
+      "bytes": 1389134,
+      "sha256": "13671a8af9a3186a904d11412605f4431f8d61ba9b40f2d64cd7c423cfb80ab4"
+    },
+    "runs/professional86-screen-photo-native-v1/native/native-26.png": {
+      "bytes": 1389774,
+      "sha256": "af0962173a07525b4e9965b710b28195993131cccebbaf9ba508ccf33d0f7fd7"
+    },
+    "runs/professional86-screen-photo-native-v1/native/native-5.png": {
+      "bytes": 1389169,
+      "sha256": "edd28d4d0dcfbea6f8d05edf1fb6174aadd69cc51ebe2d50b70b6fa505d8f81a"
+    },
+    "runs/professional86-screen-photo-native-v1/native/native-7.5.png": {
+      "bytes": 1389185,
+      "sha256": "f8fa627862fe7cb2726957d5710cf278a5125ade43b467863e34bee7832cbef6"
+    },
+    "runs/professional86-screen-photo-native-v1/native/project.json": {
+      "bytes": 7329,
+      "sha256": "a4316e739e0a27acbc7cb8ea176722ecf63a2cf3fa88c18e05c555edeb0a1a51"
+    },
+    "runs/professional86-screen-photo-native-v1/native/result.json": {
+      "bytes": 1261,
+      "sha256": "8c7e5109b6708e6df7ee3a796b74e335409432fe67018c81550c2e8474bb1ad7"
+    },
+    "runs/professional86-screen-photo-native-v1/screen-review-layout.json": {
+      "bytes": 432,
+      "sha256": "4436e489647936d941d61484dd2261a289718458b6c75794308e709a82d19ded"
+    },
+    "runs/professional86-screen-photo-native-v1/screen-review.png": {
+      "bytes": 41317,
+      "sha256": "3acd76dcdbc5a6d5580b71e0c403462934cd8fcf48bd4e10a65a37e21eed0f13"
+    },
+    "runs/professional86-screen-photo-native-v1/stderr.log": {
+      "bytes": 213,
+      "sha256": "f9560c8896d22fd74501514f148741cfa9275fe7fab1f1c675050c47c4634488"
+    },
+    "runs/professional86-screen-photo-native-v1/stdout.log": {
+      "bytes": 214,
+      "sha256": "5b23ba4784bbf2b9fcea77ebf6b6d42fcfc0d63c09386581df6176cfb6c0ebff"
+    },
+    "source/ATTRIBUTION.md": {
+      "bytes": 25717,
+      "sha256": "773a991df83bed9e159188d679b953be692cf7b633850bd4f7deca4304c12fbc"
+    },
+    "source/NOTICE": {
+      "bytes": 8250,
+      "sha256": "645e85cc864a6b06aed56878878309c23c0d2f64245e8f39f24bf330aa1100d6"
+    },
+    "source/PROVENANCE.md": {
+      "bytes": 6742,
+      "sha256": "ee7b61f2564cce59cac88faac16afcd5fad18297e252fe3eeb338d894258844a"
+    },
+    "source/crates/motion-desktop-media/tests/fixtures/professional-screen/README.md": {
+      "bytes": 793,
+      "sha256": "e952e36e3d5abad7e1a4720b396cf95d6791a72e5370fa7396f21de761344bae"
+    },
+    "source/crates/motion-desktop-media/tests/fixtures/professional-screen/source.json": {
+      "bytes": 1371,
+      "sha256": "1f177db4d2143f00d0d6fdc7a022eee007f3f36c1080be97e3f857f829543d10"
+    },
+    "source/crates/motion-desktop-media/tests/professional_screen_photo.rs": {
+      "bytes": 13947,
+      "sha256": "78072a3a0bc6296f0593f42481749f8a0329cc20948b6426bc8c1ee71ce3951a"
+    }
+  },
+  "limits": [
+    "Photograph remains subject to credited NASA media-use guidelines, not repository MIT license",
+    "Static authored quad/opacity, not automatic tracking, movie or antialiased-edge acceptance"
+  ]
+}

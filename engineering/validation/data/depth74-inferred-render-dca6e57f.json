@@ -1,0 +1,377 @@
+{
+  "archive": "depth74-inferred-render-dca6e57f.zip",
+  "bytes": 1048164,
+  "sha256": "b4a649c531f9ec9c8a1159e15d944dc58bd03cc20f84a24ddc4ae22dbae7931e",
+  "members": 92,
+  "everyMemberReadBack": true,
+  "manifest": {
+    "archive-controller.py": {
+      "bytes": 2852,
+      "sha256": "2217f0764c0693d19cebfd2cbb6be9dd238742cac951c73a3b8b6bb442e2bd6e"
+    },
+    "build/build-v2.exit.json": {
+      "bytes": 76,
+      "sha256": "80ba8dfe5b6c16d0e39c653aa795bd2f3dbba47a2bc1d087072d73e26e9078be"
+    },
+    "build/build-v2.stderr.log": {
+      "bytes": 1907,
+      "sha256": "225eba1eab91d6f52074e68196289db6042f8b22da621c9ac0296be6190c2577"
+    },
+    "build/build-v2.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build/build-v3.exit.json": {
+      "bytes": 76,
+      "sha256": "2533c72ceb48568b34ad8d90a55e4ae85155b7c0eb0e33b463d47dc46d673861"
+    },
+    "build/build-v3.stderr.log": {
+      "bytes": 1906,
+      "sha256": "165f76c24f528b2780ee25d620ab825df48453cb4756409bb9e686039cc230ce"
+    },
+    "build/build-v3.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build/build.exit.json": {
+      "bytes": 76,
+      "sha256": "b4cb066e99d12521158c260b90e54b26751722bfcfbb3ddcfe0c7d50dd487ffc"
+    },
+    "build/build.stderr.log": {
+      "bytes": 2497,
+      "sha256": "56bb74adbb922ab13cd4bd843bc0be3fd24531a2e8196c4dd6f812fc30ab0bb2"
+    },
+    "build/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build/check.exit.json": {
+      "bytes": 76,
+      "sha256": "110f1e4a6dadf4902860986a65e8867ce605c06c8a6cbd151d3e93172271b8f4"
+    },
+    "build/check.stderr.log": {
+      "bytes": 1799,
+      "sha256": "d81224bef7452ff6aaa08802a4ea485cb915033b00dfcd8bd94965e7d77df863"
+    },
+    "build/check.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reference/issue3d-final-color-staging-v1/known/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "reference/issue3d-final-color-staging-v1/verified.json": {
+      "bytes": 184715,
+      "sha256": "3f621cba5456664c88b9508cd539939f63bd67206ccf10f0f869b40865161076"
+    },
+    "reference/issue3d-final-native-depth-v1/official-reference.f32": {
+      "bytes": 16640,
+      "sha256": "2695b67c87473b1d89fb56763d24ce87836983c5082a77ef5a72f0d4858eb546"
+    },
+    "reference/issue3d-final-native-depth-v1/verified.json": {
+      "bytes": 178979,
+      "sha256": "9ea7692c84512cd5ba805b5cfed0c5b82cb744d33290e6ab7e1893c1389145e7"
+    },
+    "runs/depth74-inferred-render-v1/controller.py": {
+      "bytes": 4820,
+      "sha256": "32cd2a43f86e4aa0b31c35c556a155db71172248f2dad3318e01226543da7f90"
+    },
+    "runs/depth74-inferred-render-v1/exit.json": {
+      "bytes": 302621,
+      "sha256": "568455069bb7f6c52c5a325e924c7e927f0c0d90b205b96f25f4e18f2ade2222"
+    },
+    "runs/depth74-inferred-render-v1/native.stderr.log": {
+      "bytes": 562,
+      "sha256": "923ef304f255ec7c48664c216cf1589c92dfe65bcd96172ba8316166bae0d287"
+    },
+    "runs/depth74-inferred-render-v1/native.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-inferred-render-v1/native/calibrated-project.json": {
+      "bytes": 8094,
+      "sha256": "d710995434f79f85b6f513adf6805779f4e6a4ffaa3129be0e859c6e5f918972"
+    },
+    "runs/depth74-inferred-render-v1/native/estimate-costs.json": {
+      "bytes": 422,
+      "sha256": "55f53c53ed956fa017162c5460f7444cb801b92919bba2aae181004044bccf13"
+    },
+    "runs/depth74-inferred-render-v1/native/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "runs/depth74-inferred-render-v1/native/logs/motion-studio.log": {
+      "bytes": 1579,
+      "sha256": "ba1fa6153d279b535bd7e59c3230f7ce519b5029cde06e0e32facc2466b4e2c1"
+    },
+    "runs/depth74-inferred-render-v1/native/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-inferred-render-v1/native/output.f32": {
+      "bytes": 16640,
+      "sha256": "9831d5230dfed9b36d364c510ae10abf130e2f91e7b67c64a92b406d6058a0b4"
+    },
+    "runs/depth74-inferred-render-v1/native/prepared.json": {
+      "bytes": 912,
+      "sha256": "f3f82888d758bfdb50a9e7a8a101ae293f997bc7605aa545474154931d50def2"
+    },
+    "runs/depth74-inferred-render-v1/native/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-inferred-render-v1/native/session-costs.json": {
+      "bytes": 158,
+      "sha256": "2a82241feb3fd8a2b8250f1658f8d4fdcd6578c992ff37a03736246490a710b3"
+    },
+    "runs/depth74-inferred-render-v1/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-inferred-render-v1/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-inferred-render-v1/probe/src/main.rs": {
+      "bytes": 13328,
+      "sha256": "ef9759976c835792ed5b021722e58d91c0cf4290757458c6d0e6822067841798"
+    },
+    "runs/depth74-inferred-render-v1/probe/verify.py": {
+      "bytes": 7737,
+      "sha256": "5ff1d22d48e10cda3ad2713f76afca7928b2828677fc8333b440da6188425146"
+    },
+    "runs/depth74-inferred-render-v2/controller.py": {
+      "bytes": 6086,
+      "sha256": "8215e335a30ab22bc938e8a2b9ed176643bfbd06fbb3cea1b6a1952a3cf32b86"
+    },
+    "runs/depth74-inferred-render-v2/exit.json": {
+      "bytes": 303264,
+      "sha256": "ebaf570e31e5e4ffe42614017cc57f60faef06549c1c2b0e8c69f39a2085b770"
+    },
+    "runs/depth74-inferred-render-v2/independent-oracle-v2.exit.json": {
+      "bytes": 76,
+      "sha256": "337eed3b69e093fcc3b90f9f416e5c10b56f004a3070e4af67d2f4a6750e96a0"
+    },
+    "runs/depth74-inferred-render-v2/independent-oracle-v2.py": {
+      "bytes": 7867,
+      "sha256": "719263dfd842c9eab42026bbc2c79274d05d75bdfb564d1423f07d4d3faa5bda"
+    },
+    "runs/depth74-inferred-render-v2/independent-oracle-v2.stderr.log": {
+      "bytes": 382,
+      "sha256": "896052130caefd57c2ff4a65869279a33f67e2c4250c24b00f0898ed0226b843"
+    },
+    "runs/depth74-inferred-render-v2/independent-oracle-v2.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-inferred-render-v2/independent-oracle.stderr.log": {
+      "bytes": 361,
+      "sha256": "fbdc5e48eda7b638b8aa2992199ca92d3b2aacc249dc723fb5b4732ba8efba53"
+    },
+    "runs/depth74-inferred-render-v2/independent-oracle.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-inferred-render-v2/native.stderr.log": {
+      "bytes": 1659,
+      "sha256": "0db16e0345f568a63bb1f2c9b803f3e3289896b98541c94953554e4b277b9637"
+    },
+    "runs/depth74-inferred-render-v2/native.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-inferred-render-v2/native/calibrated-project.json": {
+      "bytes": 8903,
+      "sha256": "3c2e1e55909843bbf59019a8ff1e0e158326792fc8dc96c9adda62d30051a742"
+    },
+    "runs/depth74-inferred-render-v2/native/estimate-costs.json": {
+      "bytes": 419,
+      "sha256": "fcfa5c817fa706694111d0c5391ce4057104701b3241bd99438a85c9e0874e84"
+    },
+    "runs/depth74-inferred-render-v2/native/flat-control.png": {
+      "bytes": 398,
+      "sha256": "8f187435c62c84f385ba900f8cb67e34d95221c2dabb07222803264627436e6f"
+    },
+    "runs/depth74-inferred-render-v2/native/inferred-3d.png": {
+      "bytes": 2221,
+      "sha256": "87bd87bf28c3c8d201362d1581a83c103ee84709410eab80cfa30beed78b1794"
+    },
+    "runs/depth74-inferred-render-v2/native/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "runs/depth74-inferred-render-v2/native/logs/motion-studio.log": {
+      "bytes": 5259,
+      "sha256": "99a3083f7cb835f1dbed18da58d73a1bf1f66fbb7c3ae232f792bf762940cdf1"
+    },
+    "runs/depth74-inferred-render-v2/native/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-inferred-render-v2/native/output.f32": {
+      "bytes": 16640,
+      "sha256": "9831d5230dfed9b36d364c510ae10abf130e2f91e7b67c64a92b406d6058a0b4"
+    },
+    "runs/depth74-inferred-render-v2/native/prepared.json": {
+      "bytes": 912,
+      "sha256": "f3f82888d758bfdb50a9e7a8a101ae293f997bc7605aa545474154931d50def2"
+    },
+    "runs/depth74-inferred-render-v2/native/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-inferred-render-v2/native/render-receipts.json": {
+      "bytes": 980,
+      "sha256": "02e67ad54e0c72b7e3de0e189cf84db5f4488cacab77ae26865bdc9b9f160098"
+    },
+    "runs/depth74-inferred-render-v2/native/session-costs.json": {
+      "bytes": 158,
+      "sha256": "c6e28cb2e360cb1b4f027c6217b3327ad54a3356c88e5c2ef9b92a7afda8a3e4"
+    },
+    "runs/depth74-inferred-render-v2/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-inferred-render-v2/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-inferred-render-v2/probe/src/main.rs": {
+      "bytes": 13334,
+      "sha256": "f7424a014c743452b3d0ccf83c63521ee7b43f4313accd3912c87fee8c933b0b"
+    },
+    "runs/depth74-inferred-render-v2/probe/verify.py": {
+      "bytes": 7863,
+      "sha256": "5e14de7bf60005894d9a6f6a463831a2bdb6fa695ab8c0cca188b6d0d0ee956f"
+    },
+    "runs/depth74-inferred-render-v3/controller.py": {
+      "bytes": 6086,
+      "sha256": "103aad2192339c97478d973b3cf8d2fd272b9aa57a45b527525091cff6222e52"
+    },
+    "runs/depth74-inferred-render-v3/exit.json": {
+      "bytes": 303210,
+      "sha256": "ca84c880af3c4629f3d2a8a43615bb4d7450b90f836aaab60b92684b92143410"
+    },
+    "runs/depth74-inferred-render-v3/independent-oracle.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-inferred-render-v3/independent-oracle.stdout.log": {
+      "bytes": 531,
+      "sha256": "e8ee643125ce2b9f481a778cecf393786774952ed765fcb84735c10838e2c5a2"
+    },
+    "runs/depth74-inferred-render-v3/native.stderr.log": {
+      "bytes": 1659,
+      "sha256": "7d54a4d2e932be1f794221aabd137adf53fa085d44d96c8ab59412180e4fef5e"
+    },
+    "runs/depth74-inferred-render-v3/native.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/depth74-inferred-render-v3/native/calibrated-project.json": {
+      "bytes": 8931,
+      "sha256": "6e4fb8707537884d6b4719ee7af7af79a959ea3e146be10449b27ef29ec3cb3c"
+    },
+    "runs/depth74-inferred-render-v3/native/estimate-costs.json": {
+      "bytes": 422,
+      "sha256": "400655f5533aaa93e62ab27fb7ca4d656b08313230bf62d2507b76d5e475225a"
+    },
+    "runs/depth74-inferred-render-v3/native/flat-control.png": {
+      "bytes": 2550,
+      "sha256": "602a978883fe582f4e7af3bf75926ffb423fc09a7a72882557556f6a4da0fbcb"
+    },
+    "runs/depth74-inferred-render-v3/native/independent-render-oracle.json": {
+      "bytes": 1624781,
+      "sha256": "410c6bb4bdc2c1a3ded708b920468db17ae1d8fb4919815f777987bbf2621722"
+    },
+    "runs/depth74-inferred-render-v3/native/inferred-3d.png": {
+      "bytes": 17264,
+      "sha256": "b9812c28abfd03fc9c40dd1ba0dd25b3b72bfe77ec1252675de5568d151dfffc"
+    },
+    "runs/depth74-inferred-render-v3/native/input.rgb": {
+      "bytes": 12480,
+      "sha256": "69f1b177e29c6206783e916d9e8ec6a4a6e5133df25f5af6bc769f9312d93df7"
+    },
+    "runs/depth74-inferred-render-v3/native/logs/motion-studio.log": {
+      "bytes": 5259,
+      "sha256": "c378a55638a6d7deb1bf11889aa6f3e6e057abe58580395cae783501c7ee5c15"
+    },
+    "runs/depth74-inferred-render-v3/native/native-probe.json": {
+      "bytes": 542,
+      "sha256": "c4413daa5d4f01db8889a6798be307684f43d877984ad901911a7485081d1e94"
+    },
+    "runs/depth74-inferred-render-v3/native/output.f32": {
+      "bytes": 16640,
+      "sha256": "9831d5230dfed9b36d364c510ae10abf130e2f91e7b67c64a92b406d6058a0b4"
+    },
+    "runs/depth74-inferred-render-v3/native/prepared.json": {
+      "bytes": 912,
+      "sha256": "f3f82888d758bfdb50a9e7a8a101ae293f997bc7605aa545474154931d50def2"
+    },
+    "runs/depth74-inferred-render-v3/native/project/assets/source.mp4": {
+      "bytes": 5686,
+      "sha256": "7073f3b7d75fd00b6ae28a9964a267c1b0cd698b9c6ee6ac4f4389b4d24bb50f"
+    },
+    "runs/depth74-inferred-render-v3/native/render-receipts.json": {
+      "bytes": 984,
+      "sha256": "d1ed0c029ab7e33c9ba3fb03a23936c8052d58da3261d095cb6e8b3de7d7588c"
+    },
+    "runs/depth74-inferred-render-v3/native/session-costs.json": {
+      "bytes": 158,
+      "sha256": "4e4ecbb315c8d89103ec2332a9a08c4e205ff3c71455d9c8ddcc4bd542212789"
+    },
+    "runs/depth74-inferred-render-v3/probe/Cargo.lock": {
+      "bytes": 74700,
+      "sha256": "a9ef9b1890cf102e319275737bdb32ff686274ecff92c29cf23ca073bbe6e162"
+    },
+    "runs/depth74-inferred-render-v3/probe/Cargo.toml": {
+      "bytes": 861,
+      "sha256": "e557e0c5fc06898197b4c1de7baa87a75f55dd0c2bf49d5421c9645e955d012a"
+    },
+    "runs/depth74-inferred-render-v3/probe/src/main.rs": {
+      "bytes": 13336,
+      "sha256": "bd2e15ba9a43c92f9293f5238fba24d7e4226e013ca6b5dd566a89bcaee850a4"
+    },
+    "runs/depth74-inferred-render-v3/probe/verify.py": {
+      "bytes": 8006,
+      "sha256": "ee78063f3bcf46337b2c5cd0b265a70ec5e731e04ef83327bdb99786659f1a4f"
+    },
+    "workspace/tracking88-workspace-main-integration-v1/controller.py": {
+      "bytes": 5784,
+      "sha256": "36cf08aee0e6bbaa44e44410a4b93d46f26d042e3fb91c0431cb1cf517d868a2"
+    },
+    "workspace/tracking88-workspace-main-integration-v1/exit.json": {
+      "bytes": 301701,
+      "sha256": "3453ac812d1f74b337f5ddf8c2ccc5074964cd39f5a496be1e672e2d8a3597ce"
+    },
+    "workspace/tracking88-workspace-main-integration-v1/stderr.log": {
+      "bytes": 125,
+      "sha256": "c71a363869c72b6cd082339d2f66e1e66f87909861bd8c09ce977edac0c9af27"
+    },
+    "workspace/tracking88-workspace-main-integration-v1/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "workspace/tracking88-workspace-main-integration-v2/controller.py": {
+      "bytes": 5758,
+      "sha256": "024eafd46434216b18e07565e58c8ec0c16503b79984281fc22fc9347a9d2637"
+    },
+    "workspace/tracking88-workspace-main-integration-v2/exit.json": {
+      "bytes": 301688,
+      "sha256": "34bf6e5bafadc88788b98cdc30ed31ec6f63de9d5d67f07329f141d1c455160d"
+    },
+    "workspace/tracking88-workspace-main-integration-v2/stderr.log": {
+      "bytes": 30721,
+      "sha256": "a64e54d4da461be30356e1651f1ae9eccadde69cbaa7a988e7ace2d52d1b8883"
+    },
+    "workspace/tracking88-workspace-main-integration-v2/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "exclusions": [
+    "Reproducible installed plugin/cache/scratch directories",
+    "No native binary, DLL, model weight or inference runtime"
+  ]
+}

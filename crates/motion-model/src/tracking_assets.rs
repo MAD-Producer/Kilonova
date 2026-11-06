@@ -16,6 +16,7 @@ pub const MAX_TRACKING_ASSETS: usize = 256;
 #[serde(rename_all = "snake_case")]
 pub enum TrackingFormat {
     MotionTrackingJsonV1,
+    ColmapCameraTextV1,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

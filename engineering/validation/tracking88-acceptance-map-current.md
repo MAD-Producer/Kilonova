@@ -1,7 +1,31 @@
 # Tracking #88: integrated acceptance map
 
+Current integration: the [combined workspace record](3d-professional-workspace-current.md)
+passes 4,896 tests across all 417 maintained targets on `c190ab20`, including
+main `50bef478`. Matching-source three-platform CI and freshly built actual
+CPU inference/frozen output also pass. Earlier sections below retain their
+original source boundaries. The optional tracker's quality remains failed.
+
+The [complete combined workspace regression](3d-professional-workspace-current.md)
+passed all 414 maintained targets on source `84c17760`, including FFmpeg and
+optional depth features. Its 4,885 passes retain all 78 original ignores. This
+supersedes the pending whole-workspace gate for that source; later-main alignment,
+final combined-head CI and the optional tracker's failed real-sequence quality
+remain separate boundaries.
+
+The latest [photographed frozen-output checkpoint](tracking88-frozen-precision-current.md)
+covers all four working precisions and twelve actual SDR PNG exports after
+live-layer deletion and Session closure. The underlying photographs remain
+separate calibrated poses; continuous motion and complete regression are still
+outside that checkpoint.
+
 Issue #88 remains open. This map distinguishes the implemented imported-data
 route from optional tracker research, full regression, and the broader 3D route.
+
+The [actual depth-inference/frozen-output checkpoint](depth74-inferred-render-current.md)
+adds real ONNX-to-3D evidence on the rebased source. Its original full-workspace
+gate stops with linker disk exhaustion before any tests execute. This narrow
+pass leaves full regression and the earlier native access violations unresolved.
 Earlier `*-current.md` files are chronological increment reports: a remaining
 item in an early report may be implemented by a later linked increment. It is
 not evidence that every later acceptance boundary is closed.
@@ -85,3 +109,12 @@ parent 52b26fda and main 0790404f after #583 merged. Its 281 passes include
 seven complete renderer targets, the complete host library and actual native
 Surface, prefetch and original-clock controls. Earlier counts retain their
 original scope; this is not full desktop/workspace or final CI acceptance.
+
+## Combined professional-compositing source
+
+The [combined current-main checkpoint](3d-professional-main-integration-current.md)
+merges the external-camera branch and the key/holdout/photographed-screen samples
+on main e314cc92. Four actual tests pass across three complete selected targets;
+all 61 source/golden/native/frozen PNGs match retained bytes. It preserves the
+full-workspace, native-crash and final-head CI boundaries rather than transferring
+historical green results to the new combined source.

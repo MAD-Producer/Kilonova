@@ -1,0 +1,221 @@
+{
+  "format": "motion-studio.chroma-key-fixture.v1",
+  "author": "Blender Foundation / Mango Open Movie Project contributors",
+  "license": "CC-BY-3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "officialPermission": "https://mango.blender.org/sharing/",
+  "officialRawAnnouncement": "https://mango.blender.org/production/4-tb-original-4k-footage-available-as-cc-by/",
+  "revision": "Numbered upstream frames; original and derived SHA-256 identities pinned below; upstream publishes no commit revision",
+  "extent": [
+    512,
+    270
+  ],
+  "sourceExtent": [
+    4096,
+    2160
+  ],
+  "sourceCaptureRate": null,
+  "sourcePts": null,
+  "derivation": "Read original uncompressed BGR HALF scene-linear Rec709 EXR exactly; average each 8x8 block in linear RGB; clip to [0,1]; apply IEC sRGB encoding; round to 8-bit RGB PNG; no other edits",
+  "originalPreparationReceiptSha256": "dd03d2becd2c898fbc661a1557d01a2852c9002621e8581458ef7d8bb170cc5a",
+  "use": "Technical automated compositing validation only, not product artwork or advertising; upstream separately reserves actor portrait/privacy rights",
+  "frames": [
+    {
+      "number": 500,
+      "file": "500.png",
+      "sha256": "3402dc5edfc316a12436065a60d1f7f7ed62d38abf25bbf30774ff616224159d",
+      "source": "https://media.xiph.org/mango/tearsofsteel-footage-exr/03_2a/linear/03_2a_00500.exr",
+      "sourceSha256": "7f09001c059f655b4e38dcfb9661534cd42ee1c195dd866eca81783463b1df05",
+      "sourceLinearRange": [
+        -0.491455078125,
+        14.2109375
+      ]
+    },
+    {
+      "number": 501,
+      "file": "501.png",
+      "sha256": "0c402e9970da3c492e5d2fd700a622ac4abc4496fd7a2ee8cda2ffd259dcff27",
+      "source": "https://media.xiph.org/mango/tearsofsteel-footage-exr/03_2a/linear/03_2a_00501.exr",
+      "sourceSha256": "39e9b8798e32847e7b500e3413b6208d034b62084328a3c1cf0fd0acfcfd766c",
+      "sourceLinearRange": [
+        -0.6142578125,
+        14.1640625
+      ]
+    },
+    {
+      "number": 502,
+      "file": "502.png",
+      "sha256": "ba55d276585c8d787d11d9d3e8d68016c227c93878010cd90c7f5c778042fbbb",
+      "source": "https://media.xiph.org/mango/tearsofsteel-footage-exr/03_2a/linear/03_2a_00502.exr",
+      "sourceSha256": "fe45cd5b2f23e78004d4b4781358d329cf1deff8a04a1c97e79e0c1ba66fb288",
+      "sourceLinearRange": [
+        -0.43408203125,
+        14.5234375
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "screen-top",
+      "label": "background",
+      "box": [
+        190,
+        4,
+        355,
+        27
+      ]
+    },
+    {
+      "id": "screen-rail-gap",
+      "label": "background",
+      "box": [
+        205,
+        60,
+        216,
+        89
+      ]
+    },
+    {
+      "id": "screen-right",
+      "label": "background",
+      "box": [
+        478,
+        75,
+        497,
+        120
+      ]
+    },
+    {
+      "id": "left-column",
+      "label": "foreground",
+      "box": [
+        92,
+        35,
+        131,
+        121
+      ]
+    },
+    {
+      "id": "right-column",
+      "label": "foreground",
+      "box": [
+        382,
+        40,
+        416,
+        128
+      ]
+    },
+    {
+      "id": "front-trousers",
+      "label": "foreground",
+      "box": [
+        250,
+        228,
+        334,
+        238
+      ]
+    }
+  ],
+  "crops": [
+    {
+      "id": "person-edge",
+      "box": [
+        299,
+        77,
+        360,
+        143
+      ]
+    },
+    {
+      "id": "front-boots",
+      "box": [
+        352,
+        221,
+        445,
+        254
+      ]
+    },
+    {
+      "id": "rope",
+      "box": [
+        158,
+        0,
+        181,
+        270
+      ]
+    }
+  ],
+  "budgets": {
+    "backgroundMaximumAlphaByte": 5,
+    "foregroundMinimumAlphaByte": 250
+  },
+  "parameters": {
+    "key_color": [
+      0.08536526362880653,
+      0.7127931488201871,
+      0.2018415875510063,
+      1.0
+    ],
+    "tolerance": 0.13,
+    "softness": 0.1,
+    "spill": 1.0
+  },
+  "parameterSelection": "Before any native key execution, use frame500 top-screen median linear RGB normalized to unit sum; select tolerance/softness to separate its hand-labelled opaque core regions. Frames501/502 are not used to fit parameters; the same fixed values apply to all frames.",
+  "calibrationFrame": 500,
+  "holdoutFrames": [
+    501,
+    502
+  ],
+  "limits": [
+    "Three numbered source frames, not known source FPS/PTS or complete temporal quality acceptance",
+    "Clipped 8-bit SDR derivatives; no product EXR import/HDR preservation claim",
+    "Core region labels are opaque FG/BG controls; edge crops are qualitative, not physical alpha ground truth",
+    "Budgets were fixed in the earlier hand-label receipt before native execution; see the current validation report for raw and manually assisted results"
+  ],
+  "manualHoldout": {
+    "polygon": [
+      [
+        200,
+        203
+      ],
+      [
+        260,
+        201
+      ],
+      [
+        307,
+        209
+      ],
+      [
+        360,
+        220
+      ],
+      [
+        380,
+        237
+      ],
+      [
+        365,
+        245
+      ],
+      [
+        308,
+        242
+      ],
+      [
+        258,
+        233
+      ],
+      [
+        210,
+        229
+      ]
+    ],
+    "featherPixels": [
+      1,
+      1
+    ],
+    "authoring": "Manually traced inside front dark clothing on frame500 after observing the raw frame502 failure; fixed across all three frames; not blind holdout validation",
+    "composition": "Unkeyed original source duplicate above keyed footage, masked through public commands; preserves original RGB and may retain local spill; no automatic tracking or classifier change"
+  }
+}

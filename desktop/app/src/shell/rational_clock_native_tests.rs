@@ -1,4 +1,6 @@
 //! Native readback verifies actual chrome independently of desktop screen capture.
+#[path = "rational_clock_native_tests/settings.rs"]
+mod settings;
 use crate::*;
 use winit::platform::windows::EventLoopBuilderExtWindows;
 

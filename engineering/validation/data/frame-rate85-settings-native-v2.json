@@ -1,0 +1,166 @@
+{
+  "archive": "frame-rate85-settings-native-v2.zip",
+  "bytes": 1591114,
+  "sha256": "176824fa6bf2c2543ca1f8e36f41c213616eddbeed19d002f13d7392000b5306",
+  "baseline": "df3016b2b9d5297fbfabeeca97b7dee3d144e6c5",
+  "dispositions": {
+    "originalNewTest": "FAILED: requested duration clips the retimed full-length layer",
+    "correctedValidRequest": "PASS: both locales/policies, rejection preserved, explicit matching duration",
+    "visualReview": "12 original native captures inspected; existing error clipping/stale draft error retained"
+  },
+  "limits": [
+    "New focused test source only, not a full regression or issue closure",
+    "No product/panels/layout/style/threshold change",
+    "No Android acceptance or new-process reopen proof"
+  ],
+  "members": {
+    "archive-controller.py": {
+      "bytes": 2581,
+      "sha256": "46fd25d6c2a74b79a8e58f1cccc76406ec69170bd4b86fcbc459ec7a573c77fd"
+    },
+    "frame-rate85-settings-native-v1/captures/en-frames-draft.png": {
+      "bytes": 126490,
+      "sha256": "bc7918dc3eda6b02dabdac31f04f0079334a2cd03f4bdc6d6d0ac411b4659389"
+    },
+    "frame-rate85-settings-native-v1/captures/en-frames-options.png": {
+      "bytes": 130596,
+      "sha256": "a631ab9ed579f50ccf7fd8848cbdb5063955cc567506fe97550639fb3fb93803"
+    },
+    "frame-rate85-settings-native-v1/captures/en-seconds-draft.png": {
+      "bytes": 126611,
+      "sha256": "9562c78304871af8a2d3cb16d1ef0f7a1e486ca70663f4589b21f9c63d18facb"
+    },
+    "frame-rate85-settings-native-v1/captures/en-seconds-options.png": {
+      "bytes": 130650,
+      "sha256": "6049f0a9c9c6fa39870d0d44f35c2b527e15c490e58154f02f0c25ecb69dc8c5"
+    },
+    "frame-rate85-settings-native-v1/captures/en/project.json": {
+      "bytes": 3027,
+      "sha256": "50b2282bd891bcbc6921907961099f3883696589b82f6c9209d2aba0899cb700"
+    },
+    "frame-rate85-settings-native-v1/changes.patch": {
+      "bytes": 516,
+      "sha256": "6a1feec462fc8ca9bd353f56b853bdce13ab4cb692efec75b8fe548837ae2a94"
+    },
+    "frame-rate85-settings-native-v1/controller.py": {
+      "bytes": 3802,
+      "sha256": "90ce55879ec159822c837d2a46aaae453bde524478bedbc0601fae75b953bea9"
+    },
+    "frame-rate85-settings-native-v1/exit.json": {
+      "bytes": 299710,
+      "sha256": "441c5eb85eefee995db168f2bef2dc108688d9cb71d395a01a296edd7575fa35"
+    },
+    "frame-rate85-settings-native-v1/source/desktop/app/src/shell/rational_clock_native_tests.rs": {
+      "bytes": 4500,
+      "sha256": "798a08a509b346d269638f397888a199860de61ba1508764b2aa31cd364d71cb"
+    },
+    "frame-rate85-settings-native-v1/source/desktop/app/src/shell/rational_clock_native_tests/settings.rs": {
+      "bytes": 9193,
+      "sha256": "495c246c28a107ef81404e3f28152072d3fd8a480c319bfc64326327ae54b235"
+    },
+    "frame-rate85-settings-native-v1/stderr.log": {
+      "bytes": 29125,
+      "sha256": "3ab2450915ebbf9689d3beb8bd4ecdb410bd44158dd3caf09c7c65754a1e2628"
+    },
+    "frame-rate85-settings-native-v1/stdout.log": {
+      "bytes": 382,
+      "sha256": "72e2363eed2315671a71f17e4b9b0cacb1a0c44ab0ba287f4adb870cb5289684"
+    },
+    "frame-rate85-settings-native-v2/captures/en-frames-draft.png": {
+      "bytes": 126490,
+      "sha256": "bc7918dc3eda6b02dabdac31f04f0079334a2cd03f4bdc6d6d0ac411b4659389"
+    },
+    "frame-rate85-settings-native-v2/captures/en-frames-options.png": {
+      "bytes": 130596,
+      "sha256": "a631ab9ed579f50ccf7fd8848cbdb5063955cc567506fe97550639fb3fb93803"
+    },
+    "frame-rate85-settings-native-v2/captures/en-seconds-draft.png": {
+      "bytes": 126611,
+      "sha256": "9562c78304871af8a2d3cb16d1ef0f7a1e486ca70663f4589b21f9c63d18facb"
+    },
+    "frame-rate85-settings-native-v2/captures/en-seconds-explicit-duration.png": {
+      "bytes": 134454,
+      "sha256": "0b26794c26a2f9dd81db486303deb0204b2ae8f28c9d82a382d45b49c14acb64"
+    },
+    "frame-rate85-settings-native-v2/captures/en-seconds-options.png": {
+      "bytes": 130650,
+      "sha256": "6049f0a9c9c6fa39870d0d44f35c2b527e15c490e58154f02f0c25ecb69dc8c5"
+    },
+    "frame-rate85-settings-native-v2/captures/en-shortening-rejected.png": {
+      "bytes": 135547,
+      "sha256": "77cd826aa172bd6d9e55fbadea0c52d9bc208b18d672d6fc8df83d795fc3fc42"
+    },
+    "frame-rate85-settings-native-v2/captures/en/project.json": {
+      "bytes": 3027,
+      "sha256": "50b2282bd891bcbc6921907961099f3883696589b82f6c9209d2aba0899cb700"
+    },
+    "frame-rate85-settings-native-v2/captures/modal-review-layout.json": {
+      "bytes": 1246,
+      "sha256": "cc19ad6475f9fa2a785a1d0441f3c2c6362dd9a86e90ce658bef3cbd740e24d6"
+    },
+    "frame-rate85-settings-native-v2/captures/modal-review.png": {
+      "bytes": 125290,
+      "sha256": "f03546dac42641ad119afb4c13a373545d619cf39a086bb5648280eb9971c668"
+    },
+    "frame-rate85-settings-native-v2/captures/report.json": {
+      "bytes": 1398,
+      "sha256": "3fb48baccfebd5bc6284ae2835bf28eaea95bb7b6543da073d79d1bf4274a944"
+    },
+    "frame-rate85-settings-native-v2/captures/zh-frames-draft.png": {
+      "bytes": 125379,
+      "sha256": "a43d66464b4499e4c5a497eea56b06765700c7932f8c95069c1f330e2a3bc3cc"
+    },
+    "frame-rate85-settings-native-v2/captures/zh-frames-options.png": {
+      "bytes": 128091,
+      "sha256": "e6a6fee0973e5c987badfbe2cd1d49a42902843e98cdfa41b476d33f1a37d9f6"
+    },
+    "frame-rate85-settings-native-v2/captures/zh-seconds-draft.png": {
+      "bytes": 125270,
+      "sha256": "269cb4fd6f7ed04e9ec30b0c09c9ed03b3a18732845a45bf2e86c9fd5c2ee42a"
+    },
+    "frame-rate85-settings-native-v2/captures/zh-seconds-explicit-duration.png": {
+      "bytes": 133611,
+      "sha256": "22170420b9ca68d9ddf5f533024270aa8d5cf90f1ed1402582fcc0ee03273f92"
+    },
+    "frame-rate85-settings-native-v2/captures/zh-seconds-options.png": {
+      "bytes": 128114,
+      "sha256": "af85ca7c65aea9a0e33756302f0190e907446d9c33e2bfd758ea47740d4c39cb"
+    },
+    "frame-rate85-settings-native-v2/captures/zh-shortening-rejected.png": {
+      "bytes": 134815,
+      "sha256": "f0bc29378412f1796729cc22b47bcef75540261e295a3d3802275d1d01c5f725"
+    },
+    "frame-rate85-settings-native-v2/captures/zh/project.json": {
+      "bytes": 3027,
+      "sha256": "50b2282bd891bcbc6921907961099f3883696589b82f6c9209d2aba0899cb700"
+    },
+    "frame-rate85-settings-native-v2/changes.patch": {
+      "bytes": 516,
+      "sha256": "6a1feec462fc8ca9bd353f56b853bdce13ab4cb692efec75b8fe548837ae2a94"
+    },
+    "frame-rate85-settings-native-v2/controller.py": {
+      "bytes": 3858,
+      "sha256": "87f8f8beeeda1c19159de4e480e50048dffac4f3dbb787bb7b07f686f40d2415"
+    },
+    "frame-rate85-settings-native-v2/exit.json": {
+      "bytes": 299713,
+      "sha256": "0fa56bc0a508da1991d037581a21dc459cf3228209572de0d5f491ff6ab442a5"
+    },
+    "frame-rate85-settings-native-v2/source/desktop/app/src/shell/rational_clock_native_tests.rs": {
+      "bytes": 4500,
+      "sha256": "798a08a509b346d269638f397888a199860de61ba1508764b2aa31cd364d71cb"
+    },
+    "frame-rate85-settings-native-v2/source/desktop/app/src/shell/rational_clock_native_tests/settings.rs": {
+      "bytes": 11086,
+      "sha256": "71de453aa4bed31c38c7d81a58f9d835e5fbc092fd352b91a846f29f1bc4131a"
+    },
+    "frame-rate85-settings-native-v2/stderr.log": {
+      "bytes": 13057,
+      "sha256": "55e45f3fc97125d816e6b5a1ce942274f0497902e3bef6fd3b15ff3da8935f37"
+    },
+    "frame-rate85-settings-native-v2/stdout.log": {
+      "bytes": 238,
+      "sha256": "e08414f83ca17977462726f68769563ff18e2ff3ed167a2e8fb18c8fec01b4ec"
+    }
+  }
+}

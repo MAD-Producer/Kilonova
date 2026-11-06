@@ -1,0 +1,197 @@
+{
+  "source": "84c1776016a3d23193493097eecb27eb2c418895",
+  "main": "e314cc92232dcd366b01e10454ae1100d4e24d63",
+  "scope": "Complete maintained Windows workspace with FFmpeg, optional depth and default GPU",
+  "createdUtc": "2026-11-05T10:46:04.435256+00:00",
+  "totals": {
+    "passed": 4885,
+    "failed": 0,
+    "originalIgnored": 78,
+    "filtered": 0,
+    "targets": 414
+  },
+  "limitations": [
+    "Original assertions, ignores, stack and backend retained; Android excluded by maintenance scope",
+    "No repair of historical native crashes is established by this successful execution",
+    "Prior remote source CI is retained at its exact source; final combined-source CI remains independent",
+    "Optional photographed tracking quality remains rejected; no issue closure implied"
+  ],
+  "members": [
+    {
+      "path": "observers/collect-professional86-ci-b1643aa1-terminal-v1.py",
+      "bytes": 3420,
+      "sha256": "b0bb54da4f30786546f639fee1f477b03c27c48e540f97a59d94d95751b8c5f0"
+    },
+    {
+      "path": "observers/collect-tracking88-ci-green-5c6c654b-v1.py",
+      "bytes": 2516,
+      "sha256": "c6da50239c5a5a316c0eb1a35eaca7ac00fe63c0ef9d1fbe799b33d0ba371c21"
+    },
+    {
+      "path": "observers/verify-professional86-ci-b1643aa1-key-screen-coverage-v1.py",
+      "bytes": 2318,
+      "sha256": "204d42adaa46dc78ba7c6bd1800245ad274037b08796b498469f6dca4b053d9a"
+    },
+    {
+      "path": "prior-colmap-ci/controller.py",
+      "bytes": 2516,
+      "sha256": "c6da50239c5a5a316c0eb1a35eaca7ac00fe63c0ef9d1fbe799b33d0ba371c21"
+    },
+    {
+      "path": "prior-colmap-ci/job-127116338394.log",
+      "bytes": 477683,
+      "sha256": "acdc3b5a28be1bb0fbc567a2152e4a0e9ddc45ba6a954f97b71ca8d1d50d1206"
+    },
+    {
+      "path": "prior-colmap-ci/job-127116338663.log",
+      "bytes": 465081,
+      "sha256": "679d300219e0ab674219117d92d78e3c3ade75e4d9b43b5c89666419706661c3"
+    },
+    {
+      "path": "prior-colmap-ci/job-127116338669.log",
+      "bytes": 25645,
+      "sha256": "28b7bd9b3faadf16ece762ddadddac5e448355479a9a8ff857050e95b7cd98c0"
+    },
+    {
+      "path": "prior-colmap-ci/job-127116338739.log",
+      "bytes": 484302,
+      "sha256": "a89f2915159f657c6601ed6dc802cab3841dace0ca3d1e757202451c0aab1a4a"
+    },
+    {
+      "path": "prior-colmap-ci/job-127116338799.log",
+      "bytes": 523358,
+      "sha256": "48240c55fed1e26ad78be48dfa10a32ace0078d22ce2074cfc63b2384a5c79cf"
+    },
+    {
+      "path": "prior-colmap-ci/job-127150547219.log",
+      "bytes": 117790,
+      "sha256": "7b18058cc5de28575fa77fc79fd415b4dc322568d76bcb8c1586361ca3cdf8b6"
+    },
+    {
+      "path": "prior-colmap-ci/job-127150547273.log",
+      "bytes": 78716,
+      "sha256": "374085082f1a71f696242ca9f999cd5ea39da1f864eb0cd24c8ef9a376a309aa"
+    },
+    {
+      "path": "prior-colmap-ci/job-127150547371.log",
+      "bytes": 77912,
+      "sha256": "9a27ad7ff23aac5f55cac791d0b9c830ce4527a24b20ff3b8d0cec557f814826"
+    },
+    {
+      "path": "prior-colmap-ci/jobs.json",
+      "bytes": 41071,
+      "sha256": "a7f9eb1f0f2d845f60598e0a08b7678b56ac74264c2b552eedacf7c549700d01"
+    },
+    {
+      "path": "prior-colmap-ci/receipt.json",
+      "bytes": 3384,
+      "sha256": "7f55477c5418cc297ded64383e790436a8bd8d9c90ed9dfcc97947e1425cd1f5"
+    },
+    {
+      "path": "prior-colmap-ci/run.json",
+      "bytes": 13063,
+      "sha256": "05a8db4493c79a62b807973a615858e4433674d452fb0b5e1eea387e2504cd2c"
+    },
+    {
+      "path": "prior-professional-ci/controller.py",
+      "bytes": 3420,
+      "sha256": "b0bb54da4f30786546f639fee1f477b03c27c48e540f97a59d94d95751b8c5f0"
+    },
+    {
+      "path": "prior-professional-ci/job-127124343603.log",
+      "bytes": 465403,
+      "sha256": "915581bc060a3020c917d5dc9b83b11b83dfd4556caed011af4d20a6602e6c73"
+    },
+    {
+      "path": "prior-professional-ci/job-127124343882.log",
+      "bytes": 25645,
+      "sha256": "1b3f5b0d3ef09739824ceb38e8b32465d0824ea043ea41962bbe93fed32d0cda"
+    },
+    {
+      "path": "prior-professional-ci/job-127124343921.log",
+      "bytes": 487813,
+      "sha256": "49d8721007bc73ba3c0400e71cc7e838c49f0a32db251b8b9fd61be2bd99ce35"
+    },
+    {
+      "path": "prior-professional-ci/job-127124343929.annotations.json",
+      "bytes": 614,
+      "sha256": "bdb7b748dcc74cb19540b15109907cab475e3194911850a5bc3b068bdf485c14"
+    },
+    {
+      "path": "prior-professional-ci/job-127124343929.log",
+      "bytes": 518471,
+      "sha256": "afdab01e4813b3901b362d0c49217d1ab8ff286eae4381f83c00ef4fbe7240fc"
+    },
+    {
+      "path": "prior-professional-ci/job-127124344063.log",
+      "bytes": 480973,
+      "sha256": "ffbbd6700caeb0ff438d1843216353847ea29dc9737293953bca0abcf97655b5"
+    },
+    {
+      "path": "prior-professional-ci/job-127162596487.log",
+      "bytes": 118471,
+      "sha256": "534fed4567bc2882e226f62d75b7f8bf873bce58699cd58fd6b6d68a674a990e"
+    },
+    {
+      "path": "prior-professional-ci/job-127162596591.log",
+      "bytes": 78865,
+      "sha256": "e539a393c74290cd26bde5341a6dfa91c4488d533d3f861d1bc5f61f326bb4c4"
+    },
+    {
+      "path": "prior-professional-ci/job-127162597102.log",
+      "bytes": 95818,
+      "sha256": "45306c4bfb08b9023a8359244d9bdbf7fbb187d540b64c60856191976a5ea7ff"
+    },
+    {
+      "path": "prior-professional-ci/jobs.json",
+      "bytes": 40854,
+      "sha256": "030b895a9a7f7e8df5b98ba4c75c34d95f57842c0baabbe498cb7a8b97b99ac7"
+    },
+    {
+      "path": "prior-professional-ci/key-screen-execution-coverage.json",
+      "bytes": 4830,
+      "sha256": "b03718419e173fd5039f7ac78f60b098a0f85e4c1b2db715691bac4939f81c20"
+    },
+    {
+      "path": "prior-professional-ci/receipt.json",
+      "bytes": 4362,
+      "sha256": "fe1d5bbe3a4031724299322ddb5530bce02d0051861974ab16ced1d0b4493183"
+    },
+    {
+      "path": "prior-professional-ci/run.json",
+      "bytes": 13130,
+      "sha256": "98c1cd03e2e7c688a879994abce8d024dc8f61b5b9f32a73a3721a68c1d8cea7"
+    },
+    {
+      "path": "workspace/cargo-metadata.json",
+      "bytes": 257645,
+      "sha256": "124f7982acbd53cd2b367a927918e07b29075604cf6bc4d15647a4ff50ec614a"
+    },
+    {
+      "path": "workspace/controller.py",
+      "bytes": 6377,
+      "sha256": "2afee8fbf0b189dafac6ce2a152c160795bc03c3e58425350720bde293a4a532"
+    },
+    {
+      "path": "workspace/exit.json",
+      "bytes": 404975,
+      "sha256": "bfab3202a00530030648716ab768b94951c97ef82206f081da1e78b4aa063f29"
+    },
+    {
+      "path": "workspace/stderr.log",
+      "bytes": 126698,
+      "sha256": "a931f6ad0408cf6551b11be5550605ce50ead14edd3c9b76e3930bba76f3fa47"
+    },
+    {
+      "path": "workspace/stdout.log",
+      "bytes": 565533,
+      "sha256": "b0284ea13379160fba12d38fca95f02e467a6a0fcb8190a90ad0e82a01c3a8f2"
+    }
+  ],
+  "archive": {
+    "file": "3d-professional-workspace-84c17760.zip",
+    "bytes": 1318504,
+    "sha256": "92be4d551d68ea852252c9cb351a136778ddf64c5350a571738da74fbef6633c",
+    "allMembersReadBackVerified": true
+  }
+}

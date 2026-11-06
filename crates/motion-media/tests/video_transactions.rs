@@ -383,7 +383,12 @@ fn new_source_cap_accepts_large_declared_lengths_but_still_requires_exact_bytes(
         .unwrap();
         let t = wait(&jobs, id);
         assert_eq!(t.state, "failed");
-        assert!(t.error.unwrap().contains(message));
+        let cause = t.error.unwrap();
+        assert!(
+            cause.contains(message),
+            "job={id} declared_bytes={bytes} available_bytes={:?} expected={message:?} cause={cause}",
+            fs2::available_space(root.path())
+        );
         jobs.release(id).unwrap();
     }
     assert!(!std::fs::read_dir(root.path()).unwrap().any(|e| e

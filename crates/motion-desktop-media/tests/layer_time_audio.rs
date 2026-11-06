@@ -9,6 +9,12 @@ use motion_core::{
 use motion_desktop_media::movie::{ExportControl, FrozenMovie};
 use std::{fs, io::Write, path::Path};
 
+// Main's source-rate anti-aliasing (32e91e07) filters even integral samples
+// when remapping at twice the native rate. The independent direct-trigonometric
+// reference is deliberately separate from the production recurrence/mixer.
+#[path = "../../motion-media/tests/mapped_audio_quality/reference.rs"]
+mod resampling_reference;
+
 fn tone(index: usize) -> f32 {
     let envelope = 0.1 + 0.3 * index as f32 / 9_600.;
     envelope * (std::f32::consts::TAU * index as f32 / 48.).sin()
@@ -133,7 +139,20 @@ fn frozen_movie_remapped_aac_equals_flat_authored_pcm_after_live_edits() {
                     "remap" if index >= 7_200 => Some(2 * index - 14_400),
                     _ => None,
                 };
-                source.map_or([0.; 2], |index| [tone(index), -tone(index) * 0.5])
+                source.map_or([0.; 2], |index| {
+                    if mode == "remap" {
+                        [
+                            resampling_reference::sample(index as f64, 2., 9_600, |n| {
+                                tone(n as usize)
+                            }),
+                            resampling_reference::sample(index as f64, 2., 9_600, |n| {
+                                -tone(n as usize) * 0.5
+                            }),
+                        ]
+                    } else {
+                        [tone(index), -tone(index) * 0.5]
+                    }
+                })
             })
             .collect();
         if mode == "nested" {
