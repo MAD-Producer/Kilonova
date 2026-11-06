@@ -72,6 +72,8 @@ mod precision_capture_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod capture_context_tests;
 #[cfg(all(test, target_os = "windows"))]
+mod viewer_capture_error_tests;
+#[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod sampling_playback_tests;
@@ -1936,13 +1938,13 @@ fn handle(
                 &g.scratch.working_front().ok_or("working preview target missing")?.view
             } else { &g.scratch.view };
             let mut presenter = motion_render::Presenter::new_admitted(&g.renderer, source, wgpu::TextureFormat::Rgba8UnormSrgb)
-                .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=capture.presenter", error))?;
             if ui.composition.is_some() {
                 presenter.set_view_channel(&g.renderer.queue, ui.inspection.channel)
-                    .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+                    .map_err(|error| motion_host::Error::with_context("phase=capture.presenter", error))?;
             }
             presentation.inspection.configure_capture(&ui, &g.renderer, &mut presenter)
-                .map_err(|e| format!("phase=capture.inspection: {e}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=capture.inspection", error))?;
                 Some(presenter)
             } else { None };
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default())?;
@@ -1953,7 +1955,7 @@ fn handle(
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
                 presenter.as_mut().ok_or("single-view capture presenter missing")?.encode_view(&g.renderer.queue, &mut encoder, target.view(), None,
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
-                    .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+                    .map_err(|error| motion_host::Error::with_context("phase=capture.presenter", error))?;
             } else {clear_target(&mut encoder,target.view());}
             capture_phase = "capture.paint";
             #[cfg(test)]

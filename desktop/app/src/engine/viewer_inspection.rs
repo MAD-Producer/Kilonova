@@ -54,7 +54,7 @@ impl State {
         session: &mut Session,
         stamp: Option<&CompositionStamp>,
         window: u64,
-    ) -> Result<Value, String> {
+    ) -> motion_host::Result<Value> {
         self.reconcile(session);
         let cell = self.active_cells.get(&window).copied().flatten();
         let generation = self
@@ -62,9 +62,7 @@ impl State {
             .checked_add(1)
             .ok_or("viewer snapshot generation exhausted")?;
         let image = if let Some(index) = cell {
-            session
-                .capture_view_cell(window, index)
-                .map_err(|error| error.to_string())?
+            session.capture_view_cell(window, index)?
         } else {
             let stamp = stamp.ok_or("no completed viewer frame is available")?;
             if stamp.revision != session.engine.revision()
@@ -90,8 +88,7 @@ impl State {
                 .scratch
                 .working_front()
                 .ok_or("the working viewer frame is unavailable")?;
-            ViewerSnapshot::capture(&graphics.renderer, source)
-                .map_err(|error| error.to_string())?
+            ViewerSnapshot::capture(&graphics.renderer, source)?
         };
         let width = image.native().width;
         let height = image.native().height;
@@ -235,7 +232,7 @@ impl State {
         window: u64,
         path: &Path,
         channel: ViewChannel,
-    ) -> Result<Value, String> {
+    ) -> motion_host::Result<Value> {
         use motion_effects::{
             image_contract::{ChannelPrecision, ImageContract, ImageMeaning},
             AlphaMode, WorkingSpace,
@@ -272,7 +269,7 @@ impl State {
                     ChannelPrecision::Unorm8,
                 ),
             )
-            .map_err(|error| format!("phase=target: {error}"))?;
+            .map_err(|error| motion_host::Error::with_context("phase=target", error))?;
         let format = target.view().texture().format();
         if channel == ViewChannel::Color {
             let output = ColorOutput::for_render_target(
@@ -284,28 +281,28 @@ impl State {
                     transform: OutputTransform::SDR_CLIP,
                 },
             )
-            .map_err(|error| format!("phase=color_output: {error}"))?;
+            .map_err(|error| motion_host::Error::with_context("phase=color_output", error))?;
             let mut encoder = renderer
                 .allocation_command_encoder(&Default::default())
-                .map_err(|error| format!("phase=encoder: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=encoder", error))?;
             output
                 .encode_image(renderer, &mut encoder, &target)
-                .map_err(|error| format!("phase=encode: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=encode", error))?;
             renderer
                 .submit_allocated(encoder.finish(), |ledger| {
                     snapshot.image.collect_texture_resources(ledger);
                     ledger.merge(target.texture_resource_ledger());
                 })
-                .map_err(|error| format!("phase=submit: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=submit", error))?;
         } else {
             let mut presenter = Presenter::new_admitted(renderer, &source.view, format)
-                .map_err(|error| format!("phase=presenter: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=presenter", error))?;
             presenter
                 .set_view_channel(&renderer.queue, channel)
-                .map_err(|error| format!("phase=channel: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=channel", error))?;
             let mut encoder = renderer
                 .allocation_command_encoder(&Default::default())
-                .map_err(|error| format!("phase=encoder: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=encoder", error))?;
             presenter
                 .encode_view(
                     &renderer.queue,
@@ -316,17 +313,17 @@ impl State {
                     None,
                     [0., 0., 0., 0.],
                 )
-                .map_err(|error| format!("phase=encode: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=encode", error))?;
             renderer
                 .submit_allocated(encoder.finish(), |ledger| {
                     snapshot.image.collect_texture_resources(ledger);
                     ledger.merge(target.texture_resource_ledger());
                 })
-                .map_err(|error| format!("phase=submit: {error}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=submit", error))?;
         }
         let pixels = renderer
             .read_image_target(&target)
-            .map_err(|error| format!("phase=readback: {error}"))?
+            .map_err(|error| motion_host::Error::with_context("phase=readback", error))?
             .pixels;
         image::save_buffer_with_format(
             path,
@@ -336,7 +333,7 @@ impl State {
             image::ColorType::Rgba8,
             image::ImageFormat::Png,
         )
-        .map_err(|error| format!("phase=save: {error}"))?;
+        .map_err(|error| motion_host::Error::with_context("phase=save", error))?;
         Ok(
             serde_json::json!({"window":window, "generation":snapshot.generation, "width":source.width, "height":source.height}),
         )
