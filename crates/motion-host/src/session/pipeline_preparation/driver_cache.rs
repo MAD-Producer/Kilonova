@@ -118,6 +118,9 @@ impl State {
     pub(super) fn preparing(&self) -> bool {
         self.storage.is_some() && !self.restored && !self.disabled
     }
+    pub(super) fn restoring(&self) -> bool {
+        self.preparing() && self.ticket.is_some()
+    }
     #[cfg(test)]
     pub(super) fn failure(&self) -> Option<&Arc<Error>> {
         self.failure.as_ref()

@@ -8,8 +8,7 @@ mod curve_playback_tests;
 impl Shell {
     pub(crate) fn present_ui_async(&self, ui: UiFrame)
         -> Result<std::sync::mpsc::Receiver<Result<bool, crate::engine::Error>>, String> {
-        if self.audio_only_preview { Ok(self.engine.present_frozen_async(ui)?) }
-        else { Ok(self.engine.present_async(ui)?) }
+        Ok(self.engine.present_poll_async(ui, self.audio_only_preview)?)
     }
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
         if state["editorAction"]["operation"] == "effect_pick" && state["editorAction"]["cancelled"] == true {

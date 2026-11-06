@@ -74,6 +74,59 @@ fn finish(state: &mut State, renderer: &mut Renderer, project: &Project, scene: 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn owner_poll_preserves_existing_request_and_terminal_failure_without_resubmission() {
+    for fail in [false, true] {
+        let (project, scene) = fixture();
+        let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+        let mut state = State::default();
+        let (entered, observed) = mpsc::channel();
+        let (release, gate) = mpsc::channel();
+        state.before_sample = Some(Box::new(move || {
+            entered.send(()).unwrap();
+            gate.recv_timeout(Duration::from_secs(5)).unwrap();
+            assert!(!fail, "controlled preparation failure");
+        }));
+        assert!(!state.ensure(&mut renderer, &project, &scene, None, key()).unwrap());
+        observed.recv_timeout(Duration::from_secs(5)).unwrap();
+        let ticket = state.ticket.as_ref().unwrap().clone();
+        let worker = state.worker.as_ref().unwrap().thread.thread().id();
+        for _ in 0..65 {
+            assert!(!state.poll(&mut renderer, key().context).unwrap());
+            assert!(state.ticket.as_ref().unwrap().same_request(&ticket));
+            assert!(state.pending.is_none());
+        }
+        release.send(()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let terminal = loop {
+            match state.poll(&mut renderer, key().context) {
+                Ok(false) => assert!(Instant::now() < deadline, "existing job never completed"),
+                value => break value,
+            }
+            std::thread::yield_now();
+        };
+        if fail {
+            let crate::Error::PipelinePreparation(primary) = terminal.unwrap_err() else { panic!("typed error lost"); };
+            assert!(primary.to_string().contains("controlled preparation failure"));
+            for _ in 0..65 {
+                let crate::Error::PipelinePreparation(next) = state.poll(&mut renderer, key().context).unwrap_err() else { panic!("typed error lost"); };
+                assert!(Arc::ptr_eq(&primary, &next));
+            }
+        } else {
+            assert!(terminal.unwrap());
+            assert!(!state.waiting());
+            let builds = renderer.effect_pipeline_builds();
+            let target = renderer.capture_target(16,16).unwrap();
+            assert!(!renderer.capture(&scene, &target).unwrap().0.is_empty());
+            assert_eq!(renderer.effect_pipeline_builds(), builds);
+        }
+        assert!(state.ticket.as_ref().unwrap().same_request(&ticket));
+        assert_eq!(state.worker.as_ref().unwrap().thread.thread().id(), worker);
+        renderer.check_health().unwrap();
+    }
+}
+
+#[test]
 fn exposure_readiness_requires_the_exact_sample_and_instance_scope() {
     let ordinary = key();
     let mut later = ordinary.clone();

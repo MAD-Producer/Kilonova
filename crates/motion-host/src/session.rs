@@ -426,6 +426,25 @@ impl Session {
         Ok(())
     }
 
+    /// Whether the last frame is awaiting an existing pipeline task. A cache
+    /// capability alone, a save checkpoint, and ordinary surface misses do not
+    /// create a pending frame completion.
+    pub fn pipeline_preparation_pending(&self) -> bool {
+        self.graphics.is_some() && self.last_error.is_none() && self.pipeline_preparation.waiting()
+    }
+
+    /// Nonblocking owner-thread progress for an already requested frame. The
+    /// desktop can service editing and window commands between these polls.
+    pub fn poll_pipeline_preparation(&mut self) -> Result<bool> {
+        self.check_thread()?;
+        let Some(graphics) = &mut self.graphics else { return Ok(true); };
+        self.pipeline_preparation.poll(&mut graphics.renderer,
+            motion_render::PipelinePreparationContext {
+                document_generation: self.document_generation,
+                project_revision: self.engine.revision(),
+            })
+    }
+
     pub fn detach(&mut self) {
         self.pipeline_preparation.cancel();
         self.sampling.discard_request();

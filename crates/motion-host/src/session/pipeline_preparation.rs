@@ -169,6 +169,26 @@ pub(crate) struct State {
     before_sample: Option<Box<dyn FnOnce() + Send>>,
 }
 impl State {
+    pub(crate) fn waiting(&self) -> bool {
+        (self.cache.restoring()
+            || self.key.as_ref().is_some_and(|key| {
+                !self.ready.as_ref().is_some_and(|ready| ready.same_revision(key))
+            }))
+            && self.failure.is_none()
+            && self.worker_failure.is_none()
+    }
+
+    /// Advance the existing task only. Never sample, submit a replacement job,
+    /// wait for a driver, or retry a failed operation from this polling path.
+    pub(crate) fn poll(&mut self, renderer: &mut Renderer, context: Context) -> crate::Result<bool> {
+        if let Some(error) = self.failure.as_ref().or(self.worker_failure.as_ref()) {
+            return Err(crate::Error::PipelinePreparation(error.clone()));
+        }
+        self.collect(renderer, context)?;
+        self.enqueue()?;
+        Ok(!self.waiting())
+    }
+
     pub(crate) fn cancel(&mut self) {
         self.cache.cancel();
         if let Some(ticket) = self.ticket.take() {

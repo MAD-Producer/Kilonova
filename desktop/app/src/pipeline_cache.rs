@@ -33,6 +33,9 @@ fn refused(reason: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::PermissionDenied, reason)
 }
 
+#[cfg(test)]
+pub(crate) fn prepare_test_storage(path: &Path) -> io::Result<()> { prepare(path) }
+
 fn prepare(path: &Path) -> io::Result<()> {
     let root = path
         .parent()

@@ -31,6 +31,7 @@ mod ui_paint;
 mod frame_capture;
 mod movie_freeze;
 mod frame_allocation;
+mod frame_completion;
 mod viewer_inspection;
 pub(crate) mod viewer_input;
 pub(crate) mod viewer_frame;
@@ -290,12 +291,20 @@ pub enum Command {
         height: u32,
         reply: Sender<Result<Value, Error>>,
     },
+    /// Complete when the requested composition has actually been presented.
     Present {
         ui: UiFrame,
         reply: Sender<Result<bool, Error>>,
     },
     PresentFrozen {
         ui: UiFrame,
+        reply: Sender<Result<bool, Error>>,
+    },
+    /// One nonblocking Shell presentation step. A pending composition replies
+    /// false so the native event loop can redraw chrome and poll again.
+    PresentPoll {
+        ui: UiFrame,
+        frozen: bool,
         reply: Sender<Result<bool, Error>>,
     },
     SeekAudioPreview {
@@ -517,7 +526,7 @@ impl Command {
             KeyframeClipboardRead { reply, .. } => ErrorReply::KeyframeClipboard(reply.clone()),
             PathClipboardRead { reply, .. } => ErrorReply::PathClipboard(reply.clone()),
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
-            NodeInstall { reply, .. } | PluginInstall {reply,..} | PluginValues {reply,..} | Present { reply, .. } | PresentFrozen { reply, .. } | Render { reply, .. } => {
+            NodeInstall { reply, .. } | PluginInstall {reply,..} | PluginValues {reply,..} | Present { reply, .. } | PresentFrozen { reply, .. } | PresentPoll { reply, .. } | Render { reply, .. } => {
                 ErrorReply::Bool(reply.clone())
             }
             FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
@@ -860,8 +869,10 @@ impl Engine {
                 let mut presentation = PresentationState::default();
                 let mut frame_capture = frame_capture::Worker::new(worker_frame_flight);
                 let mut movie_freeze = movie_freeze::Worker::new(worker_movie_freeze_flight);
+                let mut frame_completions = frame_completion::Queue::default();
                 let mut windows = std::collections::HashMap::new();
-                let mut failed_reply = None;
+                let mut failed_reply: Option<(ErrorReply, Error)> = None;
+                let mut completion_failure = None;
                 let mut channel_closed = true;
                 loop {
                     let drained = {
@@ -870,6 +881,7 @@ impl Engine {
                             Err(poisoned) => {
                                 drop(poisoned);
                                 let error = "engine dispatch lock poisoned while checking shutdown";
+                                completion_failure = Some(error.into());
                                 log::error!("{error}");
                                 static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
                                 crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.shutdown", |value| *value = Some(error.into()));
@@ -883,32 +895,72 @@ impl Engine {
                         channel_closed = false;
                         break;
                     }
-                    let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() else { break; };
+                    let (QueuedCommand {command,queued,request,context}, resumed) =
+                        if let Some(pending) = frame_completions.take_due() {
+                            let frame_completion::Pending { command, meta, stamp, waiting } = pending;
+                            (QueuedCommand { command, queued: meta.queued, request: meta.flight.request,
+                                context: meta.context }, Some((stamp, waiting, meta.flight)))
+                        } else {
+                            let received = if let Some(delay) = frame_completions.delay() {
+                                match receiver.recv_timeout(delay) {
+                                    Ok(command) => Some(command),
+                                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => None,
+                                }
+                            } else { receiver.recv().ok() };
+                            let Some(command) = received else { break; };
+                            (command, None)
+                        };
                     let began=std::time::Instant::now();
                     let operation=command.diagnostic_name();
-                    let flight = Flight { request, operation, started: began };
+                    let flight = resumed.as_ref().map_or(Flight { request, operation, started: began }, |(_,_,flight)| *flight);
                     {
                         // dispatch holds this same short gate across send + increment.
                         // recv can wake before send returns; never decrement first.
                         let mut current = worker_flight.lock().unwrap_or_else(|e| e.into_inner());
-                        worker_depth.fetch_sub(1, Ordering::AcqRel);
+                        if resumed.is_none() { worker_depth.fetch_sub(1, Ordering::AcqRel); }
                         *current = Some(flight);
                     }
                     CURRENT_COMMAND.set(Some(flight));
                     #[cfg(test)]
                     worker_diagnostics.native_test_phase("dispatch");
-                    if operation != "present" {
+                    if operation != "present" && resumed.is_none() {
                         log::info!("start #{} {}", request, operation);
                         crate::logging::flush();
                     }
                     let on_panic = command.panic_reply();
+                    let meta = frame_completion::Meta { queued, flight, context: context.clone() };
+                    let mut deferred = false;
                     let handled=motion_host::ops::catch_panic(|| {
                         // Keep this inside the existing panic/reply boundary.
                         let pending = worker_node_expect.lock().map_err(|_| "node expectation lock poisoned")?;
                         let mut pending = pending;
                         if let Some(stamp) = pending.take() { node_preview.desired = stamp; }
                         drop(pending);
-                        Ok(handle(
+                        if resumed.is_none() && frame_completion::window(&command).is_some() && !frame_completions.is_empty() {
+                            deferred = frame_completions.insert(command, meta, false, id, &windows, &worker_paints);
+                            return Ok(false);
+                        }
+                        if let Some((stamp, waiting, _)) = resumed {
+                            match stamp.progress(waiting, id, &windows) {
+                                Ok(frame_completion::Progress::Waiting) => {
+                                    frame_completions.put_back(frame_completion::Pending { command, meta, stamp, waiting });
+                                    deferred = true;
+                                    return Ok(false);
+                                }
+                                Ok(frame_completion::Progress::Superseded) => {
+                                    frame_completion::finish(command, Ok(false), &worker_paints);
+                                    return Ok(false);
+                                }
+                                Err(error) => {
+                                    frame_completion::finish(command, Err(error), &worker_paints);
+                                    return Ok(false);
+                                }
+                                Ok(frame_completion::Progress::Ready) => {}
+                            }
+                        }
+                        let mut continuation = None;
+                        let stop = handle(
                         id,
                         &platform,
                         &mut painter,
@@ -922,15 +974,24 @@ impl Engine {
                         &worker_diagnostics,
                         &allocation_budget,
                         &worker_factory,
+                        &mut frame_completions,
+                        &mut continuation,
                         command,
-                    ))}).and_then(|result| result);
-                    worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
+                    );
+                        if let Some(command) = continuation {
+                            deferred = frame_completions.insert(command, meta, true, id, &windows, &worker_paints);
+                        }
+                        Ok(stop)
+                    }).and_then(|result| result);
+                    if !deferred {
+                        worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(flight.started.duration_since(queued)),Some(flight.started.elapsed()),context);
+                    }
                     *worker_flight.lock().unwrap_or_else(|e| e.into_inner()) = None;
                     CURRENT_COMMAND.set(None);
                     #[cfg(test)]
                     worker_diagnostics.native_test_phase("idle");
-                    if operation != "present" || began.elapsed() >= Duration::from_millis(100) {
-                        log::debug!("done #{} {} {}ms", request, operation, began.elapsed().as_millis());
+                    if !deferred && (operation != "present" || flight.started.elapsed() >= Duration::from_millis(100)) {
+                        log::debug!("done #{} {} {}ms", request, operation, flight.started.elapsed().as_millis());
                     }
                     match handled {
                         Ok(true) => {
@@ -941,7 +1002,7 @@ impl Engine {
                         Ok(false) => {},
                         Err(reason) => {
                             channel_closed = false;
-                            log::error!("panic #{} {} {}ms: {}", request, operation, began.elapsed().as_millis(), reason);
+                            log::error!("panic #{} {} {}ms: {}", request, operation, flight.started.elapsed().as_millis(), reason);
                             let recovery = match motion_host::ops::catch_panic(|| failure::recovery(id)) {
                                 Ok(Ok(path)) => format!("recovery JSON: {}", path.display()),
                                 Ok(Err(error)) => format!("recovery unavailable: {error}"),
@@ -954,13 +1015,18 @@ impl Engine {
                                 crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.publish", |value| *value = Some(message.clone().into()));
                             }
                             failed_reply = on_panic.map(|reply| (reply, message.into()));
+                            completion_failure = failed_reply.as_ref().map(|(_, error)| error.clone());
                             break;
                         }
                     }
                 }
-                if channel_closed { log::error!("worker channel closed"); }
+                if channel_closed {
+                    log::error!("worker channel closed");
+                    completion_failure = Some(Error::Stopped);
+                }
                 worker_depth.store(0, Ordering::Release);
                 let _cleanup = shutdown::Cleanup::begin(worker_flight.clone(), worker_diagnostics.clone(), id);
+                if completion_failure.is_none() { frame_completions.finish_all(None, &worker_paints); }
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
@@ -973,6 +1039,7 @@ impl Engine {
                 drop(lease);
                 drop(guard);
                 log::info!("worker resources released: session={id}");
+                frame_completions.finish_all(completion_failure.as_ref(), &worker_paints);
                 if let Some((reply, error)) = failed_reply { reply.send(error); }
             })
             .map_err(|error| {
@@ -1522,6 +1589,11 @@ impl Engine {
         -> Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
         self.request(|reply| Command::PresentFrozen { ui, reply })
     }
+
+    pub(crate) fn present_poll_async(&self, ui: UiFrame, frozen: bool)
+        -> Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
+        self.request(|reply| Command::PresentPoll { ui, frozen, reply })
+    }
 }
 
 impl Drop for Engine {
@@ -1670,6 +1742,8 @@ fn handle(
     diagnostics: &crate::diagnostics::Diagnostics,
     allocation_budget: &motion_render::AllocationBudget,
     factory: &Mutex<Option<SurfaceFactory>>,
+    frame_completions: &mut frame_completion::Queue,
+    continuation: &mut Option<Command>,
     command: Command,
 ) -> bool {
     // Project operations and view changes can overwrite the shared scratch.
@@ -1677,7 +1751,7 @@ fn handle(
     // frozen presentation may reuse it, ordinary presentation still compares time.
     if !matches!(
         &command,
-        Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
+        Command::Present { .. } | Command::PresentFrozen { .. } | Command::PresentPoll { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
         | Command::CaptureViewerSnapshot { .. } | Command::SaveViewerSnapshot { .. }
         | Command::ViewerInput { .. }
@@ -1685,7 +1759,8 @@ fn handle(
     ) {
         presentation.retained = None;
     }
-    let frozen = matches!(&command, Command::PresentFrozen { .. });
+    let frozen = matches!(&command, Command::PresentFrozen { .. } | Command::PresentPoll { frozen: true, .. });
+    let polling = matches!(&command, Command::PresentPoll { .. });
     match command {
         #[cfg(test)]
         Command::TestStudy { operation, reply } => respond(reply, operation(id)),
@@ -2065,6 +2140,7 @@ fn handle(
             windows.insert(key,target);s.snapshot()
         })),
         Command::CloseWindow {key,reply} => {
+            frame_completions.cancel_window(key, paints);
             windows.remove(&key);
             respond(reply, motion_host::session::with_session(id, |s| {
                 presentation.inspection.close_window(s, key);
@@ -2084,8 +2160,9 @@ fn handle(
             }
             s.snapshot()
         })),
-        Command::Present { mut ui, reply } | Command::PresentFrozen { mut ui, reply } => {
+        Command::Present { mut ui, reply } | Command::PresentFrozen { mut ui, reply } | Command::PresentPoll { mut ui, reply, .. } => {
         let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::Present);
+        let mut preparing = false;
         let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
             diagnostics.native_test_phase("present.prepare");
@@ -2234,12 +2311,18 @@ fn handle(
             if presentation.last_present_us>=30_000 {
                 log::debug!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
+            preparing = result.as_ref().is_ok_and(|value| !*value) && ui.composition.is_some()
+                && s.pipeline_preparation_pending();
             result.map_err(|error| motion_host::Error::with_context(format!("present window={} logical_size={:?}", ui.window, ui.logical_size),error))
         });
+        frame_allocation::finish(frame,&result,|rendered|*rendered);
+        if !polling && preparing && result.is_ok() {
+            *continuation = Some(if frozen { Command::PresentFrozen { ui, reply } } else { Command::Present { ui, reply } });
+        } else {
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
-        frame_allocation::finish(frame,&result,|rendered|*rendered);
         respond(reply,result);
+        }
         },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{
             motion_core::storage::load(&directory)?;
@@ -2255,7 +2338,7 @@ fn handle(
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "modelImport":{"supported":true,"formats":["gltf","glb","obj"],"tool":"import_model","owned":true,"pixelsPerMetre":100,"samples":1,"automaticAnimation":false},
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
-                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),
+                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),"frameCompletions":frame_completions.status(),
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalCandidatePipelineBuilds":node_preview.canonical.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalRetainedShaderCodeBytes":node_preview.canonical.as_ref().map_or(0,|p|p.shader_code_bytes()),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
@@ -2353,7 +2436,16 @@ fn handle(
             height,
             reply,
         } => respond(reply,preview::navigate(id, dx, dy, zoom, multi, width, height)),
-        Command::Render { frame, reply } => respond(reply,preview::render(id, frame)),
+        Command::Render { frame, reply } => {
+            let mut preparing = false;
+            let result = motion_host::session::with_session(id, |session| {
+                let result = preview::render_inner(session, frame);
+                preparing = result.as_ref().is_ok_and(|value| !*value) && session.pipeline_preparation_pending();
+                result
+            });
+            if preparing && result.is_ok() { *continuation = Some(Command::Render { frame, reply }); }
+            else { respond(reply, result); }
+        }
         Command::ConfigureMemory {
             total,
             guarded,
