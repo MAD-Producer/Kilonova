@@ -35,12 +35,17 @@
     },
     "tools/export_ai_depth.py": {
       "mode": "manual",
-      "command": "python tools/export_ai_depth.py --reference <absolute-checkout> --weights <absolute-small-weights> --output <new-absolute-directory>",
+      "command": "python tools/export_ai_depth.py --reference <absolute-checkout> --weights <absolute-small-weights> --output <new-absolute-directory> [--side 266|392|518]",
       "requires": [
         "The pinned official reference checkout and SHA-256-identified Small weights",
         "The optional pinned CPU reference/export environment documented in engineering/host-api/optional-depth-inference.md"
       ],
       "reason": "Model export and numerical reference evaluation are explicit external acceptance work; neither model weights nor the upstream reference implementation are bundled in ordinary CI."
+    },
+    "tools/test_ci_depth_export.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Validate explicit export resolution admission, processing identity isolation and non-overwrite behavior, including actual invalid CLI subprocesses under optimized Python; no model execution or quality claim"
     },
     "tools/build_android.py": {
       "mode": "manual",

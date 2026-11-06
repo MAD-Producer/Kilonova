@@ -141,6 +141,11 @@ noncommercial Base/Large/Giant models are not used. No model weights, reference
 source or upstream images are bundled. The separately installed reference is
 unmodified; the owned export procedure produces a fixed-shape opset-17 ONNX
 artifact and retains its original license and provenance next to that artifact.
+The owned exporter also offers explicit 266-, 392- and 518-square candidate
+exports from those same pinned Small weights. Each export must independently
+pass the unchanged CPU reference error bounds before publication. This changes
+the export input shape, not the upstream implementation or its license, and
+does not qualify a product quality tier or authorize default distribution.
 The host's letterboxing, process protocol, scheduling and installation checks
 are independently authored under this repository's MIT license.
 
