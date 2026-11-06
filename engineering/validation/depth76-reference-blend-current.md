@@ -2,8 +2,9 @@
 
 Status: the coordinate inverse and registered CPU depth blend are implemented.
 The original blend-only execution passed all 31 selected model controls. The
-shared scalar compiler and actual GPU preset execution also passed; native
-mixed-depth integration and full temporal acceptance remain pending. This
+shared scalar compiler and actual GPU preset execution also passed. Native
+mixed-depth projection, surface construction and controlled moving occlusion
+have now passed. Full integration/CI and real-footage temporal acceptance remain pending. This
 record does not complete issue 76 or the 3D route.
 
 The increment starts from maintained main
@@ -125,12 +126,55 @@ outputs, actual captures and verified tested source. Every member was read back:
 
 ## Remaining delivery
 
-- Connect canonical mixed camera-Z resources to existing 3D surface/clip-depth
-  consumers without pretending they are relative predictions
-- Complete host authoring/persistence and actual render/frozen-output admission
-  with independent source/PTS guards and failure observations
-- Verify native moving-sequence behavior and measured sampling/resize costs;
-  retain explicit registration and temporal-quality limitations
+- Complete final integration/CI on the published branch
+- Extend temporal quality evidence beyond the controlled authored motion;
+  retain explicit registration and accuracy limitations
+
+Host authoring/history/persistence and UI controls are downstream consumers of
+this model/native API; they have not been added or accepted here. The issue's
+depth-mixing core does not imply those product workflows already exist.
 
 No UI, full-workspace or real-video temporal-quality acceptance is claimed by
 these increments. Android remains outside the maintained scope.
+
+## Native metric admission and actual execution
+
+`ProjectedDepth::from_camera_z` and `DepthSurface::from_camera_z` accept explicit
+metric/inverse-metric camera-Z resources. They share the existing calibrated
+geometry builders rather than inventing a relative calibration or changing the
+renderer's camera/clipping/validity policies. Relative and ray-distance inputs
+are rejected at admission; caller budgets still apply before vertex allocation.
+Three independent controls check millimetres/inverse units against known world
+positions and the orthographic clip equation, missing samples, refused measures
+and bounded geometry. All four existing surface controls remain unchanged.
+
+The final native execution passed **89 tests across eight complete targets,
+zero failed/ignored/filtered**, in 97.984 seconds including compilation. This
+includes 38 model controls and all 51 tests in `motion-render`'s `scene_gpu`
+target, with default GPU testing enabled. The new native test runs three authored
+moving frames in each of Unorm8, Unorm16, Float16 and Float32. Every hardware-depth
+pixel is compared against an independent orthographic equation and source-grid
+mapping with the original `1e-6` bound. Real mesh pixels must disappear behind
+the moving foreground, while its old position must remain visible.
+
+For each six-pixel blend, output retention is 30 bytes and the native projected
+upload/uniform input is 64 bytes. Reference reads are exactly 6/5/4 as translation
+reveals missing data; there is no hidden resize allocation. Observed CPU blend
+costs were 16–36 microseconds, projection 6–13 microseconds and native submission
+552–5,589 microseconds. These tiny controls are not representative throughput or
+GPU duration measurements. All twelve case records and three actual native
+captures are retained, separately from the scalar display captures.
+
+The [native archive](data/depth76-native-metric-v3.zip) and
+[manifest](data/depth76-native-metric-v3.json) retain exact sources, controller,
+outputs, costs and images. Every member was read back: 1,969,023 bytes, SHA-256
+`f4fba9edc288ffccefd71dcd7003c26c5688998501f8832ca68c668633fa8a37`.
+The archive also keeps both earlier new-fixture compile failures: the inverse
+unit field was incorrectly named and the pixel-index byte count needed an
+explicit integer conversion. Those fixture corrections changed no existing
+assertion or numerical budget. This archive is separate from the earlier tested
+shared-kernel source; later source changes do not retroactively replace receipts.
+
+The [API guide](../host-api/reference-depth-blending.md) records caller ownership,
+camera/source admission, missing-data behavior and the boundary between generic
+scalar ALU, depth sampling, CPU submission and actual GPU execution.

@@ -1,7 +1,9 @@
 //! A calibrated image is geometry in its authored reference camera, not a
 //! full-viewport depth seed. Vertices stay in layer-local space so subsequent
 //! layer/parent edits and independent camera animation use ordinary transforms.
-use super::{CalibratedDepth, DepthProjection, MAX_DEPTH_RESOURCE_BYTES};
+use super::{
+    CalibratedDepth, DepthDescriptor, DepthProjection, DepthResource, MAX_DEPTH_RESOURCE_BYTES,
+};
 use crate::{ensure, CameraPose, Error, Result};
 use glam::{Mat4, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
@@ -59,9 +61,43 @@ impl DepthSurface {
         pixels_per_metre: f32,
         byte_budget: usize,
     ) -> Result<Self> {
+        Self::from_samples(
+            depth.resource().descriptor(),
+            reference,
+            pixels_per_metre,
+            byte_budget,
+            |index| depth.camera_z_meters(index),
+        )
+    }
+
+    /// Build ordinary layer-local geometry from explicit metric camera-Z depth.
+    /// The reference camera must be the authored depth basis; image registration
+    /// does not infer a different camera or supply missing validity.
+    pub fn from_camera_z(
+        depth: &DepthResource,
+        reference: &DepthReference,
+        pixels_per_metre: f32,
+        byte_budget: usize,
+    ) -> Result<Self> {
+        super::projection::require_camera_z(depth)?;
+        Self::from_samples(
+            depth.descriptor(),
+            reference,
+            pixels_per_metre,
+            byte_budget,
+            |index| depth.camera_z_meters(index, None),
+        )
+    }
+
+    fn from_samples(
+        descriptor: &DepthDescriptor,
+        reference: &DepthReference,
+        pixels_per_metre: f32,
+        byte_budget: usize,
+        camera_z: impl Fn(usize) -> Result<Option<f64>>,
+    ) -> Result<Self> {
         reference.validate()?;
         let projection = DepthProjection::new(reference.camera, f64::from(pixels_per_metre))?;
-        let descriptor = depth.resource().descriptor();
         let g = &descriptor.geometry;
         let [dw, dh] = descriptor.size;
         let [nx, ny] = if g.quarter_turns % 2 == 0 {
@@ -111,7 +147,7 @@ impl DepthSurface {
             let z = if let Some([u, v]) = g.source_uv_to_depth_uv(uv)? {
                 let x = ((u * f64::from(dw)) as usize).min(dw as usize - 1);
                 let y = ((v * f64::from(dh)) as usize).min(dh as usize - 1);
-                depth.camera_z_meters(y * dw as usize + x)?
+                camera_z(y * dw as usize + x)?
             } else {
                 None
             };
