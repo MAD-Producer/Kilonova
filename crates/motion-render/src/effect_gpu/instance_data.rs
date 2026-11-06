@@ -2,6 +2,9 @@
 use super::*;
 use std::sync::Arc;
 
+#[cfg(test)]
+mod tests;
+
 impl GpuState {
     pub fn resource_bytes(&self) -> u64 {
         self.resource_bytes
@@ -185,30 +188,14 @@ impl GpuState {
                 resource: wgpu::BindingResource::Sampler(&self.sampler),
             });
         }
-        let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
-        let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("instance shader data"),
-            layout: &self.resource_layout,
-            entries: &entries,
-        });
-        let validation = scope.pop();
-        let polled = device.poll(wgpu::PollType::wait_indefinitely());
-        if let Some(error) = pollster::block_on(validation) {
-            let mut message = format!(
-                "instance shader data program={} pass={index} phase=bind: {error}",
-                pass.program
-            );
-            if let Err(error) = polled {
-                message.push_str(&format!("; GPU wait also failed: {error}"));
-            }
-            return Err(message.into());
-        }
-        polled.map_err(|error| {
-            RenderError::Invalid(format!(
-                "instance shader data program={} pass={index} phase=wait: {error}",
-                pass.program
-            ))
-        })?;
+        let group = create_instance_group(
+            device,
+            &self.resource_layout,
+            &entries,
+            pass.program,
+            index,
+            |kind| device.poll(kind),
+        )?;
         self.allocation_uploads
             .track(texture.texture.allocation())?;
         upload(queue, &texture.texture, width, height, &pixels);
@@ -223,4 +210,38 @@ impl GpuState {
         });
         Ok(())
     }
+}
+
+fn create_instance_group(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    entries: &[wgpu::BindGroupEntry<'_>],
+    program: u32,
+    index: usize,
+    poll: impl FnOnce(wgpu::PollType) -> Result<wgpu::PollStatus, wgpu::PollError>,
+) -> Result<wgpu::BindGroup, RenderError> {
+    let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+    let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("instance shader data"),
+        layout,
+        entries,
+    });
+    let validation = scope.pop();
+    // Native validation is ready without waiting for submitted GPU work. This
+    // path also runs for changing instance data, not just cold pipeline builds.
+    let polled = poll(wgpu::PollType::Poll);
+    if let Some(error) = pollster::block_on(validation) {
+        let mut message =
+            format!("instance shader data program={program} pass={index} phase=bind: {error}");
+        if let Err(error) = polled {
+            message.push_str(&format!("; GPU poll also failed: {error}"));
+        }
+        return Err(message.into());
+    }
+    polled.map_err(|error| {
+        RenderError::Invalid(format!(
+            "instance shader data program={program} pass={index} phase=poll: {error}"
+        ))
+    })?;
+    Ok(group)
 }
