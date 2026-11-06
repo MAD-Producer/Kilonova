@@ -6,8 +6,11 @@ workspace delivery `b25fa736bf9bfef169776a3151fef12ddfb894ae`.
 Source `81ea22aaf15464f9491e3dd24e709c28a5c848de` adds the frozen prototype
 tools and native Surface controls to that combined base. It keeps the current
 rational-clock implementation and both branches' provenance. The new Surface
-fixture now constructs `FrameRate::integer(125)` explicitly; its assertions,
-sample times, pixel tolerances and original media/solve bytes are unchanged.
+fixture initially passed `FrameRate::integer(125)` to the integer-only
+`Project::new` constructor. Complete native compilation exposed this type error;
+the fixture now passes `125`, which the constructor validates and converts to a
+rational clock internally. Its assertions, sample times, pixel tolerances and
+original media/solve bytes are unchanged.
 No panel, product layout or interaction changes are included.
 
 ## Fresh tools and actual CV execution
@@ -48,11 +51,18 @@ masked moving-occlusion controls. The earlier tools execution above is not a
 new full execution on this later combined source.
 
 The complete maintained workspace, with FFmpeg and optional AI-depth features,
-still requires a fresh full regression on this combined source. The original
-10 GiB free-space start gate remains in force. A user cleanup confirmation did
-not satisfy that gate: the filesystem observation afterward reported only
-2.10 GiB, then 1.70 GiB while other Rust builds were active. No full run was
-started and no compilation or test success is claimed for it.
+still requires a successful full regression on this combined source. The
+original 10 GiB free-space start gate remains in force. After the filesystem
+confirmed sufficient space, attempt v1 stopped before tests because its shared
+temporary directory had disappeared during external cleanup. Attempt v2 used
+a dedicated temporary directory within the protected build target. It completed
+compilation far enough to expose the fixture type error above, then exited 101
+after 665.687 seconds with no test invocations. Its recorded source remained
+unchanged at `e010a034503c821ee441753bbae778f0f2d841d4`. Both original logs and
+controller receipts remain under `artifacts/pr-queue/tracking88-prototype-workspace-integration-v1`
+and `artifacts/pr-queue/tracking88-prototype-workspace-integration-v2`; neither
+attempt counts as passing test coverage. The fixture correction changes no
+assertions or product code and requires a new complete run.
 
 Current combined native compilation, complete workspace execution, final-head
 cross-platform CI and photographed prototype quality remain pending. Previous

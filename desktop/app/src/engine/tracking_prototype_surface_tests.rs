@@ -18,8 +18,7 @@ fn project(root: &Path, fixture: &Path) {
         .unwrap();
     probe.asset.id = 1;
     probe.asset.path = "assets/plate.webm".into();
-    let mut project =
-        motion_core::Project::new(256, 192, motion_core::FrameRate::integer(125), 500).unwrap();
+    let mut project = motion_core::Project::new(256, 192, 125, 500).unwrap();
     let mut video =
         motion_core::Layer::solid(600, "Native plate", [256., 192.], [128., 96., 0.], [1.; 4]);
     video.content = motion_core::Content::Video {
