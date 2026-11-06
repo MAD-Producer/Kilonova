@@ -62,12 +62,51 @@ unchanged at `e010a034503c821ee441753bbae778f0f2d841d4`. Both original logs and
 controller receipts remain under `artifacts/pr-queue/tracking88-prototype-workspace-integration-v1`
 and `artifacts/pr-queue/tracking88-prototype-workspace-integration-v2`; neither
 attempt counts as passing test coverage. The fixture correction changes no
-assertions or product code and requires a new complete run.
+assertions or product code.
 
-Current combined native compilation, complete workspace execution, final-head
-cross-platform CI and photographed prototype quality remain pending. Previous
-source-bound successful runs and the original heap-corruption/identity failure
-records are retained; integration alone does not diagnose or repair them.
+## Complete frozen-source run: failed, not waived
+
+Attempt v3 executed the complete command below on unchanged
+`270840919743570dad144ec3a7e609eac91fe1db`:
+
+```text
+cargo test --workspace --exclude motion-android --features motion-desktop/ffmpeg,motion-host/ai-depth,motion-desktop-media/ai-depth --no-fail-fast --locked -- --test-threads=1
+```
+
+It terminated with Cargo exit 101 after 8,415.297 seconds. Independent accounting
+matched all 421 expected target invocations (411 native and ten documentation
+targets), including duplicate target names in different packages: 4,934 passed,
+one failed, 78 originally ignored, none filtered or measured. The previous
+417-target result belongs to an earlier source tree and is not this run.
+
+The sole failure was
+`motion-core::format_version_boundaries::unsupported_versions_cannot_load_or_replace_an_existing_project`.
+Its initial valid-project save failed before the version assertions, at line 36:
+Windows returned OS error 5, `PermissionDenied`, from the publication phase for
+`project.json`, with `published: false`. The original test executable, PDB,
+sources, cause and output were retained. No assertion, ACL, return value,
+backend, retry policy or execution budget was changed.
+
+One subsequent diagnostic executed the exact retained test binary with the
+same temporary-directory configuration. That single test passed in 1.359
+seconds including the controller. The cause remains unresolved: this does not
+establish an antivirus diagnosis, a product repair or a passing full regression.
+
+The [terminal evidence archive](data/tracking88-terminal-public-v1.zip) and
+[manifest](data/tracking88-terminal-public-v1.json) retain the original three
+attempts, complete outputs, source identities, exact target accounting, original
+failure sources and same-binary diagnostic. Every member was read back:
+716,242 bytes, SHA-256
+`d45951c200762dbbdae075f435aaa73381fcb8d88a9f81ef1585d1a3ad50faa2`.
+Retained executable/PDB and the separate complete private source archive are
+identified by hashes rather than duplicated in this compact public archive.
+
+Later main adds `video_retirement_export.rs` and `video_retirement_pressure.rs`;
+neither exists in frozen v3. The actual merged source still needs its own
+complete regression and final-head cross-platform CI. Photographed tracking
+quality also remains pending. Previous source-bound successful runs and the
+original heap-corruption/identity failure records are retained; integration or
+a passing isolated diagnostic does not diagnose or repair them.
 
 The separate [support and known-motion diagnostics](tracking88-support-diagnostics-current.md)
 retain the original real-video failure. Neither these tools passes nor the

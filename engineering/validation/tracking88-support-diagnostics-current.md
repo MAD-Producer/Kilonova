@@ -45,3 +45,33 @@ real tracking. A further method needs independent image-derived evidence for
 its actual correction or failure prediction before adoption; lowering gates,
 changing labels or omitting inconvenient corners would not supply that proof.
 Full native/workspace/current-head CI acceptance remains separately pending.
+
+## Larger optical-flow window: rejected
+
+A separate fixed candidate changed the shared LK window from 21 to 31 pixels
+and its matching valid-image erosion from 23 to 33. It preserved all residual,
+forward/backward, appearance and coverage gates, the original ROI, 2,300 frames,
+manual schedule and 15 px quality threshold. Baseline and candidate each passed
+the eight original controls; the candidate also passed the actual analytic-video
+and manual-absence/recovery CLI controls. Both complete real-video modes were
+then decoded and measured. Total experiment time was 38.297 seconds and source
+hashes remained unchanged.
+
+| Mode and track | Baseline automatic visible | Candidate automatic visible | Baseline / candidate errors over 15 px | Baseline / candidate maximum px |
+| --- | ---: | ---: | ---: | ---: |
+| No corrections, feature | 57 | 61 | 0 / 0 | 2.622753 / 2.556889 |
+| No corrections, plane | 68 | 65 | 0 / 0 | 6.819913 / 4.065421 |
+| Manual every 200 frames, feature | 943 | 835 | 0 / 0 | 7.912377 / 7.872461 |
+| Manual every 200 frames, plane | 915 | 862 | 21 / 21 | 56.640030 / 56.991620 |
+
+The candidate reduces corrected tracking coverage and retains all 21 large
+plane errors. It fails both original quality and coverage admission and is not
+adopted. A zero exit from a measurement subprocess means that measurement
+completed; it does not mean that these quality gates passed.
+
+The [negative-result archive](data/tracking88-window-negative-v1.zip) and
+[manifest](data/tracking88-window-negative-v1.json) preserve both source snapshots,
+controllers, logs and aggregate measurements, excluding benchmark media,
+derived images, per-frame annotations and solves. All entries were read back:
+56,567 bytes, SHA-256
+`3725aeadce606b9ceed211e3ac58915a1e4579fd3263fc14ca6b520594cf120d`.
