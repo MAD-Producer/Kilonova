@@ -153,7 +153,7 @@ jobs:
           {"os":"macos-15-intel","platform":"macos-x86_64","binary":"motion-studio","target":"x86_64-apple-darwin"}]' ||
           '[{"os":"ubuntu-24.04","platform":"linux-x86_64","binary":"motion-studio","target":"x86_64-unknown-linux-gnu"},
           {"os":"windows-2022","platform":"windows-x86_64","binary":"motion-studio.exe","target":"x86_64-pc-windows-msvc"},
-          {"os":"macos-14","platform":"macos-arm64","binary":"motion-studio","target":"aarch64-apple-darwin"},
+          {"os":"macos-15","platform":"macos-arm64","binary":"motion-studio","target":"aarch64-apple-darwin"},
           {"os":"macos-15-intel","platform":"macos-x86_64","binary":"motion-studio","target":"x86_64-apple-darwin"}]') }}
     env:
       XDG_RUNTIME_DIR: /tmp/motion-runtime
@@ -283,7 +283,7 @@ jobs:
           {"os":"macos-15-intel","platform":"macos-x86_64","binary":"motion-studio","target":"x86_64-apple-darwin"}]' ||
           '[{"os":"ubuntu-24.04","platform":"linux-x86_64","binary":"motion-studio","target":"x86_64-unknown-linux-gnu"},
           {"os":"windows-2022","platform":"windows-x86_64","binary":"motion-studio.exe","target":"x86_64-pc-windows-msvc"},
-          {"os":"macos-14","platform":"macos-arm64","binary":"motion-studio","target":"aarch64-apple-darwin"},
+          {"os":"macos-15","platform":"macos-arm64","binary":"motion-studio","target":"aarch64-apple-darwin"},
           {"os":"macos-15-intel","platform":"macos-x86_64","binary":"motion-studio","target":"x86_64-apple-darwin"}]') }}
     env:
       XDG_RUNTIME_DIR: /tmp/motion-runtime

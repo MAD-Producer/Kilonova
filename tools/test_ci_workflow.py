@@ -144,7 +144,7 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertEqual(tests["runs-on"], build["runs-on"])
         for job in [tests, build]:
             for os, budget in [("windows-2022", 90), ("macos-15-intel", 90),
-                               ("ubuntu-24.04", 60), ("macos-14", 60)]:
+                               ("ubuntu-24.04", 60), ("macos-15", 60)]:
                 self.assertEqual(expression_value(job["timeout-minutes"], {"matrix": {"os": os}}), budget)
         self.assertTrue(any(s.get("name") == "Run desktop unit tests" for s in tests["steps"]))
         self.assertFalse(any(s.get("name") == "Build the desktop shell" for s in tests["steps"]))
