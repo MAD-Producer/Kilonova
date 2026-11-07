@@ -89,12 +89,19 @@ later generation. Invalid keys, backwards clocks and exhausted generations are
 typed errors and do not mutate prior valid state. Old results are normal
 identity rejections, not logged faults.
 
-This is pure bounded state admission, not a worker or automatic installation
-path. It does not launch inference, log under a lock, install unaligned depth,
-rewrite resource metadata, create cache entries or freeze export. Actual Jobs
-integration must retain its start/in-flight observations and original failures,
-qualify a capability selection, align when required, and recheck admission after
-the alignment. No UI or automatic switch is connected by this component.
+State admission performs no inference or IO. Explicit `request`, `take_ready`
+and `invalidate_jobs` helpers now connect tickets to the existing single `Jobs`
+worker without creating another thread or installation path. Stale or foreign
+tickets do not submit work or consume a current generation's result; mismatched
+inputs are typed errors. Revocation occurs before worker cancellation. Original
+worker errors remain typed sources, logged outside observation locks with bounded
+context. Prepared fingerprints, actual provider and costs remain worker-owned.
+The helpers add no retries and reuse Jobs' start/in-flight/cancellation behavior.
+
+These helpers do not install unaligned depth, rewrite metadata, create cache
+entries or freeze export. The caller still must qualify a capability selection,
+align when required, and recheck admission afterward. No UI, automatic quality
+selector or end-to-end video transition is connected by this component.
 
 Nine new Rust controls cover exact timing boundaries, interaction chatter,
 advancing frames, opaque ownership, A-to-B-to-A, explicit cancellation, independent
@@ -104,9 +111,18 @@ whose generation became stale. These controls are written but unexecuted. They
 neither measure real-model transition quality nor replace the fourteen alignment
 controls or the original full-feature regression.
 
+Four additional, currently unexecuted controls use the actual Jobs thread and a
+controlled blocking backend. They check pre-submission refusal, in-flight
+publication, a deliberately late success after cancellation, stale polling that
+cannot consume a newer frame, explicit cancellation without replacement and an
+original backend failure returned once without retry. Release guards unblock the
+fixture on assertion unwinding; five-second fixture deadlines do not change any
+product timeout or existing test assertion. These controls are not model or
+file-sink observability qualification.
+
 Still pending are measured model/quality/backend capability resolution,
-requested/resolved reporting, native qualification and Jobs integration of
-transition hysteresis/generation admission, versioned caching, frozen export
+requested/resolved reporting, native qualification of admission and Jobs helpers,
+end-to-end integration of transition hysteresis, versioned caching, frozen export
 policy, continuous video drift/jump controls, sustained/thermal and other-desktop-
 GPU measurements. Bounds require those qualifications; these components supply
 no default policy or automatic fallback.

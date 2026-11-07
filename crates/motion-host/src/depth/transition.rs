@@ -5,7 +5,7 @@
 //! alignment, caching or installation. Check `is_current` again after any work
 //! and independently supply the live key at the installation boundary.
 
-use super::Key;
+use super::{Input, Jobs, Key, PreparedEstimate};
 use motion_model::depth::DepthResource;
 use std::{sync::Arc, time::Duration};
 
@@ -51,6 +51,10 @@ pub enum Error {
     Clock,
     #[error("depth transition generation exhausted")]
     Generation,
+    #[error("depth transition input differs from its current ticket")]
+    Input,
+    #[error("depth transition job failed: {0}")]
+    Job(#[source] super::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -233,18 +237,76 @@ impl Controller {
         self.current.as_ref()
     }
 
+    fn owns_current(&self, ticket: &Ticket) -> bool {
+        self.current.as_ref().is_some_and(|current| {
+            Arc::ptr_eq(&self.owner, &ticket.owner)
+                && ticket.generation == current.generation
+                && ticket.phase == current.phase
+                && ticket.key.same_sample(&current.key)
+        })
+    }
+
+    fn job_error(&self, operation: &'static str, error: super::Error) -> Error {
+        // Jobs methods have returned and released their observation lock before
+        // logging. Keep the original error, bounding only the log context.
+        let cause: String = error.to_string().chars().take(512).collect();
+        log::error!(
+            "operation={operation} generation={} cause={cause}",
+            self.generation
+        );
+        Error::Job(error)
+    }
+
+    /// Explicit submission to the existing single worker. A caller submits each
+    /// newly returned observe ticket once. Stale/foreign tickets do not touch
+    /// Jobs; a new actual request retains Jobs' cancellation and start records.
+    pub fn request(&self, ticket: &Ticket, jobs: &mut Jobs, input: Input) -> Result<Option<u64>> {
+        if !self.owns_current(ticket) {
+            return Ok(None);
+        }
+        if !ticket.key.same_sample(input.key()) {
+            log::error!("operation=depth_transition_request generation={} source_id={} cause=input_differs_from_ticket",
+                ticket.generation, ticket.key.source.asset);
+            return Err(Error::Input);
+        }
+        jobs.request(input)
+            .map(Some)
+            .map_err(|error| self.job_error("depth_transition_request", error))
+    }
+
+    /// Revoke tickets before canceling the worker, even when no replacement is
+    /// requested. A cancellation failure cannot make the old ticket valid again.
+    pub fn invalidate_jobs(&mut self, jobs: &mut Jobs, now: Duration) -> Result<()> {
+        self.invalidate(now)?;
+        jobs.cancel()
+            .map_err(|error| self.job_error("depth_transition_cancel", error))
+    }
+
+    /// Stale polling cannot consume another generation's ready result. Preserve
+    /// actual provider/costs and the worker-owned prepared RGB fingerprint.
+    /// This does not align or install a result: callers must recheck is_current
+    /// after any subsequent alignment, using the independent live key again.
+    pub fn take_ready(
+        &self,
+        ticket: &Ticket,
+        jobs: &mut Jobs,
+        live: &Key,
+    ) -> Result<Option<PreparedEstimate>> {
+        if !self.owns_current(ticket) || !ticket.key.same_sample(live) {
+            return Ok(None);
+        }
+        let ready = jobs
+            .take_prepared_ready(live)
+            .map_err(|error| self.job_error("depth_transition_take", error))?;
+        Ok(ready.filter(|ready| self.is_current(ticket, live, &ready.estimate().resource)))
+    }
+
     /// Identity gate only, not permission to install unaligned depth. The live
     /// key must be obtained independently after the work, not copied from the
     /// ticket. Old/canceled/foreign work is a normal rejection, not a fault.
     pub fn is_current(&self, ticket: &Ticket, live: &Key, result: &DepthResource) -> bool {
-        let Some(current) = &self.current else {
-            return false;
-        };
         let descriptor = result.descriptor();
-        Arc::ptr_eq(&self.owner, &ticket.owner)
-            && ticket.generation == current.generation
-            && ticket.phase == current.phase
-            && ticket.key.same_sample(&current.key)
+        self.owns_current(ticket)
             && ticket.key.same_sample(live)
             && descriptor.source.same_sample(&live.source)
             && descriptor.geometry == live.geometry
