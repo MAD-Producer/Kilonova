@@ -62,7 +62,7 @@ impl Event {
 
 pub(super) fn load(path: &Path) -> motion_effects::Result<motion_effects::Registry> {
     let began = Instant::now();
-    let registry = motion_effects::Registry::load(path)?;
+    let registry = motion_effects::Registry::load_current(path)?;
     if !registry.diagnostics.is_empty() {
         let event = Event {
             session: SESSION.get(),

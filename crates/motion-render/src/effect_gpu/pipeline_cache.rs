@@ -23,6 +23,47 @@ struct PreviousPipeline {
     sprite: bool,
     additive: bool,
 }
+
+// Snapshot only immutable shader proof and native handles. Large source copies
+// belong on the preparation worker, never the renderer owner. The WGSL bound
+// describes proof text; it is not a bound on driver allocations or GLSL metadata.
+enum ShaderProof {
+    Live(Arc<CompiledShader>),
+    Retired(Arc<str>),
+}
+pub(crate) struct KnownPipeline {
+    pipeline: wgpu::RenderPipeline,
+    proof: ShaderProof,
+    format: u32,
+    sprite: bool,
+    additive: bool,
+}
+impl KnownPipeline {
+    fn wgsl(&self) -> &str {
+        match &self.proof {
+            ShaderProof::Live(shader) => &shader.wgsl,
+            ShaderProof::Retired(wgsl) => wgsl,
+        }
+    }
+    pub(crate) fn matches(&self, shader: &CompiledShader, format: u32) -> bool {
+        self.format == format
+            && self.sprite == shader.sprite
+            && self.additive == shader.additive
+            && self.wgsl() == shader.wgsl
+    }
+    pub(crate) fn prepared(&self) -> crate::pipeline_preparation::PreparedPipeline {
+        crate::pipeline_preparation::PreparedPipeline {
+            pipeline: self.pipeline.clone(),
+            wgsl: match &self.proof {
+                ShaderProof::Live(shader) => Arc::from(shader.wgsl.as_str()),
+                ShaderProof::Retired(wgsl) => wgsl.clone(),
+            },
+            format: self.format,
+            sprite: self.sprite,
+            additive: self.additive,
+        }
+    }
+}
 #[derive(Default)]
 pub(super) struct PreviousPipelines {
     entries: Vec<PreviousPipeline>,
@@ -33,6 +74,9 @@ pub(super) struct PreviousPipelines {
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EffectPipelineCacheInfo {
+    /// Native creations on the renderer owner, excluding preparation workers.
+    /// Lifetime counter; registry changes do not reset it.
+    pub foreground_builds: u64,
     pub current_entries: usize,
     pub previous_entries: usize,
     /// UTF-8 bytes retained for comparison, excluding containers and driver code.
@@ -47,8 +91,86 @@ fn same_code(a: &CompiledShader, b: &CompiledShader) -> bool {
 }
 
 impl GpuState {
+    /// At most one bounded bank per queued/running preparation job. Reuse still
+    /// requires complete code, blend, vertex specialization and format equality.
+    pub(crate) fn preparation_snapshot(&self) -> Vec<KnownPipeline> {
+        let mut entries: Vec<KnownPipeline> = Vec::new();
+        let mut bytes = 0;
+        for ((_, format), entry) in &self.pipelines {
+            let shader = &entry.shader;
+            if entries.len() == MAX_PREVIOUS_PIPELINES {
+                break;
+            }
+            if shader.wgsl.len() > MAX_PREVIOUS_WGSL_BYTES - bytes
+                || entries.iter().any(|entry| entry.matches(shader, *format))
+            {
+                continue;
+            }
+            bytes += shader.wgsl.len();
+            entries.push(KnownPipeline {
+                pipeline: entry.pipeline.clone(),
+                proof: ShaderProof::Live(shader.clone()),
+                format: *format,
+                sprite: shader.sprite,
+                additive: shader.additive,
+            });
+        }
+        for entry in &self.previous_pipelines.entries {
+            if entries.len() == MAX_PREVIOUS_PIPELINES {
+                break;
+            }
+            if entry.wgsl.len() > MAX_PREVIOUS_WGSL_BYTES - bytes
+                || entries.iter().any(|known| {
+                    known.format == entry.format
+                        && known.sprite == entry.sprite
+                        && known.additive == entry.additive
+                        && known.wgsl() == entry.wgsl.as_ref()
+                })
+            {
+                continue;
+            }
+            bytes += entry.wgsl.len();
+            entries.push(KnownPipeline {
+                pipeline: entry.pipeline.clone(),
+                proof: ShaderProof::Retired(entry.wgsl.clone()),
+                format: entry.format,
+                sprite: entry.sprite,
+                additive: entry.additive,
+            });
+        }
+        entries
+    }
+    /// Owner-approved work, with the same complete code/specialization proof as
+    /// retired live pipelines. Replaces one bounded bank, never appends epochs.
+    pub(crate) fn install_prepared(
+        &mut self,
+        batch: &mut crate::PreparedEffectPipelines,
+    ) -> Result<(), RenderError> {
+        let bytes = batch
+            .entries
+            .iter()
+            .try_fold(0usize, |sum, entry| sum.checked_add(entry.wgsl.len()))
+            .ok_or("prepared pipeline byte count overflow")?;
+        if batch.entries.len() > MAX_PREVIOUS_PIPELINES || bytes > MAX_PREVIOUS_WGSL_BYTES {
+            return Err("prepared pipelines exceed the bounded reuse bank".into());
+        }
+        let entries = std::mem::take(&mut batch.entries)
+            .into_iter()
+            .map(|entry| PreviousPipeline {
+                pipeline: entry.pipeline,
+                wgsl: entry.wgsl,
+                format: entry.format,
+                sprite: entry.sprite,
+                additive: entry.additive,
+            })
+            .collect();
+        self.previous_pipelines.entries = entries;
+        self.previous_pipelines.wgsl_bytes = bytes;
+        Ok(())
+    }
     pub fn pipeline_cache_info(&self) -> EffectPipelineCacheInfo {
         EffectPipelineCacheInfo {
+            foreground_builds: self.pipeline_builds,
             current_entries: self.pipelines.len(),
             previous_entries: self.previous_pipelines.entries.len(),
             previous_wgsl_bytes: self.previous_pipelines.wgsl_bytes,

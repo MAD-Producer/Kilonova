@@ -125,6 +125,29 @@ fn native_worker_group_uses_default_error_channels_and_recovers_without_project_
         .unwrap()
         .unwrap();
     let before = engine.state().unwrap();
+    // The batch API may return pending while the Session restores its private
+    // cache and prepares the group. Establish content readiness before the
+    // retained-presentation assertions below; do not mistake chrome for a frame.
+    let until = std::time::Instant::now() + Duration::from_secs(30);
+    let mut preparation_polls = 0;
+    loop {
+        let pending = engine.request(|reply| Command::TestStudy {
+            operation: healthy,
+            reply,
+        }).unwrap();
+        let prepared = crate::native_test_support::receive(&mut events, &pending, Duration::from_secs(30))
+            .unwrap().unwrap();
+        assert_eq!(prepared["overlays"], 1);
+        if prepared["complete"] == true { break; }
+        assert_eq!(prepared["complete"], false);
+        assert!(std::time::Instant::now() < until, "multiview preparation did not finish: {prepared}");
+        preparation_polls += 1;
+        // This is a separate worker command while the group is pending.
+        let waiting = engine.state().unwrap();
+        for key in ["project", "revision", "frame", "canUndo", "canRedo"] {
+            assert_eq!(before[key], waiting[key], "preparation changed {key}");
+        }
+    }
     let mut last = Value::Null;
     let mut attempts = None;
     for _ in 0..2 {
@@ -206,6 +229,7 @@ fn native_worker_group_uses_default_error_channels_and_recovers_without_project_
         root.join("report.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
         "healthy":last,"recovered":recovered,"error":error,"authoredStateUnchanged":true,
+        "preparationPolls":preparation_polls,
         "blockedHandlerInFlight":flight,
             "gateway":"existing test-only worker operation; product multiview UI still pending"
         }))

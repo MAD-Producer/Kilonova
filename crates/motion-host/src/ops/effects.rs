@@ -119,7 +119,7 @@ impl Session {
             }
             "install" => {
                 registry
-                    .install_with_limits(&self.plugin_root, &PathBuf::from(text("path")?), package_limits)
+                    .install_current_with_limits(&self.plugin_root, &PathBuf::from(text("path")?), package_limits)
                     .map_err(crate::Error::from)?;
             }
             "enable" => registry

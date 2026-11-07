@@ -37,7 +37,7 @@ impl Command {
             SaveViewerSnapshot { .. } => "save_viewer_snapshot",
             Attach { .. } => "attach",
             Resize { .. } => "resize",
-            Present { .. } | PresentFrozen { .. } => "present",
+            Present { .. } | PresentFrozen { .. } | PresentPoll { .. } => "present",
             SeekAudioPreview { .. } => "seek_audio_preview",
             OpenDirectory { .. } => "open_directory",
             FloatWindow { .. } => "float_window",

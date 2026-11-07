@@ -210,6 +210,7 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) preview_preparing: bool,
     pub(crate) effect_pick: super::effect_pick::State,
     pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     pub(crate) property_reveal: super::modified_properties::RevealSequence,

@@ -61,7 +61,7 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
         preview: bool,
         budget: &mut PollBudget,
         progress: &mut ExposureProgress,
-        prepare: &mut dyn FnMut(&mut Renderer, &Scene) -> Result<bool>,
+        prepare: &mut dyn FnMut(&mut Renderer, &Scene, [u32; 2]) -> Result<bool>,
     ) -> Result<bool> {
         while let Some(child) = self.children.get(self.next) {
             let context = format!(

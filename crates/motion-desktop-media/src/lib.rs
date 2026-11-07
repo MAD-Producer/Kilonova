@@ -155,12 +155,16 @@ impl Platform for DesktopPlatform {
                     continue;
                 }
             };
-            match pollster::block_on(motion_render::Renderer::new_profiled_with_precision_changes(
+            match pollster::block_on(motion_render::Renderer::new_profiled_with_precision_changes_and_registry(
                 &instance,
                 Some(&surface),
                 wgpu::TextureFormat::Rgba8UnormSrgb,
                 true,
                 budget.clone(),
+                // Session::attach installs its validated packages before any
+                // draw. Loading the SDK archive catalogue here would repeat
+                // package validation on the window thread for no consumer.
+                Default::default(),
             )) {
                 Ok(renderer) => {
                     let caps = surface.get_capabilities(&renderer.adapter);

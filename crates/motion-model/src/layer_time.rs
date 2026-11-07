@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 mod document;
 mod media;
+mod crossings;
 pub use document::{apply, LayerTimeAction, LayerTimeMapping};
 
 pub const MAX_TIME_REMAP_KEYS: usize = crate::MAX_FRAMES as usize;
