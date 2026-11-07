@@ -583,6 +583,7 @@ pub struct Engine {
     failure: Failure,
     paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: Arc<crate::diagnostics::Diagnostics>,
+    preparation: motion_host::session::PipelinePreparationObservation,
     in_flight: Arc<Mutex<Option<Flight>>>,
     frame_flight: Arc<Mutex<Option<Flight>>>,
     movie_freeze_flight: Arc<Mutex<Option<Flight>>>,
@@ -639,6 +640,9 @@ impl Engine {
     }
     pub fn diagnostics(&self) -> &Arc<crate::diagnostics::Diagnostics> {
         &self.diagnostics
+    }
+    pub fn preview_preparing(&self) -> bool {
+        self.preparation.preparing()
     }
     pub fn take_paint(&self) -> motion_ui::paint::PaintList {
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
@@ -795,7 +799,8 @@ impl Engine {
         let pending_node_expect = Arc::new(Mutex::new(None));
         let worker_node_expect = pending_node_expect.clone();
         let (sender, receiver) = sync_channel::<QueuedCommand>(COMMAND_QUEUE_CAPACITY);
-        let (ready, opened) = channel::<Result<(i64, motion_render::AllocationBudget), Error>>();
+        let (ready, opened) = channel::<Result<(i64, motion_render::AllocationBudget,
+            motion_host::session::PipelinePreparationObservation), Error>>();
         let worker = std::thread::Builder::new()
             .name("motion-engine".into())
             .spawn(move || {
@@ -839,8 +844,8 @@ impl Engine {
                         return;
                     }
                 }
-                let (initial_snapshot, allocation_budget) = match motion_host::session::with_session(id,
-                    |s| Ok((s.engine.snapshot(), s.allocation_budget().clone()))) {
+                let (initial_snapshot, allocation_budget, preparation) = match motion_host::session::with_session(id,
+                    |s| Ok((s.engine.snapshot(), s.allocation_budget().clone(), s.pipeline_preparation_observation()))) {
                     Ok(snapshot) => snapshot,
                     Err(error) => {
                         log::error!("worker initial snapshot failed: {}",
@@ -860,7 +865,7 @@ impl Engine {
                     let _ = ready.send(Err(error.into()));
                     return;
                 }
-                if ready.send(Ok((id, allocation_budget.clone()))).is_err() {
+                if ready.send(Ok((id, allocation_budget.clone(), preparation))).is_err() {
                     log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
                 }
@@ -1046,7 +1051,7 @@ impl Engine {
                 log::error!("worker spawn failed: root={} reason={error}", startup_root.display());
                 motion_host::Error::from(error)
             })?;
-        let (_id, allocation_budget) = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
+        let (_id, allocation_budget, preparation) = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
             Ok(Ok(id)) => id,
             result => {
                 let error = match result {
@@ -1074,6 +1079,7 @@ impl Engine {
             failure,
             paint_pool,
             diagnostics,
+            preparation,
             in_flight,
             frame_flight,
             movie_freeze_flight,

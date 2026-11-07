@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 mod native;
 mod cache;
 mod nested;
+mod observation;
 
 fn fixture() -> (Project, Scene) {
     let mut project = Project::new(16, 16, 30, 120).unwrap();

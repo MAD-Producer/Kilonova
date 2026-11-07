@@ -1,6 +1,7 @@
 use super::*;
 use std::{fs, sync::atomic::AtomicUsize};
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows, window::Window};
+mod preparation_status;
 
 fn frame(window: u64) -> UiFrame {
     UiFrame {

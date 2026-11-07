@@ -41,7 +41,7 @@ mod last_error_observation;
 mod resource_observation;
 mod sampling;
 pub(crate) mod pipeline_preparation;
-pub use pipeline_preparation::DriverPipelineCacheStorage;
+pub use pipeline_preparation::{DriverPipelineCacheStorage, PipelinePreparationObservation};
 pub mod viewer;
 #[cfg(feature = "ai-depth")]
 mod depth;
@@ -431,6 +431,12 @@ impl Session {
     /// create a pending frame completion.
     pub fn pipeline_preparation_pending(&self) -> bool {
         self.graphics.is_some() && self.last_error.is_none() && self.pipeline_preparation.waiting()
+    }
+
+    /// Clone once at attachment/startup; reading the handle never locks or
+    /// dispatches a command, including while compilation or storage is blocked.
+    pub fn pipeline_preparation_observation(&self) -> PipelinePreparationObservation {
+        self.pipeline_preparation.observation()
     }
 
     /// Nonblocking owner-thread progress for an already requested frame. The

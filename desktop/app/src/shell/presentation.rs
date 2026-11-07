@@ -6,6 +6,13 @@ use motion_ui::dock::Panel;
 mod curve_playback_tests;
 
 impl Shell {
+    pub(crate) fn sync_preview_preparation(&mut self) {
+        let preparing = self.engine.preview_preparing();
+        if self.panels.preview_preparing != preparing {
+            self.panels.preview_preparing = preparing;
+            self.dirty = true;
+        }
+    }
     pub(crate) fn present_ui_async(&self, ui: UiFrame)
         -> Result<std::sync::mpsc::Receiver<Result<bool, crate::engine::Error>>, String> {
         Ok(self.engine.present_poll_async(ui, self.audio_only_preview)?)
@@ -146,6 +153,7 @@ impl Shell {
         })
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        self.sync_preview_preparation();
         if !self.floating.values().any(|f|f.panel==Panel::Composition){self.panels.viewer_views.prepare(0);}
         self.input.text_clipboard = Some(self.text_clipboard.clone());
         self.panels.clipboard_available = self.layer_clipboard.available();
@@ -747,6 +755,7 @@ impl Shell {
         id: WindowId,
         _event_loop: &ActiveEventLoop,
     ) -> Result<(), String> {
+        self.sync_preview_preparation();
         self.panels.clipboard_available = self.layer_clipboard.available();
         self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
         self.panels.path_clipboard_available = self.layer_clipboard.paths_available();

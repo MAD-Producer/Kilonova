@@ -15,6 +15,19 @@ mod lookahead;
 mod tests;
 pub use driver_cache::DriverPipelineCacheStorage;
 
+/// Read-only, allocation-free UI observation. A reader never acquires a session
+/// lock or asks the serial worker for a snapshot. Only the owner publishes it.
+#[derive(Clone, Default)]
+pub struct PipelinePreparationObservation(Arc<std::sync::atomic::AtomicBool>);
+impl PipelinePreparationObservation {
+    pub fn preparing(&self) -> bool {
+        self.0.load(std::sync::atomic::Ordering::Acquire)
+    }
+    fn publish(&self, preparing: bool) {
+        self.0.store(preparing, std::sync::atomic::Ordering::Release);
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("pipeline preparation worker creation failed: {0}")]
@@ -173,6 +186,7 @@ impl Worker {
 
 #[derive(Default)]
 pub(crate) struct State {
+    observation: PipelinePreparationObservation,
     worker: Option<Worker>,
     worker_failure: Option<Arc<Error>>,
     key: Option<Key>,
@@ -188,6 +202,9 @@ pub(crate) struct State {
     before_sample: Option<Box<dyn FnOnce() + Send>>,
 }
 impl State {
+    pub(crate) fn observation(&self) -> PipelinePreparationObservation {
+        self.observation.clone()
+    }
     pub(crate) fn waiting(&self) -> bool {
         (self.cache.restoring()
             || self.key.as_ref().is_some_and(|key| {
@@ -200,6 +217,11 @@ impl State {
     /// Advance the existing task only. Never sample, submit a replacement job,
     /// wait for a driver, or retry a failed operation from this polling path.
     pub(crate) fn poll(&mut self, renderer: &mut Renderer, context: Context) -> crate::Result<bool> {
+        let result = self.poll_inner(renderer, context);
+        self.observation.publish(self.waiting());
+        result
+    }
+    fn poll_inner(&mut self, renderer: &mut Renderer, context: Context) -> crate::Result<bool> {
         if let Some(error) = self.failure.as_ref().or(self.worker_failure.as_ref()) {
             return Err(crate::Error::PipelinePreparation(error.clone()));
         }
@@ -209,6 +231,7 @@ impl State {
     }
 
     pub(crate) fn cancel(&mut self) {
+        self.observation.publish(false);
         self.cache.cancel();
         if let Some(ticket) = self.ticket.take() {
             ticket.cancel();
@@ -325,6 +348,18 @@ impl State {
         self.enqueue()
     }
     pub(crate) fn ensure(
+        &mut self,
+        renderer: &mut Renderer,
+        project: &Project,
+        scene: &Scene,
+        observer: Option<&Observer>,
+        key: Key,
+    ) -> crate::Result<bool> {
+        let result = self.ensure_inner(renderer, project, scene, observer, key);
+        self.observation.publish(self.waiting());
+        result
+    }
+    fn ensure_inner(
         &mut self,
         renderer: &mut Renderer,
         project: &Project,

@@ -1148,6 +1148,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .floating
                     .values()
                     .any(|f| f.panel == dock::Panel::Nodes));
+        self.sync_preview_preparation();
         let ui_animating = self.panels.motion.active() || self.panels.timeline.edge_pan_at.is_some();
         let presentation_pending = self.presentation_pending();
         if busy
