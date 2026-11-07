@@ -9,6 +9,14 @@ impl TimeRemap {
     pub fn source_crossings(
         &self, source: f64, begin: f64, end: f64, max_results: usize,
     ) -> Result<Vec<f64>> {
+        let mut work = MAX_TIME_REMAP_KEYS;
+        self.source_crossings_with_work_budget(source, begin, end, max_results, &mut work)
+    }
+    /// Share a key-visit allowance across a scheduler's complete graph walk.
+    /// Exhaustion is explicit; no partial result is presented as complete.
+    pub fn source_crossings_with_work_budget(
+        &self, source: f64, begin: f64, end: f64, max_results: usize, work: &mut usize,
+    ) -> Result<Vec<f64>> {
         for time in [source, begin, end] { check_time(time, "source_crossings")?; }
         if begin > end || max_results == 0 || max_results > MAX_TIME_REMAP_KEYS {
             return Err(invalid("source_crossings", "invalid window or crossing budget"));
@@ -18,6 +26,8 @@ impl TimeRemap {
         for pair in self.keys[first..].windows(2) {
             let (a, b) = (&pair[0], &pair[1]);
             if a.frame > end { break; }
+            if *work == 0 { return Err(invalid("source_crossings", "source crossing work budget exceeded")); }
+            *work -= 1;
             if b.frame < begin || a.source_frame == b.source_frame
                 || (a.easing.curve.is_none() && a.easing.ease == Ease::Hold) { continue; }
             let duration = b.frame - a.frame;
@@ -96,5 +106,29 @@ mod tests {
         assert!(forward.source_crossings(f64::NAN, 0., 120., 2).is_err());
         assert!(forward.source_crossings(0.5, 120., 0., 2).is_err());
         assert!(forward.source_crossings(0.5, 0., 120., 0).is_err());
+    }
+
+    #[test]
+    fn shared_work_exhaustion_rejects_partial_crossings_and_fresh_budget_recovers() {
+        let remap = TimeRemap::new([(0., 0.), (10., 1.), (20., 0.)].into_iter()
+            .map(|(frame, source_frame)| TimeRemapKey {
+                frame, source_frame, easing: Easing::default(),
+            }).collect()).unwrap();
+        let mut work = 1;
+        let error = remap.source_crossings_with_work_budget(0.5, 0., 20., 8, &mut work)
+            .unwrap_err();
+        assert!(error.to_string().contains("source crossing work budget exceeded"));
+        assert_eq!(work, 0);
+        let mut work = 2;
+        assert_eq!(remap.source_crossings_with_work_budget(0.5, 0., 20., 8, &mut work)
+            .unwrap(), vec![5., 15.]);
+        assert_eq!(work, 0);
+        assert!(remap.source_crossings_with_work_budget(0.5, 0., 10., 8, &mut work)
+            .unwrap_err().to_string().contains("source crossing work budget exceeded"));
+        // Window slicing must leave distant segments out of the shared cost.
+        let mut work = 1;
+        assert_eq!(remap.source_crossings_with_work_budget(0.5, 11., 20., 8, &mut work)
+            .unwrap(), vec![15.]);
+        assert_eq!(work, 0);
     }
 }

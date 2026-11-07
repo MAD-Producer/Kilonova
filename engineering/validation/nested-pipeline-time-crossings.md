@@ -4,6 +4,9 @@
 宿主仍使用原有根图层边界采样。后续必须接入 worker，组合图层时钟、帧率、
 source_start_frame 和嵌套路径，并验证实际 GPU 管线不在进入图层时前台创建。
 
+以上是模型基础提交当时的范围；后续接入与独立验收见
+[嵌套合成后台预热](nested-pipeline-lookahead.md)。本文件和原证据包保留该阶段记录。
+
 ## 已验证的行为
 
 - Curve::progress_turning_times 从曲线定义求单调区间：进度贝塞尔使用 y 的导数，

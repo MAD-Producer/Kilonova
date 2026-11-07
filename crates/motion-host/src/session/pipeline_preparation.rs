@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use std::sync::{mpsc, Arc};
 
 mod driver_cache;
+mod lookahead;
 #[cfg(test)]
 mod tests;
 pub use driver_cache::DriverPipelineCacheStorage;
@@ -58,7 +59,7 @@ impl Key {
 struct Request {
     job: PipelinePreparationJob,
     project: Arc<Project>,
-    frames: Vec<f64>,
+    lookahead: Option<f64>,
     observer: Option<Observer>,
     #[cfg(test)]
     before_sample: Option<Box<dyn FnOnce() + Send>>,
@@ -95,7 +96,7 @@ impl Worker {
                     let Request {
                         job,
                         project,
-                        frames,
+                        lookahead,
                         observer,
                         #[cfg(test)]
                         before_sample,
@@ -109,6 +110,24 @@ impl Worker {
                             before();
                         }
                         motion_core::prepare_expression_sources(&project)?;
+                        let frames = match lookahead {
+                            None => Vec::new(),
+                            Some(frame) => match lookahead::frames(&project, frame, &sampling_ticket) {
+                                Ok(frames) => frames,
+                                Err(_) if sampling_ticket.status().cancelled => return Ok(()),
+                                Err(lookahead::Failure::Cancelled) => return Ok(()),
+                                Err(lookahead::Failure::Failed(cause)) => {
+                                    let status = sampling_ticket.status();
+                                    let bounded: String = cause.to_string().chars().take(2048).collect();
+                                    log::error!(target: "motion_host::pipeline_preparation",
+                                        "pipeline lookahead failed request={} generation={} revision={} frame={} phase=enumerate elapsed_ms={} cause={}",
+                                        status.request, status.context.document_generation,
+                                        status.context.project_revision, frame, status.elapsed_ms, bounded);
+                                    sampling_failures.push(motion_render::PipelineLookaheadFailure { frame, cause });
+                                    Vec::new()
+                                }
+                            },
+                        };
                         for frame in frames {
                             if sampling_ticket.status().cancelled {
                                 break;
@@ -254,7 +273,7 @@ impl State {
                 Ok(mut prepared) => {
                     let mut failures = result.sampling_failures;
                     failures.extend(prepared.take_lookahead_failures());
-                    let limited = prepared.limited();
+                    let limited = prepared.limited() || !failures.is_empty();
                     match renderer.install_prepared_effect_pipelines(prepared, context) {
                         Ok(PipelinePreparationInstall::Installed { .. }) => {
                             self.ready = self.key.clone();
@@ -383,11 +402,7 @@ impl State {
             self.pending = Some(Request {
                 job,
                 project: snapshot.clone(),
-                frames: if key.exposure.is_some() {
-                    Vec::new()
-                } else {
-                    upcoming(project, scene.frame)
-                },
+                lookahead: key.exposure.is_none().then_some(scene.frame),
                 observer: observer.cloned(),
                 #[cfg(test)]
                 before_sample: self.before_sample.take(),
@@ -412,9 +427,8 @@ impl Drop for State {
     }
 }
 
-/// At most two future samples, preferring actual root layer transitions in the
-/// next two seconds. Nested-only/time-remapped transitions remain a documented
-/// follow-up; periodic windows still refresh the currently sampled nested scene.
+/// Root-only fast path, executed on the worker. Nested graphs use lookahead's
+/// clock inversion and samples inside each next interval instead.
 fn upcoming(project: &Project, frame: f64) -> Vec<f64> {
     let end = (frame + project.fps.as_f64() * 2.).min(f64::from(project.frames.saturating_sub(1)));
     let mut result = Vec::new();
