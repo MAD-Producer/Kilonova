@@ -4,6 +4,8 @@ use motion_host::depth::{Backend, Cancellation, Costs, Estimate, Input};
 use motion_model::depth::*;
 use motion_render::{OutputTransform, Renderer};
 use std::time::{Duration, Instant};
+#[path = "depth_tests/aligned.rs"]
+mod aligned;
 
 struct OwnedDepth;
 impl Backend for OwnedDepth {

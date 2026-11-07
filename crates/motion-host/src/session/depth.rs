@@ -19,6 +19,9 @@ pub(super) struct State {
     installed: Option<(Arc<Estimate>, PreparedDepthInput, Option<u64>)>,
     prepared: Option<depth::PreparedEstimate>,
     transition: Option<transition::ImageTransition>,
+    // Export intent survives frame-only revocation of a live admission. It
+    // prevents silently freezing an older raw reference after a seek.
+    transition_export: Option<Binding>,
     retained: retained::Results,
     archive: Option<(Binding, Arc<depth::storage::Store>)>,
     storage_directory: PathBuf,
@@ -211,11 +214,12 @@ impl Binding {
 }
 impl Session {
     pub(crate) fn capture_depth_snapshot(&self) -> Result<crate::depth_snapshot::DepthSnapshot> {
-        if self.depth.as_ref().is_some_and(|state| state.transition.is_some()) {
+        let project = self.engine.project();
+        if self.depth.as_ref().is_some_and(|state| state.transition.is_some())
+            && !project.layers.iter().any(|l| l.three_d && l.depth_calibration.is_some()) {
             return Err("frozen image depth transition requires an explicit qualified export binding".into());
         }
         use crate::depth_snapshot::{DepthSnapshot, Entry, Owned, VideoEntry};
-        let project = self.engine.project();
         let mut snapshot = DepthSnapshot { composition: project.composition_id.clone(), entries: Vec::new(), videos: Vec::new() };
         for composition in project.reachable_compositions()? {
             let view = project.composition_view(&composition)?;
@@ -277,6 +281,10 @@ impl Session {
                 if composition != project.composition_id {
                     return Err(format!("frozen depth object={} phase=capture: nested depth is not supported", layer.id).into());
                 }
+                if let Some(entry) = self.freeze_image_depth_transition(&composition, layer.id, calibration)? {
+                    snapshot.entries.push(entry);
+                    continue;
+                }
                 let sample = self.saved_depth_sample(&composition, layer.id, calibration)?
                     .ok_or_else(|| crate::Error::from(format!("frozen depth object={} phase=capture: current source pending or absent", layer.id)))?;
                 let (Source::Image(asset), Identity::Sample(key)) = (sample.source, sample.key) else {
@@ -284,7 +292,7 @@ impl Session {
                 };
                 snapshot.entries.push(Entry {
                     object: layer.id, asset, key, input: sample.input,
-                    calibration: calibration.clone(), estimate: sample.estimate,
+                    calibration: calibration.clone(), estimate: sample.estimate, alignment: None,
                     request: sample.request,
                     decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
                 });
@@ -576,6 +584,7 @@ impl Session {
             installed: None,
             prepared: None,
             transition: None,
+            transition_export: None,
             retained: retained::Results::default(),
             archive: None,
             storage_directory: directory,
@@ -659,6 +668,7 @@ impl Session {
         depth.installed = None;
         depth.prepared = None;
         depth.transition = None;
+        depth.transition_export = None;
         Ok(request)
     }
 
@@ -762,6 +772,7 @@ impl Session {
         state.installed = None;
         state.prepared = None;
         state.transition = None;
+        state.transition_export = None;
         Ok(Some(request))
     }
 
@@ -842,6 +853,7 @@ impl Session {
             state.installed = None;
             state.prepared = None;
             state.transition = None;
+            state.transition_export = None;
             state.retained.clear();
             state.archive = None;
             state.jobs.cancel()?;
@@ -877,6 +889,9 @@ impl Session {
 
     pub(super) fn synchronize_depth(&mut self) -> Result<()> {
         let Some(mut state) = self.depth.take() else { return Ok(()); };
+        if state.transition_export.as_ref().is_some_and(|scope| !scope.document_matches(self)) {
+            state.transition_export = None;
+        }
         if state.archive.as_ref().is_some_and(|(scope, _)| !scope.document_matches(self)) {
             state.archive = None;
         }
