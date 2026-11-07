@@ -146,3 +146,24 @@ export policy, continuous real-video drift/jump controls, sustained/thermal and
 other supported desktop hardware. Numerical agreement and synthetic affine
 controls do not establish scene quality or a real-time guarantee. No panels/UI,
 Android, dependency, default model distribution or project format was changed.
+
+
+At the verified2026-11-07T09:44Z response, preceding-source workflow42354329634
+completed successfully:8 successful jobs and2 policy skips. Linux and macOS Intel
+raw logs each verify all41 preceding-source controls. The Windows raw-log
+collector failed its download with a TLS handshake timeout; its API job is green,
+but named Windows passes have not been independently collected. No new worker
+source is qualified by that preceding workflow.
+
+A fresh complete-workspace command at `92efcc5e` passed locked offline metadata
+and began compiling. The host then restarted: the recorded boot is09:05:54Z,
+after the08:59:55Z command start and final09:04:55Z readable heartbeat. System
+records include Kernel-Power41. The original tool handle is missing, its Cargo
+process is absent, stdout is empty and no terminal exit or test summaries were
+recorded. This invocation is interrupted and unqualified, not a pass or a known
+Cargo failure. Original receipt, logs (including trailing NUL bytes) and system
+observations are retained under artifacts/pr-queue/depth75-aligned-workspace-v1.
+All original tracked-file hashes were independently checked unchanged. The
+underlying restart cause is not inferred. A replacement complete invocation must
+retain the original command, features, assertions, GPU/backend, ignores, timeout
+and10GiB admission, and be qualified on its own actual source and terminal.
