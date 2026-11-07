@@ -147,6 +147,8 @@ pub enum RenderError {
     Resource { rejection: ResourceRejection, message: String },
     #[error("GPU readback failed: {0}")]
     Readback(String),
+    #[error("GPU readback failed: {0}")]
+    NativeReadback(#[from] crate::ReadbackError),
     #[error(transparent)]
     CompositionPlan(#[from] crate::composition_plan::CompositionPlanError),
     // Keep protocol-facing text independent of the original boxed source.
@@ -2997,13 +2999,15 @@ impl Renderer {
             .map_async(wgpu::MapMode::Read, move |result| {
                 let _ = send.send(result);
             });
+        #[cfg(test)]
+        crate::readback::after_map(&target.buffer);
         self.device.poll(wgpu::PollType::wait_indefinitely())?;
         recv.recv()
-            .map_err(|e| RenderError::Readback(e.to_string()))?
-            .map_err(|e| RenderError::Readback(e.to_string()))?;
+            .map_err(|cause| crate::ReadbackError::Callback { context: "", cause })?
+            .map_err(|cause| crate::ReadbackError::Mapping { context: "", cause })?;
         let mut pixels = Vec::with_capacity((target.width * target.height * 4) as usize);
         {
-            let mapped = target.buffer.slice(..).get_mapped_range().map_err(|e| RenderError::Readback(e.to_string()))?;
+            let mapped = target.buffer.slice(..).get_mapped_range().map_err(|cause| crate::ReadbackError::Range { context: "", cause })?;
             observation.mapped(mapped.len() as u64);
             for row in mapped.chunks_exact(target.row_stride as usize) {
                 pixels.extend_from_slice(&row[..target.width as usize * 4]);
