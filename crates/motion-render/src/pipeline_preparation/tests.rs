@@ -3,6 +3,7 @@ use crate::{PipelinePreparationInstall, Renderer};
 use std::sync::mpsc;
 use std::time::Duration;
 mod views;
+mod invalidation;
 
 const CONTEXT: PipelinePreparationContext = PipelinePreparationContext {
     document_generation: 7,
