@@ -2,7 +2,7 @@
 use super::*;
 use std::io::{Read, Write};
 
-const MAGIC: &[u8; 8] = b"MSDPTH3\0";
+const MAGIC: &[u8; 8] = b"MSDPTH4\0";
 const MAX_METADATA: usize = 8 << 20;
 #[cfg(feature = "ai-depth")]
 const CHUNK: usize = 64 << 10;
@@ -66,18 +66,47 @@ fn end(reader: &mut dyn Read, check: &dyn Fn() -> Result<()>) -> Result<()> {
 use motion_model::depth::{DepthDescriptor, DepthResource};
 #[cfg(feature = "ai-depth")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ai-depth")]
+mod alignment;
 
 #[cfg(feature = "ai-depth")]
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Serialize)]
 struct Metadata {
     composition: String,
-    #[serde(deserialize_with = "bounded_entries")]
     entries: Vec<Layer>,
-    #[serde(deserialize_with = "bounded_videos")]
     videos: Vec<VideoLayer>,
-    #[serde(deserialize_with = "bounded_resources")]
     resources: Vec<Resource>,
+}
+#[cfg(feature = "ai-depth")]
+impl<'de> Deserialize<'de> for Metadata {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct WireMetadata {
+            composition: String,
+            #[serde(deserialize_with = "bounded_entries")]
+            entries: Vec<Layer>,
+            #[serde(deserialize_with = "bounded_videos")]
+            videos: Vec<VideoLayer>,
+            #[serde(deserialize_with = "bounded_resources")]
+            resources: Vec<Resource>,
+        }
+        let wire = WireMetadata::deserialize(d)?;
+        // Only aligned static layers authorize an additional reference plane.
+        // Raw/temporal snapshots retain their original metadata count bound.
+        let aligned = wire.entries.iter().filter(|entry| entry.alignment.is_some()).count();
+        if wire.resources.len()
+            > motion_model::MAX_LAYERS + motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES + aligned
+        {
+            return Err(serde::de::Error::custom("frozen depth count exceeds limit"));
+        }
+        Ok(Self {
+            composition: wire.composition,
+            entries: wire.entries,
+            videos: wire.videos,
+            resources: wire.resources,
+        })
+    }
 }
 #[cfg(feature = "ai-depth")]
 #[derive(Serialize, Deserialize)]
@@ -91,6 +120,7 @@ struct Layer {
     resource: usize,
     request: u64,
     decoded_budget: u64,
+    alignment: Option<alignment::Aligned>,
 }
 #[cfg(feature = "ai-depth")]
 #[derive(Serialize, Deserialize)]
@@ -158,7 +188,9 @@ fn bounded_videos<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
 fn bounded_resources<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
     d: D,
 ) -> std::result::Result<Vec<T>, D::Error> {
-    bounded::<D, T, { motion_model::MAX_LAYERS + motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES }>(d)
+    bounded::<D, T, { 2 * motion_model::MAX_LAYERS + motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES }>(
+        d,
+    )
 }
 
 #[cfg(feature = "ai-depth")]
@@ -169,6 +201,7 @@ fn write_snapshot(
 ) -> Result<()> {
     let mut resources: Vec<Owned> = Vec::new();
     let mut layers = Vec::new();
+    let mut hashes = Vec::new();
     for entry in &snapshot.entries {
         let plane = Owned::Memory(entry.estimate.clone());
         let index = resources.iter().position(|r| r.same(&plane));
@@ -176,7 +209,7 @@ fn write_snapshot(
             resources.push(plane);
             resources.len() - 1
         });
-        layers.push(Layer {
+        let mut layer = Layer {
             object: entry.object,
             asset: entry.asset.clone(),
             key: entry.key.clone(),
@@ -185,7 +218,27 @@ fn write_snapshot(
             resource,
             request: entry.request,
             decoded_budget: entry.decoded_budget,
-        });
+            alignment: None,
+        };
+        if let Some(frozen) = &entry.alignment {
+            let reference = Owned::Memory(frozen.reference().clone());
+            let reference = resources
+                .iter()
+                .position(|r| r.same(&reference))
+                .unwrap_or_else(|| {
+                    resources.push(reference);
+                    resources.len() - 1
+                });
+            layer.alignment = Some(alignment::Aligned::capture(
+                &layer,
+                reference,
+                frozen,
+                &resources,
+                &mut hashes,
+                check,
+            )?);
+        }
+        layers.push(layer);
     }
     let mut videos = Vec::new();
     for entry in &snapshot.videos {
@@ -287,11 +340,16 @@ fn read_snapshot(
     let metadata: Metadata = serde_json::from_slice(&bytes)
         .map_err(|e| crate::Error::with_context("deserialize frozen depth metadata", e))?;
     let count = metadata.entries.len() + metadata.videos.len();
+    let aligned = metadata
+        .entries
+        .iter()
+        .filter(|e| e.alignment.is_some())
+        .count();
     if count == 0
         || metadata.entries.len() > motion_model::MAX_LAYERS
         || metadata.videos.len() > motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES
         || metadata.resources.is_empty()
-        || metadata.resources.len() > count
+        || metadata.resources.len() > count + aligned
     {
         return Err("invalid frozen depth resource count".into());
     }
@@ -303,6 +361,14 @@ fn read_snapshot(
             .get_mut(layer.resource)
             .ok_or("invalid frozen depth resource index")? = true;
         resident[layer.resource] = true;
+        if let Some(aligned) = &layer.alignment {
+            aligned.validate_metadata(layer)?;
+            aligned.validate_reference(&metadata.resources)?;
+            *used
+                .get_mut(aligned.reference)
+                .ok_or("invalid frozen alignment resource index")? = true;
+            resident[aligned.reference] = true;
+        }
     }
     for layer in &metadata.videos {
         *used
@@ -378,12 +444,21 @@ fn read_snapshot(
         }
     }
     end(reader, check)?;
+    let mut hashes = Vec::new();
+    let mut restored = alignment::Restored::default();
     let snapshot = DepthSnapshot {
         composition: metadata.composition,
         entries: metadata
             .entries
             .into_iter()
             .map(|e| {
+                let alignment = e
+                    .alignment
+                    .as_ref()
+                    .map(|aligned| {
+                        aligned.restore(&e, &resources, &mut hashes, &mut restored, check)
+                    })
+                    .transpose()?;
                 let Owned::Memory(estimate) = &resources[e.resource] else {
                     return Err(crate::Error::from(
                         "frozen static resource was not retained",
@@ -396,6 +471,7 @@ fn read_snapshot(
                     input: e.input,
                     calibration: e.calibration,
                     estimate: estimate.clone(),
+                    alignment,
                     request: e.request,
                     decoded_budget: e.decoded_budget,
                 })
@@ -458,6 +534,8 @@ fn floats_in(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "ai-depth")]
+    mod aligned;
     #[test]
     fn empty_wire_checks_version_truncation_trailing_data_and_primary_cancellation() {
         let mut bytes = Vec::new();
@@ -571,6 +649,7 @@ mod tests {
                 costs: Default::default(),
             }),
             request: 42,
+            alignment: None,
             decoded_budget: 1 << 20,
         };
         let mut alias = entry.clone();

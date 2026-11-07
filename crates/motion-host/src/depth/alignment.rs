@@ -11,7 +11,8 @@ pub const VERSION: u32 = 1;
 const MAX_FIT_PAIRS: usize = 4096;
 
 /// All limits are explicit; resolution and backend names imply no quality bound.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Limits {
     pub minimum_fit_pairs: usize,
     pub minimum_validation_pairs: usize,
@@ -83,7 +84,7 @@ pub struct Statistics {
     pub validation_normalized_maximum: f64,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Alignment {
     reference: DepthResourceIdentity,
     candidate: DepthResourceIdentity,

@@ -17,7 +17,8 @@ pub const VERSION: u32 = 1;
 
 /// Asymmetric hysteresis: interaction immediately requests the interactive
 /// configuration; settling requires both continuous idle and minimum residence.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Policy {
     pub idle_delay: Duration,
     pub minimum_interactive_residence: Duration,
@@ -29,7 +30,8 @@ pub enum Activity {
     Idle,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Phase {
     Interactive,
     Settled,
@@ -37,7 +39,8 @@ pub enum Phase {
 
 /// Exact model/hash/processing identities already resolved by a capability
 /// policy. Both choices must describe the same source sample and geometry.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Choices {
     pub interactive: Key,
     pub settled: Key,
@@ -106,7 +109,7 @@ struct Submission {
 }
 
 impl Choices {
-    fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         self.interactive.validate().map_err(Error::Choice)?;
         self.settled.validate().map_err(Error::Choice)?;
         if !self.interactive.source.same_sample(&self.settled.source)

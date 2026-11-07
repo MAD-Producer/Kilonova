@@ -1,0 +1,265 @@
+{
+  "sourceCommit": "7d6e9cf9be9670e4ad3a4a210117f81fa9f07437",
+  "mergeCommit": "b190db953ef966d6b12d7ae98005c94ae615afa2",
+  "archive": "depth75-session-current-complete-v1.zip",
+  "bytes": 1472657,
+  "sha256": "125cac13756ae8fd4025c26b00304fabbc9be8f44ce1ce8abeeeb07c315f0360",
+  "members": {
+    "depth75-session-regression-v2/cargo-metadata.json": {
+      "bytes": 267581,
+      "sha256": "9b281ff2b525b1470cd22374f8d047c141d4eaa1c0ee76ad75a692a080e4017c"
+    },
+    "depth75-session-regression-v2/changed-crates.stderr.log": {
+      "bytes": 23259,
+      "sha256": "ad02c05ef16644377b27d338f34cb97fbea4fec78a871732f8091e419ae658eb"
+    },
+    "depth75-session-regression-v2/changed-crates.stdout.log": {
+      "bytes": 165490,
+      "sha256": "3b2e8b301e8d8e3a34450bbb2a62570f46eeeb332acfd0bcc81a418e7e01c724"
+    },
+    "depth75-session-regression-v2/controller.py": {
+      "bytes": 8759,
+      "sha256": "52abc98ce1757bdb9713b705f7f970c9c115d3207bd6de38c489803396ac8b0e"
+    },
+    "depth75-session-regression-v2/desktop-check.stderr.log": {
+      "bytes": 27701,
+      "sha256": "f2a6c17a150a35272dc69f73c80ef221f357d7439c565fe4835c18d0816521e6"
+    },
+    "depth75-session-regression-v2/desktop-check.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-session-regression-v2/receipt.json": {
+      "bytes": 919545,
+      "sha256": "d7d3f8f8567b857f4642e987c84f94be3a4c35689dbe19743e51833a07a9a641"
+    },
+    "depth75-session-regression-v2/session-consumed.json": {
+      "bytes": 132,
+      "sha256": "efb2a7086f007289a1d9e9eedd58579fc2749c9c639378ea4e7973160de6ad7a"
+    },
+    "depth75-session-file-v4/actual.stderr.log": {
+      "bytes": 640,
+      "sha256": "718a2b5fdf2e655081c30b9d98055826a3f4e698d4544ce7a04b4a6da4f44774"
+    },
+    "depth75-session-file-v4/actual.stdout.log": {
+      "bytes": 84,
+      "sha256": "5351c4419cd15662842f230410a6e5abb7935fe9d3a01eb29f26166dddeb2b1b"
+    },
+    "depth75-session-file-v4/build.stderr.log": {
+      "bytes": 2237,
+      "sha256": "b824e51f115e10231aaddb87ccc5990c42bc4a824a91f9a8007ece179d213154"
+    },
+    "depth75-session-file-v4/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-session-file-v4/controller.py": {
+      "bytes": 8340,
+      "sha256": "a1c9904c7908d41230d896d37f7b3b6765eac98925d0f3090479c13ce6d389bf"
+    },
+    "depth75-session-file-v4/metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-session-file-v4/metadata.stdout.log": {
+      "bytes": 1560209,
+      "sha256": "6cad82b14d6011b4bc1fe22fe69db81373504ac815c82342ca844f418a63cc78"
+    },
+    "depth75-session-file-v4/receipt.json": {
+      "bytes": 861857,
+      "sha256": "f898c0dee20143df9d61da52d824c026f417bcc50106d3d8b0de222d4bea57df"
+    },
+    "depth75-session-file-v4/session-consumed.json": {
+      "bytes": 277,
+      "sha256": "5dc962bf4ad69df45021808927ecab6f9777efb16c91b4a1f272e841a482cd70"
+    },
+    "depth75-session-file-v4/execution/logs/motion-studio.log": {
+      "bytes": 34106,
+      "sha256": "07e18fa518ee9109ad657f9be0bffc7e370f448817cc61296674cf2d8746dd14"
+    },
+    "depth75-session-ci-linux-v1/controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "depth75-session-ci-linux-v1/linux.job.json": {
+      "bytes": 5902,
+      "sha256": "d4c611d130da0b18cdfa2e47281ac62830748e85a1bac6ab96147bcf4a7dfb26"
+    },
+    "depth75-session-ci-linux-v1/linux.log": {
+      "bytes": 537824,
+      "sha256": "2afa5cafff635df76e2037d0105daff4f7f34e0e5fda108c47a40f4cc3ebb007"
+    },
+    "depth75-session-ci-linux-v1/receipt.json": {
+      "bytes": 17007,
+      "sha256": "92d9bd7475f13dcc6091795b78c04e39828f44d135630ef89a1885205447aeba"
+    },
+    "depth75-session-ci-linux-v1/session-consumed.json": {
+      "bytes": 132,
+      "sha256": "8cd3da9d480480760846661a8b805e8f4cbb50a7a0525305ef7c30eed1c5f238"
+    },
+    "depth75-session-ci-windows-v1/controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "depth75-session-ci-windows-v1/receipt.json": {
+      "bytes": 17125,
+      "sha256": "252f86704fc9ab521c5601888ded653b9898d2d74d79ca2b85c77d476b165f9d"
+    },
+    "depth75-session-ci-windows-v1/session-consumed.json": {
+      "bytes": 132,
+      "sha256": "ae570e32990706c2f69a535829b93ec48200c863b8f94f7e83ceb5e4e905323a"
+    },
+    "depth75-session-ci-windows-v1/windows.job.json": {
+      "bytes": 5906,
+      "sha256": "c3c000322717d8a3fd9a322767c49de6bab7644114f223705e6fdf3f1db18352"
+    },
+    "depth75-session-ci-windows-v1/windows.log": {
+      "bytes": 547383,
+      "sha256": "3afed6af064b77958787a7b343c67c9bedb3cf934d4de9032595dfc7a9ec001a"
+    },
+    "depth75-session-ci-macos-v1/controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "depth75-session-ci-macos-v1/macos.job.json": {
+      "bytes": 5901,
+      "sha256": "83538ab92e81a421be32d89b9dc20dcac611a641349d805ae497d6af58a2eacd"
+    },
+    "depth75-session-ci-macos-v1/macos.log": {
+      "bytes": 522305,
+      "sha256": "2052ea966fd24f5c1ade65091c4c3b779ae56e8f16955db98efa483e3cbccfc9"
+    },
+    "depth75-session-ci-macos-v1/receipt.json": {
+      "bytes": 17007,
+      "sha256": "d66a2b682d4321fbc2d4d704f5194afaded964caa69af43c6f5e8e76e04bfce4"
+    },
+    "depth75-session-ci-macos-v1/session-consumed.json": {
+      "bytes": 132,
+      "sha256": "2308355f0277926d30252f5c4dffa7482a15ebedab57b4713b63047b9433a64c"
+    },
+    "depth75-session-ci-render-v1/controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "depth75-session-ci-render-v1/receipt.json": {
+      "bytes": 1925,
+      "sha256": "a697228909f8bc959f31e0f250718d5be164ff5499aa312fac43353767a4deab"
+    },
+    "depth75-session-ci-render-v1/render.job.json": {
+      "bytes": 6088,
+      "sha256": "e2a506201ebdb93df1a2c1500086315601556faf96c6983a92db8b3db13d5bd2"
+    },
+    "depth75-session-ci-render-v1/render.log": {
+      "bytes": 542009,
+      "sha256": "b50800e9f1426cb2fbeff3a1853e1dd9b66a69660f12476d6acb3f76f4ef11ce"
+    },
+    "depth75-session-ci-render-v1/session-consumed.json": {
+      "bytes": 132,
+      "sha256": "52dd2d83104e201f475bbcce864a4c7336dc6a587bef02f35455c8d28e487cee"
+    },
+    "actual-fixture/Cargo.toml": {
+      "bytes": 811,
+      "sha256": "77e39be1c7f233ac9ab25c633715d8f96eb136e996e189c2b5af962fc8860e70"
+    },
+    "actual-fixture/Cargo.lock": {
+      "bytes": 73472,
+      "sha256": "ad5cab8b9828d1069aac3532698c71b72948b94027df4f92d988747589d00e31"
+    },
+    "actual-fixture/generate.py": {
+      "bytes": 1908,
+      "sha256": "85cf5d32284c39054ffe1c00b9379a0f75b33c14c91d8eebd98fcd300015d854"
+    },
+    "actual-fixture/probe-main.rs": {
+      "bytes": 4507,
+      "sha256": "175e0c38cb0968ff7da7c5053d666ebe2c214ec80a22eb07b3cde2272591145f"
+    },
+    "actual-fixture/fixture-generation.json": {
+      "bytes": 509,
+      "sha256": "38d050c656063a87dd82cb7fe3a34d5f52f10cce45cde49a6cbf94a52f31a99f"
+    },
+    "actual-fixture/src/main.rs": {
+      "bytes": 12023,
+      "sha256": "37a7e9b480a457556ea945b292915c3ed69788c4864c07fd1398cf6e10b08d26"
+    },
+    "merge.json": {
+      "bytes": 107673,
+      "sha256": "ac382d50f6dbd045b0af7f7322a09394afd66bb5d93ac29dbf9dd7b5a83d38ae"
+    },
+    "archive-controller.py": {
+      "bytes": 3924,
+      "sha256": "c8c51f62c24cb1a968cbbbc63670467011a0a418eefd56588cc769ef19d5bf27"
+    },
+    "executed-source/crates/motion-host/src/depth.rs": {
+      "bytes": 30976,
+      "sha256": "33889ba12e90c0975748c86426bb3fb52af6b2278b06cf5bc54e600a084fe33b"
+    },
+    "executed-source/crates/motion-host/src/depth/alignment.rs": {
+      "bytes": 13156,
+      "sha256": "200b6e32048a27c0a3ea1a0eba5123507f80cfb4f90c6b2866424b4622eaab9c"
+    },
+    "executed-source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 17140,
+      "sha256": "dbcd0f301a34de4d7225e1b2b36757156d1edb94901800bef71ef5f36abcf3ad"
+    },
+    "executed-source/crates/motion-host/src/depth/transition/admission.rs": {
+      "bytes": 9229,
+      "sha256": "d067c6a20526b54a2529386352a24ef714db34d070d065f164ada23ca48a546b"
+    },
+    "executed-source/crates/motion-host/src/session/depth.rs": {
+      "bytes": 43120,
+      "sha256": "a0486a498e46554bb2b25185bdee1fad1c0a7cbce055481d155dfb8f2c969fa0"
+    },
+    "executed-source/crates/motion-host/src/session/depth/transition.rs": {
+      "bytes": 12169,
+      "sha256": "044cf5e57de4c1f33b3956fa7340e98cf9afcfc1abb32c205fe736664b58c395"
+    },
+    "executed-source/crates/motion-render/src/scene/depth.rs": {
+      "bytes": 11045,
+      "sha256": "bc0307ade8b9cc866a3e045db91ef3ac254f8c415e4bea58c9684c00c6dddda9"
+    },
+    "executed-source/crates/motion-host/tests/depth_session/transitions.rs": {
+      "bytes": 20429,
+      "sha256": "37bef9c8b7758e1e3cfc5c3b4f6664028993c6a6665bdaf7550a24888f10fd69"
+    },
+    "executed-source/crates/motion-host/tests/depth_session.rs": {
+      "bytes": 34579,
+      "sha256": "ac5e0624a84f48d2652128f196e3cb29bcdc2e50f57af879820666223a2d3140"
+    },
+    "executed-source/crates/motion-render/tests/depth_surface/aligned.rs": {
+      "bytes": 4620,
+      "sha256": "b7a676a69d8c10f31b4cf50b5165968fbc53a13c512a31517a6104bd9e3ce2b2"
+    },
+    "executed-source/crates/motion-render/tests/depth_surface.rs": {
+      "bytes": 23343,
+      "sha256": "41c2abb3d8f6871cc8944fe3bc01b8f400101eab64b17769c56d9b53a415311d"
+    },
+    "executed-source/desktop/app/src/logging/sink.rs": {
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    },
+    "executed-source/Cargo.lock": {
+      "bytes": 147457,
+      "sha256": "a074661f26ae7944d90886b4c74f4734055f8671d91e531a9cf54eadabb9d438"
+    }
+  },
+  "memberCount": 59,
+  "allMembersReadBackVerified": true,
+  "observedUtc": "2026-11-07T13:50:18.294960+00:00",
+  "totals": {
+    "passed": 1471,
+    "failed": 0,
+    "originalIgnored": 1,
+    "filtered": 0,
+    "summaryCount": 153,
+    "observedInvocations": 153,
+    "expectedInvocations": 153
+  },
+  "namedControls": 58,
+  "ciHostNamedPerPlatform": 56,
+  "ciRendererNamed": 2,
+  "limits": [
+    "Qualifies exact parent PR642 only, not subsequent frozen-export changes",
+    "Existing synthetic inference/fixtures and actual native GPU controls do not establish real-model quality",
+    "Historical failed fixture compilation/main-thread overflow retained separately in the already published pre-rebase archive; no claim of fixing those failures"
+  ]
+}

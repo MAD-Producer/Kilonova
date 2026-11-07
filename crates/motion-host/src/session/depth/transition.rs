@@ -43,6 +43,69 @@ fn transition_error(cause: depth::transition::Error) -> crate::Error {
 }
 
 impl Session {
+    /// Freeze a selected, already qualified live admission without polling,
+    /// inference, plane scans or source IO on the Session owner.
+    pub(super) fn freeze_image_depth_transition(
+        &self,
+        composition: &str,
+        object: u64,
+        saved: &motion_model::depth::SavedDepthCalibration,
+    ) -> crate::Result<Option<crate::depth_snapshot::Entry>> {
+        let Some(state) = self.depth.as_ref() else {
+            return Ok(None);
+        };
+        let Some(scope) = state.transition_export.as_ref().filter(|scope| {
+            scope.composition == composition
+                && scope.document_matches(self)
+                && matches!(&scope.source, Source::Image(asset) if asset.id == saved.asset())
+        }) else {
+            return Ok(None);
+        };
+        let pending = || {
+            crate::Error::from(format!(
+            "frozen depth object={object} phase=capture_alignment: current qualified transition pending or absent"))
+        };
+        if !scope.current(self)? {
+            return Err(pending());
+        }
+        let transition = state.transition.as_ref().ok_or_else(pending)?;
+        if composition != transition.scope.composition || !transition.scope.current(self)? {
+            return Err(pending());
+        }
+        let binding = state.binding.as_ref().ok_or_else(pending)?;
+        if !binding.current(self)? {
+            return Err(pending());
+        }
+        let (Source::Image(asset), Identity::Sample(live)) = (&binding.source, &binding.key) else {
+            return Err(pending());
+        };
+        let view = self.engine.project().composition_view(composition)?;
+        let layer = view
+            .layers
+            .iter()
+            .find(|l| l.id == object)
+            .ok_or_else(pending)?;
+        if !matches!(&layer.content, motion_core::Content::Image { asset: id } if *id == asset.id) {
+            return Err(pending());
+        }
+        let admission = transition.admitted.as_ref().ok_or_else(pending)?;
+        let (estimate, input, alignment) = admission
+            .freeze(&transition.controller, live, &transition.reference)?
+            .ok_or_else(pending)?;
+        alignment.calibration(&estimate, live, saved, input)?;
+        Ok(Some(crate::depth_snapshot::Entry {
+            object,
+            asset: asset.clone(),
+            key: live.clone(),
+            input,
+            calibration: saved.clone(),
+            estimate,
+            alignment: Some(alignment),
+            request: binding.request,
+            decoded_budget: binding.decoded_budget,
+        }))
+    }
+
     pub(super) fn attach_image_depth_transition(
         &mut self,
         scene: &mut motion_render::Scene,
@@ -166,10 +229,11 @@ impl Session {
             limits,
             admitted: None,
         };
-        self.depth
+        let state = self.depth
             .as_mut()
-            .ok_or(depth::Error::Invalid("depth owner disappeared"))?
-            .transition = Some(transition);
+            .ok_or(depth::Error::Invalid("depth owner disappeared"))?;
+        state.transition_export = Some(transition.scope.clone());
+        state.transition = Some(transition);
         Ok(())
     }
 
