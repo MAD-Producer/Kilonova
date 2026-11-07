@@ -83,6 +83,8 @@ fn restore_effect_snapshot(encoder: &mut wgpu::CommandEncoder, source: &wgpu::Te
 #[cfg(test)]
 mod scratch_reuse_tests;
 #[cfg(test)]
+mod attachment_policy_tests;
+#[cfg(test)]
 mod vector_planning_tests;
 #[cfg(test)]
 mod scene_asset_storage_tests;
