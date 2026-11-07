@@ -1,0 +1,221 @@
+{
+  "schema": 1,
+  "base": "522bd1cae9f9b1e3dabf86142bdfee10894b1607",
+  "status": "actual41_controls_and_default_blocked_file_error_channels_passed",
+  "namedPasses": 41,
+  "sourceDelta": {
+    "source/crates/motion-host/src/depth/transition.rs": "72348ff569a9a79f58fda96fde8a59078ef5f14ab2acebf6d7c450d03e361c6a",
+    "source/crates/motion-host/src/depth/transition/admission.rs": "5fdf65a31ed06f8d97cb267d8a0b58206a6b95ed53698695f8f9cbc8efd898af",
+    "source/crates/motion-host/tests/depth_aligned_admission.rs": "aef3843f1cb16eaf849f12f0323d3fa0803643e782e6cdb64141aaf9cb976eab",
+    "source/desktop/app/src/logging/sink.rs": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+  },
+  "limits": [
+    "Source delta over32d3c860; not a fresh full workspace pass or cross-platform qualification of this delta",
+    "Actual Jobs provide authoritative prepared pixel fingerprints; synthetic values qualify mechanism, not scene quality",
+    "Original pre-flush file failure is retained with actual101 exit; identical blocking fixture passes after flush",
+    "One reference and candidate per Admission; no global cache quota, persistent identity or export policy",
+    "Session installation, capability/tier selection, real video transitions and thermal/other hardware remain pending",
+    "Original ordinary rustc access violation remains unexplained; diagnostic/debugger41 and later ordinary41 are separate records",
+    "No panels/UI, Android, dependency, model distribution or source-media change"
+  ],
+  "members": {
+    "native41/controller.py": {
+      "bytes": 3136,
+      "sha256": "789b66f909607b1723f9350f5e390cc15d8e8c2e1a4051c9c2baac0ef2ce7fe8"
+    },
+    "native41/receipt.json": {
+      "bytes": 859454,
+      "sha256": "d4f79bfed956662ade9cf82a056a230502dbfbf5b8c6ac7c99fc0c0eff04c98e"
+    },
+    "native41/session-consumed.json": {
+      "bytes": 169,
+      "sha256": "bd719b14cca96e11e435cf6aa9b0ca32d3fe1fa3e8fa6dd2f9d98a11411caf73"
+    },
+    "native41/stdout.log": {
+      "bytes": 3756,
+      "sha256": "3fbdb114649ef4e500d1133e70a05a4fd620f59cee7409fabadc8c5185eb9e8b"
+    },
+    "native41/stderr.log": {
+      "bytes": 1680,
+      "sha256": "c607f84ad87b49536ebbe16505b70b37c728d040c08b21d86ab5e98311d145aa"
+    },
+    "file-before-flush/controller.py": {
+      "bytes": 3208,
+      "sha256": "983c9d779a7c64dfd1af3b43d213f9ba5e01fecffd3450129e6f4816d984d0a7"
+    },
+    "file-before-flush/receipt.json": {
+      "bytes": 1618,
+      "sha256": "84b4da5ced61dfb59c49601fb78554e4e578f027e1313e6be7db334d7508f02b"
+    },
+    "file-before-flush/session-consumed.json": {
+      "bytes": 195,
+      "sha256": "c376cb764bc8c67b5df32cf7daf8837879e8da2701e00125bb3791f893f7f19b"
+    },
+    "file-before-flush/actual.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-before-flush/actual.stderr.log": {
+      "bytes": 284,
+      "sha256": "bc796817e75237fb2a14e5dae17e16380412b01a49a43981301baae1c95e5c28"
+    },
+    "file-before-flush/execution/logs/motion-studio.log": {
+      "bytes": 4015,
+      "sha256": "3631afd0eba6a0dd5df7b027d760c57aae1b92a7d2a78e427370aa807f7a2fe5"
+    },
+    "file-after-flush/controller.py": {
+      "bytes": 3208,
+      "sha256": "3dd2e0c3179a26af4aace31fc45cbdc5a04e2223ee73f6daa0be504b9899843b"
+    },
+    "file-after-flush/receipt.json": {
+      "bytes": 1598,
+      "sha256": "816d61da872ba4b1cc4695f2a260cd935ac6075077f6182ba07b9189b6c39d59"
+    },
+    "file-after-flush/session-consumed.json": {
+      "bytes": 81,
+      "sha256": "8e1b6ece3cb4fd4bf2ad7e671a171109995c9e22d8b7f87e232fe94d2e937fa1"
+    },
+    "file-after-flush/metadata.stdout.log": {
+      "bytes": 1558889,
+      "sha256": "e57e0064099c4bd84151859f49ea7c4c034e5aad6745db483e8d067923f2d46a"
+    },
+    "file-after-flush/metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-after-flush/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-after-flush/build.stderr.log": {
+      "bytes": 1648,
+      "sha256": "be8bcbb6648829dbf62186a62bfe20440346cb1eb562266d49e2906c56c3d99a"
+    },
+    "file-after-flush/actual.stdout.log": {
+      "bytes": 52,
+      "sha256": "0ac34d69a8080ec7913bcc21c32c5be721f8058495921593a41677b98e3e42eb"
+    },
+    "file-after-flush/actual.stderr.log": {
+      "bytes": 137,
+      "sha256": "0468aee808f47469ebdbf843a43269f30f54a2f3cce9bcaf36c750b15b51c15c"
+    },
+    "file-after-flush/execution/logs/motion-studio.log": {
+      "bytes": 1394,
+      "sha256": "1a98e6152d962e62ec348b2da3554a750c10b1edc7bd1c68f6ff7ded3ce090d2"
+    },
+    "source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 12906,
+      "sha256": "72348ff569a9a79f58fda96fde8a59078ef5f14ab2acebf6d7c450d03e361c6a"
+    },
+    "source/crates/motion-host/src/depth/transition/admission.rs": {
+      "bytes": 5350,
+      "sha256": "5fdf65a31ed06f8d97cb267d8a0b58206a6b95ed53698695f8f9cbc8efd898af"
+    },
+    "source/crates/motion-host/tests/depth_aligned_admission.rs": {
+      "bytes": 8125,
+      "sha256": "aef3843f1cb16eaf849f12f0323d3fa0803643e782e6cdb64141aaf9cb976eab"
+    },
+    "source/desktop/app/src/logging/sink.rs": {
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    },
+    "fixture/Cargo.toml": {
+      "bytes": 351,
+      "sha256": "7d4dbfb77eb578a545c6d4472b1ee5a7d4d28970dbaf5b9629e11674b357f73b"
+    },
+    "fixture/Cargo.lock": {
+      "bytes": 73402,
+      "sha256": "ce569fd9a9d5721209b47043114d250ee5caf713ed6958b8338ba4274758117f"
+    },
+    "fixture/src/main.rs": {
+      "bytes": 6483,
+      "sha256": "6ae868914b0bb80b1b2ff01a498ef380d5789baed6353fd90e12cb77b15df43c"
+    },
+    "previous-native-compiler-failure/controller.py": {
+      "bytes": 2668,
+      "sha256": "baac8e508f6b168503cafc467b1ad788c6bd6a92c95088ebe1bac90d70801fcd"
+    },
+    "previous-native-compiler-failure/receipt.json": {
+      "bytes": 855482,
+      "sha256": "82732ddb20b68aa567f45cf08476f97169b20a4c2c4f4f56ec2a51b57dc6b0e6"
+    },
+    "previous-native-compiler-failure/session-consumed.json": {
+      "bytes": 82,
+      "sha256": "432c56f9a84fdf596693f7576f7b4e1eed387a2c34ee5251408d7be655eefe1d"
+    },
+    "previous-native-compiler-failure/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "previous-native-compiler-failure/stderr.log": {
+      "bytes": 4021,
+      "sha256": "9c48a289baa2ee4259c8fd3fb5b9dee96b0ad6bc58743579c52db0b57c64c3b6"
+    },
+    "bounded-compiler-diagnostic/wrapper.cpp": {
+      "bytes": 3595,
+      "sha256": "4ea6262261fda8cca017b963c4de0bd261eb391bf17c34023f4619eced63e738"
+    },
+    "bounded-compiler-diagnostic/first-wrapper-build.json": {
+      "bytes": 167,
+      "sha256": "30c3cf85bae34c93dc39cde81b3b0bacf385aeab4a03bdf4fb8d39f17376c6c0"
+    },
+    "bounded-compiler-diagnostic/host-memory.json": {
+      "bytes": 249,
+      "sha256": "8526fd8955ab6fa31a473f59a8ad711f7e062cbf0c9f277ec741c52a1699d3e1"
+    },
+    "bounded-compiler-diagnostic/fault-control/receipt.json": {
+      "bytes": 504,
+      "sha256": "e6bb1e5396d928fcc53d827d504c245ddf44d5241ac479a3fcc9e702c2b30507"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/controller.py": {
+      "bytes": 3782,
+      "sha256": "9c4e842db63be5ca1455a2fcea77fba1eef4f966b39e2d5c7f3798bac000e025"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/receipt.json": {
+      "bytes": 859929,
+      "sha256": "79160a5b91928a61b643a72b16fd6851f0ec1db473a48b07468d3d225cda9328"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/session-consumed.json": {
+      "bytes": 82,
+      "sha256": "b01ace9038a619a75e6c767efccd49cf916f909ad705fae60628cae4e84f3491"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/stdout.log": {
+      "bytes": 3756,
+      "sha256": "43347e455ef0c954afa8763591e458f070e245cb6c3b6be8c323459a93bbc6aa"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/stderr.log": {
+      "bytes": 2260,
+      "sha256": "327279dad0719446f125e040f7e9285683c82a3db6731da9ad5a6099e5a89f6a"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/owned-rustc/events.log": {
+      "bytes": 4720,
+      "sha256": "16669d831a181de36bfe4635fd89180ef72f7858ea0cd8c533890b49de5c1e45"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/owned-rustc/target.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/owned-rustc/target.stderr.log": {
+      "bytes": 462,
+      "sha256": "46973f56d6028d229e783b0397167170b271d966b8bb2f6ddf7ef8c03e958afa"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/owned-rustc/command.utf16": {
+      "bytes": 6148,
+      "sha256": "eff7fd849d9d72e5aec9d08453be8c6ddee1e97893629204c9f9a631fe4ea693"
+    },
+    "bounded-compiler-diagnostic/cargo-observation/owned-rustc/environment.utf16": {
+      "bytes": 278,
+      "sha256": "54b127bd0a8a6a8cd0ef409e3e03468a191cf658beeba968563ce099b11cc28d"
+    },
+    "archive-controller.py": {
+      "bytes": 4924,
+      "sha256": "f64677e14c2622df333354a117c7c9f3418bb9f2ae8d14b37ecbebb9263a951f"
+    }
+  },
+  "archive": {
+    "file": "depth75-aligned-admission-v2.zip",
+    "bytes": 1052054,
+    "sha256": "a6430f3d7b5a23a9fa12d00ee2b9905013e7c628a132a006c9d696fc0e550877",
+    "verifiedMembers": 49
+  }
+}

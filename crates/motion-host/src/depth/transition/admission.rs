@@ -6,7 +6,7 @@ use crate::depth::{
     Costs, Key, PreparedEstimate,
 };
 use motion_model::depth::{DepthDescriptor, DepthResource, PreparedDepthInput};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -25,6 +25,46 @@ pub struct Admission {
     candidate: PreparedEstimate,
     alignment: Alignment,
 }
+
+/// One immutable reference instance per queued/running aligned request. This is
+/// private so only a controller-validated submission can create worker work.
+pub(crate) struct Pending {
+    ticket: Ticket,
+    reference: DepthResource,
+    input: PreparedDepthInput,
+    limits: Limits,
+}
+
+impl Pending {
+    pub(super) fn new(ticket: &Ticket, reference: &PreparedEstimate, limits: Limits) -> Self {
+        Self {
+            ticket: ticket.clone(),
+            reference: reference.estimate().resource.clone(),
+            input: reference.input(),
+            limits,
+        }
+    }
+
+    pub(crate) fn generation(&self) -> u64 {
+        self.ticket.generation()
+    }
+
+    pub(crate) fn complete(
+        self,
+        candidate: PreparedEstimate,
+        canceled: impl FnMut() -> bool,
+    ) -> Result<Admission, Error> {
+        Admission::fit(
+            self.ticket,
+            self.reference,
+            self.input,
+            candidate,
+            self.limits,
+            canceled,
+        )
+    }
+}
+
 impl Admission {
     /// Call after taking a prepared candidate from the current actual Jobs.
     /// The caller supplies independently read live identity and qualified limits.
@@ -42,31 +82,40 @@ impl Admission {
         if !controller.is_current(ticket, live, &candidate.estimate().resource) {
             return Ok(None);
         }
-        if reference.input() != candidate.input() {
+        Pending::new(ticket, reference, limits)
+            .complete(candidate, canceled)
+            .map(Some)
+    }
+
+    fn fit(
+        ticket: Ticket,
+        reference: DepthResource,
+        reference_input: PreparedDepthInput,
+        mut candidate: PreparedEstimate,
+        limits: Limits,
+        canceled: impl FnMut() -> bool,
+    ) -> Result<Self, Error> {
+        if reference_input != candidate.input() {
             log::error!("operation=depth_transition_align generation={} source_id={} cause=prepared_pixels_differ",
-                ticket.generation(), live.source.asset);
+                ticket.generation(), ticket.key().source.asset);
             return Err(Error::Pixels);
         }
         log::info!(
             "start depth_transition_align generation={} source_id={} processing={}",
             ticket.generation(),
-            live.source.asset,
-            live.model.processing
+            ticket.key().source.asset,
+            ticket.key().model.processing
         );
         // Info is buffered by the production sink. Publish it before entering
         // alignment or cancellation polling, rather than only during teardown.
         log::logger().flush();
         let began = Instant::now();
-        let alignment = Alignment::fit(
-            &reference.estimate().resource,
-            &candidate.estimate().resource,
-            limits,
-            canceled,
-        );
+        let alignment =
+            Alignment::fit(&reference, &candidate.estimate().resource, limits, canceled);
         log::debug!(
             "done depth_transition_align generation={} source_id={} elapsed_ms={}",
             ticket.generation(),
-            live.source.asset,
+            ticket.key().source.asset,
             began.elapsed().as_millis()
         );
         let alignment = alignment.map_err(|cause| {
@@ -75,16 +124,21 @@ impl Admission {
             // explicit refusal, rather than permission to install raw output.
             if !matches!(cause, Rejection::Canceled) {
                 log::warn!("operation=depth_transition_align generation={} source_id={} elapsed_ms={} cause={cause}",
-                    ticket.generation(), live.source.asset, began.elapsed().as_millis());
+                    ticket.generation(), ticket.key().source.asset, began.elapsed().as_millis());
             }
             Error::Alignment(cause)
         })?;
-        Ok(Some(Self {
-            ticket: ticket.clone(),
-            reference: reference.estimate().resource.clone(),
+        candidate.estimate.costs.alignment = began.elapsed();
+        Ok(Self {
+            ticket,
+            reference,
             candidate,
             alignment,
-        }))
+        })
+    }
+
+    pub(crate) fn finish_worker_costs(&mut self, total: Duration) {
+        self.candidate.estimate.costs.total = total;
     }
 
     pub fn statistics(&self) -> Statistics {
