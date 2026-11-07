@@ -1,0 +1,225 @@
+{
+  "status": "all69_named_alignment_admission_passes_and_exact_head_workflow_verified",
+  "sourceCommit": "369a4e7de1aa30b54837fb0d69eed8f5f083136a",
+  "run": 42320228605,
+  "observedUtc": "2026-11-07T02:21:23.512202+00:00",
+  "archive": "depth75-admission-ci-three-platforms-v1.zip",
+  "bytes": 367501,
+  "sha256": "09f36215834c4fa9e8770c63ab2b3c219e8beef1bfcc877c689633fe8ca6df24",
+  "collectors": [
+    {
+      "platform": "linux",
+      "jobs": {
+        "ubuntu": {
+          "job": 128242724849,
+          "bytes": 525255,
+          "sha256": "95ef93e84f62122675b8678c2f26c111ef96756ef05a4edde8f0ce5229212584",
+          "downloadExit": 0,
+          "url": "https://github.com/MAD-Producer/Kilonova/actions/runs/42320228605/job/128242724849"
+        }
+      },
+      "namedPasses": 23
+    },
+    {
+      "platform": "macos",
+      "jobs": {
+        "macos-intel": {
+          "job": 128242724441,
+          "bytes": 513362,
+          "sha256": "a6412a8398f3776325e0fe995ba3feaab031a8c1d9f4d49829395d1cd7ca91f5",
+          "downloadExit": 0,
+          "url": "https://github.com/MAD-Producer/Kilonova/actions/runs/42320228605/job/128242724441"
+        }
+      },
+      "namedPasses": 23
+    },
+    {
+      "platform": "windows",
+      "jobs": {
+        "windows": {
+          "job": 128242724899,
+          "bytes": 534258,
+          "sha256": "6a4f7a6dc077ffc59c8fe40c461192d006fc6c38784979086490fa0cef6f7ba2",
+          "downloadExit": 0,
+          "url": "https://github.com/MAD-Producer/Kilonova/actions/runs/42320228605/job/128242724899"
+        }
+      },
+      "namedPasses": 23
+    }
+  ],
+  "workflowJobs": [
+    {
+      "id": 128242724441,
+      "name": "Desktop tests (macos-15-intel, macos-x86_64, motion-studio, x86_64-apple-darwin)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128242724839,
+      "name": "Rust and GPU",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128242724849,
+      "name": "Desktop tests (ubuntu-24.04, linux-x86_64, motion-studio, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128242724889,
+      "name": "Dependency audit",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128242724899,
+      "name": "Desktop tests (windows-2022, windows-x86_64, motion-studio.exe, x86_64-pc-windows-msvc)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128242726180,
+      "name": "Desktop libav backend",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 128268469394,
+      "name": "Desktop build (macos-15-intel, macos-x86_64, motion-studio, x86_64-apple-darwin)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128268469413,
+      "name": "Desktop build (windows-2022, windows-x86_64, motion-studio.exe, x86_64-pc-windows-msvc)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128268469466,
+      "name": "Desktop build (ubuntu-24.04, linux-x86_64, motion-studio, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 128269911179,
+      "name": "Publish desktop release",
+      "status": "completed",
+      "conclusion": "skipped"
+    }
+  ],
+  "members": [
+    {
+      "path": "linux/controller.py",
+      "bytes": 4728,
+      "sha256": "9a65589789a94637054d59abc9016b8988a42a98049eca7e5cb8a50315c87155"
+    },
+    {
+      "path": "linux/receipt.json",
+      "bytes": 7236,
+      "sha256": "f94a03036843ca6b07f5ac2694549d02bbe1678b0ec2960ae1eebeec70116a64"
+    },
+    {
+      "path": "linux/session-consumed.json",
+      "bytes": 97,
+      "sha256": "5c316bf9aeeeb379af84de02ccd4156f2283c5d3ef9fd6dedd7b40e6d2322526"
+    },
+    {
+      "path": "linux/ubuntu.download.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/ubuntu.job.json",
+      "bytes": 5898,
+      "sha256": "430270e7733cb41afb2b39efd38ef1a4afd35bd01a36f411812240ece6178328"
+    },
+    {
+      "path": "linux/ubuntu.log",
+      "bytes": 525255,
+      "sha256": "95ef93e84f62122675b8678c2f26c111ef96756ef05a4edde8f0ce5229212584"
+    },
+    {
+      "path": "macos/controller.py",
+      "bytes": 4728,
+      "sha256": "9a65589789a94637054d59abc9016b8988a42a98049eca7e5cb8a50315c87155"
+    },
+    {
+      "path": "macos/macos-intel.download.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "macos/macos-intel.job.json",
+      "bytes": 5897,
+      "sha256": "eb5e04eb0b53885e427bbd73d41256995daca9e58dc7f39e21ad35cc814d08c6"
+    },
+    {
+      "path": "macos/macos-intel.log",
+      "bytes": 513362,
+      "sha256": "a6412a8398f3776325e0fe995ba3feaab031a8c1d9f4d49829395d1cd7ca91f5"
+    },
+    {
+      "path": "macos/receipt.json",
+      "bytes": 7361,
+      "sha256": "933bc0b75176d22c52079c23605192e7bf105eaac3b3492270149a83d136e92c"
+    },
+    {
+      "path": "windows/controller.py",
+      "bytes": 4728,
+      "sha256": "9a65589789a94637054d59abc9016b8988a42a98049eca7e5cb8a50315c87155"
+    },
+    {
+      "path": "windows/receipt.json",
+      "bytes": 7263,
+      "sha256": "66f9a6ec4f20ebb5fd0cb2ee8b4881bb06a765466496d6ca4a23f791028373a6"
+    },
+    {
+      "path": "windows/windows.download.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/windows.job.json",
+      "bytes": 5902,
+      "sha256": "9870943ba0d14d6896abb0d14d659168c67a19d02bb2cc009ff389b5a93f2e1d"
+    },
+    {
+      "path": "windows/windows.log",
+      "bytes": 534258,
+      "sha256": "6a4f7a6dc077ffc59c8fe40c461192d006fc6c38784979086490fa0cef6f7ba2"
+    },
+    {
+      "path": "workflow/controller.py",
+      "bytes": 2805,
+      "sha256": "42f8b48a169a736fd85aefb5a6a87b2cd9a59ba46eeabd13cb7bf74223c6b9c9"
+    },
+    {
+      "path": "workflow/receipt.json",
+      "bytes": 452,
+      "sha256": "a4404aed02e753f7274393c9cbe2179f602ce9119a35df7b8845d11aef3b45ac"
+    },
+    {
+      "path": "workflow/terminal-run.json",
+      "bytes": 15100,
+      "sha256": "003b02f7955c23127d96566b38e03dce09ce12712efc1da6aa6d8dae4a5224ff"
+    },
+    {
+      "path": "workflow/terminal-jobs.json",
+      "bytes": 60203,
+      "sha256": "d6999e05341175b34363f28b661db2764a59dfc77e4f4facd4b25152e3323f04"
+    },
+    {
+      "path": "workflow/session-consumed.json",
+      "bytes": 98,
+      "sha256": "9138fb44461201167d542e3e2e608bd67e4d1e0c0209f5964e2cb2a15655f9f3"
+    }
+  ],
+  "limits": [
+    "23 exact named14alignment+9admission passes on each of Linux Windows macOS Intel",
+    "All jobs of this exact369 workflow terminal success or policy skip before a new push; no cancellation or restart",
+    "Later6d71/abf5 actual-worker binding changes are not covered by this old source; native30 proof is separate",
+    "Not model/video accuracy, sustained/thermal or complete local FFmpeg optional-feature regression"
+  ]
+}

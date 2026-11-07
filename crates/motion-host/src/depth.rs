@@ -10,6 +10,9 @@ use motion_model::depth::{
 };
 use sha2::{Digest, Sha256};
 pub(crate) mod image;
+pub mod alignment;
+pub mod transition;
+pub mod routing;
 pub mod onnx;
 pub mod wgsl;
 pub(crate) mod storage;

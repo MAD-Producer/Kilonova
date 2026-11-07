@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "sourceCommitBefore": "7cf9c23c7f090fc640c12e6a9a4a64ef6b25309a",
+  "sourceDelta": {
+    "crates/motion-host/src/depth.rs": "50400652010850cc6e37f00730a0ee84fec21744acff6cdaddb049e9db86b280",
+    "crates/motion-host/src/depth/routing.rs": "560be0e86d0a82388a5ab5ef56bda0c6f269924a6b97b4dab17b54933a317067",
+    "crates/motion-host/tests/depth_routing.rs": "e567d79986521aa7d2a7e09357e8281bea973eb5c6a435809c3dfaafe581a0ae"
+  },
+  "observedUtc": "2026-11-07T06:14:01.222324+00:00",
+  "status": "actual36_native_controls_and_real_two_profile_routes_passed",
+  "nativeNamedPasses": 36,
+  "actualRoutes": [
+    0,
+    1,
+    0
+  ],
+  "refusedRequest": 4,
+  "maxNormalized": 1.1488222992897823e-05,
+  "meanNormalized": 5.787359014061221e-07,
+  "originalNumericalGates": {
+    "maxNormalized": 0.0002,
+    "meanNormalized": 2e-05
+  },
+  "limits": [
+    "Actual qualified source delta over exact7cf; Git commit before includes unchanged alignment/admission/Jobs",
+    "One production worker, two actual hash-bound ONNX CPU profiles, three independent frozen-reference comparisons",
+    "Actual default Info starts observed before outputs; original refusal in file and stderr, one JSON stdout",
+    "No measured quality ranking, WGSL combination, real-video transition, automatic installation/cache/export or thermal claim",
+    "Parent full5002 run is separate exact5fb evidence and does not cover the new router",
+    "No models/weights, RGB/images, scalar tensors, native binaries, symbols or dumps included"
+  ],
+  "members": {
+    "evidence/native36/controller.py": {
+      "bytes": 5683,
+      "sha256": "e6cb1319f469b7a37f33bea871f10ca71a0b04641c23506dfe71c980359cfd1b"
+    },
+    "evidence/native36/receipt.json": {
+      "bytes": 846775,
+      "sha256": "e2a81b31f600a9ec847686a66d2663a0d8083e597cf8e16c708e2dd7c06b29c7"
+    },
+    "evidence/native36/session-consumed.json": {
+      "bytes": 117,
+      "sha256": "67f3f9f1b7600baaf0cdbca930e3d87015532c5ac02e446966dce60bd9506b89"
+    },
+    "evidence/actual-routes/controller.py": {
+      "bytes": 10844,
+      "sha256": "32f31baa71746f9a514cfeca6fb61f640002316c0b526eb805cdd321f48b795c"
+    },
+    "evidence/actual-routes/receipt.json": {
+      "bytes": 859381,
+      "sha256": "6f628ba6b19d073f8af7b7d314dd06d4208e0d2435993abc12e76ab124940434"
+    },
+    "evidence/actual-routes/session-consumed.json": {
+      "bytes": 117,
+      "sha256": "11d7d16a2159448064d98b4e30e58673912a2a04c3a625810ab78ddb0f7b9567"
+    },
+    "evidence/native36/stdout.log": {
+      "bytes": 3255,
+      "sha256": "49c62d5e1fcee3d9e7d34a3dfac237b1a5e506dec9f6a086c43117cd65cb3bbb"
+    },
+    "evidence/native36/stderr.log": {
+      "bytes": 1534,
+      "sha256": "44f8890b271190b773370794fd8be43514739684e5327a5fa7456b2eb603bcf2"
+    },
+    "evidence/actual-routes/metadata.stdout.log": {
+      "bytes": 1558412,
+      "sha256": "f3fbe7d7deef2d02edc2d3102444293ab056c0ae3e56d645504ec68d60d31dc4"
+    },
+    "evidence/actual-routes/metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/actual-routes/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/actual-routes/build.stderr.log": {
+      "bytes": 1779,
+      "sha256": "8921224c444175ee9aed7f3415581f11e3903231ba9955e7a9c01bd056327559"
+    },
+    "evidence/actual-routes/actual.stdout.log": {
+      "bytes": 48,
+      "sha256": "9cc83dee4611f2cdc1c947f66dacfb455925d0d1949f5f85f9b25995f1e2566c"
+    },
+    "evidence/actual-routes/actual.stderr.log": {
+      "bytes": 275,
+      "sha256": "35cd4b3413e04f2d73d915595cc401d83eb821fe5af9c480df666bc5196104d1"
+    },
+    "evidence/actual-routes/request.json": {
+      "bytes": 1470,
+      "sha256": "1bb1dd188880b3b0339540c1af09cf7c363e4ec44ff8aca4c2ac14d6456dac9a"
+    },
+    "evidence/actual-routes/execution/receipt.json": {
+      "bytes": 6331,
+      "sha256": "0aa8735ba30a171814906bebca01ed81b59a28cb30494365ad94a0f9a0ac3508"
+    },
+    "evidence/actual-routes/execution/logs/motion-studio.log": {
+      "bytes": 2141,
+      "sha256": "3b6d810eb837e74cafa9b9fe5f6cdd5c337b23e2daf65f4c2639a1df89a53b0e"
+    },
+    "evidence/restored-runtime/controller.py": {
+      "bytes": 8488,
+      "sha256": "82afe5f21d876ab30aa169f16cb4ff97b6977af692ade2c259587f0191a91d65"
+    },
+    "evidence/restored-runtime/receipt.json": {
+      "bytes": 18193,
+      "sha256": "20bfb1ce7585b7c979394df48a6f5b2b21127206b34b0dd8153651044b7c39dd"
+    },
+    "evidence/restored-runtime/session-consumed.json": {
+      "bytes": 134,
+      "sha256": "cbed98ec343c412fae7f523d7248b3b321d54b86270ba4fb108c1b35bc6cce9c"
+    },
+    "fixture/Cargo.toml": {
+      "bytes": 343,
+      "sha256": "a155b7a3cca13571eac34c71d76d86739d021d3817b837e149a97a323875c732"
+    },
+    "fixture/Cargo.lock": {
+      "bytes": 73402,
+      "sha256": "9651dfd9cdb723b3d1f1aa13f4215bd2e206ff22f79c5317634608adc4dff10a"
+    },
+    "fixture/src/main.rs": {
+      "bytes": 6888,
+      "sha256": "85642ad0701b3be7bba464c51af66784ccdf9ac40a5ed7b6bc6d0b1fcba28bc4"
+    },
+    "source/crates/motion-host/src/depth.rs": {
+      "bytes": 28618,
+      "sha256": "50400652010850cc6e37f00730a0ee84fec21744acff6cdaddb049e9db86b280"
+    },
+    "source/crates/motion-host/src/depth/routing.rs": {
+      "bytes": 2114,
+      "sha256": "560be0e86d0a82388a5ab5ef56bda0c6f269924a6b97b4dab17b54933a317067"
+    },
+    "source/crates/motion-host/tests/depth_routing.rs": {
+      "bytes": 13231,
+      "sha256": "e567d79986521aa7d2a7e09357e8281bea973eb5c6a435809c3dfaafe581a0ae"
+    },
+    "archive-controller.py": {
+      "bytes": 5251,
+      "sha256": "309d8741aa5e18a8bf76825315a20255983d99301fc66147fb79a6a474fd76ed"
+    }
+  },
+  "archive": {
+    "file": "depth75-routed-execution-v1.zip",
+    "bytes": 753161,
+    "sha256": "ad3134ab971acbb70164306c1fbde47afc92810640c6bf7d03eda762ad6732a5",
+    "verifiedMembers": 28
+  }
+}
