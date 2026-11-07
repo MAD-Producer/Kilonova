@@ -109,3 +109,11 @@ loader or a commercial application's binary resources. New OBJ/MTL fixtures,
 comparison geometry and PNG pixels are locally authored numerical test data.
 Wavefront's classic material descriptors remain distinct from glTF PBR, with
 unsupported directives explicitly rejected rather than silently translated.
+
+The bounded Cube parser, CPU lookup, WGSL interpolation and synthetic color
+fixtures are independently authored. OpenColorIO 2.6.0 is an external numerical
+reference only, pinned and credited in ATTRIBUTION.md; its runtime and upstream
+assets are not shipped. Linear/tetrahedral references come from its real CPU
+processor. Nearest references use a separately identified exhaustive grid oracle,
+retaining the actual OCIO output where its CPU processor resolves the hint to
+linear. A LUT does not imply an OCIO configuration, ACES version or display role.
