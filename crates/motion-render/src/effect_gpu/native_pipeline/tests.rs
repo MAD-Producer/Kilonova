@@ -16,6 +16,7 @@ fn worker_native_validation_preserves_original_cause_and_thread_scope_ownership(
         Default::default(),
         uploads.clone(),
         renderer.image_capabilities.clone(),
+        renderer.effect_gpu.builder.registry.clone(),
     )
     .unwrap();
     let mut project = motion_model::Project::new(16, 16, 30, 60).unwrap();

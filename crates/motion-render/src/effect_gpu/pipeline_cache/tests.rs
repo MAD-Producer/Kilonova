@@ -97,6 +97,7 @@ fn native_pipeline_retirement_bounds_and_exact_static_proof() {
         Default::default(),
         uploads.clone(),
         renderer.image_capabilities.clone(),
+        renderer.effect_gpu.builder.registry.clone(),
     )
     .unwrap();
     let package = motion_effects::builtin::package().unwrap();

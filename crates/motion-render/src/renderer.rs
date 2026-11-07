@@ -50,6 +50,8 @@ mod plane_sampling_tests;
 #[cfg(test)]
 mod image_trim_tests;
 #[cfg(test)]
+mod initial_registry_tests;
+#[cfg(test)]
 mod admission_tests;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 fn cached_image_descriptor(width: u32, height: u32) -> wgpu::TextureDescriptor<'static> {
@@ -382,7 +384,7 @@ impl Renderer {
         timestamps: bool,
         allocation_budget: crate::AllocationBudget,
     ) -> Result<Self> {
-        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, false).await
+        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, false, None).await
     }
     /// Hosts offering live project precision changes enable the optional
     /// supported working-format features up front. Unsupported modes still fail
@@ -394,7 +396,22 @@ impl Renderer {
         timestamps: bool,
         allocation_budget: crate::AllocationBudget,
     ) -> Result<Self> {
-        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, true).await
+        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, true, None).await
+    }
+    /// Construct with exactly the supplied packages, without initializing the
+    /// SDK's archived builtin catalogue. A session host may supply an empty
+    /// registry here and install its validated registry before the first draw.
+    /// The other constructors retain their explicit SDK catalogue behavior.
+    pub async fn new_profiled_with_precision_changes_and_registry(
+        instance: &wgpu::Instance,
+        surface: Option<&wgpu::Surface<'_>>,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
+        registry: motion_effects::Registry,
+    ) -> Result<Self> {
+        Self::new_profiled_with_options(instance, surface, format, timestamps,
+            allocation_budget, true, Some(registry)).await
     }
     async fn new_profiled_with_options(
         instance: &wgpu::Instance,
@@ -403,6 +420,7 @@ impl Renderer {
         timestamps: bool,
         allocation_budget: crate::AllocationBudget,
         precision_changes: bool,
+        registry: Option<motion_effects::Registry>,
     ) -> Result<Self> {
         let precision = crate::image_formats::color_precision(format)
             .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
@@ -560,7 +578,10 @@ impl Renderer {
         });
         let mut effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
             allocation_budget.clone(), allocation_uploads.clone(),
-            image_capabilities.clone())?;
+            image_capabilities.clone(), match registry {
+                Some(registry) => registry,
+                None => motion_effects::Registry::new_with_builtins().map_err(RenderError::from)?,
+            })?;
         let driver_pipeline_cache = crate::driver_pipeline_cache::DriverPipelineCache::new(&device, &adapter_info)?;
         effect_gpu.state.driver_pipeline_cache = driver_pipeline_cache.cache.clone();
         effect_gpu.builder.set_precision(precision);

@@ -8,7 +8,7 @@ fn sdk_instances_are_lazy_bounded_and_refused_growth_preserves_the_old_allocatio
     let uploads = std::sync::Arc::new(crate::allocation_uploads::AllocationUploads::new(renderer.queue.clone()));
     let layout = bindings(&renderer.device, "instance admission fixture", 1);
     let mut effect = EffectGpu::new(&renderer.device, &renderer.queue, &layout, budget.clone(), uploads.clone(),
-        renderer.image_capabilities.clone()).unwrap();
+        renderer.image_capabilities.clone(), renderer.effect_gpu.builder.registry.clone()).unwrap();
     assert!(effect.state.sprite_buffer.is_none());
     assert_eq!(budget.info().unwrap().admitted_bytes, 1028);
     effect.state.upload_instances(&renderer.device, &renderer.queue, &[]).unwrap();

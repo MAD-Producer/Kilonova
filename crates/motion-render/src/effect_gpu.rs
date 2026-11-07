@@ -220,6 +220,7 @@ impl EffectGpu {
         allocation_budget: crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
         format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
+        registry: Registry,
     ) -> Result<Self, RenderError> {
         let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("effect SDK uniform"),
@@ -247,9 +248,7 @@ impl EffectGpu {
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        let mut builder = PlanBuilder::new(
-            Registry::new_with_builtins().map_err(RenderError::from)?,
-        )?;
+        let mut builder = PlanBuilder::new(registry)?;
         builder.set_alpha(0, 1, 1, &[255; 4])?;
         let white = admitted_texture(
             device,
