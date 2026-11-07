@@ -1,0 +1,164 @@
+{
+  "status": "all90_named_alignment_admission_worker_passes_and_exact_head_workflow_verified",
+  "sourceCommit": "a86e8ffae58b175b313cd11c12e6412c7a39f7c0",
+  "run": 42328873218,
+  "observedUtc": "2026-11-07T03:39:45.221952+00:00",
+  "collectors": [
+    {
+      "platform": "linux",
+      "namedPasses": 30,
+      "jobs": {
+        "linux": {
+          "job": 128270500028,
+          "bytes": 526292,
+          "sha256": "7921751e520dfc22046ff7ee8a03045d09a48a9492fe07451a6d76f5a8b6d19b",
+          "downloadExit": 0,
+          "url": "https://github.com/MAD-Producer/Kilonova/actions/runs/42328873218/job/128270500028"
+        }
+      }
+    },
+    {
+      "platform": "macos",
+      "namedPasses": 30,
+      "jobs": {
+        "macos-intel": {
+          "job": 128270500052,
+          "bytes": 515341,
+          "sha256": "e7cd2757f51550440abbcf388d460e7e08b0f0958e9afd40502206b8a1624c48",
+          "downloadExit": 0,
+          "url": "https://github.com/MAD-Producer/Kilonova/actions/runs/42328873218/job/128270500052"
+        }
+      }
+    },
+    {
+      "platform": "windows",
+      "namedPasses": 30,
+      "jobs": {
+        "windows": {
+          "job": 128270500010,
+          "bytes": 535335,
+          "sha256": "39687a191ab1bc0689d00cea2349335a7f9e00e2f872f8154d56d1fa93592032",
+          "downloadExit": 0,
+          "url": "https://github.com/MAD-Producer/Kilonova/actions/runs/42328873218/job/128270500010"
+        }
+      }
+    }
+  ],
+  "limits": [
+    "14 alignment +9 admission +7 actual Jobs controls in each maintained desktop test job",
+    "Exact later worker-binding source; earlier369 CI is retained separately",
+    "CI is not the integrated local full-feature command or real-model video/thermal qualification"
+  ],
+  "members": {
+    "workflow.json": {
+      "bytes": 14895,
+      "sha256": "83ee3d51dadedf4d2e5852624dc7f9a1cd9914ae2643da46e2823a9a710a54ab"
+    },
+    "jobs.json": {
+      "bytes": 58559,
+      "sha256": "7df2ae705024b46e9f64036880724727f0760b278cbfdf6d7eb3d1db74068d21"
+    },
+    "archive-controller.py": {
+      "bytes": 4065,
+      "sha256": "073546227d808d70129050b457fb2a1cd5d20834479518fbb735f848ad50a63f"
+    },
+    "linux/controller.py": {
+      "bytes": 4728,
+      "sha256": "9a65589789a94637054d59abc9016b8988a42a98049eca7e5cb8a50315c87155"
+    },
+    "linux/linux.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "linux/linux.job.json": {
+      "bytes": 5898,
+      "sha256": "ebc3e5349f682f209485fc8a021fcef7ecedcc3af192dbd5b4c6cda25736a604"
+    },
+    "linux/linux.log": {
+      "bytes": 526292,
+      "sha256": "7921751e520dfc22046ff7ee8a03045d09a48a9492fe07451a6d76f5a8b6d19b"
+    },
+    "linux/receipt.json": {
+      "bytes": 9195,
+      "sha256": "8d9dec62cce64484bd5c3a16b38080896990fb2890b4a18e470516c6bd92c1c1"
+    },
+    "macos/controller.py": {
+      "bytes": 4728,
+      "sha256": "9a65589789a94637054d59abc9016b8988a42a98049eca7e5cb8a50315c87155"
+    },
+    "macos/macos-intel.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "macos/macos-intel.job.json": {
+      "bytes": 5897,
+      "sha256": "599cc8b5d947961071bc9a72cb65ba3918e0be20ea61b6b86cb9249d0f35a4f9"
+    },
+    "macos/macos-intel.log": {
+      "bytes": 515341,
+      "sha256": "e7cd2757f51550440abbcf388d460e7e08b0f0958e9afd40502206b8a1624c48"
+    },
+    "macos/receipt.json": {
+      "bytes": 9387,
+      "sha256": "5779ed7d4bc2f754d5bc42b0ba314519a6d588a751f3a16d4ddea46625a0d5ee"
+    },
+    "windows/controller.py": {
+      "bytes": 4728,
+      "sha256": "9a65589789a94637054d59abc9016b8988a42a98049eca7e5cb8a50315c87155"
+    },
+    "windows/receipt.json": {
+      "bytes": 9261,
+      "sha256": "8cde295a821990c917bbcb662d262f8ef1b107fa74550a53c7185c2915073bd8"
+    },
+    "windows/windows.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "windows/windows.job.json": {
+      "bytes": 5902,
+      "sha256": "b586d54053fd6b0437c72362fe42f0cf92a3c0a17c9192d8e15481c40dc7cf00"
+    },
+    "windows/windows.log": {
+      "bytes": 535335,
+      "sha256": "39687a191ab1bc0689d00cea2349335a7f9e00e2f872f8154d56d1fa93592032"
+    },
+    "source/crates/motion-host/src/depth.rs": {
+      "bytes": 28601,
+      "sha256": "f0903f7ea344c707ef95d38b6ac500eeaadabd3a1a7f995f5c692aabf1b20635"
+    },
+    "source/crates/motion-host/src/depth/alignment.rs": {
+      "bytes": 13145,
+      "sha256": "9a8ce3a828dff3eb6d8056f53a7f9f59849281421b38b80745a1657a4357ac3b"
+    },
+    "source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 12887,
+      "sha256": "0d59cd95078106460d20293371e0c21d7664f5a12e040f1b1a10656d713d2524"
+    },
+    "source/crates/motion-host/tests/depth_alignment.rs": {
+      "bytes": 11854,
+      "sha256": "7a50381097148e1c98057eb51a7a5d918661a82aa416078cd8a7a3a183f3b180"
+    },
+    "source/crates/motion-host/tests/depth_transition.rs": {
+      "bytes": 12233,
+      "sha256": "b26cc93e075237202e1b512f404b647803c49bc5e714fc51f24b978038e39245"
+    },
+    "source/crates/motion-host/tests/depth_transition_jobs.rs": {
+      "bytes": 12316,
+      "sha256": "68313af8a38291168c6aab88bb2bfc8d6b7e32a40613de4b73db2fcaf6da1ab9"
+    },
+    "source/crates/motion-host/Cargo.toml": {
+      "bytes": 1597,
+      "sha256": "186591924cce5ec34ff559c1a424f41e98fefe88ff5b776d51566c466354d9ce"
+    },
+    "source/Cargo.lock": {
+      "bytes": 147434,
+      "sha256": "3afab6b8209104c68a44664866100237ac09a0feae0363409abb0581b9a76311"
+    }
+  },
+  "archive": {
+    "file": "depth75-worker-binding-ci-three-platforms-v1.zip",
+    "bytes": 430761,
+    "sha256": "6ed3fc3eb481091ddd88b35e3a81bfd43e6026be72c7495fc108d42fbc4a6a04",
+    "verifiedMembers": 27
+  }
+}

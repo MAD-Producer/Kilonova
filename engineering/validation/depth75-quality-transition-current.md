@@ -154,7 +154,8 @@ new identity. Its original failed locked-build attempt is not relabeled a pass.
 The file probe qualifies parent `5fb253a4`, while the native30 run qualifies
 `abf5d351`; neither result substitutes for the other, cross-platform qualification
 of the latest helpers, or a full maintained-workspace pass. The full native v6
-command retains ffmpeg and both ai-depth features and is still in progress.
+command retains ffmpeg and both ai-depth features. Its subsequent failure is
+recorded below; this boundary archive did not qualify a full workspace pass.
 Real-model video quality, installation and export policy remain unqualified.
 
 ## Subsequent exact-head admission CI
@@ -170,3 +171,45 @@ No run was canceled or restarted to publish subsequent work.
 This source predates `6d71c47e`/`abf5d351`: the seven actual-Jobs helper controls
 are qualified by the separate native30 record and require the new push's own CI.
 Neither prior green workflow qualifies those later worker-binding changes.
+
+
+## Actual worker-binding CI and subsequent full-run boundary
+
+At `a86e8ffa`, all 30 exact named controls passed in each desktop test job on
+Linux, Windows and macOS Intel: fourteen alignment, nine admission and seven
+actual-Jobs controls per platform. Complete workflow `42328873218` finished
+successfully before this evidence update. The [manifest](data/depth75-worker-binding-ci-three-platforms-v1.json)
+and [archive](data/depth75-worker-binding-ci-three-platforms-v1.zip) retain the
+three raw logs, terminal workflow/jobs, collectors and exact source snapshots.
+All 27 members were read back and verified; the 430,761-byte archive has SHA-256
+`6ed3fc3eb481091ddd88b35e3a81bfd43e6026be72c7495fc108d42fbc4a6a04`.
+Unlike the earlier `369a4e7d` CI, this source includes the seven worker-binding
+controls. It does not establish model quality, automatic selection or thermal
+qualification.
+
+The separate unchanged full-feature native command at parent `5fb253a4` then
+finished with Cargo 101/controller 1: 4,992 passes, one ordinary failure, 78
+original ignores and zero filtering. All 430 source targets started, but only
+429 produced summaries. The original dependency-boundary assertion could not
+run offline metadata because the cleaned registry cache lacked `alsa 0.9.1`.
+Additionally, `nested_exposure` exited with `0xc0000005` before producing a test
+summary. Both failures remain authoritative; this is not a full pass.
+
+The exact lockfile's 563 registry archives have subsequently been SHA-256
+verified, restoring 206 missing archives from the official registry without
+adding dependencies or changing the lock. Restoration alone is not the original
+offline assertion passing. This IO-only restoration occurred after the observed
+cache failure while the original command continued; it did not amend that result.
+
+The unchanged failed native executable separately listed its nine tests and
+passed all nine with uncaptured output. A bounded diagnostic observer then saw
+32 successful startup listings and all nine original assertions passing. This
+observer uses the already installed Windows SDK, records only its owned child,
+and can retain exception context, stacks and minidumps without registry changes.
+A separate intentional hardware fault in an owned toy process verified both
+exception chances, actual dumps/stacks and preservation of the unhandled exit.
+The observer can affect timing: these results do not explain or waive the
+original access violation, establish a shared cause with older failures, or
+replace a fresh complete normal command. Assertions, features, ignores, GPU,
+backend and the original 10 GiB admission remain unchanged. Integrated full
+regression and the real-model/video/capability/cache/export work remain pending.
