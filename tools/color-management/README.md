@@ -43,3 +43,38 @@ JSON 同时保留 `original_file_expected`，不能把这四组结果宣称为 O
 当前没有插件节点、面板导入菜单或工程色彩设置接线。#83 的 OCIO 配置内容身份、
 版本化 ACES、角色解析、输入→工作→显示/输出、缺失配置诊断和移动端实机资格
 仍须后续实现与独立验收，不由本批 Cube 对照替代。
+
+## 显式配置目录准备
+
+使用同一固定外部 OCIO 2.6.0 环境，选择一个明确版本，输出到尚不存在的目录：
+
+```text
+python tools/color-management/export_config.py --builtin cg-config-v5.0.0_aces-v2.1_ocio-v2.6 --output <new-directory>
+```
+
+工具另支持 ACES 1.3 的 `cg-config-v2.2.0_aces-v1.3_ocio-v2.4` 与 ACES 2.0 的
+`cg-config-v4.0.0_aces-v2.0_ocio-v2.5`，没有“最新”别名或自动升级。输出
+`config.ocio` 和 `manifest.json`，配置/运行时版本、编码声明、scene/display
+reference、数据空间、角色及显示/视图目录都来自真实 OCIO；不猜测未声明的
+编码、原色、白点或输入范围。配置正文是这些完整语义的内容依据。
+
+导出在独立单线程进程中，临时排除 OCIO 的全局显示/视图/隐藏空间覆盖，重新
+解析显式序列化正文后恢复原环境。原生库会在创建配置时缓存这些覆盖，仅在
+之后删除变量不足以隔离。这个操作不能嵌入编辑器/宿主线程。显式配置上下文
+变量、FileTransform（包括隐藏空间和未使用命名变换）与处理器外部资源目前
+均明确拒绝；一般用户配置需要后续资源闭包导入，不会漏掉依赖后宣称可移植。
+
+`color_config::ColorConfigManifest::from_json` 及 `VerifiedColorConfig::new`
+验证严格目录结构和完整字节集合，保留不可变正文/资源。内容身份覆盖正文、
+全部外部资源、固定运行时、ACES 来源、上下文和目录，不使用 OCIO cache ID
+代替 SHA-256，不依赖磁盘位置。清单上限 1 MiB、配置 8 MiB、单资源 16 MiB、
+资源 128 个、总内容 64 MiB；传入内容也先限额再哈希。
+
+`ColorSelection` 必须明确配置身份、ACES 版本、输入/工作角色或名称、display/
+view 和输出目标；`resolve` 不选择默认项。缺资源、字节被改动、身份/版本
+不符、缺角色/视图、误将数据空间当颜色都会返回 typed Err。正常资源查询
+未命中仍为 Option，不作为故障。所有目录映射拒绝重复 JSON 名称。
+
+这层验证字节身份及目录引用，信任外部准备器输出的 OCIO 目录；它不是 OCIO
+语法验证器、签名认证或像素处理器。尚未接入工程字段、宿主信道与默认渲染，
+因此不能据此声称已实现完整 OCIO/ACES 工作流或关闭整个 #83。

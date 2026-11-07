@@ -117,3 +117,10 @@ assets are not shipped. Linear/tetrahedral references come from its real CPU
 processor. Nearest references use a separately identified exhaustive grid oracle,
 retaining the actual OCIO output where its CPU processor resolves the hint to
 linear. A LUT does not imply an OCIO configuration, ACES version or display role.
+
+The OCIO catalogue preparation tool uses the same separately installed official
+runtime to export explicitly versioned built-in configuration bytes and metadata.
+Its output remains an explicit external preparation artifact, not a bundled
+configuration or automatic project default. Content verification and catalogue
+selection are independently authored. They do not parse OCIO syntax, compile
+processors or qualify the application's complete display/output chain.

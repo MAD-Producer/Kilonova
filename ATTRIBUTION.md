@@ -377,6 +377,13 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 
 ## OpenColorIO 数值参考工具（仅开发验收）
 
+后续配置目录导出同样使用该固定外部运行时，显式选择 CG 配置
+`cg-config-v2.2.0_aces-v1.3_ocio-v2.4`、
+`cg-config-v4.0.0_aces-v2.0_ocio-v2.5` 或
+`cg-config-v5.0.0_aces-v2.1_ocio-v2.6`。原生配置与目录仅在显式的本地
+导出/验收目录生成，不作为产品资产或工程默认配置提交。内容身份、目录验证、
+选择解析及故障夹具由本项目独立编写；不复制 OCIO 实现代码。
+
 作者：Contributors to the OpenColorIO Project。来源：
 https://github.com/AcademySoftwareFoundation/OpenColorIO ，官方 Python 包
 https://pypi.org/project/opencolorio/2.6.0/ ，固定发行版本 v2.6.0。
