@@ -22,6 +22,8 @@ mod image_capture;
 pub use image_capture::{CapturedImage, ImageCaptureTarget};
 mod color_output;
 mod color_lut;
+mod color_processor;
+pub use color_processor::{ColorProcessorOutput, NativeColorProcessorError};
 pub use color_lut::{LutOutput, NativeLutError};
 mod lens_output;
 pub use lens_output::LensOutputPipeline;

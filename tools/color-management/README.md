@@ -113,3 +113,28 @@ WGSL、Float32 RGBA 数值表及完整处理器身份。输入 JSON 最大 16 Mi
 它不是任意着色器的语义认证器。测试夹具覆盖三个明确 ACES 版本、三个阶段和
 透明度组合，并另验非中心表坐标。实际应用的纹理准入、准备信道、工程设置、
 解码及 OS 显示链尚未接线，本批不能被表述为完整 #83 已实现或 HDR 显示已支持。
+
+
+## 直接 Float32 图片处理
+
+`ColorProcessorSource::compile_image(config, selection)` 使用同一原生 OCIO
+程序、数值表和透明度策略，生成独立验证的 fragment/vertex WGSL。已有 compute
+接口与长度守卫保留。片元按实际二维像素位置 `textureLoad`，不依赖 Float32
+过滤，不为每帧建立整图中间 buffer，也不在 encode 内读回 CPU。
+
+`motion_render::ColorProcessorOutput::new(renderer, source, processor, output)`
+建立不可变的源纹理绑定、管线和预算准入后的数值表。源和输出必须为颜色、
+Float32 且 alpha 与已准备程序完全一致；数据、深度、法线和覆盖率应走原有
+数值路径。本接口明确拒绝其他精度，不通过隐式裁剪掩盖 half-float 溢出。
+`ImageContract` 中历史 Linear/sRGB 标签不能替代完整 OCIO 空间：调用方仍须
+保证图片值属于编译时明确选择的空间，本批没有新增工程/资产的完整空间标记。
+
+每帧复用该绑定，经原有 `AllocationEncoder` 调用 `encode`，目标必须等大、
+与源分离且声明匹配。提交仍走 `Renderer::submit_allocated`，合并绑定与目标
+的 texture ledger。没有输出编码、tone map、缩放或自动显示传递。数值表预算
+在创建前准入；未提交和在途命令保留相应容量，放弃或完成后才释放。
+
+GPU 创建失败返回 `RenderError::ColorProcessorPipeline`，原始 wgpu cause、
+相关错误、poll 和可能的首要预算错误分别保留。外层文字仅包含阶段、短身份
+和错误种类，不展示整段 shader。宿主命令、开始/在途状态和默认日志/错误信道
+尚未接线，不能把这些库级返回值描述为应用错误提示已完成。
