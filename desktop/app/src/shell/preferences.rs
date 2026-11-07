@@ -166,7 +166,8 @@ impl Shell {
                 sheet.base_font_size(),
                 values.locale == Locale::Zh,
             )
-            .map_err(|error| format!("preferences phase=font cause={error}"))?;
+            .map_err(|error| motion_host::Error::with_context(
+                "preferences phase=font", motion_host::Error::from_source(error)))?;
             atlas.set_pixel_ratio(self.scale);
             Some((sheet, atlas))
         } else {

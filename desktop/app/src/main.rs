@@ -402,7 +402,7 @@ struct FloatWindow {
 }
 
 impl Shell {
-    fn new(root: PathBuf, smoke: Option<PathBuf>, locale: Option<Locale>) -> Result<Self, String> {
+    fn new(root: PathBuf, smoke: Option<PathBuf>, locale: Option<Locale>) -> Result<Self, engine::Error> {
         #[cfg(test)]
         let test_preferences = tempfile::tempdir()
             .map_err(|error| format!("create test preferences directory: {error}"))?;

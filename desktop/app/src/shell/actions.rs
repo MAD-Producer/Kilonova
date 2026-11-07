@@ -566,7 +566,7 @@ impl Shell {
                     sheet.font_family(),
                     sheet.base_font_size(),
                     locale == Locale::Zh,
-                )?;
+                ).map_err(engine::Error::from)?;
                 self.atlas.set_pixel_ratio(self.scale);
                 self.workspace.locale = locale;
                 self.panels.locale = locale;

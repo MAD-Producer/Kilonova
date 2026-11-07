@@ -11,6 +11,8 @@ mod fitting;
 mod formatting;
 mod fallback;
 pub use fallback::FallbackError;
+mod font_error;
+pub use font_error::{FontCause, FontError, FontPhase};
 pub use fitting::FittedLine;
 
 struct SharedFontBytes(FontArc);
@@ -19,9 +21,9 @@ impl AsRef<[u8]> for SharedFontBytes {
         self.0.font_data()
     }
 }
-fn shaper_for(font: &FontArc, index: u32) -> Result<shaping::RunShaper, String> {
+fn shaper_for(font: &FontArc, index: u32) -> Result<shaping::RunShaper, FontError> {
     shaping::RunShaper::from_source(std::sync::Arc::new(SharedFontBytes(font.clone())), index)
-        .map_err(|cause| cause.to_string())
+        .map_err(FontError::from)
 }
 // Fits the minimum texture dimension supported by the desktop's downlevel
 // devices. RGBA coverage is bounded to 16 MiB on both CPU and GPU.
@@ -112,7 +114,7 @@ pub struct TextAtlas {
 
 impl TextAtlas {
     /// Build an atlas from the system UI font at `scale` logical pixels.
-    pub fn from_system(scale: f32) -> Result<Self, String> {
+    pub fn from_system(scale: f32) -> Result<Self, FontError> {
         let (font, families, family, index) = load_system_font(false)?;
         let mut atlas = Self::new(font, index, scale, families)?;
         atlas.configure_family(family);
@@ -120,10 +122,10 @@ impl TextAtlas {
         Ok(atlas)
     }
 
-    pub fn from_system_language(scale: f32, chinese: bool) -> Result<Self, String> {
+    pub fn from_system_language(scale: f32, chinese: bool) -> Result<Self, FontError> {
         Self::from_family("system-ui", scale, chinese)
     }
-    pub fn from_family(family: &str, scale: f32, chinese: bool) -> Result<Self, String> {
+    pub fn from_family(family: &str, scale: f32, chinese: bool) -> Result<Self, FontError> {
         let (font, families, selected, index) = load_preferred_font(chinese, Some(family))?;
         let mut atlas = Self::new(font, index, scale, families)?;
         atlas.configure_family(selected);
@@ -188,7 +190,7 @@ impl TextAtlas {
         face_index: u32,
         scale: f32,
         families: Vec<String>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, FontError> {
         let shaper = shaper_for(&font, face_index)?;
         let font = PxScaleFont {
             scale: em_scale(&font, scale),
@@ -577,13 +579,13 @@ fn em_scale(font: &FontArc, pixels: f32) -> PxScale {
 }
 
 /// Prefer a platform UI face, then fall back to any installed font.
-fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>, String, u32), String> {
+fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>, String, u32), FontError> {
     load_preferred_font(chinese, None)
 }
 fn load_preferred_font(
     chinese: bool,
     family: Option<&str>,
-) -> Result<(FontArc, Vec<String>, String, u32), String> {
+) -> Result<(FontArc, Vec<String>, String, u32), FontError> {
     let catalog = fallback::system_catalog();
     let database = &catalog.database;
     let families: Vec<String> = database
@@ -636,38 +638,70 @@ fn load_preferred_font(
             .map(|face| face.id),
     );
     candidates.extend(database.faces().map(|face| face.id));
-    let prefer_chinese = chinese && family.is_none_or(|name| name == "system-ui");
-    if let Some((font, family, index)) = select_candidate(&database, candidates, prefer_chinese) {
-        return Ok((font, families, family, index));
-    }
-    Err("no usable system font was found".into())
+    select_preferred(&catalog, candidates, chinese, family, families)
 }
 
+fn select_preferred(
+    catalog: &fallback::Catalog,
+    candidates: impl IntoIterator<Item = fontdb::ID>,
+    chinese: bool,
+    family: Option<&str>,
+    families: Vec<String>,
+) -> Result<(FontArc, Vec<String>, String, u32), FontError> {
+    let began = std::time::Instant::now();
+    let prefer_chinese = chinese && family.is_none_or(|name| name == "system-ui");
+    let selection = select_candidate(&catalog.database, candidates, prefer_chinese);
+    if let Some(error) = &selection.first_failure {
+        catalog.selection_failures.failure(error, selection.rejected, began.elapsed());
+    } else {
+        catalog.selection_failures.success();
+    }
+    if let Some((font, selected, index)) = selection.selected {
+        return Ok((font, families, selected, index));
+    }
+    Err(FontError::NoUsableFont {
+        requested: family.map(|name| name.chars().take(128).collect()),
+        prefer_chinese,
+        attempted: selection.attempted,
+        first_failure: selection.first_failure.map(Box::new),
+    })
+}
+
+struct Selection {
+    selected: Option<(FontArc, String, u32)>,
+    first_failure: Option<FontError>,
+    rejected: usize,
+    attempted: usize,
+}
 fn select_candidate(
     database: &fontdb::Database,
     candidates: impl IntoIterator<Item = fontdb::ID>,
     prefer_chinese: bool,
-) -> Option<(FontArc, String, u32)> {
+) -> Selection {
+    let mut result = Selection { selected: None, first_failure: None, rejected: 0, attempted: 0 };
     let mut fallback = None;
     for id in candidates {
-        let font = database.with_face_data(id, |data, index| {
-            ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), index)
-                .map(|font| (FontArc::new(font), index))
-        });
-        if let Some(Ok((font, index))) = font {
-            let family = database
-                .face(id)
-                .and_then(|f| f.families.first())
-                .map(|f| f.0.clone())
-                .unwrap_or_else(|| "unknown".into());
-            if prefer_chinese && font.glyph_id('中').0 == 0 {
-                fallback.get_or_insert((font, family, index));
-                continue;
+        result.attempted = result.attempted.saturating_add(1);
+        let Some(face) = database.face(id) else { continue; };
+        match font_error::candidate(face) {
+            Ok(font) => {
+                let index = face.index;
+                let family = face.families.first().map(|f| f.0.clone()).unwrap_or_else(|| "unknown".into());
+                if prefer_chinese && font.glyph_id('中').0 == 0 {
+                    fallback.get_or_insert((font, family, index));
+                    continue;
+                }
+                result.selected = Some((font, family, index));
+                return result;
             }
-            return Some((font, family, index));
+            Err(error) => {
+                result.rejected = result.rejected.saturating_add(1);
+                result.first_failure.get_or_insert(error);
+            }
         }
     }
-    fallback
+    result.selected = fallback;
+    result
 }
 
 #[cfg(test)]

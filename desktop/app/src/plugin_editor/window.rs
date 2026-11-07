@@ -89,7 +89,7 @@ fn prepare_window(
     source: &Path,
     zh: bool,
     author_mode: bool,
-) -> Result<(App, std::thread::JoinHandle<()>), String> {
+) -> Result<(App, std::thread::JoinHandle<()>), crate::engine::Error> {
     let scratch = Scratch::new()?;
     let engine = Engine::start(
         scratch.0.clone(),
