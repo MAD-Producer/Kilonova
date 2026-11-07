@@ -50,6 +50,19 @@ sprite、additive 与目标格式。包 hash 参与注册表解析，改变包�
 
 ## 原始证据与失败处置
 
+- 同步主线 `87a2b295` 后，Vulkan 完整 `motion-render --lib --features gpu-tests`
+  共 340 项通过、0 失败、0 忽略，用例执行 120.37 秒。
+- 同份源码在 DX12 上运行新增用例通过；Vulkan 实际 load=restored，DX12
+  实际 load=unsupported。两端均验证 3 份完整 16×16 RGBA，前台创建计数为 0。
+- 负对照仅移除 `KnownPipeline::matches` 中的 WGSL 等值条件，保持新测试与
+  其余生产代码不变。新增用例确实在“新源码误用旧管线”断言失败；finally
+  恢复生产文件的完整原始字节并核对 SHA-256，随后在两端及完整回归中通过。
+- 两轮最终正测前后全部 Rust/TOML/WGSL/Cargo 输入摘要一致；负对照源码
+  与正测差异也单独核验。新增文件 rustfmt 与 diff whitespace 检查通过。
+
+DX12 的 1 项是上述 340 项中的重复用例，不计作 341 个不同测试。
+本批仅新增测试和文档，没有对现有用例放宽断言。
+
 原始命令、stdout/stderr、每轮源码摘要、设备及 RGBA 位于
 `artifacts/issue-goal-current/pipeline-cache-invalidation/`。最初新夹具误用了
 Registry 的键类型、遗漏 AllocationBudget 参数；随后误用浮点 PNG 捕获接口。
