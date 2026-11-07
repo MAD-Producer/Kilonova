@@ -110,6 +110,20 @@ fixtures, original stdout/stderr and consumed terminal records. All44 members
 were read back:680,418 bytes, SHA-256
 `d1ecaca3e0a187d1cb2808d8e8bc0e6448475da986f80a4fe323e7efce14a4f0`.
 
+After fetching main, both local commits were rebased without conflicts onto
+`adf52931`. The seven selected worker/probe source files retained their exact
+qualified bytes. The same complete host command was then executed at rebased
+`878e1c30`:443 passed,0 failed,0 ignored,0 filtered; all28 integration targets
+and all30 summaries were accounted for, including the unchanged48 controls.
+The actual terminal was consumed with exit0 and every observed tracked file
+remained unchanged. This covers host regression on that main baseline; it does
+not replace desktop/UI or complete-workspace qualification of main's changes.
+The [post-rebase manifest](data/depth75-worker-rebased-host-v1.json) and
+[archive](data/depth75-worker-rebased-host-v1.zip) retain the actual command,
+complete tracked-file identity, selected source, original stdout/stderr and
+consumed terminal. All14 members were read back:333,632 bytes, SHA-256
+`8eed9110d2581ae06668f1b62b62ae52ffe4d23166fa23aed91ef8ba1a1184c6`.
+
 Cross-platform CI for the preceding committed `522bd1ca` is separately tracked
 by run42354329634. Linux completed successfully at the last verified response;
 the workflow was still in progress at the verified08:45:39Z response. Earlier
