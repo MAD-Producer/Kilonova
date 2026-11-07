@@ -32,6 +32,7 @@ mod frame_capture;
 mod movie_freeze;
 mod frame_allocation;
 mod frame_completion;
+mod preparation_progress;
 mod viewer_inspection;
 pub(crate) mod viewer_input;
 pub(crate) mod viewer_frame;
@@ -865,6 +866,7 @@ impl Engine {
                     let _ = ready.send(Err(error.into()));
                     return;
                 }
+                let worker_preparation = preparation.clone();
                 if ready.send(Ok((id, allocation_budget.clone(), preparation))).is_err() {
                     log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
@@ -900,13 +902,31 @@ impl Engine {
                         channel_closed = false;
                         break;
                     }
+                    // A failed capture or a chrome-only frame need not retain a
+                    // frame continuation. Still collect the already running task
+                    // on its owner; otherwise its UI observation can stay busy.
+                    if frame_completions.is_empty() && worker_preparation.preparing() {
+                        if let Err(primary) = motion_host::ops::catch_panic(|| preparation_progress::advance(id))
+                            .map_err(Error::from).and_then(|result| result) {
+                            channel_closed = false;
+                            log::error!("pipeline preparation owner stopped session={id} cause={}",
+                                crate::fallback_observation::error_cause(&primary));
+                            static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                            crate::fallback_observation::recovered(&worker_failure, &FAILURES,
+                                "engine.preparation.failure", |value| *value = Some(primary.clone()));
+                            completion_failure = Some(primary);
+                            break;
+                        }
+                    }
                     let (QueuedCommand {command,queued,request,context}, resumed) =
                         if let Some(pending) = frame_completions.take_due() {
                             let frame_completion::Pending { command, meta, stamp, waiting } = pending;
                             (QueuedCommand { command, queued: meta.queued, request: meta.flight.request,
                                 context: meta.context }, Some((stamp, waiting, meta.flight)))
                         } else {
-                            let received = if let Some(delay) = frame_completions.delay() {
+                            let delay = frame_completions.delay().or_else(||
+                                worker_preparation.preparing().then_some(preparation_progress::POLL_INTERVAL));
+                            let received = if let Some(delay) = delay {
                                 match receiver.recv_timeout(delay) {
                                     Ok(command) => Some(command),
                                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,

@@ -98,6 +98,9 @@ impl Shell {
     }
     pub(crate) fn finish_exposure_present(&mut self, window:u64, result:&Result<bool,crate::engine::Error>) {
         if !matches!(result,Ok(false)) { self.exposure_presentations.remove(&window); }
+        // A terminal error is not an unfinished frame. Keep explicit input and
+        // error chrome responsive without scheduling the same failure forever.
+        if result.is_err() { self.pending = false; }
     }
     pub(crate) fn presentation_pending(&self) -> bool {
         self.pending || !self.exposure_presentations.is_empty()
@@ -1099,8 +1102,10 @@ mod playback_tests {
             assert!(!shell.presentation_pending());
         }
         shell.track_exposure_present(9,true);
+        shell.pending = true;
         shell.finish_exposure_present(9,&Err("controlled failure".into()));
         assert!(shell.exposure_presentations.is_empty());
+        assert!(!shell.presentation_pending(), "a terminal failure must stop automatic redraws, including a previously pending ordinary frame");
         shell.track_exposure_present(9,true);
         shell.track_exposure_present(9,false); // Composition was hidden or redocked.
         assert!(shell.playback_ready(Instant::now()));
