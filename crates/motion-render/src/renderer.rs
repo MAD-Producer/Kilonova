@@ -85,6 +85,8 @@ fn restore_effect_snapshot(encoder: &mut wgpu::CommandEncoder, source: &wgpu::Te
 #[cfg(test)]
 mod scratch_reuse_tests;
 #[cfg(test)]
+mod attachment_policy_tests;
+#[cfg(test)]
 mod vector_planning_tests;
 #[cfg(test)]
 mod scene_asset_storage_tests;
@@ -860,6 +862,11 @@ impl Renderer {
             self.pipeline_preparation.counts.created.load(std::sync::atomic::Ordering::Relaxed))
     }
     pub fn effect_pipeline_cache_info(&self) -> crate::EffectPipelineCacheInfo { self.effect_gpu.state.pipeline_cache_info() }
+    /// Explicit diagnostic snapshot of attachment coverage and consumers. This
+    /// is not sampled automatically during rendering and does not change ops.
+    pub fn effect_attachment_intents(&self) -> Result<Vec<crate::effect_plan::EffectAttachmentIntent>> {
+        self.effect_gpu.builder.attachment_intents()
+    }
     pub fn driver_pipeline_cache_info(&self) -> crate::DriverPipelineCacheInfo {
         self.driver_pipeline_cache.info(self.effect_gpu.state.driver_cached_pipeline_creations.saturating_add(
             self.pipeline_preparation.counts.driver_cached.load(std::sync::atomic::Ordering::Relaxed)))
