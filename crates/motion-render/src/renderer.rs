@@ -102,6 +102,10 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
+    #[error("GPU validation: {0}")]
+    ScratchGraph(#[from] crate::effect_plan::ScratchGraphError),
+    #[error("GPU validation: {0}")]
+    ScratchPlacement(#[from] crate::effect_plan::ScratchPlacementError),
     #[error(transparent)]
     PipelinePreparation(#[from] crate::PipelinePreparationError),
     #[error("GPU validation: {0}")]
@@ -185,6 +189,8 @@ impl RenderError {
     pub(crate) fn planning_message(&self) -> String {
         match self {
             Self::Invalid(message) | Self::Resource { message, .. } | Self::Diagnostic { message, .. } => message.clone(),
+            Self::ScratchGraph(cause) => cause.to_string(),
+            Self::ScratchPlacement(cause) => cause.to_string(),
             Self::Shared(cause) => cause.planning_message(),
             _ => self.to_string(),
         }

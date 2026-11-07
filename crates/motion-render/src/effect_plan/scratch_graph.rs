@@ -106,7 +106,7 @@ impl GroupingDependencies {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum GraphError {
+pub enum GraphError {
     ResourceLimit { required: usize, maximum: usize },
     SlotLimit,
     ExecutionPointOverflow,
