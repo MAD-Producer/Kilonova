@@ -691,6 +691,7 @@ impl Session {
                 width: rw, height: rh, preview: self.preview.mode != PreviewMode::High,
                 window: (frame.max(0.) / (self.engine.project().fps.as_f64() * 2.)).floor() as u64,
                 exposure: None,
+                views: None,
             };
             if !self.pipeline_preparation.ensure(&mut g.renderer, self.engine.project(), &self.scene,
                 self.observing.then_some(&self.observer), key)? {

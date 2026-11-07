@@ -10,6 +10,7 @@ use motion_render::{
     ExposureFrame, ExposurePoll, RenderError, TextureResourceLedger, ViewCamera,
 };
 use std::time::Duration;
+pub(super) mod preparation;
 
 #[derive(Clone, Copy)]
 pub struct View<'a> {
@@ -17,7 +18,7 @@ pub struct View<'a> {
     pub placement: ViewPlacement,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum CameraKey {
     Composition,
     Camera(u64),
@@ -76,17 +77,21 @@ impl State {
         videos: &mut VideoFrames,
         proxies: &mut crate::preview_video::PreviewVideoCache,
         reserved: u64,
-    ) -> std::result::Result<bool, RenderError> {
+        preparation: &mut pipeline_preparation::State,
+        base: &Scene,
+        views: &[View<'_>],
+    ) -> Result<bool> {
         let request = self
             .request
             .as_mut()
             .ok_or_else(|| RenderError::Invalid("multiview phase=poll: request missing".into()))?;
         if let Some(failure) = &request.failure {
-            return Err(RenderError::Shared(failure.clone()));
+            return Err(RenderError::Shared(failure.clone()).into());
         }
         if request.complete {
             return Ok(true);
         }
+        let mut preparation_failure = None;
         let result = (|| {
             let mut media = ExposureMedia {
                 project: request.document.as_deref().unwrap_or(project),
@@ -105,10 +110,23 @@ impl State {
                 // can supersede each other indefinitely. Completed task outputs
                 // remain owned until the complete group can be published.
                 let slice = Duration::from_millis(8) / request.tasks.len() as u32;
-                for task in &mut request.tasks {
+                for (index, task) in request.tasks.iter_mut().enumerate() {
                     if matches!(
-                        task.poll(renderer, slice, |renderer, scene| media
-                            .prepare(renderer, scene))?,
+                        task.poll_prepared(renderer, slice, |renderer, scene, size| {
+                            if !media.prepare(renderer, scene)? { return Ok(false); }
+                            let mut key = preparation::key(&request.key, project, Some(index));
+                            key.width = size[0]; key.height = size[1];
+                            key.exposure = Some(pipeline_preparation::ExposureScope {
+                                composition: scene.composition_id.clone(), frame: scene.frame.to_bits(),
+                                layers: scene.layers.iter().map(|layer| layer.id).collect(),
+                            });
+                            match preparation.ensure(renderer,
+                                request.document.as_ref().ok_or_else(|| RenderError::Invalid("multiview exposure document missing".into()))?.source(),
+                                scene, None, key) {
+                                Ok(ready) => Ok(ready),
+                                Err(error) => { preparation_failure = Some(error); Ok(false) }
+                            }
+                        })?,
                         ExposurePoll::Pending(_)
                     ) {
                         return Ok(false);
@@ -123,6 +141,13 @@ impl State {
                 })?;
                 if !media.prepare(renderer, scene)? {
                     return Ok(false);
+                }
+                let key = preparation::key(&request.key, project, None);
+                let variants = preparation::views(views, &request.key.sizes);
+                match preparation.ensure_views(renderer, project, base, key, &variants) {
+                    Ok(true) => {},
+                    Ok(false) => return Ok(false),
+                    Err(error) => { preparation_failure = Some(error); return Ok(false); }
                 }
             }
             let updated = self.targets.update_with_reserved(
@@ -163,11 +188,12 @@ impl State {
             }
             Ok(updated)
         })();
+        if let Some(error) = preparation_failure { return Err(error); }
         result.map_err(|error: RenderError| {
             let cause = Arc::new(error);
             request.failure = Some(cause.clone());
             request.tasks.clear();
-            RenderError::Shared(cause)
+            RenderError::Shared(cause).into()
         })
     }
 }
@@ -645,6 +671,9 @@ impl Session {
             &mut self.video_frames,
             &mut self.preview_video,
             g.scratch.texture_bytes(),
+            &mut self.pipeline_preparation,
+            &self.scene,
+            views,
         )?;
         // Pending work may retain the last whole group only in the same native
         // owner, document and surface geometry. Never show another owner's view.
@@ -692,6 +721,7 @@ impl Session {
             self.last_presented_revision = self.engine.revision();
             self.last_presented_view_revision = self.view_revision;
             g.actual_preview_quality = Some(quality);
+            self.pipeline_preparation.frame_presented(&mut g.renderer, preparation::context(&key))?;
         }
         Ok(complete)
     }

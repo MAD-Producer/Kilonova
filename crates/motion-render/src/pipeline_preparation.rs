@@ -23,6 +23,37 @@ const MAX_SCENE_DEPTH: usize = 32;
 #[cfg(test)]
 mod tests;
 
+/// An owned camera selection for one cell of the bounded viewer group.
+#[derive(Clone)]
+pub enum PipelinePreparationCamera {
+    Composition,
+    Camera(u64),
+    Observer(motion_model::Observer),
+}
+impl From<crate::ViewCamera<'_>> for PipelinePreparationCamera {
+    fn from(camera: crate::ViewCamera<'_>) -> Self {
+        match camera {
+            crate::ViewCamera::Composition => Self::Composition,
+            crate::ViewCamera::Camera(id) => Self::Camera(id),
+            crate::ViewCamera::Observer(observer) => Self::Observer(observer.clone()),
+        }
+    }
+}
+impl PipelinePreparationCamera {
+    fn borrow(&self) -> crate::ViewCamera<'_> {
+        match self {
+            Self::Composition => crate::ViewCamera::Composition,
+            Self::Camera(id) => crate::ViewCamera::Camera(*id),
+            Self::Observer(observer) => crate::ViewCamera::Observer(observer),
+        }
+    }
+}
+#[derive(Clone)]
+pub struct PipelinePreparationView {
+    pub camera: PipelinePreparationCamera,
+    pub size: [u32; 2],
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum PipelinePreparationError {
     #[error("pipeline preparation requires 1..={MAX_PIPELINE_PREPARATION_SCENES} sampled scenes")]
@@ -204,6 +235,7 @@ pub struct PipelinePreparationJob {
     assets: Vec<u64>,
     alpha_images: std::collections::HashMap<u64, crate::scene_generator::AlphaImage>,
     scenes: Vec<Scene>,
+    views: Option<Vec<PipelinePreparationView>>,
     width: u32,
     height: u32,
     driver_cache: bool,
@@ -363,6 +395,7 @@ impl PipelinePreparationJob {
             assets: renderer.asset_order.clone(),
             alpha_images,
             scenes,
+            views: None,
             width,
             height,
             driver_cache: renderer.effect_gpu.state.driver_pipeline_cache.is_some(),
@@ -379,6 +412,17 @@ impl PipelinePreparationJob {
     pub fn for_preview(mut self) -> Self {
         self.preview = true;
         self
+    }
+    /// Prepare every cell in one batch and one ticket. The 1..=3 sampled clocks,
+    /// native-pipeline/text/node budgets and owner install boundary are shared;
+    /// no per-cell worker or independently installed reuse bank is created.
+    pub fn for_views(mut self, views: Vec<PipelinePreparationView>) -> Result<Self, RenderError> {
+        if !matches!(views.len(), 1 | 2 | 4)
+            || views.iter().any(|view| view.size.contains(&0)) {
+            return Err(RenderError::Invalid("pipeline preparation views require 1, 2, or 4 nonempty cells".into()));
+        }
+        self.views = Some(views);
+        Ok(self)
     }
     /// Prepare receiver materialization and phase adjustment plans for an
     /// already sampled exposure context, rather than substituting an ordinary
@@ -492,7 +536,17 @@ impl PipelinePreparationJob {
         builder.alpha_images = std::mem::take(&mut self.alpha_images);
         let mut nodes = 0;
         for (index, scene) in self.scenes.iter().enumerate() {
-            let result = self.compile_scene(
+            let result = if let Some(views) = &self.views {
+                (|| {
+                    for view in views {
+                        if self.ticket.cancelled() || batch.limited { break; }
+                        let selected = scene.fork_view(view.camera.borrow())?;
+                        self.compile_scene(&mut builder, &selected, view.size[0], view.size[1],
+                            0, &mut nodes, &mut batch)?;
+                    }
+                    Ok(())
+                })()
+            } else { self.compile_scene(
                 &mut builder,
                 scene,
                 self.width,
@@ -500,7 +554,7 @@ impl PipelinePreparationJob {
                 0,
                 &mut nodes,
                 &mut batch,
-            );
+            ) };
             if let Err(cause) = result {
                 if index == 0 || !self.best_effort_lookahead {
                     return Err(cause);

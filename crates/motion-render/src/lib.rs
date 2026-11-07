@@ -6,6 +6,7 @@ mod pipeline_preparation;
 pub use pipeline_preparation::{PipelineLookaheadFailure, PipelinePreparationContext, PipelinePreparationError,
     PipelinePreparationInstall, PipelinePreparationJob, PipelinePreparationPhase,
     PipelinePreparationStatus, PipelinePreparationTicket, PreparedEffectPipelines,
+    PipelinePreparationCamera, PipelinePreparationView,
     MAX_PIPELINE_PREPARATION_SCENES, MAX_PREPARED_PIPELINES, MAX_PREPARED_WGSL_BYTES};
 mod driver_pipeline_cache;
 pub use driver_pipeline_cache::{DriverPipelineCacheError, DriverPipelineCacheInfo,

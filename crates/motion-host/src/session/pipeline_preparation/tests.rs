@@ -62,6 +62,7 @@ fn key() -> Key {
         preview: false,
         window: 0,
         exposure: None,
+        views: None,
     }
 }
 fn finish(state: &mut State, renderer: &mut Renderer, project: &Project, scene: &Scene, key: Key) {

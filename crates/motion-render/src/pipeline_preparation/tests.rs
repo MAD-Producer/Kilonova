@@ -2,6 +2,7 @@ use super::*;
 use crate::{PipelinePreparationInstall, Renderer};
 use std::sync::mpsc;
 use std::time::Duration;
+mod views;
 
 const CONTEXT: PipelinePreparationContext = PipelinePreparationContext {
     document_generation: 7,

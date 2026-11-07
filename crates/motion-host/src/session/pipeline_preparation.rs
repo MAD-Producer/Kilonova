@@ -56,6 +56,7 @@ pub(crate) struct Key {
     pub preview: bool,
     pub window: u64,
     pub exposure: Option<ExposureScope>,
+    pub views: Option<super::viewer::preparation::Scope>,
 }
 impl Key {
     fn same_revision(&self, other: &Self) -> bool {
@@ -66,6 +67,7 @@ impl Key {
             && self.height == other.height
             && self.preview == other.preview
             && self.exposure == other.exposure
+            && self.views == other.views
     }
 }
 
@@ -355,7 +357,15 @@ impl State {
         observer: Option<&Observer>,
         key: Key,
     ) -> crate::Result<bool> {
-        let result = self.ensure_inner(renderer, project, scene, observer, key);
+        let result = self.ensure_inner(renderer, project, scene, observer, key, None);
+        self.observation.publish(self.waiting());
+        result
+    }
+    pub(crate) fn ensure_views(
+        &mut self, renderer: &mut Renderer, project: &Project, scene: &Scene,
+        key: Key, views: &[motion_render::PipelinePreparationView],
+    ) -> crate::Result<bool> {
+        let result = self.ensure_inner(renderer, project, scene, None, key, Some(views));
         self.observation.publish(self.waiting());
         result
     }
@@ -366,6 +376,7 @@ impl State {
         scene: &Scene,
         observer: Option<&Observer>,
         key: Key,
+        views: Option<&[motion_render::PipelinePreparationView]>,
     ) -> crate::Result<bool> {
         if let Some(error) = &self.worker_failure {
             return Err(crate::Error::PipelinePreparation(error.clone()));
@@ -398,6 +409,9 @@ impl State {
                 key.context,
             ) {
                 Ok(job) => {
+                    let job = if let Some(views) = views {
+                        job.for_views(views.to_vec()).map_err(|error| self.fail(error.into(), false))?
+                    } else { job };
                     let job = job.with_best_effort_lookahead();
                     let job = if key.exposure.is_some() {
                         job.for_exposure()

@@ -368,7 +368,7 @@ impl Session {
                 },
                 surface: self.surface_epoch, view: self.view_revision,
                 width: rw, height: rh, preview: self.preview.mode != PreviewMode::High,
-                window: 0, exposure: None,
+                window: 0, exposure: None, views: None,
             };
             let result = self.sampling.poll_into(
                 &mut g.renderer,
