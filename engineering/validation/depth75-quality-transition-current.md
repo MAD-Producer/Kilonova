@@ -156,3 +156,17 @@ The file probe qualifies parent `5fb253a4`, while the native30 run qualifies
 of the latest helpers, or a full maintained-workspace pass. The full native v6
 command retains ffmpeg and both ai-depth features and is still in progress.
 Real-model video quality, installation and export policy remain unqualified.
+
+## Subsequent exact-head admission CI
+
+At `369a4e7d`, all 23 exact named alignment/admission tests actually passed
+in each desktop test job on Linux, Windows and macOS Intel (69 named passes).
+The complete workflow `42320228605` then finished successfully, including its
+policy-skipped jobs. The [manifest](data/depth75-admission-ci-three-platforms-v1.json)
+and [read-back-verified archive](data/depth75-admission-ci-three-platforms-v1.zip)
+retain the three raw logs, collectors, exact head and terminal workflow state.
+No run was canceled or restarted to publish subsequent work.
+
+This source predates `6d71c47e`/`abf5d351`: the seven actual-Jobs helper controls
+are qualified by the separate native30 record and require the new push's own CI.
+Neither prior green workflow qualifies those later worker-binding changes.
