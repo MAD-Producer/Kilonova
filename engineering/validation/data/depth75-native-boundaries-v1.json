@@ -1,0 +1,193 @@
+{
+  "status": "native30_and_real_default_file_boundaries_passed_full_regression_pending",
+  "recordedUtc": "2026-11-07T01:49:55.151133+00:00",
+  "archive": "depth75-native-boundaries-v1.zip",
+  "bytes": 590430,
+  "sha256": "8b9be2a1c33de196331dd99aca831216c5c7f6788fe8197c35b2d63b269f6f21",
+  "native": {
+    "sourceCommit": "abf5d3512265ee50f6f5689e8b7788283b03b447",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "motion-host",
+      "--features",
+      "ai-depth",
+      "--test",
+      "depth_alignment",
+      "--test",
+      "depth_transition",
+      "--test",
+      "depth_transition_jobs",
+      "--",
+      "--test-threads=1"
+    ],
+    "namedPasses": [
+      "a_few_valid_pairs_cannot_claim_support_for_the_entire_grid",
+      "also_checks_fit_residuals_instead_of_only_the_holdout_score",
+      "cancellation_is_propagated_before_and_during_linear_validation",
+      "checks_all_heldout_pixels_beyond_the_bounded_fit_set",
+      "confidence_absence_is_not_invented_as_confidence_one",
+      "constant_populations_and_reversed_order_do_not_manufacture_a_map",
+      "fits_decoded_values_and_accepts_equivalent_rational_pts",
+      "never_relabels_metric_or_opposite_near_direction_as_relative_alignment",
+      "preserves_invalid_samples_and_reports_insufficient_support",
+      "proof_rejects_replacement_instances_even_with_identical_metadata_and_values",
+      "recovers_known_affine_map_without_rewriting_raw_resources",
+      "rejects_a_different_source_revision_pts_crop_orientation_or_grid",
+      "rejects_invalid_limits_instead_of_clamping_them",
+      "rejects_unqualified_scale_even_for_a_perfect_affine_fit",
+      "advancing_frames_invalidates_old_work_without_resetting_continuous_idle",
+      "configuration_change_invalidates_even_when_selected_interactive_key_is_identical",
+      "installation_gate_requires_independent_live_key_and_exact_result_identity",
+      "interaction_downgrades_immediately_and_chatter_restarts_continuous_idle",
+      "invalid_input_or_clock_does_not_mutate_valid_admission_state",
+      "never_relabels_processing_profiles_or_infers_quality_from_backend_names",
+      "repeated_keys_do_not_admit_aba_foreign_or_explicitly_canceled_work",
+      "requires_both_idle_delay_and_interactive_residence_at_exact_boundaries",
+      "successful_alignment_cannot_override_a_generation_changed_while_it_ran",
+      "actual_worker_failure_preserves_original_cause_and_is_not_retried",
+      "invalidation_without_replacement_revokes_ticket_and_cancels_actual_in_flight_work",
+      "late_canceled_completion_and_stale_poll_cannot_replace_or_consume_the_new_frame",
+      "later_unbound_request_in_the_same_worker_is_not_claimed_by_an_older_ticket",
+      "matching_request_number_in_a_different_worker_cannot_reuse_the_binding",
+      "request_rejects_foreign_stale_and_wrong_input_before_touching_the_worker",
+      "same_key_new_phase_requires_its_own_actual_submission"
+    ],
+    "summaries": [
+      [
+        "14",
+        "0",
+        "0",
+        "0"
+      ],
+      [
+        "9",
+        "0",
+        "0",
+        "0"
+      ],
+      [
+        "7",
+        "0",
+        "0",
+        "0"
+      ]
+    ],
+    "exitCode": 0
+  },
+  "fileProbe": {
+    "sourceCommit": "5fb253a48b204c0fd52c97669f7c2bf01c401c13",
+    "fixtureSource": {
+      "Cargo.toml": "436041e4c76ff6e61322b17606037ad7efcb97527f83d3670311fdf77607a495",
+      "src/main.rs": "142a377dc9094ea941312ed5b74118f8111c6ca8aa691d80d0713ed966d8ff9d"
+    },
+    "status": "actual_default_file_before_return_and_error_stderr_stdout_isolation_passed",
+    "allStageExitCodes": [
+      0,
+      0,
+      0
+    ],
+    "completed": 3,
+    "failed": 1,
+    "defaultInfo": true
+  },
+  "members": [
+    {
+      "path": "native30/controller.py",
+      "bytes": 4261,
+      "sha256": "e054ea02e904e6bd4813ed5e71ea1a021cee9970c9930952d3cc78c2d1454152"
+    },
+    {
+      "path": "native30/receipt.json",
+      "bytes": 842599,
+      "sha256": "ed5aeeeb3db6ace39c745c2b36a4105c58a87e7d8c78ab3617774de8cbe11ae5"
+    },
+    {
+      "path": "native30/session-consumed.json",
+      "bytes": 98,
+      "sha256": "c6642b46dabcc7af9d3afc1baa9eaa35b0a0c844823892f693d0e9d85c066ccd"
+    },
+    {
+      "path": "native30/stdout.log",
+      "bytes": 2685,
+      "sha256": "f826e73ea7a49d00498a0ff13f363bbb31ad21224e84fb17998f53ae93a59703"
+    },
+    {
+      "path": "native30/stderr.log",
+      "bytes": 10520,
+      "sha256": "39281d6e4bee3ae4d7cb4fb35535bdfc67e350c1675ba6a8fba054907fc6e94b"
+    },
+    {
+      "path": "file-probe/controller.py",
+      "bytes": 5447,
+      "sha256": "18d7ade9d09831a6515a77449fc3586a63b0a38f90de1b7835e7cdd67609b578"
+    },
+    {
+      "path": "file-probe/receipt.json",
+      "bytes": 842938,
+      "sha256": "fe120f3205ad610bf473a27ab30f1cae548acd3ac9e1db136420c948b863dfad"
+    },
+    {
+      "path": "file-probe/process-completion-observed.json",
+      "bytes": 365,
+      "sha256": "6b3f86c2c7cdacd74fb8a507755fc9d1bcacdc1de4cc2fc0fa88c98fcd4581dc"
+    },
+    {
+      "path": "file-probe/metadata.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "file-probe/build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "file-probe/build.stderr.log",
+      "bytes": 3053,
+      "sha256": "95c7ebc5f6e0beba7afc8e76ffed47a5e83aca309bc831003a0daaebb8bd0468"
+    },
+    {
+      "path": "file-probe/actual-file.stdout.log",
+      "bytes": 2467,
+      "sha256": "a79c3fc579bb75cb088ab9b3999dbfb690a2f3b20b85c284c49a32804f0a5053"
+    },
+    {
+      "path": "file-probe/actual-file.stderr.log",
+      "bytes": 259,
+      "sha256": "c7d6ce2ab45c9ca7e375c1609b76ce21eda08771afe05f7c1a2c2a96cf638927"
+    },
+    {
+      "path": "file-probe/logs/motion-studio.log",
+      "bytes": 1595,
+      "sha256": "a2127f2b3629e851eb162596b91d060ebb02889b3f6e1262960d30c723e7f68d"
+    },
+    {
+      "path": "file-probe/probe-source/Cargo.toml",
+      "bytes": 341,
+      "sha256": "436041e4c76ff6e61322b17606037ad7efcb97527f83d3670311fdf77607a495"
+    },
+    {
+      "path": "file-probe/probe-source/Cargo.lock",
+      "bytes": 73402,
+      "sha256": "14b9e9126c8e4100052dba26b8007e8cfc13a18395f9df94cc2edd13ad33ab97"
+    },
+    {
+      "path": "file-probe/probe-source/src/main.rs",
+      "bytes": 7014,
+      "sha256": "142a377dc9094ea941312ed5b74118f8111c6ca8aa691d80d0713ed966d8ff9d"
+    }
+  ],
+  "limits": [
+    "Native30 covers actual current alignment/admission/Jobs helper source abf5d351; prior CI records cover different exact commits",
+    "Real file proof uses integrated parent5fb production sink/Jobs and a regenerated controlled fixture, not real model inference or quality",
+    "All four starts observed in actual file while backend is blocked; original Error appears in file and stderr; stdout is one separate JSON result",
+    "Prior v2 locked-build failure retained separately; regenerated fixture identity explicitly recorded",
+    "File-probe stage exit codes and terminal receipt plus absent actual PIDs observed; tool handle was not retained across context compaction",
+    "No original test assertion, ignore, timeout, GPU feature, runtime backend or 10GiB admission relaxed",
+    "Complete maintained-workspace run v6 remains in progress on parent5fb and is not included as a pass",
+    "No automatic quality resolution, cache/export integration or real-video drift/jump/thermal qualification established"
+  ]
+}

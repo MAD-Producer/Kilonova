@@ -5,8 +5,11 @@ shared-backend branch (#626). It does not complete #75 or enable automatic quali
 switching. Alignment and pure transition admission are implemented. All fourteen
 alignment controls passed on Linux, Windows and macOS Intel at commit
 `5b606e0e`; these runs do not include the subsequent admission controller.
-Local integrated native qualification and full-feature regression remain
-separate requirements. The original native admission requires 10 GiB free.
+At `abf5d351`, all 30 alignment/admission/actual-Jobs controls passed in one
+native Windows run (14 + 9 + 7, zero ignored, failed or filtered). The integrated
+parent `5fb253a4` also passed an actual default-Info file-sink probe with four
+blocked backend requests, including an original Error in file and stderr with
+isolated stdout. Full-feature regression remains a separate requirement. The original native admission requires 10 GiB free.
 Syntax/format checks cannot qualify the Rust behavior.
 
 ## Alignment contract
@@ -112,11 +115,11 @@ Nine new Rust controls cover exact timing boundaries, interaction chatter,
 advancing frames, opaque ownership, A-to-B-to-A, explicit cancellation, independent
 live/result identity, equivalent rational PTS, changed configuration, atomic
 invalid-input/clock refusal, identical explicit models and a completed alignment
-whose generation became stale. These controls are written but unexecuted. They
+whose generation became stale. All nine passed in the native run at `abf5d351`; they
 neither measure real-model transition quality nor replace the fourteen alignment
 controls or the original full-feature regression.
 
-Seven additional, currently unexecuted controls use the actual Jobs thread and a
+Seven additional controls, all passed in that same native run, use the actual Jobs thread and a
 controlled blocking backend. They check pre-submission refusal, in-flight
 publication, a deliberately late success after cancellation, stale polling that
 cannot consume a newer frame, explicit cancellation without replacement and an
@@ -129,8 +132,27 @@ product timeout or existing test assertion. These controls are not model or
 file-sink observability qualification.
 
 Still pending are measured model/quality/backend capability resolution,
-requested/resolved reporting, native qualification of admission and Jobs helpers,
+requested/resolved reporting, full-feature regression,
 end-to-end integration of transition hysteresis, versioned caching, frozen export
 policy, continuous video drift/jump controls, sustained/thermal and other-desktop-
 GPU measurements. Bounds require those qualifications; these components supply
 no default policy or automatic fallback.
+
+## Source-bound native boundary evidence
+
+The [manifest](data/depth75-native-boundaries-v1.json) and
+[read-back-verified archive](data/depth75-native-boundaries-v1.zip) retain the
+30 exact named passes, unchanged-source hashes, command, original stdout/stderr
+and consumed native session. The separate file probe uses the actual parent
+logging sink and Jobs worker: each start, processing profile and complete model
+hash is read from the file before releasing the blocked backend. Three requests
+succeed and the fourth returns its original typed backend error once. That error
+appears in both actual file and stderr; stdout contains only one result JSON.
+The file fixture was regenerated after local cache cleanup and has an explicitly
+new identity. Its original failed locked-build attempt is not relabeled a pass.
+
+The file probe qualifies parent `5fb253a4`, while the native30 run qualifies
+`abf5d351`; neither result substitutes for the other, cross-platform qualification
+of the latest helpers, or a full maintained-workspace pass. The full native v6
+command retains ffmpeg and both ai-depth features and is still in progress.
+Real-model video quality, installation and export policy remain unqualified.
