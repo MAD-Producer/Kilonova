@@ -1,0 +1,261 @@
+{
+  "schema": 3,
+  "sourceCommit": "5fb253a48b204c0fd52c97669f7c2bf01c401c13",
+  "mainAtAdmission": "5a025a2d23f2cc35ee4d306550861b086e0b2378",
+  "observedUtc": "2026-11-07T06:08:53.651997+00:00",
+  "command": [
+    "cargo",
+    "test",
+    "--workspace",
+    "--exclude",
+    "motion-android",
+    "--features",
+    "motion-desktop/ffmpeg,motion-host/ai-depth,motion-desktop-media/ai-depth",
+    "--no-fail-fast",
+    "--locked",
+    "--",
+    "--test-threads=1"
+  ],
+  "status": "actual_complete_maintained_workspace_passed_consumed_exit0",
+  "accepted": true,
+  "totals": {
+    "passed": 5002,
+    "failed": 0,
+    "originalIgnored": 78,
+    "filtered": 0,
+    "summaryCount": 430,
+    "observedInvocations": 430,
+    "expectedInvocations": 430
+  },
+  "elapsedSeconds": 6721.328,
+  "previousFailedRun": {
+    "status": "failed_original_outputs_retained",
+    "exitCode": 101,
+    "totals": {
+      "passed": 4992,
+      "failed": 1,
+      "originalIgnored": 78,
+      "filtered": 0,
+      "summaryCount": 429,
+      "observedInvocations": 430,
+      "expectedInvocations": 430
+    },
+    "abnormalTargetExits": [
+      "  process didn't exit successfully: `E:\\Dev\\aem\\target\\colmap88-isolated-check\\debug\\deps\\nested_exposure-2bfd40cfb4ecd7eb.exe --test-threads=1` (exit code: 0xc0000005, STATUS_ACCESS_VIOLATION)"
+    ]
+  },
+  "limits": [
+    "Exact Windows parent source only; later transition admission/routing code is outside this full run",
+    "Archive retains actual qualified source bytes and separately binds Git canonical bytes; only exact CRLF-to-LF text differences admitted",
+    "Original assertions, ignores, features, GPU/backend, timeouts and10GiB admission retained",
+    "Offline cache correction passed the actual unchanged original boundary; previous full failure is not relabeled",
+    "Original native access violation cause remains unresolved; bounded diagnostic passes do not waive it",
+    "Passive host memory observations establish no memory root cause or thermal qualification",
+    "No Android, real-video quality, automatic capability/quality/cache/export claim",
+    "No model, source image, tensor, binary, symbol file or minidump included"
+  ],
+  "members": {
+    "evidence/current/controller.py": {
+      "bytes": 16287,
+      "sha256": "07c1ea3cdf9903257c052e76c3ad5f6d4e5b469c6a33aa3215fae037c60ea061"
+    },
+    "evidence/current/receipt.json": {
+      "bytes": 972763,
+      "sha256": "9cd685340365a6744c2e251180939831a0d6255ac9b0556b48f725e662358df8"
+    },
+    "evidence/current/stdout.log": {
+      "bytes": 578306,
+      "sha256": "c7bdb89f259a01f0a225d224efce31e69592b67d4132a43a0610e725fdeba47f"
+    },
+    "evidence/current/stderr.log": {
+      "bytes": 144462,
+      "sha256": "55271a5be637bde64595d680f2d047b641da388608e539097179c66ed2cdb551"
+    },
+    "evidence/current/cargo-metadata.json": {
+      "bytes": 265195,
+      "sha256": "7f954359f9169dc7f50660e28d4b28ea274689043e11deeac535762864fbdd36"
+    },
+    "evidence/current/cache-preflight.json": {
+      "bytes": 582,
+      "sha256": "069402aec8dcf514e45572eb698af4b72de5e0301b3fbff4e20e44925b9c4e03"
+    },
+    "evidence/current/boundary.stdout.log": {
+      "bytes": 203,
+      "sha256": "bcc3e8a56dcfc09304938533cdf893de6c74b52ab36f4ad2d2a3e5b7d3b76e23"
+    },
+    "evidence/current/boundary.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/current/offline-metadata.json": {
+      "bytes": 3130939,
+      "sha256": "15641c0195ac6d1372da6aec803a241aa38483f57d27df4472e0a7a4abec53f4"
+    },
+    "evidence/current/offline-metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/current/session-consumed.json": {
+      "bytes": 134,
+      "sha256": "59282ed588afc612f7a04139ba9aff36bc3acaac8e6b5edf1efe6c11fb9b96da"
+    },
+    "evidence/current/host-memory.jsonl": {
+      "bytes": 47368,
+      "sha256": "3ac3cb1847a36efbe4c85864ed6ce35a293a554ddb390f1dd36f25d7cc9a40f0"
+    },
+    "evidence/previous-failed-full/controller.py": {
+      "bytes": 9757,
+      "sha256": "94b6a80a8bfd28469a6e6a6fe8dd21d8652736e8871d6cec53849a955653e18c"
+    },
+    "evidence/previous-failed-full/receipt.json": {
+      "bytes": 972772,
+      "sha256": "70811e22ee99ce586c983934f8c9ef41aa8b695de7af448608ccbaeac6191a99"
+    },
+    "evidence/previous-failed-full/stdout.log": {
+      "bytes": 584721,
+      "sha256": "54ad512faabaf7c22ebdf953c81d995b65400c6769fa484a2ee5e6ae7fc00a33"
+    },
+    "evidence/previous-failed-full/stderr.log": {
+      "bytes": 148772,
+      "sha256": "f9d0d720013d752f575b6325dcb2b0a39042de60708d8accfd02969f4826a406"
+    },
+    "evidence/previous-failed-full/cargo-metadata.json": {
+      "bytes": 265195,
+      "sha256": "7f954359f9169dc7f50660e28d4b28ea274689043e11deeac535762864fbdd36"
+    },
+    "evidence/previous-failed-full/session-consumed.json": {
+      "bytes": 97,
+      "sha256": "03c6a792c675e47b1b30dfc26d861a7298263c8cd20675ede7444e054086421b"
+    },
+    "evidence/exact-locked-cache-correction/controller.py": {
+      "bytes": 4142,
+      "sha256": "c9e8ee1f469f4161ad3de8d061350dfe4c1149afa09aeb36bbcd83028d6c2af0"
+    },
+    "evidence/exact-locked-cache-correction/receipt.json": {
+      "bytes": 135657,
+      "sha256": "9dad229984d77c5fe967c8f6810b85762ab92701f5438bc4be023bb407358d89"
+    },
+    "evidence/exact-locked-cache-correction/session-consumed.json": {
+      "bytes": 170,
+      "sha256": "56eb4ab569d73b0160698b68169b1f75cf2c4cf691100aecce6db1a3fb927e5c"
+    },
+    "evidence/diagnostics/depth75-nested-access-probe-v1/controller.py": {
+      "bytes": 3569,
+      "sha256": "8488c48784ead4f0b72def34b3dc83aea2d02f0f65e430eba8a93db11a49ce6c"
+    },
+    "evidence/diagnostics/depth75-nested-access-probe-v1/receipt.json": {
+      "bytes": 1938,
+      "sha256": "6324c690b0c795dd5475f3a609e1f6318fe0044537a0af94ddd822934eeb2020"
+    },
+    "evidence/diagnostics/depth75-nested-access-probe-v1/session-consumed.json": {
+      "bytes": 183,
+      "sha256": "96f057e5f1d2579f9f3d6b2c0a8d9667c5760f795fab8342ccf8234d60acef6e"
+    },
+    "evidence/diagnostics/depth75-native-startup-observation-v1/controller.py": {
+      "bytes": 5896,
+      "sha256": "798ea672156560087cdf4d8e3270fd1a7291b8624ea453f60c6854b423157038"
+    },
+    "evidence/diagnostics/depth75-native-startup-observation-v1/receipt.json": {
+      "bytes": 26088,
+      "sha256": "d5baafc26b5ca790f8035d54e438b1f6e5463935cba11ad04cf4a05ff8a07f2b"
+    },
+    "evidence/diagnostics/depth75-native-startup-observation-v1/session-consumed.json": {
+      "bytes": 235,
+      "sha256": "e12d6ffa8658cc6836c339ba5b8ffc2c0344f1b8d6447ef8dc73dd437d8f0544"
+    },
+    "evidence/diagnostics/controlled-real-fault/controller.py": {
+      "bytes": 3617,
+      "sha256": "6e25e007e244a38760747e3813d3060835cb7602eebd5482044120c89a737661"
+    },
+    "evidence/diagnostics/controlled-real-fault/receipt.json": {
+      "bytes": 1787,
+      "sha256": "183cc356312804089bfd694047569a8b9fe11e5680d024f7f8ccd1981ece2b3e"
+    },
+    "evidence/diagnostics/controlled-real-fault/controlled_fault.cpp": {
+      "bytes": 74,
+      "sha256": "929217c4f46f4616ba3d0aa5726d9f0bad7f26902b9c29f0d10ec09702859e22"
+    },
+    "evidence/diagnostics/native-observer.cpp": {
+      "bytes": 9153,
+      "sha256": "be007826a7c9bb23c867770ed125a8de9795fe1490cadcdafe8470fea697c86f"
+    },
+    "evidence/pinned-runtime-placement.json": {
+      "bytes": 6262,
+      "sha256": "87f046ee2d9e227f987ff8760910aa7e19f9f5da67ac68670f21a67f040970c1"
+    },
+    "evidence/runtime-at-archive.json": {
+      "bytes": 3095,
+      "sha256": "f01f4997409fc2dfa93d77e23a5fb2b40e704a91094825270c49363c8ef43b2c"
+    },
+    "evidence/integration.json": {
+      "bytes": 4520,
+      "sha256": "f5ff43d6b0a113615e7661b3e45d43b8e30ebfa9b7e685128afd17e31d5b555a"
+    },
+    "source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 17595,
+      "sha256": "ead44ad48256bb88f4af59caf57ff19696dc4f0a5d5534e8c4f1a728ec18a008"
+    },
+    "source/tools/ai_depth_onnx.py": {
+      "bytes": 10828,
+      "sha256": "5a28dfaff61a3de470412364b46120de7a8bdb5855aaded9ff21e80d165b157a"
+    },
+    "source/tools/export_ai_depth.py": {
+      "bytes": 7605,
+      "sha256": "3ce453b7d510b124cd3820457753c5c17e83689e3534d046f43fe485cb619413"
+    },
+    "source/tools/test_ci_depth_export.py": {
+      "bytes": 6413,
+      "sha256": "eb576076b6b029495a7e33cb5337c3a001d30f0f77c44442cc562a4c0d96fd9d"
+    },
+    "source/crates/motion-host/src/depth.rs": {
+      "bytes": 28562,
+      "sha256": "550fc114b79f136bb614cbdc9f482d98258b77919fbe938edb8669e988cf0d15"
+    },
+    "source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 21510,
+      "sha256": "e7f49d7f787b7f261439b02e9093d1956b4c5ecd32c108d83fa4c2c836723163"
+    },
+    "source/crates/motion-host/tests/depth_jobs.rs": {
+      "bytes": 15129,
+      "sha256": "591dcbc00f8bb8d9a7e982369964d7cf6999656de7c76b8897ed23c80f6ecd6e"
+    },
+    "source/crates/motion-host/tests/depth_video.rs": {
+      "bytes": 41043,
+      "sha256": "4eb9ceb06084311c2d61e6d7e15820d88336b24eaeb7fd6ed19e222d860b961b"
+    },
+    "source/desktop/app/src/logging.rs": {
+      "bytes": 12936,
+      "sha256": "500e9156955b29078024df82a68233d1a33ecd8274c51c76cd4c5df1dbde05b7"
+    },
+    "source/desktop/app/src/logging/sink.rs": {
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    },
+    "source/Cargo.lock": {
+      "bytes": 147434,
+      "sha256": "3afab6b8209104c68a44664866100237ac09a0feae0363409abb0581b9a76311"
+    },
+    "evidence/source-byte-bindings.json": {
+      "bytes": 3806,
+      "sha256": "ece64c5682e13074ab490852893c3c90fea79812a444c528aad56d47408f5cec"
+    },
+    "evidence/previous-archive-observer-failure/controller.py": {
+      "bytes": 7449,
+      "sha256": "6c7c257f15218a31025a3aa9e28c3067b59028d30ab18cac0278e19a62e1c1d9"
+    },
+    "evidence/previous-archive-observer-failure/receipt.json": {
+      "bytes": 511,
+      "sha256": "5801e26c898909ba9b75c04c625f9da403399ce3d5746c11f517eb379374f95a"
+    },
+    "archive-controller.py": {
+      "bytes": 8484,
+      "sha256": "910522d13b87d59901aee84e262d4ebe1be726620b4abc20d148a5a2ba323099"
+    }
+  },
+  "archive": {
+    "file": "depth75-maintained-workspace-v3.zip",
+    "bytes": 1371510,
+    "sha256": "70fded20fb4eede0906d9e744c1a892fcacc8b2ebc2fe6a030141ec57bd1407b",
+    "verifiedMembers": 50
+  }
+}

@@ -10,7 +10,9 @@ native Windows run (14 + 9 + 7, zero ignored, failed or filtered). The integrate
 parent `5fb253a4` also passed an actual default-Info file-sink probe with four
 blocked backend requests, including an original Error in file and stderr with
 isolated stdout. Full-feature regression remains a separate requirement. The original native admission requires 10 GiB free.
-Syntax/format checks cannot qualify the Rust behavior.
+Syntax/format checks cannot qualify the Rust behavior. The complete parent run
+and the subsequent model router are qualified separately below; the router's
+new commit still requires its own cross-platform CI.
 
 ## Alignment contract
 
@@ -212,4 +214,84 @@ The observer can affect timing: these results do not explain or waive the
 original access violation, establish a shared cause with older failures, or
 replace a fresh complete normal command. Assertions, features, ignores, GPU,
 backend and the original 10 GiB admission remain unchanged. Integrated full
-regression and the real-model/video/capability/cache/export work remain pending.
+regression and the real-model/video/capability/cache/export work remained pending
+at that point. The following observations supersede only the pending-run status.
+
+## Complete maintained-workspace observation
+
+The subsequent ordinary v8 command at exact parent `5fb253a4`, admitted against
+main `5a025a2d`, completed with Cargo/controller zero. All 430 expected source
+invocations produced summaries: 5,002 passed, zero failed, 78 original ignores
+and zero filtering. Every tracked source byte remained unchanged. The original
+command retained ffmpeg and both ai-depth features, serial execution, the GPU
+and backend selection, and the original 10 GiB admission. Android was excluded
+as requested. No debugger or runner override was used.
+
+The [manifest](data/depth75-maintained-workspace-v3.json) and
+[archive](data/depth75-maintained-workspace-v3.zip) retain the full raw outputs,
+source-bound target coverage, consumed terminal response, actual corrected
+offline metadata/boundary outputs, passive memory observations and the previous
+failed v6 run. All 50 members were read back and verified: 1,371,510 bytes,
+SHA-256 `70fded20fb4eede0906d9e744c1a892fcacc8b2ebc2fe6a030141ec57bd1407b`.
+The archive preserves the actual qualified source bytes and separately binds
+Git's canonical bytes, admitting only exact CRLF/LF text differences. Its prior
+observer's rejected byte comparison is retained. No product assertion changed.
+
+The original access violation did not recur in this complete run. Its cause
+remains unknown; a fresh complete pass does not retroactively explain or erase
+the original failure. These results qualify the parent source, not the later
+alignment/admission/Jobs/router delta or real-video quality.
+
+## Exact model/backend routing
+
+An ONNX backend binds one model file. Changing a transition ticket alone cannot
+make that backend execute a second exported hash/profile. `depth::routing::Routed`
+now binds two exact validated model identities to two explicitly supplied
+backends. It implements the existing Backend contract and can enter the same
+Jobs or `Session::configure_depth_in`; construction does no model or hardware IO.
+Identical identities are ambiguous and rejected. An unbound ID, revision, hash
+or processing profile is refused before either backend runs. A selected error
+is returned unchanged and never invokes the other binding.
+
+The caller still resolves and qualifies both configurations. There is no quality
+ranking inferred from a resolution/backend, automatic capability probe, extra
+worker, restart, retry, or implicit fallback. Jobs continues to publish its
+flight and flush the Info start before dispatch. The selected backend's actual
+provider, costs, resource identity and the worker-owned RGB fingerprint survive
+the transition and installation admission checks.
+
+All 36 native controls passed together: the unchanged fourteen alignment, nine
+admission and seven actual-Jobs controls, plus six new routing controls. The
+new controls exercise heterogeneous backend types on one actual worker, exact
+identity refusal, ambiguity/invalid configuration, original selected errors,
+cross-route cancellation, and the unchanged returned-resource identity gate.
+There were no failures, ignores or filtered cases.
+
+A separate real-model control then used the production Routed/Controller/Jobs
+path for actual CPU ONNX profiles 266 -> 518 -> 266 with two separately
+hash-bound model files. All three outputs matched their frozen independent
+official references at the original max 0.0002 / mean 0.00002 limits; observed
+maximum normalized error was `1.1488222992897823e-5`, and maximum mean normalized
+error was `5.787359014061221e-7`. All three actual Info starts, with exact profiles
+and full hashes, were read from the production log file before output appeared.
+A fourth unbound request preserved its original Error in file and stderr;
+stdout contained one JSON result. Counts were four submitted, three completed,
+one failed, no canceled jobs, and no remaining flight or queued input.
+
+The restored interpreter separately passed nine frozen-reference comparisons
+and three wrong-profile refusals before these native/model controls. The
+[routing manifest](data/depth75-routed-execution-v1.json) and
+[archive](data/depth75-routed-execution-v1.zip) bind the exact source delta over
+`7cf9c23c`, raw logs, real fixture, original gates and consumed terminal results.
+All 28 members were read back and verified: 753,161 bytes, SHA-256
+`ad3134ab971acbb70164306c1fbde47afc92810640c6bf7d03eda762ad6732a5`.
+No model, image, RGB, scalar tensor, executable, symbols or dump is included.
+
+The complete workflow `42337737934` passed at `7cf9c23c` before this delta. That
+workflow covers the earlier thirty controls, not these new six or the router.
+This commit requires its own CI. Actual mixed ONNX/WGSL routing, measured
+capability/quality selection and requested/resolved reporting, alignment
+installation, versioned caches, frozen export policy, real-model continuous
+video transitions, sustained/thermal measurements and other supported desktop
+hardware remain separate outstanding #75 acceptance. No panels/UI, default
+model distribution or Android behavior was changed.
