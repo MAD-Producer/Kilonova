@@ -53,7 +53,17 @@ pub(crate) struct EffectGpu {
     pub builder: PlanBuilder,
     pub state: GpuState,
 }
+/// Counterfactual native operations and old-pixel contamination exist only in
+/// the unit-test executable. Product builds have no switch to bypass Clear.
+#[cfg(test)]
+pub(crate) struct AttachmentTestPolicy {
+    pub operations: Vec<wgpu::Operations<wgpu::Color>>,
+    pub encoded: Vec<usize>,
+    pub poison: bool,
+}
 pub(crate) struct GpuState {
+    #[cfg(test)]
+    pub attachment_test_policy: Option<AttachmentTestPolicy>,
     allocation_budget: crate::AllocationBudget,
     format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
     uniform_layout: wgpu::BindGroupLayout,
@@ -290,6 +300,8 @@ impl EffectGpu {
         Ok(Self {
             builder,
             state: GpuState {
+                #[cfg(test)]
+                attachment_test_policy: None,
                 allocation_budget,
                 format_capabilities,
                 allocation_uploads,
@@ -973,6 +985,28 @@ impl GpuState {
                     p.program, pipeline_format
                 ))
             })?;
+        let operations = crate::effect_plan::color_attachment_operations();
+        #[cfg(test)]
+        let operations = if let Some(control) = &mut self.attachment_test_policy {
+            let operations = *control.operations.get(index).ok_or_else(||
+                RenderError::Invalid(format!("attachment test pass={index} phase=operations: missing control")))?;
+            if control.poison {
+                drop(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("test-only old attachment pixels"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: target, depth_slice: None, resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 1., g: 0., b: 1., a: 1. }),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None, timestamp_writes: None,
+                    occlusion_query_set: None, multiview_mask: None,
+                }));
+            }
+            control.encoded.push(index);
+            operations
+        } else { operations };
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             multiview_mask: None,
             label: Some("motion-studio effect"),
@@ -980,10 +1014,7 @@ impl GpuState {
                 depth_slice: None,
                 view: target,
                 resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: wgpu::StoreOp::Store,
-                },
+                ops: operations,
             })],
             depth_stencil_attachment: None,
             timestamp_writes: None,

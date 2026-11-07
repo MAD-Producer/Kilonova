@@ -57,9 +57,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         times.push(started.elapsed().as_secs_f64() * 1_000_000. / 2000.);
     }
-    println!(
-        "{}",
-        serde_json::json!({"cpuOnly":true,"iterations":2000,"withoutMemoUs":times[0],"withMemoUs":times[1],"speedup":times[0]/times[1],"planBuilds":b.preview_plan_builds,"cacheHits":b.preview_cache_hits})
-    );
+    let mut report = serde_json::json!({"cpuOnly":true,"iterations":2000,"withoutMemoUs":times[0],"withMemoUs":times[1],"speedup":times[0]/times[1],"planBuilds":b.preview_plan_builds,"cacheHits":b.preview_cache_hits});
+    if std::env::args().skip(1).any(|argument| argument == "--attachments") {
+        // Run after timing, only when explicitly requested. This is planning
+        // metadata, never native bandwidth or a Clear-versus-Load measurement.
+        report["attachments"] = serde_json::to_value(b.attachment_intents()?)?;
+    }
+    println!("{report}");
     Ok(())
 }
