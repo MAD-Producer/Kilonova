@@ -1,0 +1,137 @@
+{
+  "status": "rejected_original_real_quality_gate",
+  "archive": "tracking88-window-negative-v1.zip",
+  "bytes": 56567,
+  "sha256": "3725aeadce606b9ceed211e3ac58915a1e4579fd3263fc14ca6b520594cf120d",
+  "entries": {
+    "analytic.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "analytic.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "archive-controller.py": {
+      "bytes": 2270,
+      "sha256": "49570f6115c78894c336da6135dc5180c5eeb866f35473f4a17ff1638be1e391"
+    },
+    "baseline-controls.stderr.log": {
+      "bytes": 1539,
+      "sha256": "baaf0989c9881f1e41242b10cded6a13436557da18dc39b3e479c6bcffb17d90"
+    },
+    "baseline-controls.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "baseline/plate_contract.py": {
+      "bytes": 7382,
+      "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+    },
+    "baseline/plate_flow.py": {
+      "bytes": 13160,
+      "sha256": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188"
+    },
+    "baseline/test_flow.py": {
+      "bytes": 7265,
+      "sha256": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa"
+    },
+    "baseline/track_plate.py": {
+      "bytes": 14676,
+      "sha256": "46174e1296d5fe28390eb289ed34a661e59002312b49a2b7629407c6f61004e4"
+    },
+    "baseline/validate_manual_absence.py": {
+      "bytes": 5247,
+      "sha256": "f52738cb2b2e21df77437b00fabbdf29f2f2f828aefbc929b32d8e6a2ae91250"
+    },
+    "baseline/validate_prototype.py": {
+      "bytes": 7929,
+      "sha256": "aa2dadb753d3317221a534db1b4f60bb745a63999812a1eb815f927652f5dfd9"
+    },
+    "candidate-controls.stderr.log": {
+      "bytes": 1539,
+      "sha256": "ef5392aaf8b83a7f5c718cefa8f6149f7e5bbf70aee2b35854e6803c0b85fb51"
+    },
+    "candidate-controls.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate/plate_contract.py": {
+      "bytes": 7382,
+      "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+    },
+    "candidate/plate_flow.py": {
+      "bytes": 13390,
+      "sha256": "56e873b98415bbaf92ace27c9e0133608fd245e293e490a8d3eb77b7a443f8f5"
+    },
+    "candidate/test_flow.py": {
+      "bytes": 7265,
+      "sha256": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa"
+    },
+    "candidate/track_plate.py": {
+      "bytes": 14676,
+      "sha256": "46174e1296d5fe28390eb289ed34a661e59002312b49a2b7629407c6f61004e4"
+    },
+    "candidate/validate_manual_absence.py": {
+      "bytes": 5247,
+      "sha256": "f52738cb2b2e21df77437b00fabbdf29f2f2f828aefbc929b32d8e6a2ae91250"
+    },
+    "candidate/validate_prototype.py": {
+      "bytes": 7929,
+      "sha256": "aa2dadb753d3317221a534db1b4f60bb745a63999812a1eb815f927652f5dfd9"
+    },
+    "experiment.json": {
+      "bytes": 9037,
+      "sha256": "77601709eae13bd07d22fa4d14229f375e97cc3b4e5e19cc55f021e8dabcfe8f"
+    },
+    "manual-absence.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "manual-absence.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "preparation.json": {
+      "bytes": 2649,
+      "sha256": "f156e630af12240008aad94e2b83c562bff5a4702c109d2dcdeb44fa0f87c49c"
+    },
+    "prepare.py": {
+      "bytes": 3674,
+      "sha256": "b8032e2e45e9296791dedbf276fd443f1e43798fa411b0610dbaf35fbd840963"
+    },
+    "real-baseline-controller.py": {
+      "bytes": 6892,
+      "sha256": "5fbc8fddcbebb77bc048160171522d41fb86d3f03fc5ff8f4b2da6c30e40c282"
+    },
+    "real-candidate-controller.py": {
+      "bytes": 6894,
+      "sha256": "a61f63e51b5ac3f7af9a13b76c556c3304b68cd1fc0647b6a5dad64e5cb6517e"
+    },
+    "real-full-baseline.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "real-full-baseline.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "real-full-candidate.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "real-full-candidate.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation-controller.py": {
+      "bytes": 8156,
+      "sha256": "abb49863accb9f153248d19f23f9c2d30d07eea776e330888bd37ede956c6417"
+    }
+  },
+  "limits": [
+    "Rejected; no product algorithm change or real quality acceptance",
+    "Original ROI, correction schedule, labels and 15 px gate unchanged",
+    "Media, derived images, per-frame annotations and solves excluded"
+  ]
+}

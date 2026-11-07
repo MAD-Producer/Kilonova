@@ -1,0 +1,3 @@
+# Frozen source and measured output identities must survive Windows checkouts.
+motion.webm -text
+tracks.mstrack -text

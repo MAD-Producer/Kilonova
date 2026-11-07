@@ -36,6 +36,24 @@ derivatives of Blender Foundation / Mango footage (CC BY 3.0), with source
 hashes, license, modifications and technical-only scope in ATTRIBUTION.md and
 the fixture directory. They are not product artwork or an HDR import claim.
 
+External photographed planar-tracking qualification uses the Zimmermann/Matas/
+Svoboda benchmark's published overview videos, original named images and
+independent corner annotations under its
+documented custom public-use statement. These materials remain local validation
+inputs, not repository/product assets. No upstream MATLAB implementation is
+copied or executed. Source revisions, permission limits and citation are recorded
+in ATTRIBUTION.md; each acquisition retains exact URLs and SHA-256 identities.
+
+The optional #88 point/planar tracking prototype interoperates with explicitly
+selected local FFmpeg tools and separately installed OpenCV/NumPy. It copies no
+upstream tutorial implementation or assets, adds no product dependency and
+records executable hashes, raw source identity and original frame timestamps.
+Authorship, revisions, licenses and modification scope are in ATTRIBUTION.md.
+The frozen synthetic video and measured solve under
+`desktop/app/tests/fixtures/tracking-prototype` are independently authored MIT
+validation outputs, with exact source revision and hashes in their README.
+They contain no third-party photographed benchmark data or product artwork.
+
 The external #88 camera calibration qualification uses pinned OpenCV sample
 photographs under Apache-2.0, with unmodified license/copyright and file hashes
 retained. Derived corner measurements and independently authored replacement

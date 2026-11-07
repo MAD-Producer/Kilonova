@@ -1,0 +1,224 @@
+{
+  "status": "accepted_measured_native_import_binding_gpu_history_persistence_real_motion_pending",
+  "codeHead": "3f9a3cfe0e62ed20f92d3f4cd956decdfd0333f4",
+  "archive": "tracking88-reference-native-closeout-v1.zip",
+  "bytes": 1803915,
+  "sha256": "84722c0eaaec0fdaa3ee1659a0f186d128b9e290889c170d1c17bdcaae9e0020",
+  "scope": "Windows original-source native import, binding, GPU pixels, history, persistence and reopened capture; real motion/full cross-platform regression pending",
+  "references": [
+    {
+      "path": "tracking88-prototype-native-v5/project/assets/plate.webm",
+      "bytes": 2790125,
+      "sha256": "3d83869cf562e3708faac68567a85cb1c429c538286805139927c9b26b04fc06",
+      "archive": "tracking88-reference-closeout-v1.zip",
+      "member": "tracking88-prototype-synthetic-v4/evaluation/motion.webm"
+    }
+  ],
+  "members": [
+    {
+      "path": "tracking88-prototype-native-v5/bootstrap.file.log",
+      "bytes": 1605,
+      "sha256": "8f9fefba4a512420d474207f943a9f58261162eddd50edd8d591d3c03ec3e099"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/bootstrap.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/bootstrap.stdin.jsonl",
+      "bytes": 355,
+      "sha256": "89899f83e06dda0de36eb7e8dbed9fcf023ab552a516f9a4434321b0f3b50caf"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/bootstrap.stdout.jsonl",
+      "bytes": 48069,
+      "sha256": "6d64a6f0865743bd8d9743a2d06a3f221ff850d24cb52f5a3dcc540f621c4f9d"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/build.stderr.log",
+      "bytes": 15203,
+      "sha256": "53412f368e3863433ad416960de9df975ff5ddbc67753b16c06ef1caa4725a5d"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/controller.py",
+      "bytes": 16061,
+      "sha256": "fc574a978b3126a7cd84e89d62edc98505435227bf6dadb7ccbf48e56dbfb0c5"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/exit.json",
+      "bytes": 733193,
+      "sha256": "0d18c369a8e92994ef6ba546784627c4f80ec205ae9d9f7789e0dda51509ed2c"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/manual-resume-after-error.png",
+      "bytes": 1722,
+      "sha256": "12f25784e4dca60b35126b7b559718a1488ba1a402d0bd09a345e9b6f825ab9d"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/measured-0.png",
+      "bytes": 1530,
+      "sha256": "5f9541a5eb0dec362321fafb5d05eb3788cf035f681f69f3f781efd48b1b8893"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/measured-10.png",
+      "bytes": 1609,
+      "sha256": "4870b326a7650f01113f1c46d20355114c21a035a717adca907b4d61ab71be95"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/measured-19.png",
+      "bytes": 1638,
+      "sha256": "1b13b9f1306ef393e8218a5d0a8b97eae844cc01fef0fccb7452ed989c06e1c5"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/measured-30.png",
+      "bytes": 1722,
+      "sha256": "12f25784e4dca60b35126b7b559718a1488ba1a402d0bd09a345e9b6f825ab9d"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/measured-40.png",
+      "bytes": 1757,
+      "sha256": "43be4c32bdbd07bd2020425454b94cae3b29e22d4dea6b677014521492a419f6"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/measured-60.png",
+      "bytes": 1869,
+      "sha256": "9ccc2039e9c3c66104f74e5f8820510d9db0298782f2d3cfc57dee4489a63549"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/measured-95.png",
+      "bytes": 2118,
+      "sha256": "942d704e5195c81edc36ad4fc4dd63a80d6dffc4419f6458da45963e637be2cb"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/native-original.png",
+      "bytes": 173693,
+      "sha256": "bb979b82a5549d3a81cf7900c9883ab6492be57e494e54b417ebeecad42d2fce"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx",
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx",
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx",
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx",
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx",
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx",
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx",
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/project/.motion-editor.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/project/assets/tracking/2-bf02b43596c206cef0d9451e08a98409076ede774a8257a87141a260ad05cf55.mstrack",
+      "bytes": 93399,
+      "sha256": "bf02b43596c206cef0d9451e08a98409076ede774a8257a87141a260ad05cf55"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/project/cache/video-v2/plate/index.pts",
+      "bytes": 784,
+      "sha256": "af3614c5e12d1e4287faf526b30a8bab8701faa6737e5b62a5741e8a4192e030"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/project/project.json",
+      "bytes": 124528,
+      "sha256": "eb7a0c04aade5822fff13093885ca4c6dda1ee0885538567ee27c3f622707c09"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/prototype-binding.file.log",
+      "bytes": 14588,
+      "sha256": "6a7b3919ba9d87d3ac07fbe56e863bc41bd4a008cb88e6dcceae8df4cfe8608f"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/prototype-binding.stderr.log",
+      "bytes": 6154,
+      "sha256": "c86613b33d84a460168a80f3cef78be7e6dc88b6f261c322b9fcabc645c85065"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/prototype-binding.stdin.jsonl",
+      "bytes": 7905,
+      "sha256": "f564d13c07875cdc787dc722ce31456502d24ff96d44fd706780ab1a95e234c6"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/prototype-binding.stdout.jsonl",
+      "bytes": 3243066,
+      "sha256": "34d3495895f139672cf7f7f89f6827a351908bc306fa26c5269976549962dc8d"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/readonly-reopen.file.log",
+      "bytes": 1605,
+      "sha256": "37c4ebeffee91b6bdd55c1369dc2e7df9ed0b300e8dd354e6fbc229b0450436c"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/readonly-reopen.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/readonly-reopen.stdin.jsonl",
+      "bytes": 355,
+      "sha256": "89899f83e06dda0de36eb7e8dbed9fcf023ab552a516f9a4434321b0f3b50caf"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/readonly-reopen.stdout.jsonl",
+      "bytes": 155089,
+      "sha256": "be3bdc256e18eddba9ea583b978c35d813fe61b7f74e655309b9abe7bf4a6cd0"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/reopened-measured-40.png",
+      "bytes": 1757,
+      "sha256": "43be4c32bdbd07bd2020425454b94cae3b29e22d4dea6b677014521492a419f6"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/reopened-render.file.log",
+      "bytes": 2743,
+      "sha256": "cea31d44a8b98ad7486abd0fa5b596c2db849a725b17c98da1524c7f39ba4c8c"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/reopened-render.stderr.log",
+      "bytes": 586,
+      "sha256": "2f3fe41834c3ee8b9ebc81fbe1d9337df8747cfd1757fbf1efd5252303379e08"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/reopened-render.stdin.jsonl",
+      "bytes": 494,
+      "sha256": "70aa2dfc39c8473376008c3c59ade7ffe003db908ecfc1607d4eccf3edb3a894"
+    },
+    {
+      "path": "tracking88-prototype-native-v5/reopened-render.stdout.jsonl",
+      "bytes": 154155,
+      "sha256": "07ebc882359550b06aeab1047aef434594021cd46d80c5a775c1defc24201345"
+    }
+  ]
+}

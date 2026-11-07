@@ -1,0 +1,183 @@
+{
+  "status": "negative_and_controlled_evidence_archived_not_adopted",
+  "createdUtc": "2026-11-06T02:18:00.762264+00:00",
+  "baseline": "72423ec2aaf877147d20daa6827a2929bf3649b3",
+  "sourceVideoSha256": "c67202dc312ec945bed714c8c812ab6165ca526c1694a705a40eeb8a578b16b9",
+  "annotationsSha256": "d4e36ea6f58d11fcdaab2e604786401725059581c767c65b9923595f79567886",
+  "bytes": 576104,
+  "sha256": "c15065b4f24414cc8ec14bf0dec3c1fe1dc7ec5bfe7b9d90021148d019bb64ee",
+  "entries": {
+    "archive-controller.py": {
+      "bytes": 2946,
+      "sha256": "cfc00b13381153de5bba57aeb3515325f7cd1050069af527f17ac2583e78a15c"
+    },
+    "tracking88-controlled-extrapolation-v1/baseline/plate_contract.py": {
+      "bytes": 7382,
+      "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+    },
+    "tracking88-controlled-extrapolation-v1/baseline/plate_flow.py": {
+      "bytes": 13160,
+      "sha256": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188"
+    },
+    "tracking88-controlled-extrapolation-v1/controller.py": {
+      "bytes": 6384,
+      "sha256": "35120579d302868911c291821e381f51e3376ed9eedcc4ca1722faa79ace9f24"
+    },
+    "tracking88-controlled-extrapolation-v1/decode.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-controlled-extrapolation-v1/receipt.json": {
+      "bytes": 62898,
+      "sha256": "3ac601610cc1fbaeca8ef106c005281b08d9e1edab050fe456f98cc9c98c1677"
+    },
+    "tracking88-increment-prior-v1/blind-observations.json": {
+      "bytes": 393753,
+      "sha256": "46dda0904fcf23729d64af9416e1921fa8a92d2967281ab8dea6ca941838b006"
+    },
+    "tracking88-increment-prior-v1/candidate/plate_contract.py": {
+      "bytes": 7382,
+      "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+    },
+    "tracking88-increment-prior-v1/candidate/plate_flow.py": {
+      "bytes": 14956,
+      "sha256": "21b54f17d8571fa2a2b84611ea999a057752753fc9b978f82c3681282141601a"
+    },
+    "tracking88-increment-prior-v1/candidate/test_flow.py": {
+      "bytes": 7265,
+      "sha256": "83fbc844e895914b592de352d65e796d2e36599ce80c1bbc7cf4fa10099da2fa"
+    },
+    "tracking88-increment-prior-v1/controller.py": {
+      "bytes": 6018,
+      "sha256": "dd3af255fe383951dd182ad861893d7aef67fb403e3b78f65cf1c66e35378489"
+    },
+    "tracking88-increment-prior-v1/controls.stderr.log": {
+      "bytes": 1531,
+      "sha256": "032d48348728615439da4f117a94809325f8105bf49d58991f6ee9e3f8882628"
+    },
+    "tracking88-increment-prior-v1/controls.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-increment-prior-v1/decode.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-increment-prior-v1/label-comparison.json": {
+      "bytes": 431243,
+      "sha256": "d67a136ea753cd8fa5f588a0774ac995383397aa1cc9bcf481b0bdd68a466692"
+    },
+    "tracking88-increment-prior-v1/preparation-controller.py": {
+      "bytes": 3779,
+      "sha256": "63153bd05d42584311349afcf5276983bdf3ab0b97620d83a334e963fb7b059d"
+    },
+    "tracking88-increment-prior-v1/preparation.json": {
+      "bytes": 826,
+      "sha256": "e29b7253875cf9f701cce981b43bf5dddb665bf2ca1481c783703639e180f0a8"
+    },
+    "tracking88-increment-prior-v1/receipt.json": {
+      "bytes": 2064,
+      "sha256": "1a1ef5b6b127bc43123bef1eeb5abc4afb657134450448e7733da1f22e65257a"
+    },
+    "tracking88-retained-error-visuals-v1/controller.py": {
+      "bytes": 5250,
+      "sha256": "4242074ad9a9d35800cadcb6453c6efb9060698438a04b30628561b0f413ba99"
+    },
+    "tracking88-retained-error-visuals-v1/corner-support-analysis-controller.py": {
+      "bytes": 3865,
+      "sha256": "eebda764296e7bbf8ab69a22fb92d5db21e444b87130b19dc9f0ca0d9096bf0c"
+    },
+    "tracking88-retained-error-visuals-v1/corner-support-analysis-provenance.json": {
+      "bytes": 379,
+      "sha256": "cf699b73fcd1dde32d95a7237821128d5cc13d813c4ab300e7c74da54f9c3544"
+    },
+    "tracking88-retained-error-visuals-v1/corner-support-analysis.json": {
+      "bytes": 28741,
+      "sha256": "09884f37fa554590caaafaa8f03726afc31832bad4f5edaa9e54f97267ac51ec"
+    },
+    "tracking88-retained-error-visuals-v1/decode.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-retained-error-visuals-v1/decode.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-retained-error-visuals-v1/offscreen-overlay-receipt.json": {
+      "bytes": 422,
+      "sha256": "c844b5da1a6a6815e5933056bd28e8ed456615e570d7bf00cf29c770ef438bc5"
+    },
+    "tracking88-retained-error-visuals-v1/receipt.json": {
+      "bytes": 4245,
+      "sha256": "01adc9b60ed2b799bc6db548133bf48948956593382290229815b7a70c9377a4"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/baseline/plate_contract.py": {
+      "bytes": 7382,
+      "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/baseline/plate_flow.py": {
+      "bytes": 13160,
+      "sha256": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/blind-geometry.json": {
+      "bytes": 1144966,
+      "sha256": "291e7a397832f58f62c1f5ee82531919cda4e88f42e287df7f3594ac2c118030"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/controller.py": {
+      "bytes": 6913,
+      "sha256": "5ca7dad5395dd74eaa9f076abfd117226f773cce3f5f8530324e673e29320af7"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/decode.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/label-comparison.json": {
+      "bytes": 1262771,
+      "sha256": "f73f8a47912597940658c0185eb1689d75eaaf4ae2dbab0f3a57cfba3abffca2"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/receipt.json": {
+      "bytes": 1052,
+      "sha256": "d642c658335ec3f082483a74908e9819c6d5301394cab955f30e2f33dbdd998d"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/verification-controller.py": {
+      "bytes": 4371,
+      "sha256": "5cdedd2b4bd5d74a7d8e1ad479c15ebd1d13bfcb8f9140ac7e8911cfea1fb984"
+    },
+    "tracking88-spatial-jackknife-diagnostic-v1/verification.json": {
+      "bytes": 2183,
+      "sha256": "9f0d73fdc24a6dbb7d779d0223d7162221003d0fe6384b9a364efe1b4c6ce053"
+    },
+    "tracking88-support-uncertainty-probe-v1/baseline/plate_contract.py": {
+      "bytes": 7382,
+      "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+    },
+    "tracking88-support-uncertainty-probe-v1/baseline/plate_flow.py": {
+      "bytes": 13160,
+      "sha256": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188"
+    },
+    "tracking88-support-uncertainty-probe-v1/blind-measurements.json": {
+      "bytes": 30451,
+      "sha256": "f1b239708843a8f8ee844123cdad4ae307e7f5b25a8334646fc3d9baafd51db9"
+    },
+    "tracking88-support-uncertainty-probe-v1/controller.py": {
+      "bytes": 6739,
+      "sha256": "4a6c2e45e78ad27e8fe0e94bad7ad4c562365f4e4cf76a8879f953ef5d2a5362"
+    },
+    "tracking88-support-uncertainty-probe-v1/decode.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tracking88-support-uncertainty-probe-v1/receipt.json": {
+      "bytes": 36121,
+      "sha256": "9d986d84feaa876259cdfd28c824b57d37cd5ae30ff4ad110acc64db754b08ed"
+    }
+  },
+  "limits": [
+    "Original all2300 frames/ROI/corrections/15pixel quality gate remain unchanged",
+    "Original video, annotated source/permission data and derived images remain external; no photographed payload included",
+    "The ridge candidate retains21 failures; neither support tests nor known flat-image motion establishes a repair",
+    "Known source-frame0/1800 planar image warps have analytic transforms, not photographed-motion ground truth",
+    "No experimental algorithm is adopted in the production/prototype branch",
+    "Original source and label identities plus controllers are retained; this archive is not a portable benchmark-input package"
+  ]
+}
