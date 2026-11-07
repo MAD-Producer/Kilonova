@@ -27,8 +27,9 @@ pub enum AllocationCategory {
     OtherBuffers,
     UiAtlas,
     ModelSources,
+    CompositionFrames,
 }
-pub(super) const CATEGORIES: [AllocationCategory; 21] = [
+pub(super) const CATEGORIES: [AllocationCategory; 22] = [
     AllocationCategory::StaticImages,
     AllocationCategory::Video,
     AllocationCategory::Vector,
@@ -50,6 +51,7 @@ pub(super) const CATEGORIES: [AllocationCategory; 21] = [
     AllocationCategory::OtherBuffers,
     AllocationCategory::UiAtlas,
     AllocationCategory::ModelSources,
+    AllocationCategory::CompositionFrames,
 ];
 pub(super) const CATEGORY_COUNT: usize = CATEGORIES.len();
 
@@ -89,6 +91,7 @@ impl From<TextureCategory> for AllocationCategory {
             | TextureCategory::LayerCompositingScratch
             | TextureCategory::MatteBlendScratch => Self::Compositing,
             TextureCategory::PreviewTargets => Self::PreviewTargets,
+            TextureCategory::CompositionFrames => Self::CompositionFrames,
             TextureCategory::CaptureTargets => Self::CaptureTargets,
             TextureCategory::ExposureTargets => Self::ExposureTargets,
             TextureCategory::AuthoringInputs => Self::AuthoringInputs,
