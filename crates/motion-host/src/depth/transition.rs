@@ -335,6 +335,36 @@ impl Controller {
         Ok(Some(request))
     }
 
+    /// Session-only managed-source staging. The reference was retained from an
+    /// actual worker completion; decoding and fitting stay on that same worker.
+    pub(crate) fn request_aligned_image(
+        &mut self,
+        ticket: &Ticket,
+        jobs: &mut Jobs,
+        input: super::image::ImageInput,
+        reference: &PreparedEstimate,
+        limits: super::alignment::Limits,
+    ) -> Result<Option<u64>> {
+        if !self.owns_current(ticket) {
+            return Ok(None);
+        }
+        if !ticket.key.same_sample(&input.key) {
+            return Err(Error::Input);
+        }
+        let request = jobs
+            .submit_with_alignment(
+                super::Work::Image(input),
+                Some(admission::Pending::new(ticket, reference, limits)),
+            )
+            .map_err(|cause| self.job_error("depth_transition_request_image", cause))?;
+        self.submission = Some(Submission {
+            worker: Arc::downgrade(&jobs.shared),
+            request,
+            generation: ticket.generation,
+        });
+        Ok(Some(request))
+    }
+
     /// Revoke tickets before canceling the worker, even when no replacement is
     /// requested. A cancellation failure cannot make the old ticket valid again.
     pub fn invalidate_jobs(&mut self, jobs: &mut Jobs, now: Duration) -> Result<()> {

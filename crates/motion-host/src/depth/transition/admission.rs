@@ -5,7 +5,10 @@ use crate::depth::{
     alignment::{Aligned, Alignment, Limits, Rejection, Statistics},
     Costs, Key, PreparedEstimate,
 };
-use motion_model::depth::{DepthDescriptor, DepthResource, PreparedDepthInput};
+use motion_model::depth::{
+    DepthDescriptor, DepthResource, PreparedDepthInput, RelativeDepthCalibration,
+    SavedDepthCalibration,
+};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, thiserror::Error)]
@@ -145,6 +148,29 @@ impl Admission {
         self.alignment.statistics()
     }
 
+    /// Incoming candidate ownership charged once at Session admission. The
+    /// reference shares the already-accounted retained worker allocation.
+    pub(crate) fn candidate_bytes(&self) -> usize {
+        let (scalar, image) = self.candidate_usage();
+        scalar + image
+    }
+
+    pub(crate) fn candidate_usage(&self) -> (usize, usize) {
+        let resource = &self.candidate.estimate().resource;
+        let scalar = resource.values().len() * std::mem::size_of::<f32>()
+            + resource.validity().map_or(0, |values| values.len())
+            + resource
+                .confidence()
+                .map_or(0, |values| values.len() * std::mem::size_of::<f32>());
+        (
+            scalar,
+            self.candidate
+                .image
+                .as_ref()
+                .map_or(0, |image| image.bytes()),
+        )
+    }
+
     /// Obtain live identity again after the work. A -> B -> A, foreign owners,
     /// seeks and explicit invalidation reject the retained proof even when its
     /// public metadata still matches. The view borrows the controller, preventing
@@ -159,6 +185,8 @@ impl Admission {
         }
         Ok(Some(View {
             _controller: controller,
+            reference: &self.reference,
+            alignment: &self.alignment,
             aligned: self
                 .alignment
                 .bind(&self.reference, &self.candidate.estimate().resource)?,
@@ -171,6 +199,8 @@ impl Admission {
 /// This does not manufacture a new model/resource identity or change raw values.
 pub struct View<'a> {
     _controller: &'a Controller,
+    reference: &'a DepthResource,
+    alignment: &'a Alignment,
     aligned: Aligned<'a>,
     candidate: &'a PreparedEstimate,
 }
@@ -189,5 +219,38 @@ impl View<'_> {
     }
     pub fn input(&self) -> PreparedDepthInput {
         self.candidate.input()
+    }
+
+    /// Compose a qualified positive affine map with the original saved metric
+    /// observations. Keep the candidate descriptor and raw samples unchanged;
+    /// transform only the two decoded-value anchors into candidate units.
+    /// Saved source pixels, time, model and interpretation must first bind the
+    /// actual reference instance. No cross-model saved rebind is relaxed.
+    pub fn calibration(
+        &self,
+        saved: &SavedDepthCalibration,
+    ) -> motion_model::Result<RelativeDepthCalibration> {
+        let reference = saved.rebind(self.reference, self.input())?;
+        let [scale, offset] = self.alignment.coefficients();
+        let anchors = reference.anchors().map(|mut anchor| {
+            anchor.value = (anchor.value - offset) / scale;
+            anchor
+        });
+        RelativeDepthCalibration::new(
+            self.descriptor().clone(),
+            anchors,
+            reference.curve(),
+            reference.extrapolation(),
+        )
+    }
+
+    pub(crate) fn reference_resource(&self) -> &DepthResource {
+        self.reference
+    }
+    pub(crate) fn candidate_resource(&self) -> &DepthResource {
+        &self.candidate.estimate().resource
+    }
+    pub(crate) fn image(&self) -> Option<&motion_render::DepthImage> {
+        self.candidate.image.as_ref()
     }
 }

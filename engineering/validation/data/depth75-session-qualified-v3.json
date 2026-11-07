@@ -1,0 +1,265 @@
+{
+  "status": "consumed_pre_rebase_session_scene_and_actual_default_channels",
+  "generatedUtc": "2026-11-07T12:33:14.492826+00:00",
+  "parentCommit": "1a939a3dd71d4d37b6635fcbf8b035d615bd67b2",
+  "nativeSummary": [
+    [
+      "ok",
+      "25",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  ],
+  "gpuSummaries": {
+    "render": [
+      [
+        "ok",
+        "51",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    ],
+    "session": [
+      [
+        "ok",
+        "25",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    ]
+  },
+  "newControls": 10,
+  "changedRustFiles": [
+    "crates/motion-host/src/depth.rs",
+    "crates/motion-host/src/depth/alignment.rs",
+    "crates/motion-host/src/depth/transition.rs",
+    "crates/motion-host/src/depth/transition/admission.rs",
+    "crates/motion-host/src/session/depth.rs",
+    "crates/motion-host/src/session/depth/transition.rs",
+    "crates/motion-host/tests/depth_session.rs",
+    "crates/motion-host/tests/depth_session/transitions.rs",
+    "crates/motion-render/src/scene/depth.rs",
+    "crates/motion-render/tests/depth_surface.rs",
+    "crates/motion-render/tests/depth_surface/aligned.rs"
+  ],
+  "members": {
+    "executed-source/Cargo.lock": {
+      "bytes": 147457,
+      "sha256": "a074661f26ae7944d90886b4c74f4734055f8671d91e531a9cf54eadabb9d438"
+    },
+    "executed-source/crates/motion-host/src/depth.rs": {
+      "bytes": 30976,
+      "sha256": "33889ba12e90c0975748c86426bb3fb52af6b2278b06cf5bc54e600a084fe33b"
+    },
+    "executed-source/crates/motion-host/src/depth/alignment.rs": {
+      "bytes": 13156,
+      "sha256": "200b6e32048a27c0a3ea1a0eba5123507f80cfb4f90c6b2866424b4622eaab9c"
+    },
+    "executed-source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 17140,
+      "sha256": "dbcd0f301a34de4d7225e1b2b36757156d1edb94901800bef71ef5f36abcf3ad"
+    },
+    "executed-source/crates/motion-host/src/depth/transition/admission.rs": {
+      "bytes": 9229,
+      "sha256": "d067c6a20526b54a2529386352a24ef714db34d070d065f164ada23ca48a546b"
+    },
+    "executed-source/crates/motion-host/src/session/depth.rs": {
+      "bytes": 43120,
+      "sha256": "a0486a498e46554bb2b25185bdee1fad1c0a7cbce055481d155dfb8f2c969fa0"
+    },
+    "executed-source/crates/motion-host/src/session/depth/transition.rs": {
+      "bytes": 12169,
+      "sha256": "044cf5e57de4c1f33b3956fa7340e98cf9afcfc1abb32c205fe736664b58c395"
+    },
+    "executed-source/crates/motion-host/tests/depth_session.rs": {
+      "bytes": 34579,
+      "sha256": "ac5e0624a84f48d2652128f196e3cb29bcdc2e50f57af879820666223a2d3140"
+    },
+    "executed-source/crates/motion-host/tests/depth_session/transitions.rs": {
+      "bytes": 20429,
+      "sha256": "37bef9c8b7758e1e3cfc5c3b4f6664028993c6a6665bdaf7550a24888f10fd69"
+    },
+    "executed-source/crates/motion-render/src/scene/depth.rs": {
+      "bytes": 11045,
+      "sha256": "bc0307ade8b9cc866a3e045db91ef3ac254f8c415e4bea58c9684c00c6dddda9"
+    },
+    "executed-source/crates/motion-render/tests/depth_surface.rs": {
+      "bytes": 23343,
+      "sha256": "41c2abb3d8f6871cc8944fe3bc01b8f400101eab64b17769c56d9b53a415311d"
+    },
+    "executed-source/crates/motion-render/tests/depth_surface/aligned.rs": {
+      "bytes": 4620,
+      "sha256": "b7a676a69d8c10f31b4cf50b5165968fbc53a13c512a31517a6104bd9e3ce2b2"
+    },
+    "executed-source/desktop/app/src/logging/sink.rs": {
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    },
+    "failed-fixture-v1/Cargo.toml": {
+      "bytes": 710,
+      "sha256": "09859f622cc2eba59ee3e9b538527580ba900b897495e9132f2fb84cc0c9d080"
+    },
+    "failed-fixture-v1/build.stderr.log": {
+      "bytes": 2294,
+      "sha256": "49b84b9953d6193f7fba6452a81407c8ddacee8a7624a02327d87a198b3e6ee3"
+    },
+    "failed-fixture-v1/controller.py": {
+      "bytes": 5991,
+      "sha256": "f3ecf1e3a03b54bbb653e2fe39fa5d76e4e010920c10db65992141bfed915fad"
+    },
+    "failed-fixture-v1/receipt.json": {
+      "bytes": 857922,
+      "sha256": "d8e39a4ad033883d697b40ba7bfdd6e77057b7fd201370a4fa28a76120fa487d"
+    },
+    "failed-fixture-v1/session-consumed.json": {
+      "bytes": 293,
+      "sha256": "0d682ebaa708bbc044e66c31060809ae41b0158b920a67d5768640497a5e0a15"
+    },
+    "file/actual.stderr.log": {
+      "bytes": 640,
+      "sha256": "8a57fd8efe82bf1a8a04eb59c30a7b2c086122329e42e2d43043527f01bbb668"
+    },
+    "file/actual.stdout.log": {
+      "bytes": 84,
+      "sha256": "5351c4419cd15662842f230410a6e5abb7935fe9d3a01eb29f26166dddeb2b1b"
+    },
+    "file/build.stderr.log": {
+      "bytes": 1583,
+      "sha256": "4f8c0ddf4a1dd900db88bc0d46f2e363d08bf1d724e94a2b763a72ad10782491"
+    },
+    "file/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file/controller.py": {
+      "bytes": 7436,
+      "sha256": "2689479a2b8085f189b4f33c5c7a1b3b4403ea8918a692e5116900485f4490eb"
+    },
+    "file/metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file/production-motion-studio.log": {
+      "bytes": 34106,
+      "sha256": "3ab84b05b4ae52c60b96596cab42e4916514ba2f145f3b4a999896a849fcd4d6"
+    },
+    "file/receipt.json": {
+      "bytes": 858225,
+      "sha256": "4ddd17c231654d36f5b2c6078b2f9ce99e4326ae2157225081dac521e599773b"
+    },
+    "file/session-consumed.json": {
+      "bytes": 306,
+      "sha256": "6e574d61ab45810754a6000e263289b9e3e5eb7bcafdcd0d62e9b9b8ea988b2d"
+    },
+    "fixture/Cargo.lock": {
+      "bytes": 73472,
+      "sha256": "ad5cab8b9828d1069aac3532698c71b72948b94027df4f92d988747589d00e31"
+    },
+    "fixture/Cargo.toml": {
+      "bytes": 811,
+      "sha256": "77e39be1c7f233ac9ab25c633715d8f96eb136e996e189c2b5af962fc8860e70"
+    },
+    "fixture/fixture-generation.json": {
+      "bytes": 509,
+      "sha256": "38d050c656063a87dd82cb7fe3a34d5f52f10cce45cde49a6cbf94a52f31a99f"
+    },
+    "fixture/generate.py": {
+      "bytes": 1908,
+      "sha256": "85cf5d32284c39054ffe1c00b9379a0f75b33c14c91d8eebd98fcd300015d854"
+    },
+    "fixture/probe-main.rs": {
+      "bytes": 4507,
+      "sha256": "175e0c38cb0968ff7da7c5053d666ebe2c214ec80a22eb07b3cde2272591145f"
+    },
+    "fixture/src/main.rs": {
+      "bytes": 12023,
+      "sha256": "37a7e9b480a457556ea945b292915c3ed69788c4864c07fd1398cf6e10b08d26"
+    },
+    "gpu/controller.py": {
+      "bytes": 5654,
+      "sha256": "38e17afd7207217a059395d37af7b1232e58f62fc38fdb0f25ced73f5a87df82"
+    },
+    "gpu/receipt.json": {
+      "bytes": 859704,
+      "sha256": "8b8e156d30b5e206eb3de2ee3e7f6ba5d3de901554753a5eae02448a5c884457"
+    },
+    "gpu/render.stderr.log": {
+      "bytes": 1139,
+      "sha256": "7c3f5af80019b958a26b496beddd3ae7572f84148047230278e75c488c29abf2"
+    },
+    "gpu/render.stdout.log": {
+      "bytes": 5616,
+      "sha256": "9bd12c9ff7be5bb3f99936277ad480bdb236f5e0cb347a3b7c4046dbbdf3c018"
+    },
+    "gpu/session-consumed.json": {
+      "bytes": 245,
+      "sha256": "e3ea1c7f9d5e68ee8429f41725e0f2d48580493ea53ee4cde7494a87b7cc8f16"
+    },
+    "gpu/session.stderr.log": {
+      "bytes": 1043,
+      "sha256": "03972e2370baac0d89dad6775dff665afbe6180cf93fe230a99684c4e4347775"
+    },
+    "gpu/session.stdout.log": {
+      "bytes": 2596,
+      "sha256": "4dc27a1db2c2f8c0a5111e69c0344a04b4ca5cfe95c82e0b5e7b00a36d267b65"
+    },
+    "main-thread-overflow-v2/actual.stderr.log": {
+      "bytes": 48,
+      "sha256": "7e1ac6e5f87ef07c5f6bebf1171c3f6c297a47cbf1ff3a56c9f93cb260757a75"
+    },
+    "main-thread-overflow-v2/controller.py": {
+      "bytes": 6572,
+      "sha256": "95faaf9d7d56a9cd888766551cc4884b465a1bec78a6a0c643e51d43a3bf9175"
+    },
+    "main-thread-overflow-v2/probe-main.rs": {
+      "bytes": 3872,
+      "sha256": "eee490981af1f806c234f14ffc3db6d42e81e591c32eb7655d39e0b82086cf35"
+    },
+    "main-thread-overflow-v2/receipt.json": {
+      "bytes": 858551,
+      "sha256": "ccc0e07222e853612f9bad46fd89a02019972300a25bd8dca4e6d9e615559e89"
+    },
+    "main-thread-overflow-v2/session-consumed.json": {
+      "bytes": 286,
+      "sha256": "0caf6ce43ba599d41027aeb5f559e2f21f95d006e4deec6fa0c394a9d59b7e5f"
+    },
+    "session/controller.py": {
+      "bytes": 5188,
+      "sha256": "7cf2bd2c7f247e361c43bb802fcb2c34260a1af33290214370a8eba14347c049"
+    },
+    "session/receipt.json": {
+      "bytes": 857700,
+      "sha256": "f3129fa9d16d3f58d74b8cfc1fa38c021cc08a7c5136398951c92f00a80c258d"
+    },
+    "session/session-consumed.json": {
+      "bytes": 263,
+      "sha256": "b7a6584babc01804a639147047511a3ee6368b47a5d1406bb99605a260691b65"
+    },
+    "session/stderr.log": {
+      "bytes": 2648,
+      "sha256": "1415ab4bc4a70d2a6cc35a80bc2ceef81ed041a42d6729cacab6168eec18a65b"
+    },
+    "session/stdout.log": {
+      "bytes": 2596,
+      "sha256": "36ed110e86c2dd4dce62ae9c87330f1811976d235b9313361e612d5fc7254264"
+    }
+  },
+  "limits": [
+    "The uncommitted increment is bound by full source hashes and included executed Rust files, not only its parent HEAD",
+    "Original fixture E0433 compile failure and v2 main-thread stack overflow are retained; neither is labeled fixed or successful",
+    "v3 qualifies default named Session owner-worker context matching desktop engine.rs:805; no stack setting override, no claim that main-thread execution is unsupported by API contract",
+    "Actual registered-image workers and production sink use controlled synthetic models; no real-model quality claim",
+    "Rebased/current-main source needs its own full regression and CI; these pre-rebase results are retained unchanged",
+    "No frozen export, automatic measured capability/quality, real-video transition or thermal acceptance",
+    "Original assertions, timeout, default backend, source/readback gates and10GiB admission unchanged"
+  ],
+  "archiveBytes": 1598475,
+  "archiveSha256": "c4145e556307728b22957bf48e3e5bbe83def717c20b1681008373349dc1ceb3",
+  "verifiedMembers": 51
+}

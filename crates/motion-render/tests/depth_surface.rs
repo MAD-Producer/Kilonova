@@ -35,6 +35,8 @@ mod ordinary_calibrated_mattes;
 mod calibrated_materials;
 #[path = "depth_surface/depth_of_field.rs"]
 mod depth_of_field;
+#[path = "depth_surface/aligned.rs"]
+mod aligned;
 
 // Explicit local acceptance output; CI and ordinary tests perform no extra IO.
 fn retain_fixture(name: &str, pixels: &[u8]) {

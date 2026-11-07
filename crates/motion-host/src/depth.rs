@@ -201,7 +201,7 @@ pub struct Costs {
     pub output_bytes: u64,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Estimate {
     pub resource: DepthResource,
     /// Actual provider returned by the runtime, never just the requested one.
@@ -211,7 +211,7 @@ pub struct Estimate {
 
 /// Only the worker constructs this pair, after all crop, orientation and color
 /// conversion. The backend cannot supply the authoritative input fingerprint.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PreparedEstimate {
     estimate: Estimate,
     input: PreparedDepthInput,
