@@ -104,7 +104,7 @@ impl Shell {
                     .apply_preferences(values, true)
                     .err()
                     .ok_or("missing style unexpectedly loaded")?;
-                dialog.error = Some(self.workspace.locale.error(&error));
+                dialog.error = Some(self.workspace.locale.error(&error.to_string()));
             }
             if dialog
                 .render(
