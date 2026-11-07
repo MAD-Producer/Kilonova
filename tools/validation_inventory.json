@@ -1,6 +1,15 @@
 {
   "version": 1,
   "tools": {
+    "tools/color-management/export_config.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/export_config.py --builtin <pinned-config-id> --output <new-bundle-directory>",
+      "requires": [
+        "Separately installed official opencolorio==2.6.0 reference runtime",
+        "Explicit pinned ACES configuration and new output directory"
+      ],
+      "reason": "Explicit authoring preparation snapshots native OCIO catalogues; no configuration is selected from the environment and CI does not install or redistribute the optional reference runtime."
+    },
     "tools/color-management/generate_lut_reference.py": {
       "mode": "manual",
       "command": "python tools/color-management/generate_lut_reference.py --output <reference-directory>",
