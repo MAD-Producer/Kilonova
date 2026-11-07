@@ -1,0 +1,282 @@
+{
+  "schema": 1,
+  "sourceCommit": "15067fc59fb7a814f0a1690c62f63949982e2220",
+  "observedUtc": "2026-11-07T06:32:03.849023+00:00",
+  "status": "actual_serial_cpu266_vulkan518_cpu266_frozen_comparisons_passed",
+  "sourceFiles": {
+    "crates/motion-host/src/depth.rs": "50400652010850cc6e37f00730a0ee84fec21744acff6cdaddb049e9db86b280",
+    "crates/motion-host/src/depth/routing.rs": "560be0e86d0a82388a5ab5ef56bda0c6f269924a6b97b4dab17b54933a317067",
+    "crates/motion-host/src/depth/transition.rs": "0d59cd95078106460d20293371e0c21d7664f5a12e040f1b1a10656d713d2524",
+    "crates/motion-host/src/depth/wgsl.rs": "e7f49d7f787b7f261439b02e9093d1956b4c5ecd32c108d83fa4c2c836723163",
+    "crates/motion-host/src/depth/onnx.rs": "ead44ad48256bb88f4af59caf57ff19696dc4f0a5d5534e8c4f1a728ec18a008",
+    "desktop/app/src/logging/sink.rs": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+  },
+  "routes": [
+    {
+      "request": 1,
+      "route": 0,
+      "provider": "CPUExecutionProvider",
+      "model": {
+        "id": "depth-anything-v2-small",
+        "processing": "dav2-small-rgb8-letterbox266-align-corners-relative-v1",
+        "revision": "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf",
+        "sha256": [
+          7,
+          235,
+          122,
+          235,
+          70,
+          167,
+          85,
+          150,
+          30,
+          125,
+          238,
+          37,
+          205,
+          113,
+          192,
+          6,
+          123,
+          18,
+          99,
+          109,
+          91,
+          15,
+          179,
+          185,
+          110,
+          32,
+          204,
+          64,
+          254,
+          92,
+          18,
+          161
+        ]
+      },
+      "maxNormalized": 9.300064240685438e-06,
+      "meanNormalized": 5.787359014061221e-07
+    },
+    {
+      "request": 2,
+      "route": 1,
+      "provider": "WGSL:Vulkan:NVIDIA GeForce RTX 4070 Laptop GPU",
+      "model": {
+        "id": "depth-anything-v2-small",
+        "processing": "dav2-small-rgb8-letterbox518-align-corners-relative-v1",
+        "revision": "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf",
+        "sha256": [
+          39,
+          67,
+          104,
+          3,
+          76,
+          15,
+          206,
+          240,
+          143,
+          155,
+          25,
+          125,
+          51,
+          182,
+          6,
+          186,
+          233,
+          197,
+          120,
+          172,
+          202,
+          134,
+          30,
+          247,
+          47,
+          235,
+          38,
+          129,
+          67,
+          178,
+          20,
+          52
+        ]
+      },
+      "maxNormalized": 1.2891364732488397e-05,
+      "meanNormalized": 3.389856126056787e-07
+    },
+    {
+      "request": 3,
+      "route": 0,
+      "provider": "CPUExecutionProvider",
+      "model": {
+        "id": "depth-anything-v2-small",
+        "processing": "dav2-small-rgb8-letterbox266-align-corners-relative-v1",
+        "revision": "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf",
+        "sha256": [
+          7,
+          235,
+          122,
+          235,
+          70,
+          167,
+          85,
+          150,
+          30,
+          125,
+          238,
+          37,
+          205,
+          113,
+          192,
+          6,
+          123,
+          18,
+          99,
+          109,
+          91,
+          15,
+          179,
+          185,
+          110,
+          32,
+          204,
+          64,
+          254,
+          92,
+          18,
+          161
+        ]
+      },
+      "maxNormalized": 9.300064240685438e-06,
+      "meanNormalized": 5.787359014061221e-07
+    }
+  ],
+  "originalNumericalGates": {
+    "maxNormalized": 0.0002,
+    "meanNormalized": 2e-05
+  },
+  "workerSha256": "e928595229798e0e08f6f5bd30ceeb6b76cd44ae2bb9689d1d9fe551735a6585",
+  "programSha256": "2ec1d8012905198cfd5af1430f88d1770edbf752531fe817dfcc65e1477fef6a",
+  "limits": [
+    "Actual heterogeneous production Routed/Controller/Jobs with explicit identities and one worker",
+    "Three independent frozen-reference comparisons; no fit or normalization to hide backend differences",
+    "Actual default Info starts before outputs; original refusal in file and stderr; one JSON stdout",
+    "Previous observer preflight failure is retained: references and unique resource files were confused",
+    "Exact program hash, all282 references and238 unique file hashes/bytes checked before execution",
+    "No automatic capability/quality choice, real video, installation/cache/export or thermal qualification",
+    "No Android or other desktop GPU qualification, default model distribution or UI change",
+    "No weights/models, image/RGB/scalar tensors, native executable, symbols or minidump included"
+  ],
+  "members": {
+    "evidence/mixed/controller.py": {
+      "bytes": 13714,
+      "sha256": "4b4220ccb2e72dcbe4e17ea024b91c8aed485450ef49cdb3a2d115f89b405788"
+    },
+    "evidence/mixed/receipt.json": {
+      "bytes": 936030,
+      "sha256": "ac79fccc09e022bea98c1dcda6f0eb732ac54e918acae1dbf1e3758d726c4f38"
+    },
+    "evidence/mixed/session-consumed.json": {
+      "bytes": 133,
+      "sha256": "71766c53ea1415579063df2db599eeb69859f962762386c78d51750d104bae98"
+    },
+    "evidence/mixed/request.json": {
+      "bytes": 1655,
+      "sha256": "d1a7a213d19ae72c0f6b6bcf59b91bb52df4715eb7c4d591a199c3cb5ada15fa"
+    },
+    "evidence/mixed/build-native-worker.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/mixed/build-native-worker.stderr.log": {
+      "bytes": 4487,
+      "sha256": "d8e6907a6561d661ae04d6937ee53021883b5454088335ba86839428eab8ca13"
+    },
+    "evidence/mixed/metadata.stdout.log": {
+      "bytes": 1558397,
+      "sha256": "3ae9e274633d7836963f3a37aca065e428200987fcfabca86c8fbe391469f198"
+    },
+    "evidence/mixed/metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/mixed/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/mixed/build.stderr.log": {
+      "bytes": 1102,
+      "sha256": "d2f068c2b1fa193c2362c7045150a9c2a599cc15f11e57de3125fb55dcd5dff0"
+    },
+    "evidence/mixed/actual.stdout.log": {
+      "bytes": 48,
+      "sha256": "9cc83dee4611f2cdc1c947f66dacfb455925d0d1949f5f85f9b25995f1e2566c"
+    },
+    "evidence/mixed/actual.stderr.log": {
+      "bytes": 275,
+      "sha256": "35cd4b3413e04f2d73d915595cc401d83eb821fe5af9c480df666bc5196104d1"
+    },
+    "evidence/mixed/execution/receipt.json": {
+      "bytes": 6357,
+      "sha256": "2dcc22f5b802d6462110570a9568e9fd88e513c61173086e0acec578c31c0918"
+    },
+    "evidence/mixed/execution/logs/motion-studio.log": {
+      "bytes": 3207,
+      "sha256": "fc4898c5a4ffb31c799f08f3c055eb47857c866f0a63e6f7740bba2b71ad06de"
+    },
+    "evidence/previous-preflight-refusal/controller.py": {
+      "bytes": 13222,
+      "sha256": "8a0372accb6c401971f123160195e678da3f6932c22861aab51270591ed8402f"
+    },
+    "evidence/previous-preflight-refusal/receipt.json": {
+      "bytes": 450,
+      "sha256": "52ae13e7b0a608f358c3151e8dc3865f5d2ede31b66a5c989eda81cb06386431"
+    },
+    "fixture/Cargo.toml": {
+      "bytes": 354,
+      "sha256": "150324d797b0487c0d8e99d23d0883a0ceaab46077834bdf98eefbe5ccd08ae4"
+    },
+    "fixture/Cargo.lock": {
+      "bytes": 73401,
+      "sha256": "93ee5dbb9f173325121feb3c195c6a63c8cdf26d9f8c5e5cab28082cd034a4a5"
+    },
+    "fixture/src/main.rs": {
+      "bytes": 7185,
+      "sha256": "075a7144a299b64b89af7b4170ce8dcab31f8a184d844f6222019a4e9abbee10"
+    },
+    "source/crates/motion-host/src/depth.rs": {
+      "bytes": 28618,
+      "sha256": "50400652010850cc6e37f00730a0ee84fec21744acff6cdaddb049e9db86b280"
+    },
+    "source/crates/motion-host/src/depth/routing.rs": {
+      "bytes": 2114,
+      "sha256": "560be0e86d0a82388a5ab5ef56bda0c6f269924a6b97b4dab17b54933a317067"
+    },
+    "source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 12887,
+      "sha256": "0d59cd95078106460d20293371e0c21d7664f5a12e040f1b1a10656d713d2524"
+    },
+    "source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 21510,
+      "sha256": "e7f49d7f787b7f261439b02e9093d1956b4c5ecd32c108d83fa4c2c836723163"
+    },
+    "source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 17595,
+      "sha256": "ead44ad48256bb88f4af59caf57ff19696dc4f0a5d5534e8c4f1a728ec18a008"
+    },
+    "source/desktop/app/src/logging/sink.rs": {
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    },
+    "archive-controller.py": {
+      "bytes": 5579,
+      "sha256": "ce34618205b5fb65925ae32d4b7f49aa3d5c05f33989dbbe1a99a16c4f639538"
+    }
+  },
+  "archive": {
+    "file": "depth75-mixed-execution-v1.zip",
+    "bytes": 499316,
+    "sha256": "cf4f43f15ee6e04b758e8e86a7782f60f093653f91e47cec68746a6d73b1d426",
+    "verifiedMembers": 27
+  }
+}

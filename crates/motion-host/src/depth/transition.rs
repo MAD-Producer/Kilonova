@@ -6,6 +6,7 @@
 //! and independently supply the live key at the installation boundary.
 
 use super::{Input, Jobs, Key, PreparedEstimate};
+pub mod admission;
 use motion_model::depth::DepthResource;
 use std::{
     sync::{Arc, Condvar, Mutex, Weak},
