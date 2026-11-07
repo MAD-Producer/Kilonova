@@ -28,10 +28,20 @@ pub struct CapturedImage {
     pub pixels: Vec<u8>,
 }
 
-struct UnmapOnDrop<'a>(&'a wgpu::Buffer);
+struct UnmapOnDrop<'a> {
+    buffer: &'a wgpu::Buffer,
+    receive: &'a std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
+    failed: bool,
+}
+#[cfg(test)]
+mod cleanup_tests;
 impl Drop for UnmapOnDrop<'_> {
     fn drop(&mut self) {
-        self.0.unmap();
+        // A failed map already released its mapping. Unmapping it again emits
+        // a secondary validation error. Pending/successful maps still need cleanup.
+        if !self.failed && !matches!(self.receive.try_recv(), Ok(Err(_))) {
+            self.buffer.unmap();
+        }
     }
 }
 
@@ -201,20 +211,25 @@ impl Renderer {
                 let _ = send.send(result);
             });
         // Covers poll, device-health, callback and mapped-range failures too.
-        let _unmap = UnmapOnDrop(&target.buffer);
+        let mut unmap = UnmapOnDrop { buffer: &target.buffer, receive: &receive, failed: false };
+        #[cfg(test)]
+        crate::readback::after_map(&target.buffer);
         self.device.poll(wgpu::PollType::wait_indefinitely())?;
         self.check_health()?;
         receive
             .recv()
-            .map_err(|cause| RenderError::Readback(format!("image capture callback: {cause}")))?
-            .map_err(|cause| RenderError::Readback(format!("image capture mapping: {cause}")))?;
+            .map_err(|cause| crate::ReadbackError::Callback { context: "image capture callback: ", cause })?
+            .map_err(|cause| {
+                unmap.failed = true;
+                crate::ReadbackError::Mapping { context: "image capture mapping: ", cause }
+            })?;
         let pixels = (|| {
             let mapped = target
                 .buffer
                 .slice(..)
                 .get_mapped_range()
                 .map_err(|cause| {
-                    RenderError::Readback(format!("image capture mapped range: {cause}"))
+                    crate::ReadbackError::Range { context: "image capture mapped range: ", cause }
                 })?;
             observation.mapped(mapped.len() as u64);
             let mut pixels = Vec::with_capacity(target.texture_bytes() as usize);
@@ -275,13 +290,18 @@ impl Renderer {
         observation.submitted(4, 4);
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| { let _ = send.send(result); });
-        let _unmap = UnmapOnDrop(&buffer);
+        let mut unmap = UnmapOnDrop { buffer: &buffer, receive: &receive, failed: false };
+        #[cfg(test)]
+        crate::readback::after_map(&buffer);
         self.device.poll(wgpu::PollType::wait_indefinitely())?;
         self.check_health()?;
-        receive.recv().map_err(|e| RenderError::Readback(format!("color pick callback: {e}")))?
-            .map_err(|e| RenderError::Readback(format!("color pick mapping: {e}")))?;
+        receive.recv().map_err(|cause| crate::ReadbackError::Callback { context: "color pick callback: ", cause })?
+            .map_err(|cause| {
+                unmap.failed = true;
+                crate::ReadbackError::Mapping { context: "color pick mapping: ", cause }
+            })?;
         let mapped = buffer.slice(..).get_mapped_range()
-            .map_err(|e| RenderError::Readback(format!("color pick mapped range: {e}")))?;
+            .map_err(|cause| crate::ReadbackError::Range { context: "color pick mapped range: ", cause })?;
         observation.mapped(mapped.len() as u64);
         let alpha = mapped[3] as f32 / 255.;
         let decode = |v: u8| {

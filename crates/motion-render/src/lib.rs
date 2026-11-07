@@ -37,7 +37,7 @@ mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;
 mod readback;
-pub use readback::{ImageReadbackInfo, TimestampReadbackInfo};
+pub use readback::{ImageReadbackInfo, TimestampReadbackInfo, ReadbackError};
 mod memory;
 mod memory_pressure;
 pub use memory_pressure::{MemoryPressureLogScope, MemoryPressurePool, MemoryPressureReading, MemoryPressureSnapshot,
