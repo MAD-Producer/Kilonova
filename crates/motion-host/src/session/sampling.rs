@@ -6,7 +6,7 @@ use crate::render_sampling::{needs_exposure, ExposureMedia, ExposureMediaPolicy}
 use motion_render::{
     exposure_scene::{ExposureDocument, ExposureScenes},
     preview_memory::PreviewMemoryQuality,
-    ExposureFrame, ExposurePoll, RenderError, ResourceRejection, TextureResourceLedger,
+    ExposureFrame, ExposurePoll, RenderError, TextureResourceLedger,
 };
 use std::time::Duration;
 use motion_render::gpu_commands::ExposureCommandContext;
@@ -35,7 +35,7 @@ pub(super) struct RequestKey {
 
 struct Failure {
     cause: String,
-    rejection: Option<ResourceRejection>,
+    error: Arc<RenderError>,
 }
 #[derive(Debug, thiserror::Error)]
 pub(super) enum PollError {
@@ -46,13 +46,7 @@ pub(super) enum PollError {
 }
 impl Failure {
     fn error(&self) -> RenderError {
-        match self.rejection {
-            Some(rejection) => RenderError::Resource {
-                rejection,
-                message: self.cause.clone(),
-            },
-            None => RenderError::Invalid(self.cause.clone()),
-        }
+        RenderError::Shared(self.error.clone())
     }
 }
 struct Request {
@@ -210,7 +204,10 @@ impl SamplingPreview {
                     observer.clone(),
                     motion_core::ExpressionEvaluator,
                 )
-                .map_err(|e| RenderError::Invalid(e.to_string()))?;
+                .map_err(|error| RenderError::Diagnostic {
+                    message: error.to_string(),
+                    cause: Box::new(RenderError::Model(error)),
+                })?;
                 request.task = Some(ExposureFrame::new(
                     renderer,
                     scenes,
@@ -283,19 +280,18 @@ impl SamplingPreview {
             if let Err(cleanup) = videos.cancel_pending_sampling() {
                 cause.push_str(&format!("; cancel pending exposure reads also failed: {cleanup}"));
             }
-            request.failure = Some(Failure {
+            let failure = Failure {
                 cause: cause.chars().take(2048).collect(),
-                rejection: error.resource_rejection().copied(),
-            });
+                error: Arc::new(RenderError::Diagnostic {
+                    message: cause,
+                    cause: Box::new(error),
+                }),
+            };
+            let error = failure.error();
+            request.failure = Some(failure);
             request.task = None;
             scratch.discard_candidate();
-            match error.resource_rejection().copied() {
-                Some(rejection) => RenderError::Resource {
-                    rejection,
-                    message: cause,
-                },
-                None => RenderError::Invalid(cause),
-            }
+            error
         }).map_err(PollError::Render)
     }
 }

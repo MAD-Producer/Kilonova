@@ -1,5 +1,6 @@
 //! Real viewer operations must keep native failures after a worker reply.
 use super::*;
+mod exposure;
 use motion_render::{ResourceRejection, ViewChannel};
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
 

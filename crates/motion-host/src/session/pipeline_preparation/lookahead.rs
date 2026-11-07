@@ -1,6 +1,8 @@
 //! Speculative graph enumeration belongs exclusively to the preparation worker.
 use super::*;
 use motion_core::{Content, FrameRate, Layer, layer_time::LayerClock};
+#[cfg(test)]
+mod tests;
 
 const MAX_WORK: usize = 16_384;
 const MAX_EVENTS: usize = 1024;
@@ -47,7 +49,10 @@ impl Scan<'_> {
             for value in values {
                 self.check()?;
                 let source = link.child_fps.map_frame(value - f64::from(link.source_start), link.parent_fps)
-                    .map_err(|e| Failure::Failed(motion_render::RenderError::Invalid(e.to_string())))?;
+                    .map_err(|error| Failure::Failed(motion_render::RenderError::Diagnostic {
+                        message: error.to_string(),
+                        cause: Box::new(motion_render::RenderError::Model(error.into())),
+                    }))?;
                 let locals = if let Some(remap) = link.layer.time_mapping.as_ref().and_then(|m| m.remap.as_ref()) {
                     remap.source_crossings_with_work_budget(source, a.min(b), a.max(b), MAX_CROSSINGS, &mut self.work)
                         .map_err(|e| Failure::Failed(e.into()))?
