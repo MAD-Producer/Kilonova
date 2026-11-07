@@ -381,7 +381,12 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 `cg-config-v2.2.0_aces-v1.3_ocio-v2.4`、
 `cg-config-v4.0.0_aces-v2.0_ocio-v2.5` 或
 `cg-config-v5.0.0_aces-v2.1_ocio-v2.6`。原生配置与目录仅在显式的本地
-导出/验收目录生成，不作为产品资产或工程默认配置提交。内容身份、目录验证、
+导出/验收目录生成，不作为产品资产或工程默认配置提交。后续 GPU 处理器验收
+将这三份原生序列化配置及生成的 GLSL/数值表保存在
+`crates/motion-effects/tests/color_processor/reference.json`，仅供测试，不接入
+应用默认配置。对应固定配置 ID 如上，版本及原始配置字节 SHA-256 保存在
+夹具内的 manifest。生成源码和表未手工修改；输入色卡和容差独立编写。
+内容身份、目录验证、
 选择解析及故障夹具由本项目独立编写；不复制 OCIO 实现代码。
 
 作者：Contributors to the OpenColorIO Project。来源：
@@ -390,7 +395,8 @@ https://pypi.org/project/opencolorio/2.6.0/ ，固定发行版本 v2.6.0。
 本次本地参考运行使用官方 `opencolorio-2.6.0-cp311-cp311-win_amd64.whl`，
 SHA-256 `2d9662abd4551e714fa7480443b36ee300ef6e1169d65b92188b36983802ea21`。
 许可 BSD-3-Clause，原文保留于 NOTICE。未修改上游代码，未把 OCIO 运行时、
-二进制或上游 LUT 打包进产品，也没有增加 Rust 产品依赖。
+二进制或上游 LUT 打包进产品。处理器适配使用现有官方 Naga 30.0.1 的
+`glsl-in`/`wgsl-out` 特性，不修改 Naga 或 OCIO 上游源代码。
 
 `tools/color-management/generate_lut_reference.py` 和
 `crates/motion-effects/tests/color_lut/*.cube` 由 Motion Studio 独立编写，
@@ -399,3 +405,16 @@ CPU 文件处理器测得；最近邻预期值来自独立的网格距离穷举�
 官方处理器对最近邻提示返回的实际结果，不将其线性结果冒称为最近邻。
 Cube 兼容字段按公开 OCIO 文件变换接口及自建数值样例独立实现；未复制
 商业产品的格式说明、代码或素材。用途、插值和域范围均由调用方显式指定。
+
+`export_processor.py` 的数组读取使用独立验收环境中的官方 NumPy 2.3.5，
+作者 NumPy Developers，来源 https://pypi.org/project/numpy/2.3.5/ ，BSD-3-Clause。
+本地官方 cp311 Windows wheel SHA-256 为
+`a414504bef8945eae5f2d7cb7be2d4af77c5d1cb5e20b296c2c25b61dff2900c`。
+未修改、未复制 NumPy 源码或二进制进产品。
+
+Naga GLSL 前端新增的间接官方 Cargo 依赖：
+
+| 依赖 | 作者与来源 | 固定版本与许可 | 修改范围 |
+|---|---|---|---|
+| pp-rs | Corentin Wallez / pp-rs Developers，https://github.com/Kangz/glslpp-rs | 0.2.1，BSD-3-Clause；精确 registry 校验和见 Cargo.lock，许可原文见 NOTICE | 无上游改动 |
+| unicode-xid | unicode-rs contributors，https://github.com/unicode-rs/unicode-xid | 0.2.6，MIT OR Apache-2.0；精确 registry 校验和见 Cargo.lock，随包保留许可 | 无上游改动 |
