@@ -506,7 +506,7 @@ impl App {
             next.font_family(),
             next.base_font_size(),
             self.language == Language::Chinese,
-        )?;
+        ).map_err(|error| error.to_string())?;
         self.host.set_stylesheet(next);
         self.atlas = atlas;
         self.style_status = None;

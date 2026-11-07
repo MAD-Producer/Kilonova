@@ -473,7 +473,7 @@ fn host_worker_publishes_blocked_state_and_reports_panics_at_default_level() {
             .reply
             .recv_timeout(Duration::from_secs(10))
             .unwrap();
-        assert!(matches!(result,Err(e) if e.contains("original cause")));
+        assert!(matches!(result,Err(e) if e.to_string().contains("original cause")));
         assert!(tool
             .worker
             .as_ref()
