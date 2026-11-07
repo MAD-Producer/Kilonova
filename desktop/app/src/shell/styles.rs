@@ -19,7 +19,7 @@ impl Shell {
             self.style_source.next_poll = Some(Instant::now() + Duration::from_millis(250));
         }
     }
-    pub(crate) fn install_styles(&mut self, sheet: StyleSheet) -> Result<(), String> {
+    pub(crate) fn install_styles(&mut self, sheet: StyleSheet) -> Result<(), engine::Error> {
         let mut atlas = TextAtlas::from_family(
             sheet.font_family(),
             sheet.base_font_size(),
@@ -43,14 +43,14 @@ impl Shell {
         self.redraw();
         Ok(())
     }
-    pub(crate) fn load_style_source(&mut self, path: PathBuf) -> Result<(), String> {
+    pub(crate) fn load_style_source(&mut self, path: PathBuf) -> Result<(), engine::Error> {
         // Keep watching a remembered file even if startup finds it missing or
         // malformed. Fixing it should recover without restarting the editor.
         let absolute = if path.is_absolute() {
             path
         } else {
             std::env::current_dir()
-                .map_err(|e| e.to_string())?
+                .map_err(motion_host::Error::from)?
                 .join(path)
         };
         let path = absolute.canonicalize().unwrap_or(absolute);
@@ -83,20 +83,21 @@ impl Shell {
         }
     }
 
-    pub(crate) fn reload_styles(&mut self) -> Result<(), String> {
+    pub(crate) fn reload_styles(&mut self) -> Result<(), engine::Error> {
         let Some(path) = self.style_source.path.clone() else {
             return Ok(());
         };
         let began = Instant::now();
-        log::info!("style reload start path={}", path.display().to_string().chars().take(256).collect::<String>());
+        log::info!("style reload start path={}", crate::fallback_observation::short(path.display()));
         crate::logging::flush();
         let result = default_stylesheet()
             .load_overrides(&path)
+            .map_err(engine::Error::from)
             .and_then(|sheet| self.install_styles(sheet));
         if let Err(error) = &result {
-            self.style_source.reload_failures.failure("styles.reload", format_args!("path={} elapsed_ms={} reason={error} fallback=previous_sheet", crate::fallback_observation::short(path.display()), began.elapsed().as_millis()));
-            self.style_source.error = Some(error.clone());
-            self.panels.message = Some(error.clone());
+            self.style_source.reload_failures.failure("styles.reload", format_args!("path={} elapsed_ms={} reason={} fallback=previous_sheet", crate::fallback_observation::short(path.display()), began.elapsed().as_millis(), crate::fallback_observation::short(error)));
+            self.style_source.error = Some(error.to_string());
+            self.panels.message = Some(error.to_string());
             self.dirty = true;
         }
         if result.is_ok() { self.style_source.reload_failures.success(); }
@@ -149,7 +150,7 @@ mod tests {
         assert!(Arc::ptr_eq(&floating.styles(), &before));
         assert!(floating.colors.contains(&motion_ui::Color::rgb(33, 36, 40)));
         std::fs::write(&path, br#"{"styles":{"button":{"radius":-1}}}"#).unwrap();
-        assert!(shell.reload_styles().unwrap_err().contains("radius"));
+        assert!(shell.reload_styles().unwrap_err().to_string().contains("radius"));
         assert!(Arc::ptr_eq(&shell.panels.styles.clone().unwrap(), &before));
         std::fs::write(&path, br##"{"tokens":{"colors":{"focus":"#ff8800"}}}"##).unwrap();
         shell.style_source.next_poll = Some(Instant::now());
@@ -183,3 +184,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod native_error_tests;

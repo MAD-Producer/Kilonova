@@ -118,7 +118,7 @@ impl Shell {
         &mut self,
         values: Preferences,
         refresh_style: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), engine::Error> {
         let began = Instant::now();
         log::info!(
             "preferences start operation=apply path={}",
@@ -145,7 +145,7 @@ impl Shell {
         &mut self,
         values: &Preferences,
         refresh_style: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), engine::Error> {
         values
             .shortcuts
             .validate()
@@ -154,8 +154,10 @@ impl Shell {
         let prepared = if refresh_style {
             let base = motion_ui::style::default_stylesheet();
             let sheet = if let Some(path) = &values.style_path {
-                base.load_overrides(path)
-                    .map_err(|error| format!("preferences phase=style cause={error}"))?
+                base.load_overrides(path).map_err(|error| {
+                    motion_host::Error::with_context(
+                        "preferences phase=style", motion_host::Error::from_source(error))
+                })?
             } else {
                 base.clone()
             };
@@ -187,7 +189,7 @@ impl Shell {
                     ),
                 }
             }
-            return Err(primary);
+            return Err(primary.into());
         }
         self.workspace.set_preferences(values);
         if let Some(preview) = preview {
@@ -219,6 +221,6 @@ impl Shell {
     pub(crate) fn set_preview_preference(&mut self, mode: i32) -> Result<(), String> {
         let mut values = self.workspace.preferences();
         values.preview = PreviewQuality::from_id(mode)?;
-        self.apply_preferences(values, false)
+        self.apply_preferences(values, false).map_err(String::from)
     }
 }

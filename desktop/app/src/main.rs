@@ -543,7 +543,7 @@ impl Shell {
         if shell.smoke.is_none() {
             if let Some(path) = shell.workspace.style_path.clone() {
                 if let Err(error) = shell.load_style_source(path) {
-                    shell.panels.message = Some(error);
+                    shell.panels.message = Some(error.to_string());
                 }
             }
         }
