@@ -7,7 +7,10 @@
 
 use super::{Input, Jobs, Key, PreparedEstimate};
 use motion_model::depth::DepthResource;
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, Condvar, Mutex, Weak},
+    time::Duration,
+};
 
 pub const VERSION: u32 = 1;
 
@@ -90,6 +93,15 @@ pub struct Controller {
     interactive_since: Option<Duration>,
     choices: Option<Choices>,
     current: Option<Ticket>,
+    submission: Option<Submission>,
+}
+
+// Weak ownership prevents worker address reuse without retaining its ready
+// scalar planes or thread. Only the last explicit submission is represented.
+struct Submission {
+    worker: Weak<(Mutex<super::State>, Condvar)>,
+    request: u64,
+    generation: u64,
 }
 
 impl Choices {
@@ -131,6 +143,7 @@ impl Controller {
             interactive_since: None,
             choices: None,
             current: None,
+            submission: None,
         })
     }
 
@@ -153,6 +166,7 @@ impl Controller {
         self.interactive_since = None;
         self.choices = None;
         self.current = None;
+        self.submission = None;
         Ok(())
     }
 
@@ -229,6 +243,7 @@ impl Controller {
         if let Some(ticket) = &next {
             self.generation = ticket.generation;
             self.current = Some(ticket.clone());
+            self.submission = None;
         }
         Ok(next)
     }
@@ -260,7 +275,12 @@ impl Controller {
     /// Explicit submission to the existing single worker. A caller submits each
     /// newly returned observe ticket once. Stale/foreign tickets do not touch
     /// Jobs; a new actual request retains Jobs' cancellation and start records.
-    pub fn request(&self, ticket: &Ticket, jobs: &mut Jobs, input: Input) -> Result<Option<u64>> {
+    pub fn request(
+        &mut self,
+        ticket: &Ticket,
+        jobs: &mut Jobs,
+        input: Input,
+    ) -> Result<Option<u64>> {
         if !self.owns_current(ticket) {
             return Ok(None);
         }
@@ -269,9 +289,15 @@ impl Controller {
                 ticket.generation, ticket.key.source.asset);
             return Err(Error::Input);
         }
-        jobs.request(input)
-            .map(Some)
-            .map_err(|error| self.job_error("depth_transition_request", error))
+        let request = jobs
+            .request(input)
+            .map_err(|error| self.job_error("depth_transition_request", error))?;
+        self.submission = Some(Submission {
+            worker: Arc::downgrade(&jobs.shared),
+            request,
+            generation: ticket.generation,
+        });
+        Ok(Some(request))
     }
 
     /// Revoke tickets before canceling the worker, even when no replacement is
@@ -293,6 +319,27 @@ impl Controller {
         live: &Key,
     ) -> Result<Option<PreparedEstimate>> {
         if !self.owns_current(ticket) || !ticket.key.same_sample(live) {
+            return Ok(None);
+        }
+        let Some(submission) = &self.submission else {
+            return Ok(None);
+        };
+        if submission.generation != ticket.generation
+            || !Weak::ptr_eq(&submission.worker, &Arc::downgrade(&jobs.shared))
+        {
+            return Ok(None);
+        }
+        // &mut Jobs excludes another caller's submission between this check
+        // and take_prepared_ready. The worker never changes State.latest.
+        // Drop the observation guard (or poison) before reporting an error.
+        let latest = match jobs.shared.0.lock() {
+            Ok(state) => state.latest,
+            Err(poison) => {
+                drop(poison);
+                return Err(self.job_error("depth_transition_take", super::Error::State));
+            }
+        };
+        if latest != submission.request {
             return Ok(None);
         }
         let ready = jobs

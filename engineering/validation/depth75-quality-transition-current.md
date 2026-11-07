@@ -97,6 +97,11 @@ inputs are typed errors. Revocation occurs before worker cancellation. Original
 worker errors remain typed sources, logged outside observation locks with bounded
 context. Prepared fingerprints, actual provider and costs remain worker-owned.
 The helpers add no retries and reuse Jobs' start/in-flight/cancellation behavior.
+Each successful submission binds its generation to the exact worker and actual
+request number. A new phase with an identical key still requires a new submission;
+neither a different worker's same-number request nor an unbound later request in
+the same worker can be claimed by an older ticket. Weak worker ownership prevents
+allocation-address reuse without retaining scalar planes or a worker thread.
 
 These helpers do not install unaligned depth, rewrite metadata, create cache
 entries or freeze export. The caller still must qualify a capability selection,
@@ -111,11 +116,14 @@ whose generation became stale. These controls are written but unexecuted. They
 neither measure real-model transition quality nor replace the fourteen alignment
 controls or the original full-feature regression.
 
-Four additional, currently unexecuted controls use the actual Jobs thread and a
+Seven additional, currently unexecuted controls use the actual Jobs thread and a
 controlled blocking backend. They check pre-submission refusal, in-flight
 publication, a deliberately late success after cancellation, stale polling that
 cannot consume a newer frame, explicit cancellation without replacement and an
-original backend failure returned once without retry. Release guards unblock the
+original backend failure returned once without retry. Three of these explicitly
+exercise identical-key phase changes, same-number foreign workers and later
+unbound requests, checking that rejected polling leaves the ready result intact.
+Release guards unblock the
 fixture on assertion unwinding; five-second fixture deadlines do not change any
 product timeout or existing test assertion. These controls are not model or
 file-sink observability qualification.

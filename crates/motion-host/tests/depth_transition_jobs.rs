@@ -291,3 +291,102 @@ fn actual_worker_failure_preserves_original_cause_and_is_not_retried() {
     assert_eq!(jobs.counts().unwrap().submitted, 1);
     assert_eq!(jobs.counts().unwrap().failed, 1);
 }
+
+#[test]
+fn same_key_new_phase_requires_its_own_actual_submission() {
+    let mut c = controller();
+    let mut choice = choices(0);
+    choice.settled = choice.interactive.clone();
+    let old = c
+        .observe(choice.clone(), Activity::Interactive, Duration::ZERO)
+        .unwrap()
+        .unwrap();
+    let (mut jobs, entered, release) = worker();
+    let first = c
+        .request(&old, &mut jobs, input(old.key()))
+        .unwrap()
+        .unwrap();
+    entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    release.send();
+    completed(&jobs, 1);
+    assert!(c
+        .observe(choice.clone(), Activity::Idle, Duration::from_millis(100))
+        .unwrap()
+        .is_none());
+    let current = c
+        .observe(choice, Activity::Idle, Duration::from_millis(300))
+        .unwrap()
+        .unwrap();
+    assert!(current.key().same_sample(old.key()));
+    // A key-only admission would return the old completed result here.
+    assert!(c
+        .take_ready(&current, &mut jobs, current.key())
+        .unwrap()
+        .is_none());
+    assert!(jobs.take_ready(old.key()).unwrap().is_some());
+    let second = c
+        .request(&current, &mut jobs, input(current.key()))
+        .unwrap()
+        .unwrap();
+    assert!(second > first);
+    entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    release.send();
+    completed(&jobs, 2);
+    assert!(c
+        .take_ready(&current, &mut jobs, current.key())
+        .unwrap()
+        .is_some());
+}
+
+#[test]
+fn matching_request_number_in_a_different_worker_cannot_reuse_the_binding() {
+    let mut c = controller();
+    let current = ticket(&mut c, 0);
+    let (mut first, first_entered, first_release) = worker();
+    let first_id = c
+        .request(&current, &mut first, input(current.key()))
+        .unwrap()
+        .unwrap();
+    first_entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    first_release.send();
+    completed(&first, 1);
+    let (mut other, other_entered, other_release) = worker();
+    let other_id = other.request(input(current.key())).unwrap();
+    assert_eq!(first_id, other_id);
+    other_entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    other_release.send();
+    completed(&other, 1);
+    assert!(c
+        .take_ready(&current, &mut other, current.key())
+        .unwrap()
+        .is_none());
+    assert!(other.take_ready(current.key()).unwrap().is_some());
+    assert!(c
+        .take_ready(&current, &mut first, current.key())
+        .unwrap()
+        .is_some());
+}
+
+#[test]
+fn later_unbound_request_in_the_same_worker_is_not_claimed_by_an_older_ticket() {
+    let mut c = controller();
+    let current = ticket(&mut c, 0);
+    let (mut jobs, entered, release) = worker();
+    let bound = c
+        .request(&current, &mut jobs, input(current.key()))
+        .unwrap()
+        .unwrap();
+    entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    release.send();
+    completed(&jobs, 1);
+    let unbound = jobs.request(input(current.key())).unwrap();
+    assert!(unbound > bound);
+    entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    release.send();
+    completed(&jobs, 2);
+    assert!(c
+        .take_ready(&current, &mut jobs, current.key())
+        .unwrap()
+        .is_none());
+    assert!(jobs.take_ready(current.key()).unwrap().is_some());
+}
