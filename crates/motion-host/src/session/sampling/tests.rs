@@ -1,5 +1,6 @@
 use super::*;
 use motion_core::{render_sampling::Shutter, Ease, Layer};
+mod error_causes;
 
 fn project() -> Project {
     let mut p = Project::new(32, 32, 30, 60).unwrap();

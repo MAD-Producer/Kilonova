@@ -10,7 +10,9 @@ pub enum Error {
     Allocation(#[from] std::collections::TryReserveError),
     #[error(transparent)]
     Image(#[from] image::ImageError),
-    #[error(transparent)]
+    // Preserve the decoder itself in source(), including terminal format
+    // errors which do not have another nested source of their own.
+    #[error("{0}")]
     Png(#[from] png::DecodingError),
     #[error(transparent)]
     Model(#[from] motion_model::Error),
