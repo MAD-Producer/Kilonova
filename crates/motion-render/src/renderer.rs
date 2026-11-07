@@ -16,7 +16,7 @@ mod model_layers;
 mod projected_mattes;
 mod depth_materials;
 use depth_materials::DepthMaterial;
-pub use model_layers::ModelSourceCatalog;
+pub use model_layers::{ModelSourceCatalog, ModelSourceError};
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
@@ -132,6 +132,8 @@ pub enum RenderError {
     ImageSamples(#[from] crate::image_formats::UnsupportedSamples),
     #[error("{0}")]
     Model(#[from] motion_model::Error),
+    #[error("GPU validation: {0}")]
+    ModelSource(#[from] ModelSourceError),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error("GPU validation: {0}")]
