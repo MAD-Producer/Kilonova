@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "sourceCommit": "5b606e0ed94e87d6a21b4f94392b42c1e7f1d888",
+  "run": 42240801893,
+  "archive": "depth75-alignment-ci-v1.zip",
+  "bytes": 362028,
+  "sha256": "ca3aa9718dfd7a2e9f37bdddfcab07628d6d3b5d8a13c0e07b957fefe04c56a4",
+  "members": 12,
+  "namedTestPasses": 42,
+  "testsPerPlatform": 14,
+  "platforms": [
+    "ubuntu",
+    "windows",
+    "mac-intel"
+  ],
+  "limits": [
+    "Alignment-only source5b606e0e; no subsequent admission controller included",
+    "Not local full-feature regression, actual models, video transitions, thermal or cross-GPU qualification"
+  ]
+}

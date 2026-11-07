@@ -2,10 +2,11 @@
 
 This branch continues #75 after the explicit-resolution work and depends on the
 shared-backend branch (#626). It does not complete #75 or enable automatic quality
-switching. Alignment and pure transition admission are implemented; neither has
-completed native qualification. CI on alignment commit `5b606e0e` is still live;
-it does not include the subsequent admission controller. The original native
-admission requires 10 GiB free; current local space is below that limit.
+switching. Alignment and pure transition admission are implemented. All fourteen
+alignment controls passed on Linux, Windows and macOS Intel at commit
+`5b606e0e`; these runs do not include the subsequent admission controller.
+Local integrated native qualification and full-feature regression remain
+separate requirements. The original native admission requires 10 GiB free.
 Syntax/format checks cannot qualify the Rust behavior.
 
 ## Alignment contract
@@ -53,7 +54,14 @@ scale/offset, equivalent rational clocks, source/geometry/grid rejection,
 relative/metric boundaries, constant/reversed data, explicit scale gates,
 full held-out coverage beyond the fit cap, fit-population residuals, missing
 confidence, masks and paired coverage, stale instances, cancellation and invalid limits.
-These controls are written but unexecuted; no existing assertion was changed.
+All fourteen controls actually passed once in each of the three completed desktop
+jobs of run `42240801893`. The collector matched all 42 exact named passing test
+records to the exact source head before retaining the raw logs. No existing
+assertion was changed. The read-back-verified archive is
+[`depth75-alignment-ci-v1.zip`](data/depth75-alignment-ci-v1.zip), 362,028 bytes,
+SHA-256 `ca3aa9718dfd7a2e9f37bdddfcab07628d6d3b5d8a13c0e07b957fefe04c56a4`;
+its [manifest](data/depth75-alignment-ci-v1.json) records the scope. This is not
+qualification of the later admission controller or real-model/video quality.
 
 The previously measured real 266/392/518 outputs are not globally affine
 equivalents. Neither this implementation nor perfect synthetic affine controls
