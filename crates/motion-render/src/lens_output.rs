@@ -302,13 +302,13 @@ fn uniform(
     let inverse = |point: [f64; 2]| -> Result<[f64; 2], RenderError> {
         let v = plate
             .inverse(point)
-            .map_err(|e| RenderError::Invalid(e.to_string()))?;
+            .map_err(RenderError::from)?;
         Ok([(v[0] - p[0]) / f[0], (v[1] - p[1]) / f[1]])
     };
     let ideal = |q: [f64; 2]| -> Result<[f64; 2], RenderError> {
         plate
             .apply([q[0] * f[0] + p[0], q[1] * f[1] + p[1]])
-            .map_err(|e| RenderError::Invalid(e.to_string()))
+            .map_err(RenderError::from)
     };
     let o = inverse([0., 0.])?;
     let x = inverse([1., 0.])?;
