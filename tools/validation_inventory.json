@@ -1,6 +1,12 @@
 {
   "version": 1,
   "tools": {
+    "tools/color-management/export_processor.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/export_processor.py --config-directory <verified-bundle> --selection <explicit-selection.json> --phase <phase> --input-alpha <alpha> --output-alpha <alpha> --output <new-file.json>",
+      "requires": ["Separately installed official opencolorio==2.6.0 and numpy==2.3.5", "Closed configuration bundle and explicit content-bound color selection"],
+      "reason": "Explicit external OCIO GPU preparation; CI consumes committed qualification fixtures without installing the optional runtimes or regenerating reference outputs."
+    },
     "tools/color-management/export_config.py": {
       "mode": "manual",
       "command": "python tools/color-management/export_config.py --builtin <pinned-config-id> --output <new-bundle-directory>",

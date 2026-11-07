@@ -1,4 +1,4 @@
-# Cube LUT 数值参考
+# 色彩管理准备与数值验收
 
 这是 #83 的底层 LUT 验收工具，不是应用的运行时依赖，也不是 OCIO 配置加载器。
 应用与 CI 测试只消费提交的独立 Cube 数值样例及参考 JSON，不要求安装 Python
@@ -78,3 +78,38 @@ view 和输出目标；`resolve` 不选择默认项。缺资源、字节被改�
 这层验证字节身份及目录引用，信任外部准备器输出的 OCIO 目录；它不是 OCIO
 语法验证器、签名认证或像素处理器。尚未接入工程字段、宿主信道与默认渲染，
 因此不能据此声称已实现完整 OCIO/ACES 工作流或关闭整个 #83。
+
+## 明确阶段的 GPU 处理器准备
+
+同一独立 Python 环境另需固定 `numpy==2.3.5`。先取得目录导出，再提供与其
+内容身份绑定的完整 `ColorSelection` JSON；不从环境或“最新”别名选配置：
+
+```text
+python tools/color-management/export_processor.py --config-directory <bundle> --selection <selection.json> --phase working_to_display --input-alpha straight --output-alpha straight --output <new-processor.json>
+```
+
+阶段必须明确为 `input_to_working`、`working_to_display` 或 `working_to_output`。
+输入/工作角色、显示/视图、输出空间及两端透明度都来自明确选择。工具验证配置
+正文、运行时及策略身份；外部资源、环境上下文、3D 纹理及动态 uniforms 目前
+明确拒绝。写入使用独占创建，不覆盖既有处理器；原生及 IO 失败保留 traceback。
+
+`ColorProcessorSource::from_json(...).compile(&config, &selection)` 返回不可变
+WGSL、Float32 RGBA 数值表及完整处理器身份。输入 JSON 最大 16 MiB，原始源码
+256 KiB、输出源码 512 KiB；最多四张表，每张最多 262144 texel。编译必须在
+非 Present 的准备操作执行，不能挪进逐帧绘制。配置/选择/版本不符及编译故障
+返回 typed Err，保留 Naga/JSON 原始原因。
+
+官方 OCIO 生成的解析计算保留，不把完整变换烘焙为夹断 HDR 的普通 LUT。独立
+适配器将明确的 2D 纹理表改为数值 storage buffer，执行最近邻或双线性插值，
+不要求硬件 Float32 纹理过滤。Naga 使用现有官方 30.0.1，无上游源码补丁。
+通过其公开 IR 添加输入/输出范围守卫，再校验并输出 WGSL。调用方绑定：
+
+- group 0：按 `tables()` 顺序，只读 `array<vec4<f32>>` 表，每项 16 字节。
+- group 1 binding 0：只读连续 Float32 RGBA 输入；binding 1：读写输出。
+- compute `main`：每个 X workgroup 一个像素，Y/Z 为 1。两端 buffer 都不得为空；
+  超过较短端的 dispatch 不写入。透明度原值保留，按明确选项反关联和重新关联。
+
+编译器信任外部 OCIO 准备器提供的变换语义，验证内容身份与固定 GPU 接口；
+它不是任意着色器的语义认证器。测试夹具覆盖三个明确 ACES 版本、三个阶段和
+透明度组合，并另验非中心表坐标。实际应用的纹理准入、准备信道、工程设置、
+解码及 OS 显示链尚未接线，本批不能被表述为完整 #83 已实现或 HDR 显示已支持。
