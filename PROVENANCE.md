@@ -11,6 +11,13 @@ and static-memory metadata for the already attributed external Small model.
 Its evidence archives contain no model weights, upstream implementation or
 image assets. Static inspection and integer shape folding do not qualify a
 second inference backend or authorize default model distribution.
+The subsequent optional host backend uses independently authored WGSL kernels,
+strict typed admission and directly owned child processes. It shares the
+existing owned color/letterbox/remap procedure; no reference implementation or
+model/weight/runtime binary is copied into the product. Its plan is an explicit
+pinned bootstrap profile, not a general SDK compute capability. Numerical and
+cancellation evidence does not authorize default model distribution or imply
+interactive/video quality acceptance.
 
 The COLMAP camera text adapter references the public format and coordinate
 conventions at a pinned upstream revision. Its parser, pose conversion boundary
@@ -84,6 +91,12 @@ Legacy Motion Studio data is labeled as legacy. Unless a separately documented, 
 Every new third-party asset or adapted implementation must record its author, source revision, license, and modification scope in [ATTRIBUTION.md](ATTRIBUTION.md). Pull requests must explain the provenance of new fonts, icons, images, audio, shaders, presets, templates, sample projects, and generated data. Unverified material is not accepted into release artifacts.
 
 This file records the repository's engineering process. It is not legal advice and does not replace review of a particular jurisdiction, asset, or distribution agreement.
+
+Native depth panic fixtures and the ordered CPU/WGSL crop observer are locally
+authored validation work. The observer transforms an existing attributed NASA
+fixture; it adds no third-party image or model asset. Public evidence records
+source revisions, bounded failure context and numerical results while excluding
+raw images, learned tensors, external model resources and optional runtimes.
 
 The CPU scene importer follows the public Khronos glTF 2.0 document and retains
 owned, content-identified resource bytes. Its implementation and adversarial

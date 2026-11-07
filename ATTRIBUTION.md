@@ -130,6 +130,20 @@ and resource hashes from the same external Small export; it contains no learned
 tensor payloads. Numerical references use locally authored normalized RGB;
 neither those raw tensors nor model/runtime binaries are redistributed.
 
+The optional WGSL host backend promotes independently authored shaders, strict
+graph admission and execution code from that numerical qualification. Shared
+RGB/letterbox/remap procedures and directly owned subprocess orchestration are
+locally authored. The new worker ships no learned model/resource payload; static
+plan/resource installation remains separate. Real host acceptance reuses the
+already attributed NASA Destiny fixture with bounded crop, clockwise rotation
+and mirroring, without adding image assets to product or release resources.
+The native panic controls and twelve-frame crop observer are independently
+authored Motion Studio test data under this repository's MIT license. Their
+source hashes and base revision are recorded in the panic-retention evidence
+manifest. The ordered crops reuse that same credited NASA photograph; public
+evidence contains generated measurements and attribution, without image, model
+or learned tensor payloads.
+
 Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
 Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:
 [official source](https://github.com/DepthAnything/Depth-Anything-V2/tree/a561b849ebae10a6f5ef49e26c83cbbcd36c71bf),

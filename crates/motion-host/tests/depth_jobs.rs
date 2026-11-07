@@ -187,6 +187,56 @@ fn prepared_output_cannot_escape_live_key_or_cancellation_guards() {
 }
 
 #[test]
+fn info_start_identifies_each_processing_profile_before_a_blocked_backend() {
+    init_log();
+    for (index, (side, byte, expected_digest)) in [
+        (266, 0x13, "13".repeat(32)),
+        (392, 0x1c, "1c".repeat(32)),
+        (518, 0x25, "25".repeat(32)),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut requested = key();
+        requested.source.asset = 75_750_000 + index as u64;
+        requested.model.processing =
+            format!("dav2-small-rgb8-letterbox{side}-align-corners-relative-v1");
+        requested.model.sha256 = [byte; 32];
+        let (mut jobs, entered, release) = controlled();
+        let ticket = jobs.request(input(requested.clone())).unwrap();
+        let seen = entered.recv_timeout(Duration::from_secs(5)).unwrap();
+        let flight = jobs.in_flight().unwrap();
+        // Capture while the backend is still blocked. A done record or a start
+        // written after infer returns cannot satisfy this snapshot.
+        let starts: Vec<_> = LOG
+            .records
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(level, line)| {
+                *level == log::Level::Info
+                    && line.starts_with(&format!("start #{ticket} depth_infer "))
+                    && line.contains(&format!("asset={} ", requested.source.asset))
+            })
+            .cloned()
+            .collect();
+        release.send(()).unwrap();
+        wait_done(&jobs, 1);
+
+        assert_eq!(log::max_level(), log::LevelFilter::Info);
+        assert_eq!(seen, requested);
+        assert_eq!(flight.unwrap().request, ticket);
+        assert_eq!(starts.len(), 1);
+        let line = &starts[0].1;
+        assert!(line.contains("model=controlled-depth model_revision=r1 "));
+        assert!(line.contains(&format!("processing={} ", requested.model.processing)));
+        assert!(line.contains(&format!("model_sha256={expected_digest}")));
+        assert!(jobs.take_ready(&requested).unwrap().is_some());
+        assert!(jobs.in_flight().unwrap().is_none());
+    }
+}
+
+#[test]
 fn blocked_depth_publishes_flight_before_backend_and_retains_only_latest_pending_sample() {
     init_log();
     let (mut jobs, entered, release) = controlled();

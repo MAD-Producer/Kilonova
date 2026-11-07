@@ -4,10 +4,37 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Motion Studio desktop application"
+default-run = "motion-studio"
 
 [[bin]]
 name = "motion-studio"
 path = "src/main.rs"
+
+[[bin]]
+name = "motion-depth-wgsl"
+path = "src/depth_worker/main.rs"
+test = false
+bench = false
+
+[[test]]
+name = "depth-worker-admission"
+path = "src/depth_worker/tests/admission.rs"
+
+[[test]]
+name = "depth-worker-convolution-admission"
+path = "src/depth_worker/tests/convolution_admission.rs"
+
+[[test]]
+name = "depth-worker-index-admission"
+path = "src/depth_worker/tests/index_admission.rs"
+
+[[test]]
+name = "depth-worker-graph-admission"
+path = "src/depth_worker/tests/graph_admission.rs"
+
+[[test]]
+name = "depth-worker-panic"
+path = "src/depth_worker/tests/panic.rs"
 
 [features]
 default = ["gpu-tests"]

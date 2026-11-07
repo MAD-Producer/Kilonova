@@ -8,6 +8,10 @@ description = "Platform-neutral editing host shared by the Android and desktop a
 [lib]
 crate-type = ["rlib"]
 
+[[example]]
+name = "wgsl_depth"
+required-features = ["ai-depth"]
+
 [features]
 default = ["gpu-tests"]
 # Test selection only; product rendering is always compiled.
