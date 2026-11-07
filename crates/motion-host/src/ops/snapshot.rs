@@ -163,6 +163,7 @@ impl Session {
                 "nextProbeInMs":self.preview_memory.next_probe_ms().saturating_sub(self.preview_memory_clock.elapsed().as_millis() as u64)},
             "previewVideoProxyBytes":self.preview_video.bytes(),
             "exposure":self.sampling.status(),
+            "pipelinePreparation":self.pipeline_preparation.status(),
             "exposureRequired":self.sampling.required(),
             "scratchBudgetBytes":self.effects.scratch_budget(),"memoryPolicyVersion":motion_render::resource_policy::MEMORY_POLICY_VERSION,
             "sourceTextureBudgetBytes":self.effects.memory_policy().source_texture_budget_bytes,

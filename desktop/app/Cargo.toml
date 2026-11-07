@@ -4,10 +4,37 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Motion Studio desktop application"
+default-run = "motion-studio"
 
 [[bin]]
 name = "motion-studio"
 path = "src/main.rs"
+
+[[bin]]
+name = "motion-depth-wgsl"
+path = "src/depth_worker/main.rs"
+test = false
+bench = false
+
+[[test]]
+name = "depth-worker-admission"
+path = "src/depth_worker/tests/admission.rs"
+
+[[test]]
+name = "depth-worker-convolution-admission"
+path = "src/depth_worker/tests/convolution_admission.rs"
+
+[[test]]
+name = "depth-worker-index-admission"
+path = "src/depth_worker/tests/index_admission.rs"
+
+[[test]]
+name = "depth-worker-graph-admission"
+path = "src/depth_worker/tests/graph_admission.rs"
+
+[[test]]
+name = "depth-worker-panic"
+path = "src/depth_worker/tests/panic.rs"
 
 [features]
 default = ["gpu-tests"]
@@ -44,6 +71,9 @@ sentry = { version = "0.49.3", default-features = false, features = ["ureq", "ru
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 winit = "0.30"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Threading"] }
 
 [dev-dependencies]
 motion-model = { path = "../../crates/motion-model" }

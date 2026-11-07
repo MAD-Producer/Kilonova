@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "createdUtc": "2026-11-06T13:19:04.116827+00:00",
+  "sourceCommit": "0646083d672b0d362901cc0a8c8992c41d59182c",
+  "main": "afebb5cd3d3cfb668d68641ea665377d2fa0c546",
+  "fullRunStatus": "failed_original_outputs_retained",
+  "cargoExitCode": 101,
+  "totals": {
+    "passed": 3141,
+    "failed": 0,
+    "originalIgnored": 4,
+    "filtered": 0,
+    "summaryCount": 414,
+    "observedInvocations": 430,
+    "expectedInvocations": 430
+  },
+  "loaderTargetFailures": 16,
+  "allSourceInvocationsStarted": true,
+  "fullTargetCoverageAccounted": false,
+  "isolatedLoaderControl": "isolated_adjacent_runtime_restores_listing_not_full_regression",
+  "limits": [
+    "Full regression failed; zero ordinary assertions failed does not waive 16 loader failures",
+    "All 430 source invocations started; only 414 produced summaries",
+    "Byte-identical isolated executable listing succeeds with seven adjacent pinned DLLs",
+    "Listing executes no test bodies; exact missing transitive library is not identified",
+    "No original target runtime, global environment, permissions or existing assertions were changed",
+    "Later model-identity logging patch is absent from qualified source and is not tested here",
+    "No runtime binaries, model weights, images or tensors are distributed"
+  ],
+  "archive": "depth75-loader-full-v1.zip",
+  "archiveBytes": 568823,
+  "archiveSha256": "e0e9fc7c4ce24f2356e937b668c117d2e5e69af2a0635af52e79d620a52cfa88",
+  "memberCount": 61
+}

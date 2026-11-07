@@ -154,26 +154,29 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
         time_slice: Duration,
         mut prepare: impl FnMut(&mut Renderer, &Scene) -> Result<bool>,
     ) -> Result<ExposurePoll> {
-        self.poll_with(renderer, time_slice, &mut prepare)
+        self.poll_prepared(renderer, time_slice, |renderer, scene, _| prepare(renderer, scene))
     }
-    pub(super) fn poll_with(
+    /// As `poll`, additionally supplying the exact local output extent so a
+    /// host can suspend this receiver while its pipelines prepare off-thread.
+    /// A false reply retains this receiver and does not advance accumulation.
+    pub fn poll_prepared(
         &mut self,
         renderer: &mut Renderer,
         time_slice: Duration,
-        prepare: &mut dyn FnMut(&mut Renderer, &Scene) -> Result<bool>,
+        mut prepare: impl FnMut(&mut Renderer, &Scene, [u32; 2]) -> Result<bool>,
     ) -> Result<ExposurePoll> {
         let mut budget = PollBudget {
             started: Instant::now(),
             slice: time_slice,
             remaining: MAX_WORK_UNITS_PER_POLL,
         };
-        self.poll_budget(renderer, &mut budget, prepare)
+        self.poll_budget(renderer, &mut budget, &mut prepare)
     }
     pub(super) fn poll_budget(
         &mut self,
         renderer: &mut Renderer,
         budget: &mut PollBudget,
-        prepare: &mut dyn FnMut(&mut Renderer, &Scene) -> Result<bool>,
+        prepare: &mut dyn FnMut(&mut Renderer, &Scene, [u32; 2]) -> Result<bool>,
     ) -> Result<ExposurePoll> {
         if let Some(failure) = &self.failure {
             return Err(failure.error());
@@ -216,7 +219,7 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
         &mut self,
         renderer: &mut Renderer,
         budget: &mut PollBudget,
-        prepare: &mut dyn FnMut(&mut Renderer, &Scene) -> Result<bool>,
+        prepare: &mut dyn FnMut(&mut Renderer, &Scene, [u32; 2]) -> Result<bool>,
     ) -> Result<ExposurePoll> {
         for _ in 0..MAX_WORK_UNITS_PER_POLL {
             if !budget.available() {
@@ -353,13 +356,13 @@ fn prepare_context<E: FrameEvaluator>(
     preview: bool,
     budget: &mut PollBudget,
     progress: &mut ExposureProgress,
-    prepare: &mut dyn FnMut(&mut Renderer, &Scene) -> Result<bool>,
+    prepare: &mut dyn FnMut(&mut Renderer, &Scene, [u32; 2]) -> Result<bool>,
 ) -> Result<bool> {
     if scene.nested.is_empty() {
         if !budget.take() {
             return Ok(false);
         }
-        return prepare(renderer, scene);
+        return prepare(renderer, scene, size);
     }
     let nested = nested.get_or_insert_with(|| NestedPreparation::new(scene, size));
     if !nested.poll(renderer, factory, preview, budget, progress, prepare)? {
@@ -368,7 +371,7 @@ fn prepare_context<E: FrameEvaluator>(
     if !budget.take() {
         return Ok(false);
     }
-    if !prepare(renderer, &nested.context)? {
+    if !prepare(renderer, &nested.context, size)? {
         return Ok(false);
     }
     nested.install(renderer)?;

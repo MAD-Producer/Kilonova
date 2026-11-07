@@ -1,5 +1,16 @@
 # 第三方归属说明 / Third-party attribution
 
+## Windows 私有驱动缓存目录的系统接口
+
+- 作者：Microsoft Corporation 与 windows-rs contributors。
+- 来源：官方 `microsoft/windows-rs`，`windows-sys` 0.61.2，revision
+  `32c3144490c016fe496a0aed769bce60987a2e9d`，目录 `crates/libs/sys`。
+  crates.io 校验和为 `ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc`。
+- 许可：MIT OR Apache-2.0；本次使用 MIT 选项，完整许可保留在 NOTICE。
+- 修改范围：上游绑定不作修改。将锁文件已有的间接依赖显式用于 Windows
+  目录创建、DACL/所有者验证及原生资源释放；策略、状态机和验收独立编写。
+  不新增图像、图标、字体或上游示例实现。
+
 ## Mathematical references for optional WGSL depth research
 
 - Authors: Milton Abramowitz and Irene A. Stegun (editors), US National Bureau
@@ -129,6 +140,20 @@ Its archived static blueprint derives operation names, dimensions, attributes
 and resource hashes from the same external Small export; it contains no learned
 tensor payloads. Numerical references use locally authored normalized RGB;
 neither those raw tensors nor model/runtime binaries are redistributed.
+
+The optional WGSL host backend promotes independently authored shaders, strict
+graph admission and execution code from that numerical qualification. Shared
+RGB/letterbox/remap procedures and directly owned subprocess orchestration are
+locally authored. The new worker ships no learned model/resource payload; static
+plan/resource installation remains separate. Real host acceptance reuses the
+already attributed NASA Destiny fixture with bounded crop, clockwise rotation
+and mirroring, without adding image assets to product or release resources.
+The native panic controls and twelve-frame crop observer are independently
+authored Motion Studio test data under this repository's MIT license. Their
+source hashes and base revision are recorded in the panic-retention evidence
+manifest. The ordered crops reuse that same credited NASA photograph; public
+evidence contains generated measurements and attribution, without image, model
+or learned tensor payloads.
 
 Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
 Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:

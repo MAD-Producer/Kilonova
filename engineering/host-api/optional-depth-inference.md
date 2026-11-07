@@ -5,6 +5,46 @@ does not acquire a Python, ONNX or inference dependency. No inference runtime or
 model is bundled, no network is used at inference time, and no Android support
 or desktop UI integration is implied by this host API.
 
+## Explicit native WGSL execution
+
+`depth::wgsl::Wgsl` is an alternative implementation of the same `Backend` trait.
+Construct `wgsl::Config` with absolute `python`, `worker`, `program`, and writable
+`scratch` paths, plus an explicit `Hardware::{Vulkan,Dx12,Metal}` request. Pass
+it to the existing `Jobs::start` or generic Session backend installation API.
+Construction does not initialize a GPU. Model and processing identities remain
+the same as ONNX; choosing a GPU API does not select another model or quality.
+
+Build the worker explicitly:
+
+```text
+cargo build --locked -p motion-desktop --bin motion-depth-wgsl
+```
+
+The worker accepts an absolute tensor request and a new absolute result directory.
+Normal clients should use the host backend, which owns input/output files,
+fingerprints, subprocesses and scalar validation. It directly owns preparation,
+inference and remapping children, so cancellation never leaves an inference
+grandchild. Its Python environment requires the already documented NumPy/OpenCV;
+ONNX Runtime is not imported by these transforms. No network access or runtime
+installation occurs during inference.
+
+Only the pinned Small Float32/518-square program identified by
+`wgsl::PROGRAM_SHA256` and its corresponding resources is admitted. Unsupported
+plans, software adapters, missing capabilities and mismatched model/backend
+reports fail explicitly; there is no implicit CPU or different-model fallback.
+The current manually prepared research plan/resources must be installed
+separately. The release package does not bundle them or the new worker, and msfx
+does not acquire a compute-plan capability. Generic model-package installation
+and requested/resolved quality negotiation remain pending.
+
+The [actual shared-job record](../validation/depth75-shared-backend-current.md)
+documents CPU/GPU outputs, actual cancellation and stale-source rejection.
+The native child currently pays cold device/pipeline/resource setup on every
+request. It is not an interactive fast tier. `Costs.inference` measures that
+entire child, while preparation/remapping measure their child wall times;
+unmeasured load/copy subphases remain zero. No physical VRAM, zero-copy or
+sustained latency claim follows from these counters.
+
 ## External model preparation
 
 Use a separate directory for the runtime, reference checkout, weights and model.

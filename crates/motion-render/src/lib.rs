@@ -1,7 +1,19 @@
 //! Native GPU rendering. Image decoding/upload happens on resource changes;
 //! playback uploads only fixed-size layer uniforms.
 mod effect_gpu;
-pub use effect_gpu::EffectPipelineCacheInfo;
+pub use effect_gpu::{EffectPipelineCacheInfo, NativeEffectPipelineError};
+mod pipeline_preparation;
+pub use pipeline_preparation::{PipelineLookaheadFailure, PipelinePreparationContext, PipelinePreparationError,
+    PipelinePreparationInstall, PipelinePreparationJob, PipelinePreparationPhase,
+    PipelinePreparationStatus, PipelinePreparationTicket, PreparedEffectPipelines,
+    PipelinePreparationCamera, PipelinePreparationView,
+    MAX_PIPELINE_PREPARATION_SCENES, MAX_PREPARED_PIPELINES, MAX_PREPARED_WGSL_BYTES};
+mod driver_pipeline_cache;
+pub use driver_pipeline_cache::{DriverPipelineCacheError, DriverPipelineCacheInfo,
+    DriverPipelineCacheLoad, DriverPipelineCacheCompletion, DriverPipelineCacheInstall,
+    DriverPipelineCacheJob, DriverPipelineCacheOperation, DriverPipelineCachePhase,
+    DriverPipelineCacheStatus, DriverPipelineCacheTicket, LoadedDriverPipelineCache,
+    MAX_DRIVER_PIPELINE_CACHE_BYTES};
 mod pointwise_observation;
 pub use pointwise_observation::PointwiseLogScope;
 pub mod effect_plan;

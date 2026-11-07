@@ -376,9 +376,33 @@ impl Registry {
         Self::load_with_limits(directory, PackageReadLimits::default())
     }
     pub fn load_with_limits(directory: &Path, limits: PackageReadLimits) -> Result<Self> {
-        let mut r = Self::new_with_builtins()?;
-        // Persist each bundled version before an App upgrade replaces its bytes.
         let builtins = crate::builtin::packages()?;
+        Self::load_bundled(directory, limits, builtins, false)
+    }
+    /// Product startup installs only the current builtin. Explicit SDK/archive
+    /// callers retain `load` and `new_with_builtins`; package identities and
+    /// baseline shader bytes are unchanged.
+    pub fn load_current(directory: &Path) -> Result<Self> {
+        Self::load_current_with_limits(directory, PackageReadLimits::default())
+    }
+    pub fn load_current_with_limits(directory: &Path, limits: PackageReadLimits) -> Result<Self> {
+        Self::load_bundled(
+            directory,
+            limits,
+            vec![crate::builtin::package()?],
+            true,
+        )
+    }
+    fn load_bundled(
+        directory: &Path,
+        limits: PackageReadLimits,
+        builtins: Vec<Arc<EffectPackage>>,
+        current_only: bool,
+    ) -> Result<Self> {
+        let mut r = Self::default();
+        for builtin in &builtins {
+            r.insert(builtin.clone())?;
+        }
         fs::create_dir_all(directory)?;
         for builtin in &builtins {
             let bundled = directory.join(format!("{}.msfx", builtin.hash));
@@ -398,7 +422,7 @@ impl Registry {
                         fs::read(e.path())
                             .and_then(|bytes| {
                                 if bytes == builtin.bytes {
-                                    Ok(builtin.clone())
+                                    Ok(Some(builtin.clone()))
                                 } else {
                                     Err(std::io::Error::new(
                                         std::io::ErrorKind::InvalidData,
@@ -408,9 +432,22 @@ impl Registry {
                             })
                             .map_err(Error::Io)
                     } else {
-                        EffectPackage::open_with_limits(&e.path(), limits).map(Arc::new)
+                        read_file_bounded(&e.path(), MAX_PACKAGE, "effect package")
+                            .and_then(|bytes| {
+                                if current_only && crate::builtin::is_archived_core_bytes(&bytes) {
+                                    // Intentional retirement is a normal branch.
+                                    // Never skip by filename/hash alone: damaged
+                                    // archive files must retain load diagnostics.
+                                    Ok(None)
+                                } else {
+                                    EffectPackage::from_bytes_with_limits(bytes, limits)
+                                        .map(Arc::new)
+                                        .map(Some)
+                                }
+                            })
                     };
                     match package.and_then(|p| {
+                        let Some(p) = p else { return Ok(()); };
                         // Intentional retirement, not a failed load. Keep the
                         // user's cached bytes untouched without rediscovering
                         // removed product effects on every application start.
@@ -420,7 +457,7 @@ impl Registry {
                         r.insert(p)
                     }) {
                         Ok(()) => {}
-                        Err(e) => r.diagnostics.push(e.to_string()),
+                        Err(error) => r.diagnostics.push(format!("{}: {error}", e.path().display())),
                     }
                 }
             }
@@ -458,14 +495,32 @@ impl Registry {
         self.install_with_limits(directory, path, PackageReadLimits::default())
     }
     pub fn install_with_limits(&mut self, directory: &Path, path: &Path, limits: PackageReadLimits) -> Result<InstalledPlugin> {
-        let package = Arc::new(EffectPackage::open_with_limits(path, limits)?);
+        self.install_bundled(directory, path, limits, false)
+    }
+    /// Desktop installation must use the same catalogue policy as startup,
+    /// including the concurrent-install refresh before committing a payload.
+    pub fn install_current_with_limits(&mut self, directory: &Path, path: &Path, limits: PackageReadLimits) -> Result<InstalledPlugin> {
+        self.install_bundled(directory, path, limits, true)
+    }
+    fn install_bundled(&mut self, directory: &Path, path: &Path, limits: PackageReadLimits, current_only: bool) -> Result<InstalledPlugin> {
+        let bytes = read_file_bounded(path, MAX_PACKAGE, &path.to_string_lossy())?;
+        ensure(
+            !current_only || !crate::builtin::is_archived_core_bytes(&bytes),
+            "archived builtin is not installable in the desktop runtime; use the current builtin or an independently authored package",
+        )?;
+        let package = Arc::new(EffectPackage::from_bytes_with_limits(bytes, limits)?);
         ensure(
             !crate::builtin::is_retired_plugin(&package.manifest.id),
             format!("retired bundled plugin {} is no longer installable; use an independently authored package ID", package.manifest.id),
         )?;
         let mut next = self.clone();
         // Another session may have installed a version since this registry was opened.
-        for installed in Self::load_with_limits(directory, limits)?.packages.into_values() {
+        let refreshed = if current_only {
+            Self::load_current_with_limits(directory, limits)?
+        } else {
+            Self::load_with_limits(directory, limits)?
+        };
+        for installed in refreshed.packages.into_values() {
             next.insert(installed)?;
         }
         next.insert(package.clone())?;

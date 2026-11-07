@@ -2,6 +2,7 @@ use super::*;
 use motion_core::{render_sampling::Shutter, Content, Ease, Layer, Observer};
 use winit::platform::windows::EventLoopBuilderExtWindows;
 mod video;
+mod preparation;
 
 fn fixture(blur: bool) -> Project {
     let mut project = Project::new(32, 32, 30, 60).unwrap();

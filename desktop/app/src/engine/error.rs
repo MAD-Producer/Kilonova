@@ -122,6 +122,11 @@ impl From<wgpu::CreateSurfaceError> for Error {
         Self::Surface(Arc::new(error))
     }
 }
+impl From<motion_ui::style::Error> for Error {
+    fn from(error: motion_ui::style::Error) -> Self {
+        motion_host::Error::from_source(error).into()
+    }
+}
 impl From<String> for Error {
     fn from(error: String) -> Self {
         Self::Message(error.into())

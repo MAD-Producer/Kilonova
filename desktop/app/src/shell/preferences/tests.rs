@@ -158,7 +158,7 @@ fn actual_preferences_apply_restart_and_failures_preserve_project_and_error_chan
         )
         .unwrap();
         let error = shell.apply_preferences(invalid, true).unwrap_err();
-        assert!(error.contains("phase=style"), "{error}");
+        assert!(error.to_string().contains("phase=style"), "{error}");
         assert_eq!(shell.workspace.preferences(), values);
         assert_eq!(std::fs::read(&shell.layout_path).unwrap(), persisted);
         let valid_path = shell.layout_path.clone();
@@ -169,7 +169,7 @@ fn actual_preferences_apply_restart_and_failures_preserve_project_and_error_chan
         let mut rejected = values.clone();
         rejected.preview = PreviewQuality::Economy;
         let error = shell.apply_preferences(rejected, false).unwrap_err();
-        assert!(error.contains("phase=publish"), "{error}");
+        assert!(error.to_string().contains("phase=publish"), "{error}");
         assert_eq!(shell.workspace.preferences(), values);
         assert_eq!(shell.engine.state().unwrap()["preview"], old_preview);
         assert_eq!(std::fs::read(blocked.join("keep")).unwrap(), b"existing");

@@ -1,0 +1,93 @@
+{
+  "status": "ten_qualified_blobs_and_one_exact_visibility_composition_verified_native_regression_pending",
+  "observedUtc": "2026-11-06T14:38:16.573781+00:00",
+  "sourceCommit": "c9429e13be7d57e37805a568847fe69814c6ec8b",
+  "mainCommit": "5a025a2d23f2cc35ee4d306550861b086e0b2378",
+  "files": [
+    {
+      "path": "crates/motion-host/src/depth/onnx.rs",
+      "qualifiedCommit": "4968ac214003dab3281502a7d1ba8d5c87ee45e1",
+      "qualifiedBlob": "4951b04c0b8a72a24b244fd46d326d13449708b5",
+      "integratedBlob": "b07827d138cc65fd8f7e948ab3a786f8b9e760e4",
+      "disposition": "exact profile source plus pre-existing sibling visibility for WGSL subprocess capture",
+      "soleSourceDelta": "fn capture -> pub(super) fn capture"
+    },
+    {
+      "path": "tools/ai_depth_onnx.py",
+      "qualifiedCommit": "4968ac214003dab3281502a7d1ba8d5c87ee45e1",
+      "qualifiedBlob": "68829630ac960099b113739ed96e9ef25ed96bb9",
+      "integratedBlob": "68829630ac960099b113739ed96e9ef25ed96bb9",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "tools/export_ai_depth.py",
+      "qualifiedCommit": "4968ac214003dab3281502a7d1ba8d5c87ee45e1",
+      "qualifiedBlob": "2dea607e9566943cc56566b9ceae9211d976ec06",
+      "integratedBlob": "2dea607e9566943cc56566b9ceae9211d976ec06",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "tools/test_ci_depth_export.py",
+      "qualifiedCommit": "4968ac214003dab3281502a7d1ba8d5c87ee45e1",
+      "qualifiedBlob": "9bea52a0466415b312558c868bede50c869753fd",
+      "integratedBlob": "9bea52a0466415b312558c868bede50c869753fd",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "crates/motion-host/src/depth.rs",
+      "qualifiedCommit": "2a08e053d1569306a9dd091db40e7eb1f264b2ca",
+      "qualifiedBlob": "b419c0d734b242816177ee13e16cd5b0f449dd09",
+      "integratedBlob": "b419c0d734b242816177ee13e16cd5b0f449dd09",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "crates/motion-host/src/depth/wgsl.rs",
+      "qualifiedCommit": "2a08e053d1569306a9dd091db40e7eb1f264b2ca",
+      "qualifiedBlob": "c00663b32782da891aed62b26fc016f02a6f9a93",
+      "integratedBlob": "c00663b32782da891aed62b26fc016f02a6f9a93",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "crates/motion-host/tests/depth_jobs.rs",
+      "qualifiedCommit": "2a08e053d1569306a9dd091db40e7eb1f264b2ca",
+      "qualifiedBlob": "e21b71e39d7857fa2bd3fb6e6d72575b177453be",
+      "integratedBlob": "e21b71e39d7857fa2bd3fb6e6d72575b177453be",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "crates/motion-host/tests/depth_video.rs",
+      "qualifiedCommit": "2a08e053d1569306a9dd091db40e7eb1f264b2ca",
+      "qualifiedBlob": "97b1bee0092c798f00227e10cdc77d8912f80636",
+      "integratedBlob": "97b1bee0092c798f00227e10cdc77d8912f80636",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "desktop/app/src/logging.rs",
+      "qualifiedCommit": "2a08e053d1569306a9dd091db40e7eb1f264b2ca",
+      "qualifiedBlob": "53aad766032cd4f1ca32b767982cef03ddfc33d8",
+      "integratedBlob": "53aad766032cd4f1ca32b767982cef03ddfc33d8",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "desktop/app/src/logging/sink.rs",
+      "qualifiedCommit": "2a08e053d1569306a9dd091db40e7eb1f264b2ca",
+      "qualifiedBlob": "19412b02d5de01ffa5a6a51cc2906c224c55cdb0",
+      "integratedBlob": "19412b02d5de01ffa5a6a51cc2906c224c55cdb0",
+      "disposition": "exact qualified Git blob"
+    },
+    {
+      "path": "Cargo.lock",
+      "qualifiedCommit": "2a08e053d1569306a9dd091db40e7eb1f264b2ca",
+      "qualifiedBlob": "b4dfec9f1c8ba67410e98a2416033dd2c5312d28",
+      "integratedBlob": "b4dfec9f1c8ba67410e98a2416033dd2c5312d28",
+      "disposition": "exact qualified Git blob"
+    }
+  ],
+  "limits": [
+    "Static source composition only; no integrated native test or model workload executed",
+    "Initial exact-blob audit correctly rejected composed onnx.rs; inspected diff contains only the existing capture visibility change",
+    "Prepared full v4 exact-profile-blob gate cannot accept this legitimate composition; supersede with a source-bound v5 rather than disable source checking",
+    "Existing complete failures and unchanged 10 GiB admission remain",
+    "No panels, dependencies, lockfile or original assertion changed by this rebase"
+  ]
+}

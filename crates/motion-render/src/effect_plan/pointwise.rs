@@ -172,6 +172,10 @@ impl PlanBuilder {
         &self.fusion.report
     }
 
+    pub(crate) fn pointwise_fusion_enabled(&self) -> bool {
+        self.fusion.enabled
+    }
+
     fn pointwise_candidate(
         &self,
         scene: &Scene,

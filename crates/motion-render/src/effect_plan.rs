@@ -830,6 +830,9 @@ impl PlanBuilder {
             execution_fault: None,
         })
     }
+    pub(crate) fn plane_coverage_enabled(&self) -> bool {
+        self.plane_coverage
+    }
     pub(crate) fn enable_plane_coverage(&mut self) {
         if !self.plane_coverage {
             self.plane_coverage = true;

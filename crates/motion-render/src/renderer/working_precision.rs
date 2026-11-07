@@ -103,6 +103,7 @@ impl Renderer {
         // These image-cache entries contain working-format results. Their size
         // and object ID alone are insufficient after a precision change. Keep
         // static inputs and decoded video, whose storage is independent.
+        self.pipeline_preparation.cancel();
         let obsolete: Vec<_> = self
             .images
             .keys()

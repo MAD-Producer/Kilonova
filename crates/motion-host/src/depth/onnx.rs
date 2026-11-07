@@ -433,7 +433,7 @@ fn drain(
     Ok(kept)
 }
 
-fn capture(command: &mut Command, cancellation: &Cancellation) -> Result<(Vec<u8>, String)> {
+pub(super) fn capture(command: &mut Command, cancellation: &Cancellation) -> Result<(Vec<u8>, String)> {
     let mut owner = ChildOwner {
         child: command.spawn()?,
         reaped: false,

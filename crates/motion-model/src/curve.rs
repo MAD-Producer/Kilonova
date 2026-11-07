@@ -2,6 +2,7 @@
 //! Bezier velocity curves are integrated analytically, including their x mapping.
 use crate::{ensure, Ease, Result};
 use serde::{Deserialize, Serialize};
+mod turning;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -136,6 +137,12 @@ impl Easing {
 }
 
 impl Curve {
+    /// Interior normalized times that partition progress into monotone pieces.
+    /// Derived from the authored curve, without a temporal sampling grid. A
+    /// validated curve has at most fifteen such times (the elastic limit).
+    pub fn progress_turning_times(self) -> Vec<f64> {
+        turning::times(self)
+    }
     fn value_side(self, t: f64, direction: i8) -> i8 {
         match self.definition() {
             CurveDefinition::Bezier(x, y) => {
