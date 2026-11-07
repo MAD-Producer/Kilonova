@@ -63,6 +63,8 @@ pub enum Error {
     Panic(String),
     #[error("depth backend failed: {0}")]
     Backend(String),
+    #[error("depth worker alignment failed: {0}")]
+    Alignment(#[from] transition::admission::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
@@ -193,6 +195,8 @@ pub struct Costs {
     pub inference: Duration,
     pub output_copy: Duration,
     pub postprocess: Duration,
+    /// Worker-side alignment against the exact prepared reference, if requested.
+    pub alignment: Duration,
     pub input_bytes: u64,
     pub output_bytes: u64,
 }
@@ -385,6 +389,9 @@ impl Identity {
             Self::Video(key) => log::info!("start #{} depth_infer asset={} revision={} target_us={} phase=video_decode object={} model={} model_revision={} processing={} model_sha256={}",
                 request,key.asset,key.revision,key.target_us,key.object,model.id,model.revision,model.processing,digest),
         }
+        // The production sink buffers Info. Persist the request before source
+        // preparation or a backend can block, rather than waiting for completion.
+        log::logger().flush();
     }
 }
 
@@ -417,6 +424,7 @@ pub struct SessionStatus {
 struct Job {
     request: u64,
     input: Work,
+    alignment: Option<transition::admission::Pending>,
     cancellation: Cancellation,
 }
 
@@ -460,7 +468,13 @@ struct Flight {
 struct Completion {
     request: u64,
     identity: Identity,
-    result: Result<PreparedEstimate>,
+    result: Result<Ready>,
+}
+// An aligned completion cannot be taken through the raw result API and silently
+// installed without its proof. There is still only one ready slot per worker.
+enum Ready {
+    Raw(PreparedEstimate),
+    Aligned(transition::admission::Admission),
 }
 #[derive(Default)]
 struct State {
@@ -507,6 +521,14 @@ impl Jobs {
     }
 
     fn submit(&mut self, input: Work) -> Result<u64> {
+        self.submit_with_alignment(input, None)
+    }
+
+    fn submit_with_alignment(
+        &mut self,
+        input: Work,
+        alignment: Option<transition::admission::Pending>,
+    ) -> Result<u64> {
         input.identity().validate()?;
         let mut state = self.shared.0.lock().map_err(|_| Error::State)?;
         if state.stopped {
@@ -528,6 +550,7 @@ impl Jobs {
         state.pending = Some(Job {
             request,
             input,
+            alignment,
             cancellation: Cancellation::default(),
         });
         state.counts.submitted = state.counts.submitted.saturating_add(1);
@@ -559,17 +582,25 @@ impl Jobs {
     /// Preserve the worker's actual prepared input identity for saved calibration.
     /// The independent live-key comparison is identical to `take_ready`.
     pub fn take_prepared_ready(&mut self, current: &Key) -> Result<Option<PreparedEstimate>> {
-        self.take_identity(&Identity::Sample(current.clone()))
+        self.take_raw(&Identity::Sample(current.clone()))
     }
 
     pub(crate) fn take_video_prepared_ready(
         &mut self,
         current: &VideoKey,
     ) -> Result<Option<PreparedEstimate>> {
-        self.take_identity(&Identity::Video(current.clone()))
+        self.take_raw(&Identity::Video(current.clone()))
     }
 
-    fn take_identity(&mut self, current: &Identity) -> Result<Option<PreparedEstimate>> {
+    fn take_raw(&mut self, current: &Identity) -> Result<Option<PreparedEstimate>> {
+        match self.take_identity(current)? {
+            None => Ok(None),
+            Some(Ready::Raw(ready)) => Ok(Some(ready)),
+            Some(Ready::Aligned(_)) => Err(Error::Invalid("aligned completion requires its admission API")),
+        }
+    }
+
+    fn take_identity(&mut self, current: &Identity) -> Result<Option<Ready>> {
         current.validate()?;
         let mut state = self.shared.0.lock().map_err(|_| Error::State)?;
         let Some(done) = state.ready.take() else {
@@ -756,7 +787,26 @@ fn run(mut backend: impl Backend, shared: Shared) {
                 }
             }
             estimate.costs.total = began.elapsed();
-            Ok(PreparedEstimate { estimate, input: prepared_input, image: input.image, video_end_us: input.video_end_us })
+            let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image, video_end_us: input.video_end_us };
+            if let Some(alignment) = job.alignment {
+                stage = "alignment";
+                set_phase(&shared, stage)?;
+                // No observation lock is held across logging, cancellation
+                // polling or the linear fit. Keep Flight until publication.
+                log::info!("start #{} depth_align asset={} revision={} phase=alignment generation={}",
+                    job.request, asset, revision, alignment.generation());
+                log::logger().flush();
+                let mut admitted = alignment.complete(prepared, || job.cancellation.is_canceled())
+                    .map_err(|cause| match cause {
+                        transition::admission::Error::Alignment(alignment::Rejection::Canceled) => Error::Canceled,
+                        other => Error::Alignment(other),
+                    })?;
+                job.cancellation.check()?;
+                admitted.finish_worker_costs(began.elapsed());
+                Ok(Ready::Aligned(admitted))
+            } else {
+                Ok(Ready::Raw(prepared))
+            }
         }))
         .unwrap_or_else(|p| Err(Error::Panic(panic_cause(p.as_ref()))))
         .map_err(|error| match error {

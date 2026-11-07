@@ -6,6 +6,7 @@
 //! and independently supply the live key at the installation boundary.
 
 use super::{Input, Jobs, Key, PreparedEstimate};
+pub mod admission;
 use motion_model::depth::DepthResource;
 use std::{
     sync::{Arc, Condvar, Mutex, Weak},
@@ -300,6 +301,40 @@ impl Controller {
         Ok(Some(request))
     }
 
+    /// Infer and align on the existing worker before publishing a completion.
+    /// Retain the exact reference planes and prepared pixel fingerprint; no
+    /// fitting, source IO or extra worker is introduced on the caller thread.
+    /// This is explicit admission, not automatic Session installation.
+    pub fn request_aligned(
+        &mut self,
+        ticket: &Ticket,
+        jobs: &mut Jobs,
+        input: Input,
+        reference: &PreparedEstimate,
+        limits: super::alignment::Limits,
+    ) -> Result<Option<u64>> {
+        if !self.owns_current(ticket) {
+            return Ok(None);
+        }
+        if !ticket.key.same_sample(input.key()) {
+            log::error!("operation=depth_transition_request_aligned generation={} source_id={} cause=input_differs_from_ticket",
+                ticket.generation, ticket.key.source.asset);
+            return Err(Error::Input);
+        }
+        let request = jobs
+            .submit_with_alignment(
+                super::Work::Prepared(input),
+                Some(admission::Pending::new(ticket, reference, limits)),
+            )
+            .map_err(|error| self.job_error("depth_transition_request_aligned", error))?;
+        self.submission = Some(Submission {
+            worker: Arc::downgrade(&jobs.shared),
+            request,
+            generation: ticket.generation,
+        });
+        Ok(Some(request))
+    }
+
     /// Revoke tickets before canceling the worker, even when no replacement is
     /// requested. A cancellation failure cannot make the old ticket valid again.
     pub fn invalidate_jobs(&mut self, jobs: &mut Jobs, now: Duration) -> Result<()> {
@@ -318,16 +353,66 @@ impl Controller {
         jobs: &mut Jobs,
         live: &Key,
     ) -> Result<Option<PreparedEstimate>> {
-        if !self.owns_current(ticket) || !ticket.key.same_sample(live) {
+        if !self.matches_submission(ticket, jobs, live)? {
             return Ok(None);
         }
-        let Some(submission) = &self.submission else {
+        let ready = jobs
+            .take_prepared_ready(live)
+            .map_err(|error| self.job_error("depth_transition_take", error))?;
+        Ok(ready.filter(|ready| self.is_current(ticket, live, &ready.estimate().resource)))
+    }
+
+    /// Read only a completed alignment from this controller's actual request.
+    /// No fit occurs here. Stale/foreign/unbound polling cannot consume a newer
+    /// completion; callers must still obtain a view using independently read
+    /// live identity immediately before using its samples.
+    pub fn take_aligned_ready(
+        &self,
+        ticket: &Ticket,
+        jobs: &mut Jobs,
+        live: &Key,
+    ) -> Result<Option<admission::Admission>> {
+        if !self.matches_submission(ticket, jobs, live)? {
             return Ok(None);
+        }
+        match jobs
+            .take_identity(&super::Identity::Sample(live.clone()))
+            .map_err(|error| self.job_error("depth_transition_take_aligned", error))?
+        {
+            None => Ok(None),
+            Some(super::Ready::Aligned(admitted)) => {
+                if admitted
+                    .view(self, live)
+                    .map_err(|cause| {
+                        self.job_error(
+                            "depth_transition_take_aligned",
+                            super::Error::Alignment(cause.into()),
+                        )
+                    })?
+                    .is_none()
+                {
+                    return Ok(None);
+                }
+                Ok(Some(admitted))
+            }
+            Some(super::Ready::Raw(_)) => Err(self.job_error(
+                "depth_transition_take_aligned",
+                super::Error::Invalid("raw completion requires its prepared result API"),
+            )),
+        }
+    }
+
+    fn matches_submission(&self, ticket: &Ticket, jobs: &Jobs, live: &Key) -> Result<bool> {
+        if !self.owns_current(ticket) || !ticket.key.same_sample(live) {
+            return Ok(false);
+        }
+        let Some(submission) = &self.submission else {
+            return Ok(false);
         };
         if submission.generation != ticket.generation
             || !Weak::ptr_eq(&submission.worker, &Arc::downgrade(&jobs.shared))
         {
-            return Ok(None);
+            return Ok(false);
         }
         // &mut Jobs excludes another caller's submission between this check
         // and take_prepared_ready. The worker never changes State.latest.
@@ -340,12 +425,9 @@ impl Controller {
             }
         };
         if latest != submission.request {
-            return Ok(None);
+            return Ok(false);
         }
-        let ready = jobs
-            .take_prepared_ready(live)
-            .map_err(|error| self.job_error("depth_transition_take", error))?;
-        Ok(ready.filter(|ready| self.is_current(ticket, live, &ready.estimate().resource)))
+        Ok(true)
     }
 
     /// Identity gate only, not permission to install unaligned depth. The live

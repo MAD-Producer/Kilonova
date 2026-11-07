@@ -288,6 +288,7 @@ impl Onnx {
                 inference: Duration::from_nanos(n.inference),
                 output_copy: Duration::from_nanos(n.output_copy),
                 postprocess: Duration::from_nanos(n.postprocess),
+                alignment: Duration::ZERO,
                 input_bytes: report.input_host_copy_bytes,
                 output_bytes: report.output_host_copy_bytes,
             },
