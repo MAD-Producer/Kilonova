@@ -27,6 +27,7 @@ pub struct Admission {
     reference: DepthResource,
     candidate: PreparedEstimate,
     alignment: Alignment,
+    limits: Limits,
 }
 
 /// One immutable reference instance per queued/running aligned request. This is
@@ -137,7 +138,57 @@ impl Admission {
             reference,
             candidate,
             alignment,
+            limits,
         })
+    }
+
+    /// Metadata-only capture after the live owner/generation gate. The export
+    /// receives immutable ownership, not the live controller or worker.
+    pub(crate) fn freeze(
+        &self,
+        controller: &Controller,
+        live: &Key,
+        reference: &PreparedEstimate,
+    ) -> crate::Result<
+        Option<(
+            std::sync::Arc<crate::depth::Estimate>,
+            PreparedDepthInput,
+            crate::depth_snapshot::alignment::Frozen,
+        )>,
+    > {
+        if self
+            .view(controller, live)
+            .map_err(|cause| crate::Error::NativeSource {
+                cause: Box::new(cause),
+            })?
+            .is_none()
+        {
+            return Ok(None);
+        }
+        let choices = controller
+            .choices
+            .as_ref()
+            .ok_or("frozen depth transition has no qualified choices")?
+            .clone();
+        let candidate = std::sync::Arc::new(self.candidate.estimate().clone());
+        let spec = crate::depth_snapshot::alignment::Spec {
+            alignment_version: crate::depth::alignment::VERSION,
+            transition_version: super::VERSION,
+            generation: self.ticket.generation(),
+            phase: self.ticket.phase(),
+            choices,
+            policy: controller.policy,
+            limits: self.limits,
+            coefficients: self.alignment.coefficients(),
+        };
+        let frozen = crate::depth_snapshot::alignment::Frozen::from_live(
+            std::sync::Arc::new(reference.estimate().clone()),
+            &candidate,
+            &self.alignment,
+            spec,
+            live,
+        )?;
+        Ok(Some((candidate, self.candidate.input(), frozen)))
     }
 
     pub(crate) fn finish_worker_costs(&mut self, total: Duration) {

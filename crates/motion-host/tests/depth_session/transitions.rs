@@ -3,6 +3,8 @@ use motion_host::depth::{
     alignment::Limits,
     transition::{Activity, Policy},
 };
+#[path = "transitions/frozen.rs"]
+mod frozen;
 
 fn policy() -> Policy {
     Policy {
