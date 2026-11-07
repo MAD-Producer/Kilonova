@@ -93,7 +93,7 @@ pub struct Alignment {
 }
 
 impl Limits {
-    fn validate(self) -> Result<()> {
+    pub(crate) fn validate(self) -> Result<()> {
         if !(3..=MAX_FIT_PAIRS).contains(&self.minimum_fit_pairs)
             || self.minimum_validation_pairs < 3
         {

@@ -1,7 +1,7 @@
 use super::Scene;
 use motion_model::depth::{
     DepthResource, DepthResourceIdentity, DepthSource, DepthSurface, PreparedDepthInput,
-    SavedDepthCalibration, MAX_DEPTH_RESOURCE_BYTES,
+    RelativeDepthCalibration, SavedDepthCalibration, MAX_DEPTH_RESOURCE_BYTES,
 };
 use motion_model::{ensure, Result};
 use std::sync::Arc;
@@ -12,6 +12,8 @@ pub(super) struct BoundSurface {
     source: DepthSource,
     input: PreparedDepthInput,
     resource: DepthResourceIdentity,
+    reference_resource: Option<DepthResourceIdentity>,
+    binding: RelativeDepthCalibration,
     mesh: Arc<DepthSurface>,
     image: Option<crate::DepthImage>,
 }
@@ -23,7 +25,9 @@ impl Scene {
             .into_iter()
             .map(|(id, surface)| (self.source_object(id), surface))
             .collect();
-        for surface in self.depth_surfaces.values_mut() { surface.image = None; }
+        for surface in self.depth_surfaces.values_mut() {
+            surface.image = None;
+        }
         self.depth_required.clear();
         self.depth_pending.clear();
         self.shared_rasters.clear();
@@ -59,12 +63,95 @@ impl Scene {
             ),
         )?;
         let binding = calibration.rebind(resource, input)?;
+        self.attach_bound_calibrated_depth(object, current, resource, input, &binding, None)
+    }
+
+    /// An inference owner supplies a qualified mapped calibration, retaining
+    /// its original reference and candidate instances. Recheck the authored
+    /// calibration/source here; this renderer does not qualify affine fit or
+    /// model accuracy. It never relabels the candidate as the reference model.
+    pub fn attach_aligned_calibrated_depth(
+        &mut self,
+        object: u64,
+        current: &DepthSource,
+        reference: &DepthResource,
+        candidate: &DepthResource,
+        input: PreparedDepthInput,
+        binding: &RelativeDepthCalibration,
+        image: Option<crate::DepthImage>,
+    ) -> Result<()> {
+        let saved = self.depth_required.get(&object).ok_or_else(|| {
+            motion_model::Error::Invalid(format!(
+                "depth surface object={object}: no sampled render calibration"
+            ))
+        })?;
+        let original = saved.rebind(reference, input)?;
+        let first = reference.descriptor();
+        let second = candidate.descriptor();
+        ensure(
+            current.same_sample(&first.source)
+                && first.source.same_sample(&second.source)
+                && first.geometry == second.geometry
+                && first.size == second.size
+                && first.measure == second.measure,
+            "aligned depth render reference and candidate source, grid or meaning differ",
+        )?;
+        ensure(
+            original.curve() == binding.curve()
+                && original.extrapolation() == binding.extrapolation()
+                && original.anchors().map(|anchor| anchor.camera_z_meters)
+                    == binding.anchors().map(|anchor| anchor.camera_z_meters),
+            "aligned depth render changed authored metric observations",
+        )?;
+        if let Some(image) = &image {
+            ensure(
+                image.size() == second.geometry.source_size,
+                "aligned depth image dimensions differ from source geometry",
+            )?;
+        }
+        self.attach_bound_calibrated_depth(
+            object,
+            current,
+            candidate,
+            input,
+            binding,
+            Some(reference.cache_identity()),
+        )?;
+        if let Some(surface) = self.depth_surfaces.get_mut(&object) {
+            surface.image = image;
+        }
+        Ok(())
+    }
+
+    fn attach_bound_calibrated_depth(
+        &mut self,
+        object: u64,
+        current: &DepthSource,
+        resource: &DepthResource,
+        input: PreparedDepthInput,
+        binding: &RelativeDepthCalibration,
+        reference_resource: Option<DepthResourceIdentity>,
+    ) -> Result<()> {
+        let calibration = self.depth_required.get(&object).ok_or_else(|| {
+            motion_model::Error::Invalid(format!(
+                "depth surface object={object}: no sampled render calibration"
+            ))
+        })?;
+        ensure(
+            current.same_sample(&resource.descriptor().source),
+            &format!(
+                "depth surface object={object} source={} phase=admit: current source differs",
+                current.asset
+            ),
+        )?;
         let depth = binding.bind(resource)?;
         let cached = self.depth_surfaces.get(&object).is_some_and(|surface| {
             surface.calibration == *calibration
                 && surface.source.same_sample(current)
                 && surface.input == input
                 && surface.resource == resource.cache_identity()
+                && surface.reference_resource == reference_resource
+                && surface.binding == *binding
         });
         if !cached {
             let reference = calibration.reference().ok_or_else(|| {
@@ -91,53 +178,89 @@ impl Scene {
                     source: current.clone(),
                     input,
                     resource: resource.cache_identity(),
+                    reference_resource,
+                    binding: binding.clone(),
                     mesh,
                     image: None,
                 },
             );
         }
-        if let Some(surface) = self.depth_surfaces.get_mut(&object) { surface.image = None; }
+        if let Some(surface) = self.depth_surfaces.get_mut(&object) {
+            surface.image = None;
+        }
         self.depth_pending.remove(&object);
         Ok(())
     }
     /// Pair depth with the exact original image decoded by its admission worker.
     /// This keeps color and geometry consistent after file changes/GPU eviction.
     pub fn attach_calibrated_depth_image(
-        &mut self, object: u64, current: &DepthSource, resource: &DepthResource,
-        input: PreparedDepthInput, image: crate::DepthImage,
+        &mut self,
+        object: u64,
+        current: &DepthSource,
+        resource: &DepthResource,
+        input: PreparedDepthInput,
+        image: crate::DepthImage,
     ) -> Result<()> {
-        ensure(image.size() == resource.descriptor().geometry.source_size,
-            "owned depth image dimensions differ from source geometry")?;
+        ensure(
+            image.size() == resource.descriptor().geometry.source_size,
+            "owned depth image dimensions differ from source geometry",
+        )?;
         self.attach_calibrated_depth(object, current, resource, input)?;
-        if let Some(surface) = self.depth_surfaces.get_mut(&object) { surface.image = Some(image); }
+        if let Some(surface) = self.depth_surfaces.get_mut(&object) {
+            surface.image = Some(image);
+        }
         Ok(())
     }
-    pub(crate) fn calibrated_source_images(&self) -> impl Iterator<Item = (u64, &crate::DepthImage)> {
+    pub(crate) fn calibrated_source_images(
+        &self,
+    ) -> impl Iterator<Item = (u64, &crate::DepthImage)> {
         self.layers.iter().filter_map(|layer| {
-            if self.depth_pending.contains(&layer.id) || !self.depth_required.contains_key(&layer.id) { return None; }
+            if self.depth_pending.contains(&layer.id)
+                || !self.depth_required.contains_key(&layer.id)
+            {
+                return None;
+            }
             let surface = self.depth_surfaces.get(&layer.id)?;
             Some((layer.asset?, surface.image.as_ref()?))
         })
     }
-    pub(crate) fn calibrated_video_images(&self) -> impl Iterator<Item = (u64, &crate::DepthImage)> {
+    pub(crate) fn calibrated_video_images(
+        &self,
+    ) -> impl Iterator<Item = (u64, &crate::DepthImage)> {
         self.layers.iter().filter_map(|layer| {
-            if !self.has_owned_video_depth(layer.id) { return None; }
-            Some((layer.id, self.depth_surfaces.get(&layer.id)?.image.as_ref()?))
+            if !self.has_owned_video_depth(layer.id) {
+                return None;
+            }
+            Some((
+                layer.id,
+                self.depth_surfaces.get(&layer.id)?.image.as_ref()?,
+            ))
         })
     }
     pub(crate) fn has_owned_video_depth(&self, object: u64) -> bool {
         self.depth_required.contains_key(&object)
             && !self.depth_pending.contains(&object)
-            && self.layers.iter().any(|layer| layer.id == object && layer.video.is_some())
-            && self.depth_surfaces.get(&object).is_some_and(|surface| surface.image.is_some())
+            && self
+                .layers
+                .iter()
+                .any(|layer| layer.id == object && layer.video.is_some())
+            && self
+                .depth_surfaces
+                .get(&object)
+                .is_some_and(|surface| surface.image.is_some())
     }
     /// Original video layers whose colors still need a decoder. A calibrated
     /// video admission owns its exact display pixels and must not decode again.
     /// video_layers() intentionally keeps its complete source/capability meaning.
     pub fn video_decode_layers(&self) -> Vec<&crate::DrawLayer> {
-        let mut layers: Vec<_> = self.layers.iter().filter(|layer|
-            layer.video.is_some() && !self.has_owned_video_depth(layer.id)).collect();
-        for node in &self.nested { layers.extend(node.scene.video_decode_layers()); }
+        let mut layers: Vec<_> = self
+            .layers
+            .iter()
+            .filter(|layer| layer.video.is_some() && !self.has_owned_video_depth(layer.id))
+            .collect();
+        for node in &self.nested {
+            layers.extend(node.scene.video_decode_layers());
+        }
         layers
     }
     pub(crate) fn depth_surface(&self, object: u64) -> Option<Arc<DepthSurface>> {
