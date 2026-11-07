@@ -1042,10 +1042,7 @@ impl GpuState {
                 depth_slice: None,
                 view: target,
                 resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: wgpu::StoreOp::Store,
-                },
+                ops: crate::effect_plan::color_attachment_operations(),
             })],
             depth_stencil_attachment: None,
             timestamp_writes: None,

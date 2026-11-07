@@ -1,6 +1,7 @@
 //! SDK 1: host-owned fullscreen vertex, resource bindings and 16-byte parameter slots.
 mod identity;
 mod sample_bounds;
+mod coverage;
 #[cfg(test)]
 mod store_policy_tests;
 pub use identity::{CompiledCodeIdentity, compiled_code_identity};
@@ -152,6 +153,9 @@ pub struct CompiledShader {
     /// Conservative reads per fragment, including SDK helpers and bounded
     /// loops. None is reserved for implementations without an IR proof.
     pub samples_per_fragment: Option<u64>,
+    /// Naga IR proof for this compiled module. None means no coverage proof;
+    /// neither a fullscreen triangle nor a shader name proves every pixel writes.
+    pub may_discard: Option<bool>,
 }
 
 fn portable_source(source: &str) -> Result<u64> {
@@ -331,7 +335,8 @@ fn compile_internal(
         })?;
     let samples_per_fragment = Some(sample_bounds::fragment_reads(&module, loop_work)?);
     let glsl = host_glsl(&module, &info, "sdk_vertex", "sdk_fragment")?;
-    Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work, samples_per_fragment })
+    let may_discard = Some(coverage::may_discard(&module));
+    Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work, samples_per_fragment, may_discard })
 }
 
 /// Host-owned geometry programs use the same Naga reflection and ES compiler.
