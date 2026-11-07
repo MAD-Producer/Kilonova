@@ -106,6 +106,8 @@ pub enum RenderError {
     ScratchGraph(#[from] crate::effect_plan::ScratchGraphError),
     #[error("GPU validation: {0}")]
     ScratchPlacement(#[from] crate::effect_plan::ScratchPlacementError),
+    #[error("GPU validation: {0}")]
+    TrackingPlate(#[from] motion_model::tracking::plate::Error),
     #[error(transparent)]
     PipelinePreparation(#[from] crate::PipelinePreparationError),
     #[error("GPU validation: {0}")]
@@ -2183,7 +2185,10 @@ impl Renderer {
         self.compositor.set_coverage_viewport(Some([viewport_width, viewport_height]));
         self.compositor
             .prepare(scene)
-            .map_err(|e| RenderError::Invalid(e.to_string()))?;
+            .map_err(|cause| {
+                let message = cause.to_string();
+                RenderError::from(cause).with_diagnostic(message)
+            })?;
         self.geometry_upload.clear();
         self.geometry_upload
             .extend(self.compositor.vertices.iter().map(|v| GeometryVertex {
