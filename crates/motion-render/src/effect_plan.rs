@@ -14,6 +14,8 @@ mod depth_material_tests;
 mod depth_material;
 mod scratch_graph;
 mod scratch_lifetimes;
+pub use scratch_graph::GraphError as ScratchGraphError;
+pub use scratch_lifetimes::PlacementError as ScratchPlacementError;
 mod scratch;
 mod pointwise;
 pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};

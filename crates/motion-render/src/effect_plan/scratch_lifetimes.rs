@@ -40,7 +40,7 @@ pub(crate) struct Limits {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum PlacementError {
+pub enum PlacementError {
     ResourceLimit {
         required: usize,
         maximum: usize,

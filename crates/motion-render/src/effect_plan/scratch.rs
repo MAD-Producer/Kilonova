@@ -6,6 +6,9 @@ use crate::RenderError;
 use serde::Serialize;
 use std::ops::Range;
 
+#[cfg(test)]
+mod error_tests;
+
 pub const MAX_SCRATCH_PASSES: usize = motion_model::MAX_LAYERS
     * (motion_effects::MAX_EFFECTS_PER_LAYER * (motion_effects::MAX_PASSES + 3) + 1);
 pub const SCRATCH_RECORD_BYTES: usize = 32;
@@ -213,7 +216,7 @@ pub(super) fn logical_graph(
         super::runtime_template::SEMANTIC_SLOTS,
         MAX_SCRATCH_PASSES,
     )
-    .map_err(|error| RenderError::Invalid(error.to_string()))
+    .map_err(RenderError::from)
 }
 
 /// Physical storage allocation consumes the already checked logical graph.
@@ -247,7 +250,7 @@ fn place_graph(graph: &graph::Graph<LogicalClass>) -> Result<Layout, RenderError
             bytes: u64::MAX,
         },
     )
-    .map_err(|error| RenderError::Invalid(error.to_string()))?;
+    .map_err(RenderError::from)?;
     let input = |value| match value {
         graph::Input::External(token) => token,
         graph::Input::Resource(id) => placement.assignments[id] as i32,

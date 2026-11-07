@@ -11,6 +11,9 @@ use std::{sync::Arc, time::Duration};
 const MAX_WORK_UNITS_PER_POLL: usize = motion_model::MAX_LAYERS;
 const RETAINED_CAUSE_CHARS: usize = 2048;
 
+#[cfg(test)]
+mod plan_error_tests;
+
 /// One top-level poll budget, shared by every recursive child. Traversing a
 /// pending parent does not spend the first unit; even a tiny positive slice
 /// must eventually reach the deepest actionable operation.
