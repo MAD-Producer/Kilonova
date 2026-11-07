@@ -21,6 +21,8 @@ pub mod image_formats;
 mod image_capture;
 pub use image_capture::{CapturedImage, ImageCaptureTarget};
 mod color_output;
+mod color_lut;
+pub use color_lut::{LutOutput, NativeLutError};
 mod lens_output;
 pub use lens_output::LensOutputPipeline;
 pub use color_output::{ColorOutput, ColorOutputDescriptor, OutputTransform, SdrCaptureTarget, ToneMap};

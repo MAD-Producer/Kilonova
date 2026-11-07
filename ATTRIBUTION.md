@@ -374,3 +374,21 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 原许可和 COPYRIGHT 说明保留于 NOTICE。上游源码未修改；仅调用双向级别与运行
 排序 API，与项目独立编写的字素/字体/脚本分段和塑形布局组合。不新增或分发字体
 及第三方界面资产；接入模块不代表产品绘制或整个 #129 已完成。
+
+## OpenColorIO 数值参考工具（仅开发验收）
+
+作者：Contributors to the OpenColorIO Project。来源：
+https://github.com/AcademySoftwareFoundation/OpenColorIO ，官方 Python 包
+https://pypi.org/project/opencolorio/2.6.0/ ，固定发行版本 v2.6.0。
+本次本地参考运行使用官方 `opencolorio-2.6.0-cp311-cp311-win_amd64.whl`，
+SHA-256 `2d9662abd4551e714fa7480443b36ee300ef6e1169d65b92188b36983802ea21`。
+许可 BSD-3-Clause，原文保留于 NOTICE。未修改上游代码，未把 OCIO 运行时、
+二进制或上游 LUT 打包进产品，也没有增加 Rust 产品依赖。
+
+`tools/color-management/generate_lut_reference.py` 和
+`crates/motion-effects/tests/color_lut/*.cube` 由 Motion Studio 独立编写，
+使用仓库 MIT 许可。`reference.json` 的线性和四面体预期值由上述官方
+CPU 文件处理器测得；最近邻预期值来自独立的网格距离穷举参考，另保留
+官方处理器对最近邻提示返回的实际结果，不将其线性结果冒称为最近邻。
+Cube 兼容字段按公开 OCIO 文件变换接口及自建数值样例独立实现；未复制
+商业产品的格式说明、代码或素材。用途、插值和域范围均由调用方显式指定。
