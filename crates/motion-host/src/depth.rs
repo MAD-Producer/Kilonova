@@ -10,6 +10,7 @@ use motion_model::depth::{
 };
 use sha2::{Digest, Sha256};
 pub(crate) mod image;
+pub mod cache;
 pub mod alignment;
 pub mod transition;
 pub mod routing;
@@ -283,6 +284,13 @@ impl Cancellation {
 /// implicit retries, requested-provider reports or synthetic depth are allowed.
 pub trait Backend: Send + 'static {
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate>;
+    /// Establish the actual execution environment before persistent lookup.
+    /// None means this backend cannot currently attest it, not a cache miss.
+    fn execution_identity(&mut self, _input: &Input, cancellation: &Cancellation)
+        -> Result<Option<cache::Execution>> {
+        cancellation.check()?;
+        Ok(None)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -296,6 +304,9 @@ pub struct Counts {
     pub stale: u64,
     /// Completed jobs restored from verified scalar spill data, without inference.
     pub restored: u64,
+    /// Verified persistent raw restores, separate from session video spill.
+    pub cache_hits: u64,
+    pub cache_misses: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -494,11 +505,22 @@ pub struct Jobs {
 
 impl Jobs {
     pub fn start(backend: impl Backend) -> Result<Self> {
+        Self::start_configured(backend, None)
+    }
+
+    /// Explicit, strict persistent cache. Unsupported execution identities and
+    /// corrupt entries are failures; neither silently launches inference.
+    pub fn start_cached(backend: impl Backend, cache: cache::Config) -> Result<Self> {
+        cache.validate()?;
+        Self::start_configured(backend, Some(cache))
+    }
+
+    fn start_configured(backend: impl Backend, cache: Option<cache::Config>) -> Result<Self> {
         let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
         let worker_shared = shared.clone();
         let worker = thread::Builder::new()
             .name("motion-depth".into())
-            .spawn(move || run(backend, worker_shared))?;
+            .spawn(move || run(backend, worker_shared, cache))?;
         Ok(Self {
             shared,
             worker: Some(worker),
@@ -687,7 +709,7 @@ fn panic_cause(payload: &(dyn Any + Send)) -> String {
     message.chars().take(512).collect()
 }
 
-fn run(mut backend: impl Backend, shared: Shared) {
+fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) {
     loop {
         let job = {
             let Ok(mut state) = lock_state(&shared) else {
@@ -733,6 +755,8 @@ fn run(mut backend: impl Backend, shared: Shared) {
         let store = job.input.store();
         let store_root = job.input.store_root();
         let mut restored = false;
+        let mut cache_hit = false;
+        let mut cache_miss = false;
         let result = catch_unwind(AssertUnwindSafe(|| {
             job.cancellation.check()?;
             let prepare_began = Instant::now();
@@ -752,8 +776,19 @@ fn run(mut backend: impl Backend, shared: Shared) {
                 log::info!("request={} operation=depth_infer asset={} revision={} phase=source_ready pts={}/{} source_prepare_ms={}",
                     job.request,asset,revision,input.key().source.pts.ticks,input.key().source.pts.timescale,source_prepare.as_millis());
             }
+            // Resolve before *either* reusable result path. Session-local spill
+            // must not bypass a changed actual runtime/provider/plan identity.
+            let execution = if cache.is_some() {
+                stage = "cache_resolve";
+                cache_phase(&shared, job.request, asset, stage)?;
+                let execution = backend.execution_identity(&input, &job.cancellation)?
+                    .ok_or(Error::Invalid("persistent cache requires an attested execution identity"))?;
+                execution.validate()?;
+                Some(execution)
+            } else { None };
             let cached = match (&store, &identity) {
-                (Some(store), Identity::Video(key)) => store.lookup(key)?,
+                (Some(store), Identity::Video(key)) => store.lookup(key)?
+                    .filter(|sample| execution.is_none() || sample.execution == execution),
                 _ => None,
             };
             let mut estimate = if let Some(sample) = cached {
@@ -767,6 +802,26 @@ fn run(mut backend: impl Backend, shared: Shared) {
                 estimate.costs = Costs::default();
                 restored = true;
                 estimate
+            } else if let Some(cache) = &cache {
+                let execution = execution.as_ref().ok_or(Error::State)?;
+                stage = "cache_read";
+                cache_phase(&shared, job.request, asset, stage)?;
+                if let Some(estimate) = cache.read(&input, prepared_input, &execution, &job.cancellation)? {
+                    cache_hit = true;
+                    estimate
+                } else {
+                    cache_miss = true;
+                    stage = "backend";
+                    cache_phase(&shared, job.request, asset, stage)?;
+                    let estimate = backend.infer(&input, &job.cancellation)?;
+                    job.cancellation.check()?;
+                    estimate.validate(input.key())?;
+                    execution.validate_result(&estimate)?;
+                    stage = "cache_write";
+                    cache_phase(&shared, job.request, asset, stage)?;
+                    cache.write(&input, prepared_input, &execution, &estimate, &job.cancellation)?;
+                    estimate
+                }
             } else { backend.infer(&input, &job.cancellation)? };
             job.cancellation.check()?;
             estimate.validate(input.key())?;
@@ -782,8 +837,14 @@ fn run(mut backend: impl Backend, shared: Shared) {
                     log::logger().flush();
                     // The root is captured with the job; no Session or GPU
                     // state is accessed on this worker.
-                    store.append(store_root.as_deref().ok_or(Error::State)?, job.request,
-                        key.object, &input, prepared_input, &estimate, &job.cancellation)?;
+                    let root = store_root.as_deref().ok_or(Error::State)?;
+                    if let Some(execution) = execution.as_ref() {
+                        store.append_qualified(root, job.request, key.object, &input, prepared_input,
+                            &estimate, Some(execution), &job.cancellation)?;
+                    } else {
+                        store.append(root, job.request, key.object, &input, prepared_input,
+                            &estimate, &job.cancellation)?;
+                    }
                 }
             }
             estimate.costs.total = began.elapsed();
@@ -834,6 +895,8 @@ fn run(mut backend: impl Backend, shared: Shared) {
             return;
         };
         state.flight = None;
+        if cache_hit { state.counts.cache_hits = state.counts.cache_hits.saturating_add(1); }
+        if cache_miss { state.counts.cache_misses = state.counts.cache_misses.saturating_add(1); }
         match &result {
             Ok(_) => {
                 state.counts.completed = state.counts.completed.saturating_add(1);
@@ -869,5 +932,12 @@ fn lock_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>> {
 
 fn set_phase(shared: &Shared, phase: &'static str) -> Result<()> {
     lock_state(shared)?.flight.as_mut().ok_or(Error::State)?.phase = phase;
+    Ok(())
+}
+
+fn cache_phase(shared: &Shared, request: u64, asset: u64, phase: &'static str) -> Result<()> {
+    set_phase(shared, phase)?;
+    log::info!("start #{} depth_cache asset={} phase={}", request, asset, phase);
+    log::logger().flush();
     Ok(())
 }

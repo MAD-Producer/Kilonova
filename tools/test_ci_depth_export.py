@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import export_ai_depth as exporter
@@ -14,6 +15,53 @@ import ai_depth_onnx as worker
 
 
 class DepthExportAdmission(unittest.TestCase):
+    def runtime_fixture(self, root):
+        modules = []
+        for name in ("onnxruntime", "numpy", "cv2"):
+            directory = root / name
+            directory.mkdir()
+            (directory / "__init__.py").write_bytes(b"owned runtime control")
+            modules.append(SimpleNamespace(__file__=str(directory / "__init__.py")))
+        modules[0].get_build_info = lambda: "controlled ort build"
+        modules[1]._core = SimpleNamespace(_multiarray_umath=SimpleNamespace(__cpu_features__={"control": True}))
+        modules[2].getBuildInformation = lambda: "controlled cv build"
+        return modules
+
+    def test_runtime_attestation_tracks_package_and_sibling_native_dependency_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            modules = self.runtime_fixture(root)
+            first = worker.execution_environment(*modules)
+            self.assertEqual(first, worker.execution_environment(*modules))
+            (root / "numpy" / "kernel.pyd").write_bytes(b"owned numerical extension")
+            second = worker.execution_environment(*modules)
+            self.assertNotEqual(first["runtime_sha256"], second["runtime_sha256"])
+            libs = root / "numpy.libs"
+            libs.mkdir()
+            (libs / "blas.so.1").write_bytes(b"owned BLAS control")
+            third = worker.execution_environment(*modules)
+            self.assertNotEqual(second["runtime_sha256"], third["runtime_sha256"])
+            self.assertEqual(first["plan_sha256"], third["plan_sha256"])
+
+    def test_runtime_attestation_rejects_unbounded_site_enumeration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            modules = self.runtime_fixture(root)
+            with mock.patch.object(Path, "iterdir", return_value=iter(root / f"unused{i}" for i in range(8193))):
+                with self.assertRaisesRegex(ValueError, "enumeration exceeds"):
+                    worker.execution_environment(*modules)
+
+    def test_runtime_attestation_changes_with_cpu_features_and_numerical_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            modules = self.runtime_fixture(Path(directory))
+            first = worker.execution_environment(*modules)
+            modules[1]._core._multiarray_umath.__cpu_features__["control"] = False
+            second = worker.execution_environment(*modules)
+            self.assertNotEqual(first["runtime_sha256"], second["runtime_sha256"])
+            with mock.patch.dict(worker.os.environ, {"OMP_NUM_THREADS": "4321"}):
+                third = worker.execution_environment(*modules)
+            self.assertNotEqual(second["runtime_sha256"], third["runtime_sha256"])
+
     def test_letterbox_geometry_preserves_crop_orientation_and_odd_padding(self):
         cases = [
             (400, 200, 266, (0, 66, 266, 133)),
