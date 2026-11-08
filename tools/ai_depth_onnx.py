@@ -71,29 +71,37 @@ def resize_align_corners(values, width, height, np):
     return output
 
 
-def execution_environment(ort, np, cv2):
-    """CPU-only attestation, before lookup and again in the executing child.
+def numerical_runtime_hash(packages, np, cv2, domain, extra_context):
+    """Bound the installed numerical code without requiring an ONNX runtime.
 
-    Available accelerator providers do not identify actual node assignment.
-    Refuse to attest those until a dedicated execution contract exists.
+    Callers select their actual packages, domain and execution-specific build
+    information. The WGSL RGB/remap child must not acquire an ORT dependency
+    merely to identify NumPy/OpenCV. This is an observed identity, not a lease
+    against concurrent replacement of installed executable files.
     """
     import platform
-    digest = hashlib.sha256(b"MotionStudio/depth/cpu-runtime/v1\0")
+    digest = hashlib.sha256(domain)
     total = 0
     count = 0
     visited = 0
-    roots = [(name, Path(module.__file__).resolve().parent)
-             for name, module in (("onnxruntime", ort), ("numpy", np), ("cv2", cv2))]
-    site = roots[0][1].parent
+    roots = [(name, Path(module.__file__).resolve().parent) for name, module in packages]
+    sites = sorted({root.parent for _, root in roots})
+    prefixes = tuple("opencv" if name == "cv2" else name for name, _ in packages)
     # Wheels keep BLAS/OpenCV dependencies in sibling .libs directories on
     # Unix. Those bytes affect numerical execution just as the extension does.
-    for index, root in enumerate(site.iterdir()):
-        if index >= 8192:
-            raise ValueError("runtime site-packages enumeration exceeds entry bound")
-        if root.name.endswith(".libs") and root.name.startswith(("numpy", "opencv", "onnxruntime")):
-            if root.is_symlink():
-                raise ValueError("linked runtime dependency directory rejected")
-            roots.append((root.name, root))
+    entries = 0
+    libraries = []
+    for site in sites:
+        for root in site.iterdir():
+            entries += 1
+            if entries > 8192:
+                raise ValueError("runtime site-packages enumeration exceeds entry bound")
+            if root.name.endswith(".libs") and root.name.startswith(prefixes):
+                if root.is_symlink():
+                    raise ValueError("linked runtime dependency directory rejected")
+                libraries.append((root.name, root))
+    # Filesystem enumeration order must not cause a different cache identity.
+    roots.extend(sorted(libraries))
     for name, root in roots:
         # Sort only a bounded list and do not admit links as executable identity.
         paths = []
@@ -136,10 +144,24 @@ def execution_environment(ort, np, cv2):
     features = getattr(np._core._multiarray_umath, "__cpu_features__", {})
     context = {"python": sys.version, "machine": platform.machine(), "system": platform.system(),
                "release": platform.release(), "cpu_features": features, "environment": environment,
-               "ort_build": ort.get_build_info(), "cv_build": cv2.getBuildInformation()}
-    digest.update(json.dumps(context, sort_keys=True, allow_nan=False).encode("utf-8"))
+               "cv_build": cv2.getBuildInformation(), "execution": extra_context}
+    encoded_context = json.dumps(context, sort_keys=True, allow_nan=False).encode("utf-8")
+    if len(encoded_context) > 65536:
+        raise ValueError("numerical runtime context exceeds 64 KiB")
+    digest.update(encoded_context)
+    return list(digest.digest())
+
+
+def execution_environment(ort, np, cv2):
+    """CPU-only attestation, before lookup and again in the executing child.
+
+    Available accelerator providers do not identify actual node assignment.
+    Refuse to attest those until a dedicated execution contract exists.
+    """
     return {"backend": "onnx", "provider": "CPUExecutionProvider", "precision": "float32",
-            "runtime_sha256": list(digest.digest()),
+            "runtime_sha256": numerical_runtime_hash(
+                (("onnxruntime", ort), ("numpy", np), ("cv2", cv2)), np, cv2,
+                b"MotionStudio/depth/cpu-runtime/v2\0", {"ort_build": ort.get_build_info()}),
             "plan_sha256": list(hashlib.sha256(Path(__file__).read_bytes()).digest())}
 
 
