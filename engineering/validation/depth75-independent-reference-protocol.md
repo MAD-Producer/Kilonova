@@ -247,3 +247,18 @@ The proposal passed all 11 controls and the complete inventory check in an
 isolated source copy while inference source remained frozen. That preflight
 is not a final-source CI pass. Actual-source discovery/full tools validation
 and current-head cross-platform acceptance must be recorded separately.
+
+The first actual-source invocation at `347310f0` passed all 11 reference
+controls, but complete discovery failed to import two existing workflow/release
+test modules because this local Python lacked CI's pinned PyYAML 6.0.3.
+Original session 79943 was consumed with exit 1; the source remained unchanged.
+Its 118 reported entries include two failed-import placeholders, not executed
+test bodies. One original skipped test remains unchanged. Evidence is retained
+in `data/depth75-reference-ci-failure-v1.json`; the command remains failed.
+The existing E-drive PyYAML installation is available for a separately recorded
+environment correction. No installation, skip or assertion change is needed.
+
+The Rust reference example now also declares `test = true`, so its three
+already exercised source/worker identity controls participate in ordinary
+Cargo test discovery whenever `ai-depth` is enabled. This changes test routing,
+not the CLI implementation or any measured backend/executable identity.

@@ -30,6 +30,7 @@ required-features = ["ai-depth"]
 
 [[example]]
 name = "depth_reference"
+test = true
 required-features = ["ai-depth"]
 
 [features]

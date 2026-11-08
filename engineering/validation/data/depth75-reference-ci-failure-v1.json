@@ -1,0 +1,58 @@
+{
+  "archive": "depth75-reference-ci-failure-v1.zip",
+  "bytes": 297226,
+  "sha256": "3645b6092ff6e7573b871d3b532f0b31367cd927d48e4683d532763b7118724a",
+  "head": "347310f0a2f78ff5215b4734e2ffcce148d8be1f",
+  "status": "original_complete_tools_command_failed_two_modules_not_imported_missing_pyyaml",
+  "new_controls": {
+    "tests": 11,
+    "exit_code": 0
+  },
+  "original_discovery": {
+    "reported_tests": 118,
+    "errors": 2,
+    "original_skipped": 1,
+    "exit_code": 1
+  },
+  "limits": [
+    "Two unittest failed-import placeholders are not executed test bodies; full suite count remains unknown in this failed run",
+    "CI already installs PyYAML6.0.3; no assertion or skip policy may be changed to work around the missing local dependency"
+  ],
+  "members": [
+    {
+      "path": "controller.py",
+      "bytes": 2962,
+      "sha256": "255361e0b3b3920a1968f5b11a446980c666a0e810cfb2e9bcbee719678a599f"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 873833,
+      "sha256": "59e7d556bf85d7e0b0eb4f8f3e6f5257da5015a024205417f52b55372b73f7a8"
+    },
+    {
+      "path": "session-consumed.json",
+      "bytes": 54,
+      "sha256": "6718f201ae063dc6bac03463cb75bfa3bc2db6297643d0bdf6d672b49f2fbbb8"
+    },
+    {
+      "path": "reference-controls.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reference-controls.stderr.log",
+      "bytes": 1981,
+      "sha256": "03ad20a76eae3c77191c987dc75a92618457a80cd33df6aac4c71487664f9525"
+    },
+    {
+      "path": "complete-tools.stdout.log",
+      "bytes": 1865,
+      "sha256": "96b722ee014c3fd265935d9dca34d675de6dd05789eb1805c05e02acf563b509"
+    },
+    {
+      "path": "complete-tools.stderr.log",
+      "bytes": 23581,
+      "sha256": "42cae6ea3d802494516f6fe18a0ecdc073e66efccb5ddac49b43254df9d70eca"
+    }
+  ]
+}
