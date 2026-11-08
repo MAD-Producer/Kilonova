@@ -19,6 +19,7 @@ pub mod onnx;
 pub mod wgsl;
 pub(crate) mod storage;
 pub(crate) mod video;
+pub use video::VideoInput;
 use std::{
     any::Any,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -233,6 +234,10 @@ impl PreparedEstimate {
     pub fn measurement(&self) -> Option<&capability::Measurement> {
         self.measurement.as_ref()
     }
+    /// Exclusive source interval end, established by managed-index/decoder
+    /// agreement. None for direct RGB or still-image requests. The descriptor's
+    /// source PTS is its start; the requested timeline coordinate is not a PTS.
+    pub fn video_end_us(&self) -> Option<u64> { self.video_end_us }
     pub(crate) fn into_owned_parts(
         self,
     ) -> (
@@ -335,7 +340,7 @@ pub struct InFlight {
 
 /// A requested video timeline coordinate, distinct from the decoded frame PTS.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct VideoKey {
+pub struct VideoKey {
     pub object: u64,
     pub asset: u64,
     pub revision: u64,
@@ -563,6 +568,15 @@ impl Jobs {
         self.submit(Work::Video(input, store))
     }
 
+    /// Prepare an already registered original video on this serial worker.
+    /// Index validation, decoder creation/use/drop, transfer conversion and RGB
+    /// fingerprinting all precede inference on the worker, with no Session/GPU
+    /// handle crossing threads. No session spill is restored or written here.
+    /// With start_measured, these preparation costs are part of the observation.
+    pub fn request_video_sample(&mut self, input: VideoInput) -> Result<u64> {
+        self.request_video(input, None)
+    }
+
     fn submit(&mut self, input: Work) -> Result<u64> {
         self.submit_with_alignment(input, None)
     }
@@ -633,6 +647,13 @@ impl Jobs {
         current: &VideoKey,
     ) -> Result<Option<PreparedEstimate>> {
         self.take_raw(&Identity::Video(current.clone()))
+    }
+
+    /// Independently provide the live original-video request. Object, source,
+    /// revision, requested time, geometry and model must still match. The result
+    /// retains the decoder's actual source PTS/interval and prepared RGB hash.
+    pub fn take_video_sample(&mut self, current: &VideoKey) -> Result<Option<PreparedEstimate>> {
+        self.take_video_prepared_ready(current)
     }
 
     fn take_raw(&mut self, current: &Identity) -> Result<Option<PreparedEstimate>> {

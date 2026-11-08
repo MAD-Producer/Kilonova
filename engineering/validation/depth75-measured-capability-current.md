@@ -123,19 +123,71 @@ This is one necessary stage of capability selection. Quality/domain, complete
 memory and sustained/thermal qualification remain prerequisites before any
 fast/standard/high mapping or automatic product selection is authorized.
 
+## Original-video measurement boundary
+
+`VideoInput`, `VideoKey`, `Jobs::request_video_sample` and
+`Jobs::take_video_sample` expose the existing registered-original-video worker
+path, without a Session, render handle or persistent spill. The public result
+also exposes its decoder-verified exclusive source interval end. The independent
+live request comparison includes object, asset/revision, target coordinate,
+geometry and exact model; a changed target within the same decoded PTS interval
+still discards an obsolete completion. An arbitrary target coordinate is never
+reported as a decoded PTS.
+
+With `start_measured`, managed index validation, actual decoder creation/use/drop,
+SDR transfer conversion, crop/orientation and prepared-RGB hashing are included
+in source preparation and worker total. The original bounded staging, source
+containment, byte-count, indexed PTS/end/dimensions and color checks are reused.
+Malformed decoding fails before inference or measurement construction. The
+controlled-video tests separately exercise a held decoder-open operation,
+worker-thread ownership, preparation timing, same-PTS uncached repetition,
+decoding refusal and live-request invalidation. Their decoder and inference are
+controlled; these tests alone are not actual libav/model qualification.
+
+The manual media example uses the actual desktop libav implementation:
+
+```text
+cargo build --locked -p motion-desktop-media --features ai-depth,ffmpeg \
+  --example depth_video_capability
+depth_video_capability <new-output-root> <onnx|wgsl> <python> <model.onnx> \
+  <program.json|-> <native-worker|-> <source-video> <start-index> <count:1..64>
+```
+
+It verifies an owned byte-identical copy of the original and registers an actual
+probed source/index before measuring consecutive indexed frames. It performs no
+transcode or skipped-frame selection. Unsupported original codecs remain errors.
+Source-copy/probe registration is timed separately. Each sequential request
+decodes on the worker and establishes actual PTS, exclusive end, RGB fingerprint,
+model and execution identity; reuse counts must remain zero. Full scalar output
+is retained as hashed little-endian float files with descriptors, under a total
+128 MiB archive bound. The profile retains at most 64 observations and RGB/depth
+planes are released between samples. The explicit manual-driver wait remains
+60 seconds, without changing any product worker deadline or adding restarts.
+
+The single stdout result and `measurements.json` retain observed whole-worker
+and backend phase timings. Default file logging publishes starts before source
+registration/probing and before worker decode/inference; failures retain original
+causes and reach Error file/stderr. This is prepared source, not yet a successful
+actual-codec run. Even a successful small authored-video control would establish
+pipeline execution only; it would not establish photographed-video accuracy,
+quality-transition stability, peak memory or sustained/thermal qualification.
+
 ## Pending acceptance and remaining issue scope
 
-- Run all sixteen new native controls, including a resolver held at a controlled
+- Run all nineteen new native controls, including a resolver held at a controlled
   barrier, cancellation, identity/provider refusal, backend error/panic,
   cache exclusion, duplicate observation identity, bounded profile statistics
   and atomic identity/capacity refusal, unknown/bounded memory observations,
   exact route delegation, stale WGSL memory reset before cancelled work and the
-  bounded latency admission stage described above
+  bounded latency admission stage and original-video measurement boundary
 - Run the relevant original host/depth regressions without changed assertions,
   GPU policy, original ignores or deadlines
 - Run actual CPU and WGSL probes against pinned resources, bind their output to
   source/lock/runtime identity, and verify default-level file starts, Error
   stderr and stdout isolation on real failure as well as success
+- Run the actual libav video example on consecutive source samples for CPU and
+  WGSL, verify preserved original bytes/PTS/RGB/depth ownership and phase costs,
+  then perform the separately required real-video/quality-transition benchmark
 - Qualify the implemented bounded profile aggregation and latency admission,
   then combine them with quality/memory/sustained evidence in a complete measured
   policy with requested/resolved backend/model and precomputed-depth disposition
