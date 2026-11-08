@@ -2,7 +2,7 @@
 //! All three child phases are owned/reaped directly by this backend. The render
 //! session and its device are never passed to the inference worker. Quality and
 //! model processing identity stay independent of the execution backend.
-use super::{cache::Execution, Backend, Cancellation, Costs, Error, Estimate, Input, Result};
+use super::{cache::Execution, Backend, Cancellation, Costs, Error, Estimate, Input, Key, Result};
 use motion_model::depth::{DepthDescriptor, DepthMeasure, DepthResource, NearDirection};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -63,6 +63,7 @@ pub struct Wgsl {
     last_diagnostic: Option<String>,
     last_provider: Option<String>,
     attestation: Option<Attestation>,
+    retained_gpu_buffers: Option<(Key, u64)>,
 }
 impl Wgsl {
     pub fn new(config: Config) -> Result<Self> {
@@ -84,6 +85,7 @@ impl Wgsl {
             last_diagnostic: None,
             last_provider: None,
             attestation: None,
+            retained_gpu_buffers: None,
         })
     }
     fn child(
@@ -175,7 +177,7 @@ impl Wgsl {
         input: &Input,
         cancellation: &Cancellation,
         attestation: Option<&Attestation>,
-    ) -> Result<Estimate> {
+    ) -> Result<(Estimate, u64)> {
         cancellation.check()?;
         let model = input
             .key()
@@ -327,7 +329,7 @@ impl Wgsl {
                 key.source.asset,self.config.hardware.requested(),report.adapter.backend,report.adapter.name,model);
             self.last_provider = Some(provider.clone());
         }
-        Ok(Estimate {
+        Ok((Estimate {
             resource,
             provider,
             costs: Costs {
@@ -338,22 +340,29 @@ impl Wgsl {
                 output_bytes: DEPTH_BYTES,
                 ..Costs::default()
             },
-        })
+        }, report.actual_retained_buffer_capacity_bytes))
     }
 }
 impl Backend for Wgsl {
+    fn retained_gpu_buffer_capacity(&self, input: &Input) -> Option<u64> {
+        self.retained_gpu_buffers.as_ref()
+            .filter(|(key, _)| key.same_sample(input.key()))
+            .map(|(_, capacity)| *capacity)
+    }
     fn execution_identity(
         &mut self,
         input: &Input,
         cancellation: &Cancellation,
     ) -> Result<Option<Execution>> {
         self.attestation = None;
+        self.retained_gpu_buffers = None;
         let attestation = self.resolve_cache_identity(input, cancellation)?;
         let execution = attestation.combined()?;
         self.attestation = Some(attestation);
         Ok(Some(execution))
     }
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate> {
+        self.retained_gpu_buffers = None;
         let began = Instant::now();
         cancellation.check()?;
         fs::create_dir_all(&self.config.scratch)?;
@@ -363,13 +372,14 @@ impl Backend for Wgsl {
         let attestation = self.attestation.take();
         let result = self.infer_in(directory.path(), input, cancellation, attestation.as_ref());
         match (result, directory.close()) {
-            (Ok(mut estimate), Ok(())) => {
+            (Ok((mut estimate, capacity)), Ok(())) => {
                 estimate.costs.total = began.elapsed();
                 estimate.costs.host_transport = estimate.costs.total.saturating_sub(
                     estimate.costs.preprocess
                         + estimate.costs.inference
                         + estimate.costs.postprocess,
                 );
+                self.retained_gpu_buffers = Some((input.key().clone(), capacity));
                 Ok(estimate)
             }
             (Err(primary), Err(cleanup)) => Err(Error::Cleanup {

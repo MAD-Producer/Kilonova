@@ -38,6 +38,21 @@ backend phase costs remain available separately; their input/output tensor byte
 counts are not peak memory measurements. Input geometry, model identity and
 actual execution identity must accompany all published comparisons.
 
+Probes additionally preserve the backend's observed retained managed GPU buffer
+capacity. WGSL publishes it only after validating the actual native receipt,
+the complete output and cleanup. That receipt checks all retained WGPU buffer
+sizes against the independently admitted fixed pool. New resolution/inference
+attempts clear an older observation before cancellation or IO. The getter is
+bound to the last successful input key; `Routed` delegates only to the selected
+backend. ONNX currently reports `None`, explicitly unknown rather than zero.
+Zero and values above the current native 512 MiB contract are refused by probe
+admission. Profiles also reject a changed retained-capacity observation.
+
+This value covers the learned native inference's managed buffers. It excludes
+host allocations, driver overhead, preprocessing/remapping allocations and
+other processes. It is not an OS/device memory peak or a memory fitness verdict.
+Those remaining measurements must precede memory-based automatic selection.
+
 `capability::Profile` retains at most 64 observations and never keeps RGB or
 depth planes. It accepts only worker-measured results for the same exact model,
 geometry, actual provider, runtime, plan and numerical precision. Duplicate
@@ -78,10 +93,11 @@ timeout or worker restart.
 
 ## Pending acceptance and remaining issue scope
 
-- Run all nine new native controls, including a resolver held at a controlled
+- Run all twelve new native controls, including a resolver held at a controlled
   barrier, cancellation, identity/provider refusal, backend error/panic,
   cache exclusion, duplicate observation identity, bounded profile statistics
-  and atomic identity/capacity refusal
+  and atomic identity/capacity refusal, unknown/bounded memory observations,
+  exact route delegation and stale WGSL memory reset before cancelled work
 - Run the relevant original host/depth regressions without changed assertions,
   GPU policy, original ignores or deadlines
 - Run actual CPU and WGSL probes against pinned resources, bind their output to

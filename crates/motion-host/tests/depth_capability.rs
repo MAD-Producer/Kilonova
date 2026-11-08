@@ -67,9 +67,13 @@ struct Controlled {
     infers: Arc<AtomicUsize>,
     fault: Fault,
     execution: Execution,
+    retained_gpu_buffers: Option<u64>,
     block: Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>,
 }
 impl Backend for Controlled {
+    fn retained_gpu_buffer_capacity(&self, _: &Input) -> Option<u64> {
+        self.retained_gpu_buffers
+    }
     fn execution_identity(&mut self, _: &Input, _: &Cancellation) -> Result<Option<Execution>> {
         self.resolves.fetch_add(1, Ordering::SeqCst);
         if let Some((entered, release)) = self.block.take() {
@@ -135,6 +139,7 @@ fn backend(fault: Fault) -> Controlled {
         infers: Arc::new(AtomicUsize::new(0)),
         fault,
         execution: execution(),
+        retained_gpu_buffers: None,
         block: None,
     }
 }
@@ -390,7 +395,7 @@ fn profile_refuses_raw_results_and_changed_model_geometry_or_execution_atomicall
     profile.record(&take(&mut jobs, 1)).unwrap();
     let original = profile.summary().unwrap();
     drop(jobs);
-    for field in 0..6 {
+    for field in 0..7 {
         let mut k = key();
         let mut controlled = backend(Fault::None);
         match field {
@@ -399,7 +404,8 @@ fn profile_refuses_raw_results_and_changed_model_geometry_or_execution_atomicall
             2 => controlled.execution.provider.push_str("-other"),
             3 => controlled.execution.runtime_sha256 = [61; 32],
             4 => controlled.execution.plan_sha256 = [62; 32],
-            _ => controlled.execution.precision = "float16".into(),
+            5 => controlled.execution.precision = "float16".into(),
+            _ => controlled.retained_gpu_buffers = Some(1 << 20),
         }
         let candidate = Input::new(k.clone(), [2, 1], Arc::from([1u8, 2, 3, 4, 5, 6])).unwrap();
         let mut other = Jobs::start_measured(controlled).unwrap();
@@ -431,5 +437,74 @@ fn profile_refuses_raw_results_and_changed_model_geometry_or_execution_atomicall
     assert_ne!(
         profile.observations()[0].input().rgb_sha256,
         profile.observations()[1].input().rgb_sha256
+    );
+}
+
+#[test]
+fn measured_buffer_capacity_preserves_unknown_and_refuses_impossible_metadata() {
+    for capacity in [None, Some(1 << 20), Some(512 << 20)] {
+        let mut controlled = backend(Fault::None);
+        controlled.retained_gpu_buffers = capacity;
+        let mut jobs = Jobs::start_measured(controlled).unwrap();
+        jobs.request(input()).unwrap();
+        let ready = take(&mut jobs, 1);
+        assert_eq!(
+            ready.measurement().unwrap().retained_gpu_buffer_capacity(),
+            capacity
+        );
+        let mut profile = motion_host::depth::capability::Profile::new(1).unwrap();
+        profile.record(&ready).unwrap();
+        assert_eq!(
+            profile.summary().unwrap().retained_gpu_buffer_capacity(),
+            capacity
+        );
+    }
+    for capacity in [0, (512 << 20) + 1, u64::MAX] {
+        let mut controlled = backend(Fault::None);
+        controlled.retained_gpu_buffers = Some(capacity);
+        let mut jobs = Jobs::start_measured(controlled).unwrap();
+        jobs.request(input()).unwrap();
+        wait_done(&jobs, 1);
+        assert!(matches!(
+            jobs.take_prepared_ready(&key()),
+            Err(Error::Invalid(_))
+        ));
+        assert_eq!(jobs.counts().unwrap().failed, 1);
+        assert!(jobs.in_flight().unwrap().is_none());
+    }
+}
+
+#[test]
+fn routed_probes_keep_only_the_selected_backends_buffer_observation() {
+    let mut first = backend(Fault::None);
+    first.retained_gpu_buffers = Some(1 << 20);
+    let second = backend(Fault::None);
+    let mut second_key = key();
+    second_key.model.processing.push_str("-second");
+    let routed = motion_host::depth::routing::Routed::new(
+        key().model,
+        first,
+        second_key.model.clone(),
+        second,
+    )
+    .unwrap();
+    let mut jobs = Jobs::start_measured(routed).unwrap();
+    jobs.request(input()).unwrap();
+    let first = take(&mut jobs, 1);
+    assert_eq!(
+        first.measurement().unwrap().retained_gpu_buffer_capacity(),
+        Some(1 << 20)
+    );
+    jobs.request(Input::new(second_key.clone(), [2, 1], Arc::from([1u8, 2, 3, 4, 5, 6])).unwrap())
+        .unwrap();
+    wait_done(&jobs, 2);
+    let second = jobs.take_prepared_ready(&second_key).unwrap().unwrap();
+    assert_eq!(
+        second.measurement().unwrap().retained_gpu_buffer_capacity(),
+        None
+    );
+    assert_eq!(
+        second.estimate().resource.descriptor().model,
+        second_key.model
     );
 }

@@ -291,6 +291,11 @@ impl Cancellation {
 /// implicit retries, requested-provider reports or synthetic depth are allowed.
 pub trait Backend: Send + 'static {
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate>;
+    /// Metadata from the immediately preceding successful inference for this
+    /// input. Implementations must not do IO or new work here. This is retained
+    /// managed GPU buffer capacity, not driver/process/device peak memory.
+    /// None means unobserved; zero must not stand in for an unknown value.
+    fn retained_gpu_buffer_capacity(&self, _input: &Input) -> Option<u64> { None }
     /// Establish the actual execution environment before persistent lookup.
     /// None means this backend cannot currently attest it, not a cache miss.
     fn execution_identity(&mut self, _input: &Input, cancellation: &Cancellation)
@@ -859,6 +864,15 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
             if measured {
                 execution.as_ref().ok_or(Error::State)?.validate_result(&estimate)?;
             }
+            let retained_gpu_buffers = if measured {
+                stage = "capability_metadata";
+                capability_phase(&shared, job.request, asset, stage)?;
+                let capacity = backend.retained_gpu_buffer_capacity(&input);
+                if capacity.is_some_and(|bytes| bytes == 0 || bytes > (512 << 20)) {
+                    return Err(Error::Invalid("measured GPU buffer capacity must be nonzero and at most 512 MiB"));
+                }
+                capacity
+            } else { None };
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
             estimate.costs.total = began.elapsed();
@@ -884,7 +898,7 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
             estimate.costs.total = began.elapsed();
             let measurement = if measured {
                 Some(capability::Measurement::new(measurement_scope.clone(), job.request,
-                    execution.ok_or(Error::State)?, resolve_elapsed, estimate.costs.total))
+                    execution.ok_or(Error::State)?, resolve_elapsed, estimate.costs.total, retained_gpu_buffers))
             } else { None };
             let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image,
                 video_end_us: input.video_end_us, measurement };

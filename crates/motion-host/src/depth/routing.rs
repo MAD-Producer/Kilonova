@@ -41,6 +41,13 @@ impl<A: Backend, B: Backend> Routed<A, B> {
 }
 
 impl<A: Backend, B: Backend> Backend for Routed<A, B> {
+    fn retained_gpu_buffer_capacity(&self, input: &Input) -> Option<u64> {
+        if input.key().model == self.first_model {
+            self.first.retained_gpu_buffer_capacity(input)
+        } else if input.key().model == self.second_model {
+            self.second.retained_gpu_buffer_capacity(input)
+        } else { None }
+    }
     fn execution_identity(&mut self, input: &Input, cancellation: &Cancellation)
         -> Result<Option<super::cache::Execution>> {
         cancellation.check()?;

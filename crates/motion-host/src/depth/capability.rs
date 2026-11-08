@@ -17,6 +17,7 @@ pub struct Measurement {
     execution: Execution,
     resolve: Duration,
     total: Duration,
+    retained_gpu_buffers: Option<u64>,
 }
 
 impl Measurement {
@@ -26,6 +27,7 @@ impl Measurement {
         execution: Execution,
         resolve: Duration,
         total: Duration,
+        retained_gpu_buffers: Option<u64>,
     ) -> Self {
         Self {
             scope,
@@ -33,6 +35,7 @@ impl Measurement {
             execution,
             resolve,
             total,
+            retained_gpu_buffers,
         }
     }
 
@@ -57,6 +60,13 @@ impl Measurement {
     /// queue wait, caller preparation, alignment and downstream installation.
     pub fn total(&self) -> Duration {
         self.total
+    }
+
+    /// Backend-observed retained managed GPU buffer capacity during inference.
+    /// This excludes driver allocations, process memory and other phases; None
+    /// is explicitly unknown and must never be interpreted as zero usage.
+    pub fn retained_gpu_buffer_capacity(&self) -> Option<u64> {
+        self.retained_gpu_buffers
     }
 
     /// Cloning one observation cannot turn it into a second independent run.
@@ -90,6 +100,7 @@ struct Scope {
     model: DepthModel,
     geometry: DepthGeometry,
     execution: Execution,
+    retained_gpu_buffers: Option<u64>,
 }
 
 /// A bounded latency profile for one exact model, geometry and execution.
@@ -128,6 +139,7 @@ impl Profile {
             model: descriptor.model.clone(),
             geometry: descriptor.geometry.clone(),
             execution: measurement.execution.clone(),
+            retained_gpu_buffers: measurement.retained_gpu_buffers,
         };
         if self
             .scope
@@ -135,7 +147,7 @@ impl Profile {
             .is_some_and(|existing| existing != &scope)
         {
             return Err(Error::Invalid(
-                "capability profile model, geometry or execution changed",
+                "capability profile model, geometry, execution or retained capacity changed",
             ));
         }
         if self
@@ -229,5 +241,8 @@ impl Summary {
     }
     pub fn resolve_slowest(&self) -> Duration {
         self.resolve_slowest
+    }
+    pub fn retained_gpu_buffer_capacity(&self) -> Option<u64> {
+        self.scope.retained_gpu_buffers
     }
 }

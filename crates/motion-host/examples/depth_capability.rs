@@ -51,6 +51,7 @@ fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<s
         rows.push(serde_json::json!({
             "request": request, "execution": measured.execution(), "input": ready.input(),
             "worker_total_ns": measured.total().as_nanos(), "resolve_ns": measured.resolve().as_nanos(),
+            "retained_gpu_buffer_capacity_bytes": measured.retained_gpu_buffer_capacity(),
             "source_prepare_ns": c.source_prepare.as_nanos(), "source_rgb_bytes": c.source_rgb_bytes,
             "load_ns": c.load.as_nanos(), "preprocess_ns": c.preprocess.as_nanos(),
             "inference_ns": c.inference.as_nanos(), "postprocess_ns": c.postprocess.as_nanos(),
@@ -79,7 +80,8 @@ fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<s
         "cache_hits": counts.cache_hits, "restored": counts.restored,
         "profile": {"samples": summary.samples(), "fastest_ns": summary.fastest().as_nanos(),
             "median_ns": summary.median().as_nanos(), "slowest_ns": summary.slowest().as_nanos(),
-            "resolve_slowest_ns": summary.resolve_slowest().as_nanos()}
+            "resolve_slowest_ns": summary.resolve_slowest().as_nanos(),
+            "retained_gpu_buffer_capacity_bytes": summary.retained_gpu_buffer_capacity()}
     }))
 }
 

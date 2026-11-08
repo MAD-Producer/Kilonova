@@ -157,6 +157,34 @@ fn canceled_backend_creates_no_scratch_and_starts_no_child() {
     ));
     assert!(!scratch.exists());
 }
+
+#[test]
+fn retained_capacity_is_key_bound_and_cleared_before_cancelled_work() {
+    let directory = tempfile::tempdir().unwrap();
+    let scratch = directory.path().join("absent");
+    let mut backend = Wgsl::new(Config {
+        python: directory.path().join("no-python"),
+        worker: directory.path().join("no-worker"),
+        program: directory.path().join("no-program"),
+        scratch: scratch.clone(), hardware: Hardware::Vulkan,
+    }).unwrap();
+    let sample = input();
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), None);
+    backend.retained_gpu_buffers = Some((sample.key().clone(), BUFFER_BYTES));
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), Some(BUFFER_BYTES));
+    let mut foreign_key = sample.key().clone();
+    foreign_key.source.revision += 1;
+    let foreign = Input::new(foreign_key, sample.size(), Arc::from(sample.rgb())).unwrap();
+    assert_eq!(backend.retained_gpu_buffer_capacity(&foreign), None);
+    let canceled = Cancellation::default();
+    canceled.cancel();
+    assert!(matches!(backend.infer(&sample, &canceled), Err(Error::Canceled)));
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), None);
+    backend.retained_gpu_buffers = Some((sample.key().clone(), BUFFER_BYTES));
+    assert!(matches!(backend.execution_identity(&sample, &canceled), Err(Error::Canceled)));
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), None);
+    assert!(!scratch.exists());
+}
 #[test]
 fn missing_real_child_retains_its_original_phase_and_cause() {
     let directory = tempfile::tempdir().unwrap();
