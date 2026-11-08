@@ -174,3 +174,40 @@ candidate, changing confidence thresholds or dropping the failed observations
 cannot establish useful photographed tracking. Other dense approaches remain
 unproven; this result does not reject them without measurement. Issue 88 and the
 broader 3D route remain incomplete.
+
+## Diagnostic of neighboring annotation coordinates
+
+An independent standard-library-only diagnostic evaluated a possible constant
+annotation phase error against the frozen original plane predictions. It read
+the same SHA-256-pinned annotations and all 2,300 retained source coordinates;
+it performed no decoding, CV processing or tracker execution. The original
+915 automatic visible observations, eleven manual corrections and 1,373 lost
+observations remain unchanged. The original zero-offset 15-pixel gate is still
+the acceptance result; neighboring annotation coordinates are diagnostics only.
+
+| Annotation offset | Compared automatic observations | Missing neighboring annotations | Above 15 px | Maximum (px) | RMS (px) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| -2 | 914 | 1 | 193 | 67.498849 | 13.587282 |
+| -1 | 915 | 0 | 60 | 67.733420 | 9.227193 |
+| 0, original | 915 | 0 | 21 | 56.640030 | 5.552522 |
+| +1 | 915 | 0 | 47 | 52.941725 | 8.294811 |
+| +2 | 915 | 0 | 172 | 47.383467 | 12.369092 |
+
+Neither one-frame offset resolves the original failed observations or improves
+the complete original quality result. A two-frame remap also leaves severe
+failures and worsens the overall error; the negative two-frame diagnostic has
+one explicitly missing neighboring annotation and is not the same complete
+comparison cohort. No offset is selected or applied to requests, timestamps,
+annotations, outputs or thresholds. These retained-number comparisons do not
+independently prove the actual video/annotation phase or establish a cause for
+the correspondence/model disagreement. A constant near-neighbor remap therefore
+cannot be adopted as a remedy for the published gate.
+
+The [archive](data/tracking88-neighbor-coordinate-diagnostic-v1.zip) and
+[manifest](data/tracking88-neighbor-coordinate-diagnostic-v1.json) retain the
+authored controller, aggregate results and input identities. All three members
+were read back and verified: 3,857 bytes, SHA-256
+`615b902214164832bbc39f3251bbb6eaacf8108801acb6f1c72ff23cc15951b3`.
+No third-party video, annotations or per-frame output arrays are redistributed.
+This rules out an unqualified shortcut, not a tracking-quality defect. Source
+algorithms and acceptance bounds are unchanged; issue 88 remains incomplete.

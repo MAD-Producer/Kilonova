@@ -1,0 +1,14 @@
+{
+  "status": "neighbor_annotation_coordinate_hypothesis_measured_not_acceptance",
+  "archive": "tracking88-neighbor-coordinate-diagnostic-v1.zip",
+  "bytes": 3857,
+  "sha256": "615b902214164832bbc39f3251bbb6eaacf8108801acb6f1c72ff23cc15951b3",
+  "members_readback_verified": 3,
+  "limits": [
+    "Standard library only; no CV import, source decoding, tracking, GPU or inference",
+    "All original automatic observations retained; missing neighboring annotations reported explicitly",
+    "No offset is selected or applied to source PTS, requests, annotations, outputs or the original15pixel gate",
+    "This numeric diagnostic does not independently verify video/annotation phase or establish a root cause",
+    "No third-party media, annotations, full requests or per-frame observation arrays redistributed"
+  ]
+}
