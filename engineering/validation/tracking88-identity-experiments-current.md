@@ -74,3 +74,32 @@ remove failing observations to claim useful coverage. Offscreen annotation,
 repeated detail, depth and distortion remain hypotheses, not established causes.
 The full photographed gate, retained Surface/cache qualification, maintained
 regression, #85/#86 prerequisites and the broader 3D route remain open.
+
+## Independent recomputation of the common failures
+
+A separate standard-library-only audit recomputed the original plane corner
+errors from each retained output against the actual SHA-256-pinned annotation
+archive. It checked the complete original 2,300-frame timeline and structurally
+identical correction requests. It did not decode video, rerun the tracker or
+modify production code. All three outputs fail on exactly the same 21 automatic
+observations, rather than merely having equal failure counts. Their original
+coverage, maximum-error and RMS measurements above were reproduced.
+
+The original tracker's confidence on those errors ranges from
+`0.8750063503008115` to `0.9125607289673777`, with median
+`0.8978041821035365`. Other visible observations span
+`0.4428490339751717` to `0.9959854803081912`. The error observations therefore
+overlap the confidence range of the remaining observations. These descriptive
+values do not establish a new confidence threshold or an error probability.
+The next experiment must measure correspondence/model uncertainty and preserve
+useful coverage; repeating an initializer or suppressing failed observations
+does not establish that the plane is tracked correctly.
+
+The [audit archive](data/tracking88-common-failure-audit-v1.zip) and
+[manifest](data/tracking88-common-failure-audit-v1.json) retain the independently
+authored recomputation script, aggregate measurements and input/output hashes.
+Both archive members were read back and verified: 3,426 bytes, SHA-256
+`2e97af1a16f9b937695f17c6102b46c06c0defc94eb72c1c823f25bfcebb36c5`.
+No photographs, annotation payloads, original requests or per-frame observation
+arrays are redistributed. This is a review of historical measurements, not a
+new algorithm, native regression, Surface test, CI result or #88 acceptance.
