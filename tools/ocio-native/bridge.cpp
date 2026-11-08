@@ -63,12 +63,17 @@ static void log_message(const char *message) noexcept {
         callback(message, count);
     }
 }
-MOTION_EXPORT uint32_t motion_ocio_initialize(LogFunction callback) noexcept {
-    const auto version = static_cast<uint32_t>(ocio::GetVersionHex());
-    if (version != 0x02060000) return version;
-    logger.store(callback, std::memory_order_release);
-    ocio::SetLoggingFunction(log_message);
-    return version;
+MOTION_EXPORT bool motion_ocio_initialize(LogFunction callback, Error *error) noexcept {
+    return checked(error, [&] {
+        const auto version = static_cast<uint32_t>(ocio::GetVersionHex());
+        if (version != 0x02060000) throw Admission("loaded OCIO is not 2.6.0");
+        if (!callback) throw Admission("native log callback must not be null");
+        // The pinned setter copies the callback under its own mutex. Publish
+        // the Rust callback only after registration succeeds; no throwing work
+        // follows that publication. A failure can therefore unload safely.
+        ocio::SetLoggingFunction(log_message);
+        logger.store(callback, std::memory_order_release);
+    });
 }
 static void scan(const ocio::ConstTransformRcPtr &transform, unsigned depth, unsigned &nodes) {
     if (!transform) return;

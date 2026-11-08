@@ -10,3 +10,20 @@ elseif(UNIX)
   set_target_properties(motion_ocio_bridge PROPERTIES INSTALL_RPATH "$ORIGIN")
 endif()
 install(TARGETS motion_ocio_bridge RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
+
+option(MOTION_OCIO_BOUNDARY_TESTS "Build qualification-only native exception tests" OFF)
+if(MOTION_OCIO_BOUNDARY_TESTS)
+  add_executable(motion_ocio_boundary_tests boundary_tests.cpp)
+  add_library(motion_ocio_initialization_failure SHARED initialization_failure.cpp)
+  foreach(target motion_ocio_boundary_tests motion_ocio_initialization_failure)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_link_libraries(${target} PRIVATE OpenColorIO::OpenColorIO)
+  endforeach()
+  if(WIN32)
+    add_custom_command(TARGET motion_ocio_boundary_tests POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:OpenColorIO::OpenColorIO> $<TARGET_FILE_DIR:motion_ocio_boundary_tests>)
+  endif()
+  # These targets deliberately have no install rule: the fault DLL must never
+  # become a production runtime library or a release archive input.
+endif()

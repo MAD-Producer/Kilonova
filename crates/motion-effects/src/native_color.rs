@@ -35,8 +35,13 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error("native OCIO admission: {0}")]
     Admission(&'static str),
-    #[error("native OCIO phase=load")]
-    Load(#[from] libloading::Error),
+    #[error("native OCIO phase={phase} path={path}")]
+    Load {
+        phase: &'static str,
+        path: String,
+        #[source]
+        source: libloading::Error,
+    },
     #[error(transparent)]
     Config(#[from] ColorConfigError),
     #[error("native OCIO phase={phase} category={category}: {cause}")]
@@ -53,6 +58,26 @@ fn io(phase: &'static str, path: &Path, source: std::io::Error) -> Error {
         path: path.display().to_string(),
         source,
     }
+}
+fn load_error(phase: &'static str, path: &Path, source: libloading::Error) -> Error {
+    Error::Load {
+        phase,
+        path: path.display().to_string(),
+        source,
+    }
+}
+unsafe fn open_library(path: &Path, phase: &'static str) -> Result<Library> {
+    unsafe { Library::new(path) }.map_err(|source| load_error(phase, path, source))
+}
+unsafe fn symbol<T: Copy>(
+    library: &Library,
+    path: &Path,
+    name: &'static [u8],
+    phase: &'static str,
+) -> Result<T> {
+    unsafe { library.get::<T>(name) }
+        .map(|value| *value)
+        .map_err(|source| load_error(phase, path, source))
 }
 #[repr(C)]
 struct NativeError {
@@ -225,6 +250,56 @@ type PathBufOwned = std::path::PathBuf;
 mod tests {
     use super::*;
     #[test]
+    fn actual_loader_failure_keeps_the_library_path_and_original_cause() {
+        use std::error::Error as _;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("invalid-native-color-library");
+        std::fs::write(&path, b"independently authored non-library fixture").unwrap();
+        let error = unsafe { open_library(&path, "load-core") }.err().unwrap();
+        assert!(error.source().is_some());
+        let Error::Load {
+            phase,
+            path: actual,
+            source,
+        } = error
+        else {
+            panic!("original dynamic loader error");
+        };
+        assert_eq!(phase, "load-core");
+        assert_eq!(actual, path.display().to_string());
+        assert!(!source.to_string().is_empty());
+    }
+    #[test]
+    fn actual_missing_symbol_keeps_its_operation_path_and_original_cause() {
+        use std::error::Error as _;
+        #[cfg(windows)]
+        let library: Library = libloading::os::windows::Library::this().unwrap().into();
+        #[cfg(unix)]
+        let library: Library = libloading::os::unix::Library::this().into();
+        let path = std::env::current_exe().unwrap();
+        let error = unsafe {
+            symbol::<unsafe extern "C" fn()>(
+                &library,
+                &path,
+                b"motion_nonexistent_native_color_export\0",
+                "symbol:motion_nonexistent_native_color_export",
+            )
+        }
+        .unwrap_err();
+        assert!(error.source().is_some());
+        let Error::Load {
+            phase,
+            path: actual,
+            source,
+        } = error
+        else {
+            panic!("original symbol error");
+        };
+        assert_eq!(phase, "symbol:motion_nonexistent_native_color_export");
+        assert_eq!(actual, path.display().to_string());
+        assert!(!source.to_string().is_empty());
+    }
+    #[test]
     fn runtime_hash_and_path_admission_precede_dynamic_loading() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();
@@ -390,27 +465,58 @@ impl NativeColorRuntime {
         // SAFETY: Both explicitly selected native libraries have been hash and
         // source-identity verified. ABI functions are independently owned above.
         unsafe {
-            let ocio = Library::new(ocio)?;
-            let bridge = Library::new(bridge)?;
-            let initialize =
-                *bridge
-                    .get::<unsafe extern "C" fn(unsafe extern "C" fn(*const c_char, usize)) -> u32>(
-                        b"motion_ocio_initialize\0",
-                    )?;
+            let ocio_library = open_library(&ocio, "load-core")?;
+            let bridge_library = open_library(&bridge, "load-bridge")?;
+            let initialize = symbol::<
+                unsafe extern "C" fn(
+                    unsafe extern "C" fn(*const c_char, usize),
+                    *mut NativeError,
+                ) -> bool,
+            >(
+                &bridge_library,
+                &bridge,
+                b"motion_ocio_initialize\0",
+                "symbol:motion_ocio_initialize",
+            )?;
             let api = Api {
-                prepare: *bridge.get(b"motion_ocio_prepare\0")?,
-                shader: *bridge.get(b"motion_ocio_shader\0")?,
-                table: *bridge.get(b"motion_ocio_table\0")?,
-                apply: *bridge.get(b"motion_ocio_apply_rgb\0")?,
-                release: *bridge.get(b"motion_ocio_release\0")?,
-                _bridge: bridge,
-                _ocio: ocio,
+                prepare: symbol(
+                    &bridge_library,
+                    &bridge,
+                    b"motion_ocio_prepare\0",
+                    "symbol:motion_ocio_prepare",
+                )?,
+                shader: symbol(
+                    &bridge_library,
+                    &bridge,
+                    b"motion_ocio_shader\0",
+                    "symbol:motion_ocio_shader",
+                )?,
+                table: symbol(
+                    &bridge_library,
+                    &bridge,
+                    b"motion_ocio_table\0",
+                    "symbol:motion_ocio_table",
+                )?,
+                apply: symbol(
+                    &bridge_library,
+                    &bridge,
+                    b"motion_ocio_apply_rgb\0",
+                    "symbol:motion_ocio_apply_rgb",
+                )?,
+                release: symbol(
+                    &bridge_library,
+                    &bridge,
+                    b"motion_ocio_release\0",
+                    "symbol:motion_ocio_release",
+                )?,
+                _bridge: bridge_library,
+                _ocio: ocio_library,
             };
             // All symbols are resolved before registering the global callback.
             // The pinned initializer emits no log/callback under this mutex.
-            if initialize(warning) != 0x02060000 {
-                return Err(Error::Admission("loaded OCIO is not 2.6.0"));
-            }
+            let mut error = NativeError::empty();
+            let ok = initialize(warning, &mut error);
+            error.check(ok, "initialize")?;
             let api = Arc::new(api);
             *runtime = Some((path, api.clone()));
             Ok(Self(api))

@@ -132,6 +132,14 @@ class OcioRecipeTest(unittest.TestCase):
                 ocio.publish(build, [], {})
             self.assertFalse((root / "prefix/ocio-runtime.json").exists())
 
+    def test_missing_exception_qualification_prevents_manifest_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            build = ocio.Build(root, "windows-x86_64", "unused", "unused", 1)
+            with self.assertRaisesRegex(ValueError, "exception boundary qualification is missing"):
+                ocio.publish(build, [], {})
+            self.assertFalse((root / "prefix/ocio-runtime.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

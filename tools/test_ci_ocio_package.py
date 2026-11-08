@@ -56,6 +56,7 @@ class OcioPackageTest(unittest.TestCase):
                 document, files = ocio.runtime_payload(manifest, platform)
                 self.assertEqual(len(files), 10 if platform == "macos-arm64" else 9)
                 for mutate in (
+                    lambda d: d.update(qualificationOnly="intentional fault fixture"),
                     lambda d: d["files"][0].update(path="../escaped.dll"),
                     lambda d: d["files"].append(d["files"][0]),
                     lambda d: d["files"].pop(),

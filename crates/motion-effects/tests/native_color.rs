@@ -6,6 +6,8 @@ use motion_effects::{
 };
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+#[path = "support/native_color_failure.rs"]
+mod initialization_fixture;
 
 #[derive(Deserialize)]
 struct Config {
@@ -53,6 +55,79 @@ fn missing_runtime_preserves_the_original_io_cause() {
         .unwrap();
     assert!(
         matches!(error, Error::Io { phase: "manifest", source, .. } if source.kind() == std::io::ErrorKind::NotFound)
+    );
+}
+
+#[test]
+#[ignore = "requires explicit production and initialization-failure OCIO fixtures"]
+fn initialization_exception_returns_its_native_cause_and_leaves_no_published_runtime() {
+    const CHILD: &str = "MOTION_OCIO_INITIALIZE_CHILD";
+    const TEST: &str =
+        "initialization_exception_returns_its_native_cause_and_leaves_no_published_runtime";
+    if std::env::var_os(CHILD).is_some() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = initialization_fixture::create(&directory.path().join("fault-runtime"));
+        let error = NativeColorRuntime::load(&path).err().unwrap();
+        assert!(
+            matches!(&error, Error::Native { phase: "initialize", category: 3, cause } if !cause.is_empty())
+        );
+        // A failed initializer must not pin an unusable prefix or poison the
+        // initialization lock. Install the real unmodified bridge afterwards.
+        let runtime = runtime();
+        let reference = reference();
+        let item = &reference.configs[0];
+        let config = config(item);
+        let program = runtime
+            .prepare(
+                &config,
+                &item.selection,
+                ColorProcessorPhase::InputToWorking,
+                AlphaMode::Straight,
+                AlphaMode::Straight,
+            )
+            .unwrap();
+        assert!(program
+            .apply_rgb([0.2, 0.4, 1.5])
+            .unwrap()
+            .iter()
+            .all(|value| value.is_finite()));
+        println!("native initialization failure={error} recovery=success");
+        return;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let stdout_path = directory.path().join("child.stdout");
+    let stderr_path = directory.path().join("child.stderr");
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            TEST,
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(CHILD, "1")
+        .stdout(std::fs::File::create(&stdout_path).unwrap())
+        .stderr(std::fs::File::create(&stderr_path).unwrap())
+        .spawn()
+        .unwrap();
+    let started = std::time::Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if started.elapsed() > std::time::Duration::from_secs(20) {
+            let killed = child.kill();
+            let joined = child.wait();
+            panic!("native initializer child exceeded 20s: kill={killed:?} wait={joined:?}");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
+    let stdout = std::fs::read_to_string(stdout_path).unwrap();
+    let stderr = std::fs::read_to_string(stderr_path).unwrap();
+    assert!(status.success(), "{status}\n{stdout}\n{stderr}");
+    assert!(
+        stdout.contains("phase=initialize category=3") && stdout.contains("recovery=success"),
+        "{stdout}"
     );
 }
 

@@ -4,6 +4,8 @@ use motion_host::color_preparation::{self as prep, Observation};
 use std::fs;
 #[path = "../../../../../crates/motion-core/tests/support/color_project.rs"]
 mod fixture;
+#[path = "color_preparation_tests/native_initialization.rs"]
+mod native_initialization;
 
 #[test]
 fn unrepresentable_color_range_preserves_default_error_channels_and_primary_cause() {

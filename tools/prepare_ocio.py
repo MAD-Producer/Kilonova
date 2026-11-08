@@ -39,6 +39,8 @@ def sources(platform=None):
 
 def runtime_identity(manifest, platform):
     """Check pinned identities independently of a local runtime directory."""
+    if "qualificationOnly" in manifest:
+        raise ValueError("Qualification-only OCIO fixture cannot be packaged as a runtime")
     if (manifest.get("schemaVersion") != 1 or manifest.get("version") != "2.6.0"
             or platform not in PLATFORMS or manifest.get("platform") != platform
             or manifest.get("components") != sources(platform)
@@ -145,8 +147,11 @@ class Build:
         self.output, self.platform = output, platform
         self.cmake, self.ninja, self.jobs = cmake, ninja, jobs
         self.prefix = output / "prefix"
+        self.bridge_qualified = False
         self.identity = {str(path): digest(path) for path in
                          (Path(__file__), LOCK, Path(__file__).with_name("ocio-native") / "bridge.cpp",
+                          Path(__file__).with_name("ocio-native") / "boundary_tests.cpp",
+                          Path(__file__).with_name("ocio-native") / "initialization_failure.cpp",
                           Path(__file__).with_name("ocio-native") / "CMakeLists.txt")}
         (output / "logs").mkdir()
 
@@ -228,7 +233,15 @@ class Build:
                                "-DOCIO_BUILD_DOCS=OFF", "-DOCIO_BUILD_PYTHON=OFF", "-DOCIO_BUILD_JAVA=OFF",
                                "-DOCIO_BUILD_OPENFX=OFF", "-DOCIO_BUILD_NUKE=OFF", "-DOCIO_DIRECTX_ENABLED=OFF",
                                "-DOCIO_VULKAN_ENABLED=OFF", "-DOCIO_USE_AVX512=OFF", "-DZLIB_USE_STATIC_LIBS=ON", *zflags, *roots, *arm])
-        self.configure_install("motion-ocio-bridge", Path(__file__).with_name("ocio-native"), [f"-DOCIO_PREFIX={prefix}"])
+        self.configure_install("motion-ocio-bridge", Path(__file__).with_name("ocio-native"),
+                               [f"-DOCIO_PREFIX={prefix}", "-DMOTION_OCIO_BOUNDARY_TESTS=ON"])
+        self.qualify_bridge()
+
+    def qualify_bridge(self):
+        executable = self.output / "build/motion-ocio-bridge" / (
+            "motion_ocio_boundary_tests.exe" if self.platform == "windows-x86_64" else "motion_ocio_boundary_tests")
+        self.run("motion-ocio-bridge", "exception-boundaries", [str(executable)])
+        self.bridge_qualified = True
 
 
 def required_tool(name):
@@ -249,6 +262,8 @@ def publish(build, components, source):
     from package_desktop import verify_binary
     if any(digest(path) != expected for path, expected in build.identity.items()):
         raise ValueError("OCIO recipe, source lock or bridge changed during build")
+    if not build.bridge_qualified:
+        raise ValueError("Native OCIO exception boundary qualification is missing")
     prefix = build.prefix
     licenses = prefix / "licenses" / "ocio"
     licenses.mkdir(parents=True)
