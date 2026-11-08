@@ -15,6 +15,8 @@ mod native_scene;
 mod ranges;
 #[path = "color_image_processor/uploads.rs"]
 mod uploads;
+#[path = "color_image_processor/native_runtime.rs"]
+mod native_runtime;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,

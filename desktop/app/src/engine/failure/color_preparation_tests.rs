@@ -6,6 +6,8 @@ use std::fs;
 mod fixture;
 #[path = "color_preparation_tests/native_initialization.rs"]
 mod native_initialization;
+#[path = "color_preparation_tests/native_authored.rs"]
+mod native_authored;
 
 #[test]
 fn unrepresentable_color_range_preserves_default_error_channels_and_primary_cause() {

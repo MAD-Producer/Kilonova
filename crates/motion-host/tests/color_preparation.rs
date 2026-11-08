@@ -12,6 +12,8 @@ use std::{
 };
 #[path = "color_preparation/images.rs"]
 mod images;
+#[path = "color_preparation/authored.rs"]
+mod authored;
 
 #[derive(Deserialize)]
 struct Reference {
@@ -28,6 +30,8 @@ struct Config {
 struct Case {
     config: usize,
     processor: ColorProcessorSource,
+    input: Vec<[f32; 4]>,
+    expected: Vec<[f32; 4]>,
 }
 fn reference() -> Reference {
     serde_json::from_str(include_str!(

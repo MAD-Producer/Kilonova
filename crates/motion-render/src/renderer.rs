@@ -102,6 +102,8 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
+    #[error(transparent)]
+    AuthoredScene(#[from] crate::AuthoredSceneError),
     #[error("{0}")]
     ColorImageRenderSource(#[from] #[source] crate::ColorImageRenderSourceError),
     #[error("{0}")]
@@ -2151,7 +2153,49 @@ impl Renderer {
         }
         Ok((child_stats, child_diagnostics))
     }
+    /// Submit an actual working-space authored frame. Source values have already
+    /// passed the native CPU processor; no sRGB decode/encode is implied here.
+    /// Target ownership, full identity and extents are checked before any write.
+    pub fn draw_authored_scene(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+    ) -> Result<RenderStats> {
+        self.check_health()?;
+        target.image().check_owner(self)?;
+        if self.target_format != wgpu::TextureFormat::Rgba32Float {
+            return Err(crate::ColorImageRenderSourceError { format: self.target_format }.into());
+        }
+        if target.contract() != frame.contract() {
+            return Err(crate::AuthoredSceneError::Destination {
+                expected: frame.contract(), actual: target.contract(),
+            }.into());
+        }
+        let size = [target.image().width(), target.image().height()];
+        if size != frame.size() {
+            return Err(crate::AuthoredSceneError::Extent {
+                expected: frame.size(), actual: size,
+            }.into());
+        }
+        self.check_resident_sources()?;
+        self.allocation_budget.check()?;
+        let mut encoder = self.allocation_command_encoder_for(
+            crate::gpu_commands::CommandStage::Composition,
+            &wgpu::CommandEncoderDescriptor { label: Some("authored OCIO composition") },
+        )?;
+        let stats = self.encode_local_colors(
+            &frame.scene, target.image().view(), size[0], size[1], &mut encoder, None, false, true,
+        )?;
+        self.submit_allocated(encoder.finish(), |ledger| {
+            ledger.merge(target.texture_resource_ledger())
+        })?;
+        self.check_health()?;
+        Ok(stats)
+    }
     fn encode_local(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool)->Result<RenderStats> {
+        self.encode_local_colors(scene, view, width, height, encoder, timestamps, preview, false)
+    }
+    fn encode_local_colors(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool,working_colors:bool)->Result<RenderStats> {
         self.snapshot_encodes.clear();
         if width == 0 || height == 0 || scene.layers.len() > MAX_LAYERS {
             return Err(RenderError::Invalid(
@@ -2168,6 +2212,9 @@ impl Renderer {
                 .any(|l| l.vector.is_some() || l.adjustment || l.track_matte.is_some()
                     || l.blend != motion_model::compositing::LayerBlend::default() || !l.composite_visible)
         {
+            if working_colors {
+                return Err(RenderError::Invalid("authored working colors cannot enter a legacy effect consumer".into()));
+            }
             return self.encode_effects(scene, Some(view), width, height, encoder, timestamps, preview, None, false);
         }
         // Direct drawing consumes neither mask coverage nor effect-input snapshots.
@@ -2227,8 +2274,10 @@ impl Renderer {
                 return Err(RenderError::Invalid(format!("draw image is not uploaded")));
             }
             let mut color = layer.color;
-            for c in &mut color[..3] {
-                *c = srgb_to_linear(*c);
+            if !working_colors {
+                for c in &mut color[..3] {
+                    *c = srgb_to_linear(*c);
+                }
             }
             let uniform = DrawUniform {
                 // Model/shared rasters already contain the camera projection.
@@ -2253,10 +2302,13 @@ impl Renderer {
                 .write_buffer(&self.uniform_buffer, 0, &self.upload[..upload_bytes]);
         }
         let alpha = scene.background[3];
+        let background = if working_colors { scene.background } else {
+            [srgb_to_linear(scene.background[0]), srgb_to_linear(scene.background[1]), srgb_to_linear(scene.background[2]), alpha]
+        };
         let clear = wgpu::Color {
-            r: (srgb_to_linear(scene.background[0]) * alpha) as f64,
-            g: (srgb_to_linear(scene.background[1]) * alpha) as f64,
-            b: (srgb_to_linear(scene.background[2]) * alpha) as f64,
+            r: (background[0] * alpha) as f64,
+            g: (background[1] * alpha) as f64,
+            b: (background[2] * alpha) as f64,
             a: alpha as f64,
         };
         {

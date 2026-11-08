@@ -5,6 +5,8 @@ use serde::Serialize;
 pub(crate) mod instance_ids;
 mod depth;
 mod view;
+mod authored;
+pub use authored::{AuthoredSceneError, AuthoredSceneFrame, AuthoredSceneSampler};
 pub use view::ViewCamera;
 // Bounded authored payload per scene; old/new samples may coexist during refresh.
 const MAX_CURVE_SOURCE_BYTES: usize = 32 * 1024 * 1024;

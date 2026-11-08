@@ -23,6 +23,8 @@ use std::{
 
 mod images;
 pub use images::{PreparedSourceImage, SourceImageRequest};
+mod native_authored;
+pub use native_authored::{prepare_native_authored_project, PreparedNativeAuthoredProject};
 
 pub const MAX_PROGRAMS: usize = 256;
 pub const MAX_PROGRAM_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
@@ -466,6 +468,13 @@ pub fn prepare_project_colors<F: FnMut(Request<'_>) -> crate::Result<ColorProces
     mut provider: F,
     observation: &Observation,
 ) -> Result<Option<PreparedProjectColors>, Error> {
+    observed_prepare(observation, || prepare(project, root, &mut provider, observation))
+}
+
+fn observed_prepare<T>(
+    observation: &Observation,
+    prepare: impl FnOnce() -> Result<T, Error>,
+) -> Result<T, Error> {
     if observation
         .running
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -483,7 +492,7 @@ pub fn prepare_project_colors<F: FnMut(Request<'_>) -> crate::Result<ColorProces
         "color preparation request={} operation=prepare_project_colors phase=start",
         observation.request
     );
-    let result = prepare(project, root, &mut provider, observation);
+    let result = prepare();
     match &result {
         Ok(_) => log::debug!("color preparation request={} operation=prepare_project_colors phase=done elapsed_ms={}", observation.request, flight.started.elapsed().as_millis()),
         Err(error) => log::error!("color preparation request={} operation=prepare_project_colors phase=failed elapsed_ms={} cause={}",

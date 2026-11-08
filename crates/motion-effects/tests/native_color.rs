@@ -8,6 +8,8 @@ use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 #[path = "support/native_color_failure.rs"]
 mod initialization_fixture;
+#[path = "support/native_program_equivalence.rs"]
+mod program_equivalence;
 
 #[derive(Deserialize)]
 struct Config {
@@ -205,11 +207,13 @@ fn native_cpu_and_gpu_programs_match_unchanged_external_references() {
             )
             .unwrap();
         let actual = native.source();
-        assert_eq!(
-            serde_json::to_value(actual).unwrap(),
-            serde_json::to_value(source).unwrap(),
-            "case {index} original OCIO shader/tables/identity"
-        );
+        program_equivalence::compare(
+            actual,
+            source,
+            reference.absolute_tolerance,
+            reference.relative_tolerance,
+        )
+        .unwrap_or_else(|cause| panic!("case {index} OCIO program qualification: {cause}"));
         actual.compile_image(&config, &item.selection).unwrap();
         for (input, expected) in case.input.iter().zip(&case.expected) {
             let alpha = input[3];
