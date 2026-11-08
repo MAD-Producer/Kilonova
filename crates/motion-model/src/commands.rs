@@ -58,6 +58,7 @@ pub enum Command {
     LayerTime { object: u64, action: crate::layer_time::LayerTimeAction },
     ApplyAnimationPreset { preset: Box<crate::AnimationPreset>, objects: Vec<u64>, at_frame: u32 },
     SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
+    SetColorManagement { settings: std::sync::Arc<crate::color_management::ProjectColorManagement> },
     DepthCalibration {
         object: u64,
         #[serde(deserialize_with = "deserialize_depth_calibration")]
@@ -369,6 +370,7 @@ impl Command {
         match self {
             Self::InComposition { command, .. } => command.changes_resources(),
             Self::RegisterAsset { .. }
+            | Self::SetColorManagement { .. }
             | Self::RegisterModelAsset { .. }
             | Self::RegisterTrackingAsset { .. }
             | Self::ReplaceTrackedVideo { .. }
@@ -398,7 +400,7 @@ impl Command {
             return !matches!(edit, crate::keyframe_clipboard::local::LocalKeyEdit::Curve { .. }
                 | crate::keyframe_clipboard::local::LocalKeyEdit::Handle { .. });
         }
-        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. } | Self::ReplaceTrackedVideo { .. }) { return true; }
+        if matches!(self, Self::SetColorManagement { .. } | Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. } | Self::ReplaceTrackedVideo { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeAutomatic {..} | Self::SpatialKeyframes {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

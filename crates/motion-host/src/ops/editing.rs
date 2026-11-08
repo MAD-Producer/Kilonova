@@ -144,6 +144,7 @@ impl Session {
             return Err("finish the plugin editor gesture before ordinary edits".into());
         }
         let results = apply_prepared_with_cameras(&mut self.engine, commands, &previous_models, |project| {
+                project.color_management.require_unmanaged("edit_prepare").map_err(motion_core::Error::from)?;
                 for (composition, command) in &video_samples {
                     let Command::VideoDepthCalibration { object, sample } = command else { continue; };
                     let view = project.composition_view(composition)?;
