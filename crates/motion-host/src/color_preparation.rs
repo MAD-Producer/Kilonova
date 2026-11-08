@@ -20,6 +20,9 @@ use std::{
     time::Instant,
 };
 
+mod images;
+pub use images::{PreparedSourceImage, SourceImageRequest};
+
 pub const MAX_PROGRAMS: usize = 256;
 pub const MAX_PROGRAM_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
 
@@ -37,6 +40,15 @@ pub enum Target {
 pub enum Error {
     #[error("color preparation request is already running")]
     Busy,
+    #[error("color preparation asset={asset}: {reason}")]
+    SourceBinding { asset: u64, reason: &'static str },
+    #[error("color preparation asset={asset} phase={phase}")]
+    SourceImage {
+        asset: u64,
+        phase: &'static str,
+        #[source]
+        source: Box<crate::Error>,
+    },
     #[error("color preparation phase=project")]
     Project(#[source] motion_core::Error),
     #[error("color preparation phase=resources")]
@@ -96,6 +108,7 @@ impl Observation {
 }
 struct Flight<'a> {
     observation: &'a Observation,
+    operation: &'static str,
     started: Instant,
     finished: bool,
 }
@@ -103,8 +116,12 @@ impl Drop for Flight<'_> {
     fn drop(&mut self) {
         self.observation.running.store(false, Ordering::Release);
         if !self.finished {
-            log::error!("color preparation request={} operation=prepare_project_colors phase=abandoned elapsed_ms={}",
-                self.observation.request, self.started.elapsed().as_millis());
+            log::error!(
+                "color preparation request={} operation={} phase=abandoned elapsed_ms={}",
+                self.observation.request,
+                self.operation,
+                self.started.elapsed().as_millis()
+            );
         }
     }
 }
@@ -387,6 +404,7 @@ pub fn prepare_project_colors<F: FnMut(Request<'_>) -> crate::Result<ColorProces
     }
     let mut flight = Flight {
         observation,
+        operation: "prepare_project_colors",
         started: Instant::now(),
         finished: false,
     };

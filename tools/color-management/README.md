@@ -202,3 +202,28 @@ pending-upload 预算保留，未提交时销毁包装也不会提前释放准�
 空间身份仍须由生产者正确声明，不会把普通 Scene 的线性 sRGB 自动变成
 ACES。该接口没有解除 managed Session 拒绝边界，也没有安装 OS 显示链。
 见[原生 Scene 像素与错误验收](../../engineering/validation/color-native-scene.md)。
+
+## 原始静态文件的输入准备
+
+`PreparedProjectColors::prepare_source_image` 按工程素材 ID 读取 PNG/JPEG，
+使用已准备的逐素材解释生成可复用的工作空间 Float32 纹理。原始 PNG 支持
+8/16 位、灰度、调色板透明度和 Adam7；保留存储样本，不自动解码 sRGB、不
+预乘、不缩放，也不读写 RGBA8 代理。JPEG 使用实际解码的 8 位样本。输入
+空间及 alpha 解释仍由工程明确指定，不能从文件扩展名猜测。
+
+CPU 输出有效载荷受 renderer 的 decoded-image 预算约束；PNG codec 工作区
+另限 16 MiB，JPEG 同时准入其解码图和 Float32 输出。这不是整个进程的内存
+测量。输入纹理、变换表和工作纹理遵守已有 GPU 准入及在途保留，不在生产
+准备路径读回 CPU。全部成功后才返回工作纹理；数据路由返回正常 None，
+未知素材、视频或过期配置明确拒绝。取消检查到第一次队列写入之前，之后
+完成一次提交；GPU 准备失败时已排队上传仍按已有规则保留到后续提交完成。
+
+原文件输入的 CPU 数值参考可用固定外部运行时重建到新文件：
+
+```powershell
+python tools/color-management/generate_source_reference.py crates/motion-effects/tests/color_processor/reference.json output/source_reference.json
+```
+
+该入口尚未安装到普通 Session/Scene，也没有接通视频、EXR、图像序列、导出
+编码或 OS 显示链。原文件→工作空间→display/output 的库级验收不等于这些
+功能已经启用。详见[原文件输入验收](../../engineering/validation/color-original-source.md)。

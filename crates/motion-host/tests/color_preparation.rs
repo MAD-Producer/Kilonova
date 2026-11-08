@@ -10,6 +10,8 @@ use std::{
     sync::{mpsc, Arc},
     time::Duration,
 };
+#[path = "color_preparation/images.rs"]
+mod images;
 
 #[derive(Deserialize)]
 struct Reference {

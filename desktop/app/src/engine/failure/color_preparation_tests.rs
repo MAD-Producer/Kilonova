@@ -139,3 +139,190 @@ fn project_color_preparation_records_starts_original_causes_and_unwind_at_defaul
         fs::write(directory.join("child.stderr"), stderr).unwrap();
     }
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn original_source_color_failures_use_default_file_and_stderr_without_faulting_data_or_cancel() {
+    use motion_effects::{color_processor::*, image_contract::ImageMeaning};
+    use prep::SourceImageRequest;
+    use std::sync::atomic::AtomicBool;
+    const CHILD: &str = "MOTION_COLOR_SOURCE_LOG_CHILD";
+    const TEST: &str = "engine::failure::color_preparation_tests::original_source_color_failures_use_default_file_and_stderr_without_faulting_data_or_cancel";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        let mut p = fixture::project();
+        p.assets = (1..=2)
+            .map(|id| motion_core::Asset {
+                id,
+                path: format!("assets/{id}.png"),
+                width: 3,
+                height: 4,
+            })
+            .collect();
+        let motion_core::color_management::ProjectColorManagement::Ocio { settings } =
+            Arc::make_mut(&mut p.color_management)
+        else {
+            panic!("managed fixture")
+        };
+        settings
+            .sources
+            .push(motion_core::color_management::SourceColorAssignment {
+                asset: 2,
+                interpretation: motion_core::color_management::SourceInterpretation::Data {
+                    meaning: ImageMeaning::LinearDepth {},
+                },
+            });
+        fixture::write_resources(&root, &p);
+        let prepared = prep::prepare_project_colors(
+            &p,
+            &root,
+            |r| {
+                Ok(ColorProcessorSource {
+                    version: COLOR_PROCESSOR_VERSION,
+                    ocio_version: r.config.manifest().ocio_version,
+                    config_key: r.config.key(),
+                    selection_key: r.config.resolve(r.selection).unwrap().key,
+                    phase: r.phase,
+                    input_alpha: r.input_alpha,
+                    output_alpha: r.output_alpha,
+                    shader: "vec4 motion_ocio_transform(vec4 color) { return color; }".into(),
+                    tables: Vec::new(),
+                })
+            },
+            &Observation::new(8300),
+        )
+        .unwrap()
+        .unwrap();
+        let mut renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let no = AtomicBool::new(false);
+        let yes = AtomicBool::new(true);
+        let req = |asset, cancel| SourceImageRequest {
+            project: &p,
+            root: &root,
+            asset,
+            cancel,
+        };
+        let observation = Observation::new(8301);
+        assert!(
+            matches!(prepared.prepare_source_image(&mut renderer,req(1,&no),&observation),Err(prep::Error::SourceImage{source,..}) if matches!(&*source,motion_host::Error::ImageResource(motion_render::image_resources::Error::Io(e)) if e.kind()==std::io::ErrorKind::NotFound))
+        );
+        assert!(!observation.running());
+        fs::create_dir_all(root.join("assets")).unwrap();
+        let path = root.join("assets/1.png");
+        image::save_buffer(
+            &path,
+            &[128, 64, 32, 127].repeat(12),
+            3,
+            4,
+            image::ColorType::Rgba8,
+        )
+        .unwrap();
+        let good = fs::read(&path).unwrap();
+        let mut broken = good.clone();
+        *broken.last_mut().unwrap() ^= 1;
+        fs::write(&path, broken).unwrap();
+        assert!(
+            matches!(prepared.prepare_source_image(&mut renderer,req(1,&no),&Observation::new(8302)),Err(prep::Error::SourceImage{source,..}) if matches!(*source,motion_host::Error::ImageResource(motion_render::image_resources::Error::Png(_))))
+        );
+        fs::write(&path, good).unwrap();
+        let mut policy = renderer.memory_policy();
+        policy.decoded_image_budget_bytes = 191;
+        renderer.set_memory_policy(policy).unwrap();
+        assert!(prepared
+            .prepare_source_image(&mut renderer, req(1, &no), &Observation::new(8303))
+            .is_err());
+        assert!(prepared
+            .prepare_source_image(&mut renderer, req(2, &no), &Observation::new(8304))
+            .unwrap()
+            .is_none());
+        assert!(
+            matches!(prepared.prepare_source_image(&mut renderer,req(1,&yes),&Observation::new(8305)),Err(prep::Error::SourceImage{source,..}) if matches!(*source,motion_host::Error::ImageResource(motion_render::image_resources::Error::Cancelled)))
+        );
+        policy.decoded_image_budget_bytes = 1024 * 1024;
+        renderer.set_memory_policy(policy).unwrap();
+        let image = prepared
+            .prepare_source_image(&mut renderer, req(1, &no), &Observation::new(8306))
+            .unwrap()
+            .unwrap();
+        assert_eq!(image.asset(), 1);
+        assert_eq!(renderer.image_readback_info().requested_calls, 0);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let stdout_path = root.path().join("child.stdout");
+    let stderr_path = root.path().join("child.stderr");
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .stdout(fs::File::create(&stdout_path).unwrap())
+        .stderr(fs::File::create(&stderr_path).unwrap())
+        .spawn()
+        .unwrap();
+    let began = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if began.elapsed() > Duration::from_secs(30) {
+            let killed = child.kill();
+            let joined = child.wait();
+            panic!("color source child exceeded 30s: kill={killed:?} wait={joined:?}");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let stdout = fs::read_to_string(stdout_path).unwrap();
+    let stderr = fs::read_to_string(stderr_path).unwrap();
+    assert!(status.success(), "{status}\n{stdout}\n{stderr}");
+    let file = fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    assert!(file.contains("logging initialized level=INFO"));
+    let errors: Vec<_> = file
+        .lines()
+        .filter(|l| l.contains("ERROR") && l.contains("operation=prepare_source_color_image"))
+        .collect();
+    assert_eq!(errors.len(), 3, "{file}");
+    for cause in [
+        "CRC error:",
+        "type: IEND",
+        "required_bytes=192 budget_bytes=191",
+    ] {
+        assert!(file.contains(cause), "{file}");
+        assert!(stderr.contains(cause), "{stderr}");
+        assert!(!stdout.contains(cause));
+    }
+    for (request, phase) in [
+        (8301, "resolve_source"),
+        (8302, "decode_original"),
+        (8303, "decode_original"),
+    ] {
+        let prefix = format!(
+            "color preparation request={request} operation=prepare_source_color_image asset=1"
+        );
+        let start = file.find(&format!("{prefix} phase=start")).unwrap();
+        let error = errors.iter().find(|l| l.contains(&prefix)).unwrap();
+        assert!(start < file.find(*error).unwrap());
+        assert!(error.contains(&format!("phase={phase}")));
+        assert!(error.contains("elapsed_ms="));
+        assert!(error.contains("cause="));
+        assert!(stderr.contains(&prefix));
+        assert!(!stdout.contains(&prefix));
+        assert!(!stderr
+            .lines()
+            .any(|l| l.contains(&prefix) && l.contains("phase=start")));
+    }
+    for request in [8304, 8305, 8306] {
+        let prefix = format!("color preparation request={request}");
+        assert!(file.contains(&format!("{prefix} operation=prepare_source_color_image")));
+        assert!(!errors.iter().any(|l| l.contains(&prefix)));
+        assert!(!stderr.contains(&prefix));
+        assert!(!stdout.contains(&prefix));
+    }
+    if let Some(directory) = std::env::var_os("MOTION_COLOR_TEST_EVIDENCE") {
+        let directory = PathBuf::from(directory).join("source");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("motion-studio.log"), file).unwrap();
+        fs::write(directory.join("child.stdout"), stdout).unwrap();
+        fs::write(directory.join("child.stderr"), stderr).unwrap();
+    }
+}

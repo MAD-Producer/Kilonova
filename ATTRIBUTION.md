@@ -391,6 +391,10 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 不修改原始配置、着色器或数值表；每阶段按实际 Float32 及透明度声明
 计算后保存结果，并记录原参考 JSON 的 SHA-256。该派生数据仅用于验收，
 不进入产品默认资源；生成与信号身份/纹理绑定代码均独立编写。
+`crates/motion-host/tests/color_preparation/source_reference.json` 由独立编写的
+`tools/color-management/generate_source_reference.py` 使用同一固定运行时与三份
+配置生成，记录原参考 SHA-256。输入为本项目生成的 16 位整数色卡；仅新增
+原文件输入链路的 14 组 CPU 参考，不修改上游配置、着色器或数值表。
 内容身份、目录验证、
 选择解析及故障夹具由本项目独立编写；不复制 OCIO 实现代码。
 

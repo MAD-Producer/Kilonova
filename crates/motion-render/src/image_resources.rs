@@ -4,6 +4,8 @@ mod allowed;
 pub(crate) use allowed::AllowedAssets;
 mod error;
 pub use error::Error;
+mod color;
+pub use color::{decode_color_f32, ColorPixels};
 mod memory;
 pub use memory::DecodeMemorySnapshot;
 use memory::{Kind, TaskMemory, Tracked};
