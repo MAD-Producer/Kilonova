@@ -14,6 +14,26 @@ pub struct SourceImageRequest<'a> {
     pub cancel: &'a AtomicBool,
 }
 
+// Retain both the directory prefix and filename, escaping control characters.
+// At most 64 Unicode scalars (640 escaped bytes) enter an error owner.
+fn source_path(path: &str) -> String {
+    let value = if path.chars().count() <= 64 {
+        path.to_owned()
+    } else {
+        let first: String = path.chars().take(30).collect();
+        let last: String = path
+            .chars()
+            .rev()
+            .take(30)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        format!("{first}…{last}")
+    };
+    value.escape_debug().to_string()
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -108,6 +128,7 @@ impl PreparedProjectColors {
             let context = |phase, source| Error::SourceImage {
                 asset: request.asset,
                 phase,
+                path: source_path(&asset.path),
                 source: Box::new(source),
             };
             let cancelled = || {

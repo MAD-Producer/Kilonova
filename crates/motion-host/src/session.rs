@@ -373,7 +373,18 @@ impl Session {
         let audio_jobs =
             AudioJobs::with_decoder(root.clone(), Limits::default(), audio_decoder(&platform))?;
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
+        let mut surface_colors = None;
         if let Some(g) = &mut self.graphics {
+            surface_colors = Some(colors.as_ref().map(|prepared| {
+                color::surface::qualify(&g.config, &g.surface.get_capabilities(&g.renderer.adapter))?;
+                if g.config.color_space != wgpu::SurfaceColorSpace::Srgb
+                    || g.config.alpha_mode != wgpu::CompositeAlphaMode::Opaque {
+                    return Err(color::surface::refuse("surface_replace", "reattach the surface to install an explicit opaque sRGB endpoint").into());
+                }
+                let reserved = g.scratch.texture_bytes() + g.views.texture_bytes();
+                color::surface::State::prepare(prepared, engine.project(), &root, &mut g.renderer,
+                    g.config.format, document_generation, reserved)
+            }).transpose()?);
             g.renderer
                 .configure_assets_with_model_catalog(engine.project(), &root, &next_scene.model_source_catalog())
                 .map_err(crate::Error::from)?;
@@ -411,7 +422,10 @@ impl Session {
         self.memory_context = None;
         if let Some(g) = &mut self.graphics {
             g.scratch.invalidate(); g.actual_preview_quality = None;
-            g.views = Default::default();
+            g.views.invalidate_content();
+            if let Some(change) = surface_colors {
+                color::install_surface_change(g, change);
+            }
         }
         self.audio_mixer = None;
         self.root = root;
@@ -489,14 +503,13 @@ impl Session {
     /// Bind a host-created surface. Everything after surface creation is shared
     /// with the Android preview path.
     pub fn attach(&mut self, target: SurfaceTarget) -> Result<()> {
-        color::require_surface(&self.colors)?;
         if !self.allocation_budget.same_budget(target.renderer.allocation_budget()) {
             return Err("surface renderer was not constructed with the session allocation budget".into());
         }
         let SurfaceTarget {
             instance,
             surface,
-            config,
+            mut config,
             mut renderer,
         } = target;
         renderer.set_effect_registry(self.effects.registry.clone());
@@ -505,6 +518,11 @@ impl Session {
         renderer
             .set_memory_policy(self.effects.memory_policy())
             .map_err(crate::Error::from)?;
+        if self.colors.is_some() {
+            color::surface::qualify(&config, &surface.get_capabilities(&renderer.adapter))?;
+            config.color_space = wgpu::SurfaceColorSpace::Srgb;
+            config.alpha_mode = wgpu::CompositeAlphaMode::Opaque;
+        }
         surface.configure(&renderer.device, &config);
         renderer
             .configure_assets_with_model_catalog(self.engine.project(), &self.root, &self.scene.model_source_catalog())
@@ -518,6 +536,10 @@ impl Session {
         let scratch = PreviewFrameTargets::new(&renderer, 1, 1)
             .map_err(crate::Error::from)?;
         let presenter = Presenter::new_admitted(&renderer, &scratch.view, config.format)?;
+        let colors = self.colors.as_ref().map(|prepared| color::surface::State::prepare(
+            prepared, self.engine.project(), &self.root, &mut renderer, config.format,
+            self.document_generation, scratch.texture_bytes(),
+        )).transpose()?;
         // Auto quality needs GPU cost even without diagnostic recording; only
         // four reusable 32-byte timing buffers are read, never video pixels.
         let timer = GpuTimer::new(&renderer)?;
@@ -527,7 +549,7 @@ impl Session {
             surface,
             renderer,
             scratch,
-            views: Default::default(),
+            views: viewer::State::with_colors(colors),
             actual_preview_quality: None,
             last_canvas: [self.scene.width, self.scene.height],
             last_background: self.scene.background,
@@ -558,6 +580,14 @@ impl Session {
     }
     pub fn present_retained_with_view(&mut self, viewport: [f32; 4], image: Option<[f32; 4]>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        if self.colors.is_some() {
+            let observer = self.observing.then(|| self.observer.clone());
+            let views = [viewer::View { camera: motion_render::ViewCamera::from(observer.as_ref()),
+                placement: motion_render::multiview::ViewPlacement { viewport, image } }];
+            // This API explicitly repaints the held image; its caller owns the
+            // content reuse key, including desktop frozen-clock presentation.
+            return self.present_retained_views_with_overlay(0, &views, true, overlay);
+        }
         color::require_surface(&self.colors)?;
         validate_canvas_image(image)?;
         let Some(g) = &self.graphics else { return Ok(false); };
@@ -589,6 +619,14 @@ impl Session {
     }
     pub fn render_with_view(&mut self, frame: f64, viewport: Option<[f32; 4]>, image: Option<[f32; 4]>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        if self.colors.is_some() {
+            let Some(graphics) = &self.graphics else { return Ok(false); };
+            let viewport = viewport.unwrap_or([0., 0., graphics.config.width as f32, graphics.config.height as f32]);
+            let observer = self.observing.then(|| self.observer.clone());
+            let views = [viewer::View { camera: motion_render::ViewCamera::from(observer.as_ref()),
+                placement: motion_render::multiview::ViewPlacement { viewport, image } }];
+            return self.render_views_with_overlay(0, frame, &views, overlay);
+        }
         color::require_surface(&self.colors)?;
         validate_canvas_image(image)?;
         use motion_render::preview_memory::PREVIEW_MEMORY_LEVELS;

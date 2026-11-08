@@ -11,6 +11,7 @@ use motion_render::{
 };
 use std::time::Duration;
 pub(super) mod preparation;
+mod managed;
 
 #[derive(Clone, Copy)]
 pub struct View<'a> {
@@ -25,7 +26,7 @@ enum CameraKey {
     Observer([u32; 16]),
 }
 #[derive(Clone, Debug, PartialEq)]
-struct Key {
+pub(crate) struct Key {
     document: u64,
     composition: String,
     revision: u64,
@@ -51,16 +52,21 @@ struct Request {
 
 #[derive(Default)]
 pub(crate) struct State {
+    pub(crate) colors: Option<super::color::surface::State>,
     targets: ViewFrameTargets,
     presenter: ViewFramePresenter,
     request: Option<Request>,
     published: Option<Key>,
 }
 impl State {
+    pub(crate) fn with_colors(colors: Option<super::color::surface::State>) -> Self {
+        Self { colors, ..Self::default() }
+    }
     pub(crate) fn texture_bytes(&self) -> u64 {
-        self.targets.texture_bytes()
+        self.targets.texture_bytes() + self.colors.as_ref().map_or(0, super::color::surface::State::bytes)
     }
     pub(crate) fn collect(&self, ledger: &mut TextureResourceLedger) {
+        if let Some(colors) = &self.colors { colors.collect(ledger); }
         self.targets.collect_texture_resources(ledger);
         self.presenter.collect_texture_resources(ledger);
         if let Some(request) = &self.request {
@@ -68,6 +74,18 @@ impl State {
                 ledger.merge(task.texture_resource_ledger());
             }
         }
+    }
+    pub(crate) fn invalidate(&mut self) {
+        self.targets.clear();
+        self.presenter.clear();
+        self.request = None;
+        self.published = None;
+        if let Some(colors) = &mut self.colors { colors.clear_group(); }
+    }
+    pub(crate) fn invalidate_content(&mut self) {
+        self.targets.clear(); self.presenter.clear();
+        self.request = None; self.published = None;
+        if let Some(colors) = &mut self.colors { colors.discard_candidate(); }
     }
     fn poll(
         &mut self,
@@ -202,6 +220,9 @@ impl Session {
     /// Switching the surface back to the original single-view renderer retires
     /// this group's outputs before that renderer admits another target pair.
     /// There is one GPU group per Session, not an unbounded cache per window.
+    /// Managed single/group views share that same typed pool; their next exact
+    /// request replaces it. Keep it here so a single-view retained repaint is
+    /// not invalidated by every ordinary desktop Present command.
     pub fn clear_view_group(&mut self) -> Result<()> {
         self.check_thread()?;
         if self
@@ -211,7 +232,7 @@ impl Session {
         {
             self.video_frames.cancel_pending_sampling()?;
             if let Some(g) = self.graphics.as_mut() {
-                g.views = Default::default();
+                g.views.invalidate();
             }
         }
         Ok(())
@@ -288,6 +309,13 @@ impl Session {
             return Ok(false);
         };
         let g = self.graphics.as_ref().ok_or("multiview graphics missing")?;
+        if self.colors.is_some() {
+            let Some(published) = g.views.colors.as_ref().and_then(|colors| colors.published()) else {
+                return Ok(false);
+            };
+            if frozen { key.frame = published.frame; }
+            return Ok(key == *published);
+        }
         let Some(published) = &g.views.published else {
             return Ok(false);
         };
@@ -321,6 +349,9 @@ impl Session {
         frozen: bool,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
     ) -> Result<bool> {
+        if self.colors.is_some() {
+            return self.present_color_views(owner, views, inspections, frozen, overlay);
+        }
         self.check_thread()?;
         validate_inspections(views, inspections)?;
         self.observe_preview_pressure()?;
@@ -389,6 +420,7 @@ impl Session {
         output: &wgpu::TextureView,
         surface: [u32; 2],
     ) -> Result<()> {
+        super::color::require_surface(&self.colors)?;
         validate_inspections(views, inspections)?;
         let key = self.views_key(owner, self.frame, views, Some(surface))?;
         let g = self.graphics.as_ref().ok_or("multiview graphics missing")?;
@@ -424,6 +456,7 @@ impl Session {
         owner: u64,
         index: usize,
     ) -> Result<motion_render::ViewerSnapshot> {
+        super::color::require_surface(&self.colors)?;
         self.check_thread()?;
         let g = self
             .graphics
@@ -481,6 +514,7 @@ impl Session {
         camera: ViewCamera<'_>,
         point: [f64; 2],
     ) -> Result<Option<[f32; 4]>> {
+        super::color::require_surface(&self.colors)?;
         self.check_thread()?;
         if !point.iter().all(|v| v.is_finite() && *v >= 0. && *v < 1.) {
             return Err("view color pick is outside the composition".into());
@@ -561,6 +595,9 @@ impl Session {
         inspections: &[ViewInspection<'_>],
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
     ) -> Result<bool> {
+        if self.colors.is_some() {
+            return self.render_color_views(owner, frame, views, inspections, overlay);
+        }
         validate_inspections(views, inspections)?;
         self.check_thread()?;
         validate_views(views)?;

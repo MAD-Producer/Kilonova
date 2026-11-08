@@ -45,11 +45,13 @@ fn authored_image_failure_reaches_default_channels_and_cancellation_is_normal() 
         let prep::Error::SourceImage {
             asset: 1,
             phase: "resolve_source",
+            path,
             source,
         } = error
         else {
             panic!("original source failure")
         };
+        assert_eq!(path, "assets/missing.png");
         let motion_host::Error::ImageResource(motion_render::image_resources::Error::Io(source)) =
             *source
         else {

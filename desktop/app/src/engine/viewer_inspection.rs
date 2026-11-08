@@ -126,6 +126,15 @@ impl State {
     }
 
     pub(super) fn configure(&mut self, session: &mut Session, ui: &UiFrame) -> Result<(), String> {
+        if session.color_programs().is_some()
+            && ui.composition.is_some()
+            && ui.views.is_none()
+            && (ui.inspection.channel != ViewChannel::Color
+                || ui.inspection.region.is_some()
+                || ui.inspection.comparison_split.is_some())
+        {
+            return Err("managed viewer phase=surface_inspection: channel, ROI and comparison require their explicit managed consumer".into());
+        }
         self.reconcile(session);
         let selection = if ui.composition.is_some() && ui.views.is_none() {
             self.source(ui)?

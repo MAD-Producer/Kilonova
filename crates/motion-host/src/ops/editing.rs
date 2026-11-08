@@ -140,6 +140,7 @@ impl Session {
         let previous_models = self.scene.model_source_catalog();
         let mut candidate_models = None;
         let mut candidate_colors = None;
+        let mut candidate_surface = None;
         let mut candidate_scene = None;
         let color_platform = self.platform().clone();
         let previous_nodes = self.engine.project().node_resources()?;
@@ -149,6 +150,14 @@ impl Session {
         let results = apply_prepared_with_cameras(&mut self.engine, commands, &previous_models, |project| {
                 candidate_colors = crate::session::color::prepare_edit(self.colors.as_ref(), project,
                     &self.root, color_platform.as_ref(), self.document_generation)?;
+                if let Some(graphics) = &mut self.graphics {
+                    let prepared = match candidate_colors.as_ref() {
+                        Some(colors) => colors.as_ref(),
+                        None => self.colors.as_ref(),
+                    };
+                    candidate_surface = crate::session::color::prepare_surface_change(graphics,
+                        prepared, project, &self.root, self.document_generation)?;
+                }
                 if candidate_colors.as_ref().is_some_and(Option::is_none) {
                     candidate_scene = Some(motion_render::Scene::new(project)?);
                 }
@@ -198,6 +207,9 @@ impl Session {
                 Ok(())
             })?;
         if let Some(colors) = candidate_colors { self.install_colors(colors); }
+        if let (Some(graphics), Some(change)) = (&mut self.graphics, candidate_surface) {
+            crate::session::color::install_surface_change(graphics, change);
+        }
         if let Some(mut scene) = candidate_scene {
             scene.set_model_source_catalog(candidate_models.as_ref().unwrap_or(&previous_models).clone());
             self.scene = scene;

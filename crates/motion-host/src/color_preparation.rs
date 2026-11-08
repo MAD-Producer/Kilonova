@@ -55,15 +55,18 @@ pub enum Error {
     Busy,
     #[error("color preparation asset={asset}: {reason}")]
     SourceBinding { asset: u64, reason: &'static str },
-    #[error("color preparation asset={asset} phase={phase}")]
+    #[error("color preparation asset={asset} phase={phase} path={path}")]
     SourceImage {
         asset: u64,
         phase: &'static str,
+        path: String,
         #[source]
         source: Box<crate::Error>,
     },
     #[error("color preparation phase=bind_working_images")]
     WorkingImages(#[source] Box<crate::Error>),
+    #[error("color preparation phase=surface_display")]
+    SurfaceDisplay(#[source] Box<crate::Error>),
     #[error("color preparation phase=project")]
     Project(#[source] motion_core::Error),
     #[error("color preparation phase=resources")]
@@ -218,6 +221,9 @@ pub struct PreparedProjectColors {
     payload_bytes: usize,
 }
 impl PreparedProjectColors {
+    pub(crate) fn settings_owner(&self) -> &Arc<ProjectColorManagement> {
+        &self.settings
+    }
     pub fn settings(&self) -> &ProjectColorManagement {
         &self.settings
     }
@@ -558,7 +564,7 @@ fn observed_prepare<T>(
 ) -> Result<T, Error> {
     observed_operation(observation, "prepare_project_colors", prepare)
 }
-fn observed_operation<T>(
+pub(crate) fn observed_operation<T>(
     observation: &Observation,
     operation: &'static str,
     prepare: impl FnOnce() -> Result<T, Error>,

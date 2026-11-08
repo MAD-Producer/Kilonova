@@ -18,6 +18,9 @@ mod session_installation;
 mod surface_contract;
 #[path = "authored_preview.rs"]
 mod preview;
+#[cfg(target_os = "windows")]
+#[path = "authored_window.rs"]
+mod window;
 
 fn runtime() -> std::path::PathBuf {
     std::env::var_os("MOTION_TEST_OCIO_RUNTIME")

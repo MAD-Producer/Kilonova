@@ -10,6 +10,9 @@ mod images;
 mod session;
 #[path = "native_surface.rs"]
 mod surface;
+#[cfg(target_os = "windows")]
+#[path = "native_window.rs"]
+mod window;
 
 fn project(root: &std::path::Path) -> motion_core::Project {
     #[derive(serde::Deserialize)]

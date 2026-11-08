@@ -1,9 +1,64 @@
-//! Prepared document ownership and explicit managed frame consumers.
-//! Surface presentation remains a separate consumer; no legacy relabelling.
+//! Prepared document ownership, cold surface installation and explicit consumers.
+//! Legacy consumers require their own integration, never colour relabelling.
 use super::*;
 use crate::color_preparation::{self, Observation, PreparedNativeAuthoredProject};
 use motion_core::color_management::ProjectColorManagement;
 use motion_render::{AuthoredImageSet, ColorImageTarget, RenderStats};
+pub(crate) mod surface;
+
+pub(crate) fn prepare_surface_change(
+    graphics: &mut Graphics,
+    prepared: Option<&PreparedNativeAuthoredProject>,
+    project: &Project,
+    root: &std::path::Path,
+    request: u64,
+) -> Result<Option<Option<surface::State>>> {
+    let Some(prepared) = prepared else {
+        return Ok(graphics.views.colors.is_some().then_some(None));
+    };
+    if graphics
+        .views
+        .colors
+        .as_ref()
+        .is_some_and(|state| state.matches(prepared, project))
+    {
+        return Ok(None);
+    }
+    surface::qualify(
+        &graphics.config,
+        &graphics
+            .surface
+            .get_capabilities(&graphics.renderer.adapter),
+    )?;
+    if graphics.config.color_space != wgpu::SurfaceColorSpace::Srgb
+        || graphics.config.alpha_mode != wgpu::CompositeAlphaMode::Opaque
+    {
+        return Err(surface::refuse(
+            "surface_prepare",
+            "reattach the surface to install an explicit opaque sRGB endpoint",
+        )
+        .into());
+    }
+    let reserved = graphics.scratch.texture_bytes() + graphics.views.texture_bytes();
+    surface::State::prepare(
+        prepared,
+        project,
+        root,
+        &mut graphics.renderer,
+        graphics.config.format,
+        request,
+        reserved,
+    )
+    .map(|state| Some(Some(state)))
+}
+
+pub(crate) fn install_surface_change(graphics: &mut Graphics, change: Option<surface::State>) {
+    let mut change = change;
+    if let (Some(next), Some(previous)) = (change.as_mut(), graphics.views.colors.as_mut()) {
+        next.inherit_front(previous);
+    }
+    graphics.views.colors = change;
+}
 
 pub(super) fn prepare(
     project: &Project,
@@ -71,7 +126,7 @@ pub(super) fn require_surface(prepared: &Option<PreparedNativeAuthoredProject>) 
             motion_render::AuthoredSceneError::Admission {
                 phase: "surface",
                 object: None,
-                reason: "managed surface presentation requires its explicit display consumer",
+                reason: "this consumer requires its explicit managed color integration",
             },
         )
         .into());
@@ -130,12 +185,14 @@ pub(crate) fn prepare_edit(
 impl Session {
     pub(crate) fn prepare_color_history(&mut self, operation: i32, active: &str) -> Result<()> {
         let mut candidate = None;
+        let mut candidate_surface = None;
         let mut candidate_scene = None;
         let mut primary = None;
         let current = self.colors.as_ref();
         let platform = self.platform.clone();
         let root = &self.root;
         let request = self.document_generation;
+        let graphics = &mut self.graphics;
         let prepare = |project: &Project| {
             if current.is_none()
                 && matches!(
@@ -155,6 +212,14 @@ impl Session {
             destination.activate_composition(target)?;
             prepare_edit(current, &destination, root, platform.as_ref(), request)
                 .and_then(|prepared| {
+                    if let Some(graphics) = graphics.as_mut() {
+                        let colors = match prepared.as_ref() {
+                            Some(colors) => colors.as_ref(),
+                            None => current,
+                        };
+                        candidate_surface =
+                            prepare_surface_change(graphics, colors, &destination, root, request)?;
+                    }
                     if prepared.as_ref().is_some_and(Option::is_none) {
                         candidate_scene = Some(Scene::new(&destination)?);
                     }
@@ -182,6 +247,9 @@ impl Session {
         if let Some(colors) = candidate {
             self.install_colors(colors);
         }
+        if let (Some(graphics), Some(change)) = (&mut self.graphics, candidate_surface) {
+            install_surface_change(graphics, change);
+        }
         Ok(())
     }
 
@@ -192,7 +260,7 @@ impl Session {
         self.view_revision += 1;
         if let Some(graphics) = &mut self.graphics {
             graphics.scratch.invalidate();
-            graphics.views = Default::default();
+            graphics.views.invalidate_content();
             graphics.actual_preview_quality = None;
         }
     }

@@ -9,7 +9,7 @@ use std::{
     fs, path::PathBuf, process::Command as Process, sync::atomic::AtomicBool, time::Instant,
 };
 
-struct NativePlatform(PathBuf);
+pub(super) struct NativePlatform(pub(super) PathBuf);
 impl Platform for NativePlatform {
     fn name(&self) -> &'static str {
         "explicit-ocio-session-test"

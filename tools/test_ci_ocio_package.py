@@ -132,6 +132,22 @@ class OcioPackageTest(unittest.TestCase):
         self.assertEqual(qualify["env"]["MOTION_TEST_OCIO_RUNTIME"],
                          "${{ github.workspace }}/artifacts/ocio-native/prefix/ocio-runtime.json")
 
+    def test_actual_managed_windows_worker_qualifies_before_packaging(self):
+        workflow = release_tests.yaml.load((desktop.ROOT / ".github/workflows/ci.yml").read_text(),
+                                          Loader=release_tests.yaml.BaseLoader)
+        steps = workflow["jobs"]["desktop"]["steps"]
+        native = next(s for s in steps if s.get("name") == "Qualify native OCIO against independent references")
+        window = next(s for s in steps if s.get("name") == "Qualify managed Windows surface failure channels")
+        package = next(s for s in steps if s.get("name") == "Package desktop release archive")
+        self.assertEqual(window["if"], "runner.os == 'Windows'")
+        self.assertNotIn("continue-on-error", window)
+        self.assertLess(steps.index(native), steps.index(window))
+        self.assertLess(steps.index(window), steps.index(package))
+        self.assertIn("native_authored::window::managed_window_source_failure_preserves_project_and_default_error_channels", window["run"])
+        self.assertIn("--ignored --exact", window["run"])
+        self.assertEqual(window["env"]["MOTION_TEST_OCIO_RUNTIME"], native["env"]["MOTION_TEST_OCIO_RUNTIME"])
+        self.assertEqual(window["env"]["MOTION_COLOR_TEST_EVIDENCE"], native["env"]["MOTION_COLOR_TEST_EVIDENCE"])
+
 
 if __name__ == "__main__":
     unittest.main()

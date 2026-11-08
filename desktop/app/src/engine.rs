@@ -2030,6 +2030,12 @@ fn handle(
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {
             viewer_frame::validate(&ui)?;
+            if s.color_programs().is_some() && ui.composition.is_some() && ui.views.is_none() {
+                return Err(motion_render::RenderError::from(motion_render::AuthoredSceneError::Admission {
+                    phase:"surface_capture",object:None,
+                    reason:"managed single-view capture requires its explicit display consumer",
+                }).into());
+            }
             presentation.inspection.reconcile(s);
             let view_inspections = presentation.inspection.views(&ui)?;
             capture_phase = "capture.target";
@@ -2218,7 +2224,11 @@ fn handle(
                         }
                     }
                 }
-                let view_inspections=presentation.inspection.views(&ui)?;
+                let managed_color=s.color_programs().is_some();
+                let mut view_inspections=presentation.inspection.views(&ui)?;
+                if managed_color && ui.views.is_none() {
+                    view_inspections.push(motion_render::multiview::ViewInspection::default());
+                }
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");
@@ -2230,7 +2240,18 @@ fn handle(
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
                     let retained=presentation.retained.clone();
-                    let batch=ui.views.as_ref().map(viewer_frame::Plan::borrow);
+                    // Managed single views use the same complete host key and
+                    // window owner as explicit groups. Frozen presentation can
+                    // reuse it after a seek clears the legacy scratch stamp.
+                    let observer=(managed_color && s.observing).then(||s.observer.clone());
+                    let batch=ui.views.as_ref().map(viewer_frame::Plan::borrow).or_else(|| {
+                        managed_color.then(||vec![motion_host::session::viewer::View {
+                            camera:motion_render::ViewCamera::from(observer.as_ref()),
+                            placement:motion_render::multiview::ViewPlacement {
+                                viewport,image:ui.composition_image,
+                            },
+                        }])
+                    });
                     let reuse=if let Some(views)=&batch {
                         s.view_group_current(ui.window,views,frozen)?
                     } else {retained.as_ref().is_some_and(|previous| {

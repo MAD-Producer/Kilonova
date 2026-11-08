@@ -3,6 +3,24 @@ use super::*;
 mod fixture;
 use std::{sync::mpsc, time::Duration};
 
+#[test]
+fn source_error_paths_are_bounded_escaped_and_preserve_the_filename() {
+    assert_eq!(source_path("assets/missing.png"), "assets/missing.png");
+    assert_eq!(
+        source_path("assets/line\nname.png"),
+        "assets/line\\nname.png"
+    );
+    for text in ["中", "\u{10ffff}", "\n", "界\u{202e}"] {
+        let path = format!("assets/{}/original-source.png", text.repeat(512));
+        let bounded = source_path(&path);
+        assert!(bounded.len() <= 640, "{}", bounded.len());
+        assert!(bounded.starts_with("assets/"));
+        assert!(bounded.ends_with("/original-source.png"));
+        assert!(bounded.contains('…'));
+        assert!(!bounded.contains('\n') && !bounded.contains('\u{202e}'));
+    }
+}
+
 fn setup(root: &Path) -> (Project, PreparedProjectColors) {
     let mut p = fixture::project();
     p.assets.push(motion_core::Asset {
