@@ -328,6 +328,44 @@ jobs:
           cache-on-failure: true
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
+      - name: Activate Windows native color build tools
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw 'MSVC x64 build tools are missing' }
+          $devcmd = Join-Path $installation 'Common7/Tools/VsDevCmd.bat'
+          $variables = & $env:ComSpec /d /s /c "`"$devcmd`" -no_logo -arch=amd64 -host_arch=amd64 >nul && set"
+          if ($LASTEXITCODE -ne 0) { throw 'MSVC environment initialization failed' }
+          foreach ($line in $variables) {
+            if ($line -match '^(PATH|INCLUDE|LIB|LIBPATH|VCINSTALLDIR|VCToolsInstallDir|WindowsSdkDir|WindowsSDKVersion)=(.*)$') {
+              "$($matches[1])=$($matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            }
+          }
+          $ninja = Join-Path $installation 'Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja'
+          if (-not (Test-Path -LiteralPath (Join-Path $ninja 'ninja.exe'))) { throw 'Visual Studio Ninja is missing' }
+          $ninja | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Prepare pinned native OCIO runtime
+        run: python tools/prepare_ocio.py --platform ${{ matrix.platform }} --output artifacts/ocio-native --source-cache artifacts/ocio-sources
+      - name: Qualify native OCIO against independent references
+        env:
+          MOTION_TEST_OCIO_RUNTIME: ${{ github.workspace }}/artifacts/ocio-native/prefix/ocio-runtime.json
+        run: |
+          cargo test -p motion-effects --test native_color --locked -- --include-ignored --nocapture --test-threads=1
+          cargo test -p motion-host --lib color_preparation::tests --locked -- --include-ignored --nocapture --test-threads=1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() || (always() && github.event_name != 'pull_request')
+        with:
+          name: native-ocio-${{ matrix.platform }}
+          path: |
+            artifacts/ocio-native/events.jsonl
+            artifacts/ocio-native/in-flight.json
+            artifacts/ocio-native/logs/**
+            artifacts/ocio-native/prefix/ocio-runtime.json
+            artifacts/ocio-native/prefix/licenses/ocio/**
+          if-no-files-found: warn
+          retention-days: 7
       - name: Restore pinned libclang wheel cache
         if: github.event_name != 'pull_request'
         id: libclang_cache
@@ -374,7 +412,7 @@ jobs:
         run: cargo test -p motion-desktop-media --locked --features ffmpeg,gpu-tests --test libav -- --test-threads=1
       - name: Package desktop release archive
         if: github.event_name != 'pull_request'
-        run: python tools/package_desktop.py --binary artifacts/desktop/${{ matrix.binary }} --platform ${{ matrix.platform }} --build-report artifacts/desktop/desktop-build.json --output artifacts/desktop-release
+        run: python tools/package_desktop.py --binary artifacts/desktop/${{ matrix.binary }} --platform ${{ matrix.platform }} --build-report artifacts/desktop/desktop-build.json --ocio-runtime artifacts/ocio-native/prefix/ocio-runtime.json --output artifacts/desktop-release
       - name: Verify video decoding from the extracted release archive
         if: github.event_name != 'pull_request'
         shell: bash

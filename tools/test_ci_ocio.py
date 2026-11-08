@@ -19,13 +19,21 @@ import prepare_ocio as ocio
 class OcioRecipeTest(unittest.TestCase):
     def test_lock_has_exact_source_and_license_identities_for_every_linked_dependency(self):
         components = ocio.sources()
-        self.assertEqual({i["name"] for i in components}, {"OpenColorIO", "expat", "yaml-cpp", "pystring", "Imath", "zlib", "minizip-ng"})
+        self.assertEqual({i["name"] for i in components}, {"OpenColorIO", "expat", "yaml-cpp", "pystring", "Imath", "zlib", "minizip-ng", "sse2neon"})
         for item in components:
             self.assertRegex(item["commit"], r"^[0-9a-f]{40}$")
             self.assertEqual(item["url"], f"https://codeload.github.com/{item['repository']}/tar.gz/{item['commit']}")
             self.assertRegex(item["sha256"], r"^[0-9a-f]{64}$")
             self.assertRegex(item["license_sha256"], r"^[0-9a-f]{64}$")
             self.assertTrue(item["author"] and item["license"] and item["modifications"])
+
+    def test_apple_arm_uses_the_upstream_pinned_header_without_ambient_fetching(self):
+        arm = ocio.sources("macos-arm64")
+        self.assertEqual(len(arm), 8)
+        self.assertEqual([item["name"] for item in arm if item.get("platforms")], ["sse2neon"])
+        for platform in ("windows-x86_64", "linux-x86_64", "macos-x86_64"):
+            self.assertEqual(len(ocio.sources(platform)), 7)
+            self.assertNotIn("sse2neon", [item["name"] for item in ocio.sources(platform)])
 
     def test_corrupt_offline_cache_is_rejected_without_network_or_replacement(self):
         with tempfile.TemporaryDirectory() as temporary:

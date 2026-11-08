@@ -381,7 +381,7 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 桥接库，六个依赖静态链接。它不使用系统 OCIO、Python wheel、隐式配置或
 上游二进制；不修改上游源码。`tools/ocio_sources.json` 保存每一项的提交、
 下载 URL、归档字节数、SHA-256、原始许可证路径和许可证 SHA-256。
-生成的 `prefix/licenses/ocio/` 保留全部七份原始许可证，
+生成的 `prefix/licenses/ocio/` 保留全部七份原始许可证（Apple ARM 为八份），
 `ocio-runtime.json` 记录实际库和许可证的字节身份。
 这一步提供原生准备接口；不表示普通 Session、桌面发布包或全部色彩链路已接通。
 
@@ -394,6 +394,11 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 | Imath 3.2.3 | Contributors to the OpenEXR Project；[5f27ba266d3ea1565e912570c30b5eafc89959f1](https://github.com/AcademySoftwareFoundation/Imath/tree/5f27ba266d3ea1565e912570c30b5eafc89959f1) | BSD-3-Clause；仅构建选项 |
 | zlib 1.3.2 | Jean-loup Gailly、Mark Adler；[da607da739fa6047df13e66a2af6b8bec7c2a498](https://github.com/madler/zlib/tree/da607da739fa6047df13e66a2af6b8bec7c2a498) | Zlib；仅构建选项；此处固定提交归档与 FFmpeg 的发行归档分别记录身份 |
 | minizip-ng 4.2.2 | Nathan Moinvaziri、minizip-ng contributors；[7b2387161c542fa9f427352dcdef76097d0d692b](https://github.com/zlib-ng/minizip-ng/tree/7b2387161c542fa9f427352dcdef76097d0d692b) | Zlib；关闭加密、其他压缩库及自动下载，仅构建选项 |
+| sse2neon（仅 Apple ARM） | SSE2NEON Contributors；[227cc413fb2d50b2a10073087be96b59d5364aea](https://github.com/DLTcollab/sse2neon/tree/227cc413fb2d50b2a10073087be96b59d5364aea)，与 OCIO 2.6.0 上游固定提交一致 | MIT；未修改原始头文件，仅显式设置 include 路径，避免 CMake 隐式下载 |
+
+`tools/tests/ocio_licenses/` 逐字节保留上述各提交的原始许可证，作为离线发布
+清单校验夹具；作者、原始路径及 SHA-256 均在 `tools/ocio_sources.json` 中。
+这些副本没有修改、翻译或裁剪。
 
 Rust 动态加载使用未修改的官方 libloading 0.8.9，作者为 libloading
 contributors，来源 [crates.io 固定发行版](https://crates.io/crates/libloading/0.8.9)，

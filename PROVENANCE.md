@@ -111,9 +111,10 @@ Wavefront's classic material descriptors remain distinct from glTF PBR, with
 unsupported directives explicitly rejected rather than silently translated.
 
 The bounded Cube parser, CPU lookup, WGSL interpolation and synthetic color
-fixtures are independently authored. OpenColorIO 2.6.0 is an external numerical
-reference only, pinned and credited in ATTRIBUTION.md; its runtime and upstream
-assets are not shipped. Linear/tetrahedral references come from its real CPU
+fixtures are independently authored. Their OpenColorIO 2.6.0 numerical reference
+is separately installed, pinned and credited in ATTRIBUTION.md; reference-tool
+assets are not application defaults. Native runtime distribution is described
+separately below. Linear/tetrahedral references come from its real CPU
 processor. Nearest references use a separately identified exhaustive grid oracle,
 retaining the actual OCIO output where its CPU processor resolves the hint to
 linear. A LUT does not imply an OCIO configuration, ACES version or display role.
@@ -142,6 +143,15 @@ recipe retains all original dependency licenses and emits a content-identified
 runtime manifest; exact revisions, licenses and modification scope are in
 ATTRIBUTION.md and tools/ocio_sources.json. The upstream runtime includes its
 embedded configuration resources, but no implicit application configuration is
-selected. This native preparation interface is not yet ordinary Session or
-desktop release integration. The external Python numerical reference tool and
+selected. The native preparation interface does not authorize ordinary Session
+rendering. Desktop packaging accepts an explicit verified runtime and retains
+its licenses, source receipt and signed payload identities; actual platform
+qualification is recorded in engineering/validation/native-ocio-bundling.md.
+The external Python numerical reference tool and
 its fixtures remain separate and unchanged.
+
+Apple ARM explicitly provides the same sse2neon commit selected by OCIO 2.6.0's
+upstream installer; the archive and original MIT license are separately pinned.
+No ambient FetchContent download is used for this header. Original dependency
+licenses are retained byte-for-byte as offline packaging fixtures, with authors,
+source paths, revisions, hashes and copy scope recorded in ATTRIBUTION.md.

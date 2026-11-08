@@ -29,11 +29,76 @@ def digest(path):
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def sources():
+def sources(platform=None):
     document = json.loads(LOCK.read_text(encoding="utf-8"))
     if document["schemaVersion"] != 1:
         raise ValueError("Unsupported OCIO source lock")
-    return document["components"]
+    return [item for item in document["components"]
+            if platform is None or platform in item.get("platforms", PLATFORMS)]
+
+
+def runtime_identity(manifest, platform):
+    """Check pinned identities independently of a local runtime directory."""
+    if (manifest.get("schemaVersion") != 1 or manifest.get("version") != "2.6.0"
+            or platform not in PLATFORMS or manifest.get("platform") != platform
+            or manifest.get("components") != sources(platform)
+            or manifest.get("sourceLockSha256") != digest(LOCK)
+            or manifest.get("bridgeSourceSha256") != digest(Path(__file__).with_name("ocio-native") / "bridge.cpp")):
+        raise ValueError("Native OCIO runtime source, bridge or platform differs")
+    entries, licenses = manifest.get("files", []), manifest.get("licenses", [])
+    if not 2 <= len(entries) <= 8 or len(licenses) != len(sources(platform)):
+        raise ValueError("Native OCIO library or license set incomplete")
+    expected = {f"licenses/ocio/{item['name']}-LICENSE.txt": item['license_sha256']
+                for item in sources(platform)}
+    if {item.get("path"): item.get("sha256") for item in licenses} != expected:
+        raise ValueError("Native OCIO dependency licenses differ from pinned source")
+    names = set()
+    core, bridge = 0, 0
+    for item in entries + licenses:
+        name = item.get("path", "")
+        path = PurePosixPath(name)
+        if (not name or path.is_absolute() or path.as_posix() != name
+                or ".." in path.parts or ":" in name or "\\" in name or name in names):
+            raise ValueError("Native OCIO path is not unique, canonical and relative")
+        names.add(name)
+        if item in entries:
+            if platform == "windows-x86_64":
+                is_core = path.parent == PurePosixPath("bin") and path.name == "OpenColorIO_2_6.dll"
+                is_bridge = name == "bin/motion_ocio_bridge.dll"
+            else:
+                is_core = (path.parent == PurePosixPath("lib") and path.name.startswith("libOpenColorIO.")
+                           and (path.name.endswith(".dylib") if platform.startswith("macos-") else ".so." in path.name))
+                is_bridge = name == ("lib/libmotion_ocio_bridge.dylib" if platform.startswith("macos-")
+                                     else "lib/libmotion_ocio_bridge.so")
+            if not is_core and not is_bridge:
+                raise ValueError("Unexpected native OCIO runtime library")
+            core += is_core
+            bridge += is_bridge
+    if not core or bridge != 1:
+        raise ValueError("Native OCIO core or bridge library missing")
+
+
+def runtime_payload(manifest_path, platform):
+    """Qualify actual files before bundling; never load a library during packaging."""
+    from package_desktop import verify_binary
+    manifest_path = Path(manifest_path).resolve(strict=True)
+    if manifest_path.stat().st_size > 65536:
+        raise ValueError("Native OCIO manifest exceeds capacity")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    runtime_identity(manifest, platform)
+    root = manifest_path.parent
+    files = []
+    for category in ("files", "licenses"):
+        for entry in manifest[category]:
+            path = (root / entry["path"]).resolve(strict=True)
+            if not path.is_relative_to(root) or path.stat().st_size > 64 * 1024 * 1024:
+                raise ValueError("Native OCIO file escapes its prefix or exceeds capacity")
+            if digest(path) != entry.get("sha256"):
+                raise ValueError("Native OCIO file checksum mismatch")
+            if category == "files":
+                verify_binary(path, platform)
+            files.append((path, entry["path"]))
+    return manifest, files
 
 
 def download(component, cache, offline):
@@ -156,11 +221,13 @@ class Build:
         self.configure_install("minizip-ng", source["minizip-ng"], [f"-DMZ_{name}=OFF" for name in disabled] + ["-DMZ_ZLIB=ON", *zflags])
         # All third-party dependencies must come from this verified prefix.
         roots = [f"-D{name}_ROOT={prefix}" for name in ("expat", "yaml-cpp", "pystring", "Imath", "minizip-ng")]
+        arm = ([f"-Dsse2neon_INCLUDE_DIR={source['sse2neon'].as_posix()}"]
+               if self.platform == "macos-arm64" else [])
         self.configure_install("OpenColorIO", source["OpenColorIO"], ["-DBUILD_SHARED_LIBS=ON", "-DOCIO_INSTALL_EXT_PACKAGES=NONE",
                                "-DOCIO_BUILD_APPS=OFF", "-DOCIO_BUILD_TESTS=OFF", "-DOCIO_BUILD_GPU_TESTS=OFF",
                                "-DOCIO_BUILD_DOCS=OFF", "-DOCIO_BUILD_PYTHON=OFF", "-DOCIO_BUILD_JAVA=OFF",
                                "-DOCIO_BUILD_OPENFX=OFF", "-DOCIO_BUILD_NUKE=OFF", "-DOCIO_DIRECTX_ENABLED=OFF",
-                               "-DOCIO_VULKAN_ENABLED=OFF", "-DOCIO_USE_AVX512=OFF", "-DZLIB_USE_STATIC_LIBS=ON", *zflags, *roots])
+                               "-DOCIO_VULKAN_ENABLED=OFF", "-DOCIO_USE_AVX512=OFF", "-DZLIB_USE_STATIC_LIBS=ON", *zflags, *roots, *arm])
         self.configure_install("motion-ocio-bridge", Path(__file__).with_name("ocio-native"), [f"-DOCIO_PREFIX={prefix}"])
 
 
@@ -233,7 +300,7 @@ def main():
         cache.mkdir(parents=True, exist_ok=True)
         folder = output / "sources"
         folder.mkdir()
-        components = sources()
+        components = sources(args.platform)
         prepared = {item["name"]: extract(download(item, cache, args.offline), folder / item["name"]) for item in components}
         build.compile(prepared)
         manifest = publish(build, components, prepared)

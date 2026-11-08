@@ -299,10 +299,22 @@ impl NativeColorRuntime {
             ("macos", "aarch64") => "macos-arm64",
             _ => return Err(Error::Admission("unsupported native platform")),
         };
+        let components: Vec<_> = lock["components"]
+            .as_array()
+            .ok_or(Error::Admission("invalid compiled source lock"))?
+            .iter()
+            .filter(|component| {
+                component.get("platforms").is_none_or(|platforms| {
+                    platforms
+                        .as_array()
+                        .is_some_and(|items| items.iter().any(|item| item == platform))
+                })
+            })
+            .collect();
         if value["schemaVersion"] != 1
             || value["version"] != "2.6.0"
             || value["platform"] != platform
-            || value["components"] != lock["components"]
+            || value["components"] != serde_json::to_value(&components)?
         {
             return Err(Error::Admission(
                 "runtime version, platform or source identity differs",
@@ -321,15 +333,12 @@ impl NativeColorRuntime {
         let licenses = value["licenses"]
             .as_array()
             .ok_or(Error::Admission("runtime licenses missing"))?;
-        if !(2..=8).contains(&entries.len()) || licenses.len() != 7 {
+        if !(2..=8).contains(&entries.len()) || licenses.len() != components.len() {
             return Err(Error::Admission(
                 "runtime library or license set incomplete",
             ));
         }
-        for component in lock["components"]
-            .as_array()
-            .ok_or(Error::Admission("invalid compiled source lock"))?
-        {
+        for component in components {
             let expected = format!(
                 "licenses/ocio/{}-LICENSE.txt",
                 component["name"]

@@ -1,5 +1,8 @@
 # #83 固定原生 OCIO 准备接口
 
+本文件记录 `9c216ca4` 的准备接口批次。后续随包交付、平台依赖和 CI 门禁
+增量见 [native-ocio-bundling.md](native-ocio-bundling.md)，不以新增路由替代实际平台验收。
+
 ## 交付范围
 
 桌面运行时方案采用随包分发固定原生 OCIO，用户已明确选择。
