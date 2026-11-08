@@ -206,7 +206,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err("source video exceeds owned media byte limit".into());
     }
     let original_sha = hash(&original)?;
-    let source = root.join("source.mp4");
+    let assets = root.join("assets");
+    fs::create_dir(&assets)?;
+    let source = assets.join("source.mp4");
     if fs::copy(&original, &source)? != bytes || hash(&source)? != original_sha {
         return Err("copied original video differs from source bytes".into());
     }
@@ -215,7 +217,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut probe =
         motion_desktop_media::platform().probe_video(&source, None, Some(u32::MAX), &|| Ok(()))?;
     probe.asset.id = 75;
-    probe.asset.path = "source.mp4".into();
+    probe.asset.path = "assets/source.mp4".into();
     probe.asset.validate()?;
     let end = start
         .checked_add(count)
