@@ -8,6 +8,7 @@ This recipe does not enable managed rendering or alter numerical references.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -22,6 +23,21 @@ import urllib.request
 
 LOCK = Path(__file__).with_name("ocio_sources.json")
 PLATFORMS = ("windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-arm64")
+
+
+def stderr_error(message):
+    """An unavailable Python stream cannot replace the primary failure."""
+    try:
+        print(message, file=sys.stderr)
+    except Exception as sink_error:
+        fallback = (f"OCIO stderr stream unavailable type={type(sink_error).__name__}; "
+                    "original error follows\n" + message + "\n")
+        try:
+            os.write(2, fallback.encode("utf-8", errors="replace"))
+        except OSError:
+            # Both diagnostic transports are unavailable. The caller must still
+            # raise its original exception, never this secondary sink failure.
+            return
 
 
 def digest(path):
@@ -159,6 +175,71 @@ class Build:
         with (self.output / "events.jsonl").open("a", encoding="utf-8") as log:
             log.write(json.dumps(value, ensure_ascii=False) + "\n")
 
+    def stage_error(self, context, started, error, *, operation="done"):
+        # Keep the business exception primary even if its observation sink also
+        # fails. Fixed-source stages never include configuration text or URLs.
+        value = dict(level="error", operation=operation,
+                     elapsed_ms=int((time.monotonic() - started) * 1000),
+                     cause_type=type(error).__name__, cause=str(error)[:2048], **context)
+        try:
+            self.event(**value)
+        except Exception as sink_error:
+            stderr_error(f"ERROR OCIO observation component={context['component']} phase={context['phase']} "
+                         f"type={type(sink_error).__name__} cause={str(sink_error)[:2048]}")
+        stderr_error("ERROR OCIO " + json.dumps(value, ensure_ascii=False))
+
+    @contextlib.contextmanager
+    def stage(self, component, phase, path):
+        """Observe serial preparation IO before entering it; never retry it."""
+        context = dict(component=component, phase=phase, path=str(path)[:1024])
+        started = time.monotonic()
+        state = self.output / "in-flight.json"
+        def flight(running):
+            state.write_text(json.dumps(dict(**context, running=running)), encoding="utf-8")
+        try:
+            flight(True)
+            self.event(level="info", operation="start", **context)
+            yield
+        except BaseException as error:
+            # KeyboardInterrupt/SystemExit still propagate unchanged. They are
+            # an explicit interrupted operation rather than a dependency fault.
+            cancelled = isinstance(error, KeyboardInterrupt) or (
+                isinstance(error, SystemExit) and error.code in (None, 0))
+            if not cancelled:
+                self.stage_error(context, started, error)
+            try:
+                flight(False)
+            except Exception as cleanup:
+                self.stage_error(context, started, cleanup, operation="clear_in_flight_failed")
+            if cancelled:
+                try:
+                    self.event(level="debug", operation="cancelled", **context)
+                except Exception as sink_error:
+                    self.stage_error(context, started, sink_error, operation="record_cancellation_failed")
+            raise
+        else:
+            try:
+                flight(False)
+            except Exception as cleanup:
+                self.stage_error(context, started, cleanup, operation="clear_in_flight_failed")
+                raise
+            self.event(level="debug", operation="done",
+                       elapsed_ms=int((time.monotonic() - started) * 1000), **context)
+
+    def prepare_sources(self, components, cache, offline):
+        folder = self.output / "sources"
+        with self.stage("sources", "prepare_directories", folder):
+            cache.mkdir(parents=True, exist_ok=True)
+            folder.mkdir()
+        prepared = {}
+        for item in components:
+            path = cache / (item["name"] + "-" + item["commit"] + ".tar.gz")
+            with self.stage(item["name"], "source_download", path):
+                archive = download(item, cache, offline)
+            with self.stage(item["name"], "source_extract", folder / item["name"]):
+                prepared[item["name"]] = extract(archive, folder / item["name"])
+        return prepared
+
     def run(self, component, phase, command):
         context = dict(component=component, phase=phase, command=command)
         started = time.monotonic()
@@ -176,7 +257,7 @@ class Build:
                        elapsed_ms=elapsed, exit_code=result.returncode, **context)
             if result.returncode:
                 message = f"OCIO component={component} phase={phase} elapsed_ms={elapsed} exit={result.returncode}; logs={stem}"
-                print(message, file=sys.stderr)
+                stderr_error(message)
                 raise subprocess.CalledProcessError(result.returncode, command)
         finally:
             if not completed:
@@ -312,17 +393,24 @@ def main():
     build = Build(output, args.platform, cmake, ninja, args.jobs)
     try:
         cache = args.source_cache.resolve()
-        cache.mkdir(parents=True, exist_ok=True)
-        folder = output / "sources"
-        folder.mkdir()
         components = sources(args.platform)
-        prepared = {item["name"]: extract(download(item, cache, args.offline), folder / item["name"]) for item in components}
+        prepared = build.prepare_sources(components, cache, args.offline)
         build.compile(prepared)
-        manifest = publish(build, components, prepared)
+        with build.stage("runtime", "publish", build.prefix / "ocio-runtime.json"):
+            manifest = publish(build, components, prepared)
     except BaseException as error:
         message = f"OCIO preparation failed type={type(error).__name__} cause={str(error)[:2048]}"
-        build.event(level="error", operation="prepare", cause=message)
-        print(message, file=sys.stderr)
+        # A broken log filesystem must not replace the original preparation
+        # exception. stderr remains independent of the JSON manifest stdout.
+        try:
+            cancelled = isinstance(error, KeyboardInterrupt) or (
+                isinstance(error, SystemExit) and error.code in (None, 0))
+            build.event(level="debug" if cancelled else "error",
+                        operation="prepare", cause=message)
+        except Exception as sink_error:
+            stderr_error(f"OCIO preparation observation failed type={type(sink_error).__name__} "
+                         f"cause={str(sink_error)[:2048]}")
+        stderr_error(message)
         raise
     print(json.dumps(dict(manifest=str(manifest))))
 
