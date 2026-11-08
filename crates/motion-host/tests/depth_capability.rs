@@ -1169,12 +1169,29 @@ fn capability_policy_bounds_requests_candidates_and_nonfinite_limits() {
         }]
     )
     .is_err());
-    let inputs: Vec<_> = (0..9)
-        .map(|_| Input {
-            profile: &empty,
+    // Use valid, distinct configurations: an empty profile or duplicates would
+    // fail independently and could hide a removed candidate-count bound.
+    let profiles: Vec<_> = (0..9)
+        .map(|index| {
+            let mut k = key();
+            k.model.sha256 = [index + 1; 32];
+            sampled_profile(k, execution(), [1, 2, 3, 4, 5, 6], 1)
+        })
+        .collect();
+    let inputs: Vec<_> = profiles
+        .iter()
+        .map(|profile| Input {
+            profile,
             qualification: None,
         })
         .collect();
+    assert_eq!(
+        policy::select(policy_request(), &inputs[..8])
+            .unwrap()
+            .candidates()
+            .len(),
+        8
+    );
     assert!(policy::select(policy_request(), &inputs).is_err());
 }
 
