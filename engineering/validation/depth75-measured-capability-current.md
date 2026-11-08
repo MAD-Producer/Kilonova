@@ -1,11 +1,12 @@
 # Depth capability measurements (#75)
 
-Status: the original 175-target host/render/media regression and all nineteen
-new native controls passed at `26b9156d`; actual predecoded CPU and WGSL probes
-also passed. The first actual video probe failed the existing managed-asset path
-contract. Its source path has been corrected; corrected actual-video and the
-thirteen later multi-criterion policy controls remain pending. The complete
-first controller failed and has not been relabeled as a pass. This is not
+Status: the original175-target host/render/media regression and nineteen new
+native controls passed at `26b9156d`. The complete28-case capability target
+(including thirteen later policy controls) and actual consecutive CPU/WGSL video
+probes passed at `8fdb718b`. Two original controller failures remain explicitly
+retained: an unmanaged example path, then missing color declarations in the
+authored fixture. Both were corrected at their respective boundaries; no asset,
+color, numerical, timing or existing test assertion was relaxed. This is not
 completion of #75. No Android work is included.
 
 ## Construction and timing boundary
@@ -170,11 +171,11 @@ planes are released between samples. The explicit manual-driver wait remains
 The single stdout result and `measurements.json` retain observed whole-worker
 and backend phase timings. Default file logging publishes starts before source
 registration/probing and before worker decode/inference; failures retain original
-causes and reach Error file/stderr. The first actual-codec run exposed the
-managed-path error described below; corrected execution is pending. Even a
-successful small authored-video control would establish
-pipeline execution only; it would not establish photographed-video accuracy,
-quality-transition stability, peak memory or sustained/thermal qualification.
+causes and reach Error file/stderr. Actual execution and its two preceding
+failures are described below. The small authored-video control establishes
+pipeline execution and same-model numerical equivalence only; it does not
+establish photographed-video accuracy, quality-transition stability, peak memory
+or sustained/thermal qualification.
 
 ## Actual native and initial model observations
 
@@ -212,31 +213,80 @@ outputs are retained in `depth75-measured-capability-v1`.
 The corrected driver now creates `assets/source.mp4` in its new owned root and
 registers that same relative managed path. It preserves original-byte checks,
 the asset validator, original frame selection and every numerical/timing gate.
-This source correction requires its own actual video verification. The separate
-multi-criterion policy is documented in
+Its independent actual verification and the fixture correction are recorded
+below. The separate multi-criterion policy is documented in
 [its current validation record](depth75-qualified-capability-policy-current.md).
+
+## Corrected actual-video and policy qualification
+
+Session45901 was consumed with exit1 at unchanged `8fdb718b`. Its complete
+integration target passed28 controls (original15 plus later13), zero failures,
+ignores or filtering; its actual examples and WGSL worker build also passed.
+The actual decoder then refused the authored video because both primaries and
+transfer were `Unspecified`. Independent `ffprobe` confirmed that the original
+encoded stream and all three decoded frames lacked both declarations. The
+original `-color_primaries`/`-color_trc` encoder arguments had not established
+that evidence. Error file/stderr and empty stdout were verified; no inference
+result was manufactured.
+
+A separate authored-fixture correction used the pinned FFmpeg `h264_metadata`
+bitstream filter to declare the intended BT.709 primaries, sRGB transfer and
+BT.709 matrix. This is an explicit declaration for generated test material,
+not an assumption about user media. Independent frame MD5 records confirm all
+three decoded YUV planes and exact source timestamps are unchanged. The original
+file SHA-256 is `01bc6b7d4b0e4deb77a3c02da39a625db97a2afbcb43ab04987f2d685733f18c`;
+the separately declared fixture is
+`6af90c3aa8f759f9617f73dc41efe03388c26bfd702c39d20f73396c9181c05b`.
+Both original failures remain failed; no controller receipt was relabeled.
+
+Session93439 then completed and was consumed with exit0, with the same source
+and built executable identities. It reused the existing native28-case proof
+and product build, without rerunning unchanged regression stages. Actual libav
+registration/decode and uncached learned inference each completed two consecutive
+indexed frames at64x48, preserving original bytes, indexed PTS/exclusive end,
+RGB fingerprints, depth hashes, exact model/runtime identity and zero reuse.
+
+| Actual video backend | All observed worker totals (ms) | Retained managed GPU buffers |
+| --- | --- | --- |
+| CPU ONNX | 21036.090, 6849.178 | Unknown |
+| WGSL Vulkan | 21950.074, 20764.274 | 227,968,156 bytes |
+
+Same-model CPU/WGSL comparisons used the unchanged bounds: normalized maximum
+`2e-4` and mean `2e-5`, without fitted affine correction or clamping. For the
+two complete3072-value outputs the observed maximum/mean were respectively
+`9.6054973e-6 / 1.5510078e-6` and `3.1940975e-6 / 3.5511152e-7`.
+These are equivalence residuals, not independent-reference model accuracy.
+
+Corrupt-video, missing-program and original-undeclared-color controls all
+returned their original errors, logged Error to file and stderr, retained
+before-operation Info starts, kept stdout empty and emitted no measurement.
+The undeclared original video still fails its unchanged color contract.
+
+The [archive](data/depth75-capability-measurements-v3.zip) and
+[manifest](data/depth75-capability-measurements-v3.json) retain original failures,
+completed native stages, controllers, raw output logs and aggregate records.
+All63 members were read back and verified:1,013,241 bytes, SHA-256
+`535063525d321463f6c1f1ef2339909063c13b1b4a9e15f9be1f9f01a0a2370e`.
+No weights, plans, executable binaries, media, RGB or depth tensors are included.
 
 ## Pending acceptance and remaining issue scope
 
-- Run all thirteen later policy controls with the original fifteen controls in
-  the same integration target; preserve assertions, GPU/FFmpeg features and
-  the original runtime/build policy
-- Retain and publish the failed original controller alongside the qualified
-  native/predecoded stages and the corrected example's independent results
-- Run the actual libav video example on consecutive source samples for CPU and
-  WGSL, verify preserved original bytes/PTS/RGB/depth ownership and phase costs,
-  then perform the separately required real-video/quality-transition benchmark
-- Qualify the implemented bounded profile aggregation and latency admission,
-  then combine them with quality/memory/sustained evidence in a complete measured
-  policy with requested/resolved backend/model and precomputed-depth disposition
-- Qualify accuracy/domain suitability, conservative memory admission, sustained
-  execution/thermal behavior and continuous-video quality transitions before
-  assigning fast/standard/high. Neither backend name, model input resolution nor
-  a single successful timing establishes a quality rank or device capability
+- Measure independent domain accuracy, conservative whole-host/device memory,
+  sustained execution and thermal behavior; external policy report fixtures
+  establish admission behavior only and cannot qualify real hardware or models
+- Supply those actual records to the explicit multi-criterion selection and
+  integrate qualified choices into transition, installation and frozen export
+- Verify continuous photographed-video quality transitions before assigning
+  automatic fast/standard/high mappings; backend names, resolution or successful
+  timing alone do not establish a quality rank
+- Complete the final maintained-workspace and exact-head remote CI gates after
+  remaining source changes; preserve existing assertions, features and budgets
 
 The separate full maintained workspace at parent `4729ab6d` finished and its
-original session 27030 was consumed with exit 0 before session 16790 started:
-5,240 passes, zero failures, 78 original ignores, zero filtering and all 447
+original session27030 was consumed with exit0 before session16790 started:
+5,240 passes, zero failures,78 original ignores, zero filtering and all447
 source-bound targets. Its separate remote CI expression-budget failure remains
-unresolved. Neither that parent pass nor the current partial controller proves
-later policy, corrected actual-video, complete workspace or final CI acceptance.
+unresolved. That parent workspace pass, the175-target pass at `26b9156d`, and
+current28-case/video qualification at `8fdb718b` retain distinct source scopes.
+None is a later complete-workspace, final CI, real thermal or #75 completion
+claim.

@@ -1,10 +1,12 @@
 # Explicit multi-criterion depth admission (#75)
 
-Status: prepared implementation and thirteen appended integration controls;
-native execution and real qualification remain pending. Parent source
-`26b9156d` is undergoing its independent original regression/model/video gate.
-Its frozen worktree has not been edited to add this stage. No Android, panels,
-default model distribution or dependency changes are included.
+Status: all thirteen appended policy controls and fifteen original integration
+controls passed in the complete28-case native target at `8fdb718b`, with zero
+failures, ignores or filtering. Real quality, whole-memory, sustained/thermal
+qualification and product integration remain pending. The original regression
+and actual-video results have distinct source scopes and preserved failures in
+[the measurement record](depth75-measured-capability-current.md). No Android,
+panels, default model distribution or dependency changes are included.
 
 ## Scope and evidence boundary
 
@@ -74,7 +76,7 @@ precomputed resource; it does not create one or claim AI success. The pure stage
 performs no IO, logging, inference, installation, retries, fallback or product
 configuration change.
 
-## Prepared verification and remaining work
+## Native verification and remaining work
 
 The thirteen appended `capability_policy_*` controls use actual measured Jobs
 profiles with controlled backends. They cover exact boundaries, all three
@@ -86,13 +88,18 @@ the actual managed-buffer lower bound, and worst-case selection without
 discarding samples, and explicit measurement-protocol matching and retained
 report identity. The original fifteen integration controls remain unchanged.
 
-Formatting, syntax parsing and diff checks are preparatory evidence only. Do not
-claim these thirteen controls passed until their original native command reaches
-a verified terminal result. Continue using one own heavy workload at a time.
+The original command completed the entire28-case target, with all28 named
+controls independently counted exactly once and its executable bound through
+Cargo dep-info to this source. The source remained unchanged throughout the
+controller; its subsequent video-fixture failure remains a failure. The
+[measurement archive](data/depth75-capability-measurements-v3.zip) retains that
+raw command and result. Later corrected actual-video qualification did not
+rerun or replace this native evidence. No existing assertion, feature, ignore,
+deadline or numerical threshold was changed.
 
 Real independent domain quality, conservative whole-memory observations,
 sustained/thermal records and continuous-video transition acceptance remain
 required. The host has not been switched to automatic selection, no real report
 has been invented and no unresolved #75 or #88 acceptance item is closed by
-this prepared admission stage. Integration into the existing transition,
+this tested admission stage. Integration into the existing transition,
 installation and frozen-export path must consume actually qualified choices.
