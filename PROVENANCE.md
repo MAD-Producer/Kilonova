@@ -134,3 +134,14 @@ buffer interpolation, and uses the official Naga public IR to guard dispatch
 bounds before normal validation/WGSL output. No upstream library source patch,
 arbitrary 3D LUT approximation, or commercial binary content is used. This layer
 does not establish the final image, decode or OS display workflow.
+
+The explicit native-runtime recipe separately builds pinned, unmodified OCIO
+2.6.0 and six static dependencies from official source archives. Its C ABI
+bridge and Rust ownership/admission layer are independently authored. The
+recipe retains all original dependency licenses and emits a content-identified
+runtime manifest; exact revisions, licenses and modification scope are in
+ATTRIBUTION.md and tools/ocio_sources.json. The upstream runtime includes its
+embedded configuration resources, but no implicit application configuration is
+selected. This native preparation interface is not yet ordinary Session or
+desktop release integration. The external Python numerical reference tool and
+its fixtures remain separate and unchanged.

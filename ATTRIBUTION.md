@@ -375,6 +375,32 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 排序 API，与项目独立编写的字素/字体/脚本分段和塑形布局组合。不新增或分发字体
 及第三方界面资产；接入模块不代表产品绘制或整个 #129 已完成。
 
+## 固定原生 OpenColorIO 运行时（显式准备）
+
+`tools/prepare_ocio.py` 从官方提交构建共享 OCIO 和本项目独立编写的 C ABI
+桥接库，六个依赖静态链接。它不使用系统 OCIO、Python wheel、隐式配置或
+上游二进制；不修改上游源码。`tools/ocio_sources.json` 保存每一项的提交、
+下载 URL、归档字节数、SHA-256、原始许可证路径和许可证 SHA-256。
+生成的 `prefix/licenses/ocio/` 保留全部七份原始许可证，
+`ocio-runtime.json` 记录实际库和许可证的字节身份。
+这一步提供原生准备接口；不表示普通 Session、桌面发布包或全部色彩链路已接通。
+
+| 组件 | 作者与固定官方提交 | 许可与修改范围 |
+| --- | --- | --- |
+| OpenColorIO 2.6.0 | Contributors to the OpenColorIO Project；[10a43ec1df03d072ca9a9e2fb3f26e454b0900d8](https://github.com/AcademySoftwareFoundation/OpenColorIO/tree/10a43ec1df03d072ca9a9e2fb3f26e454b0900d8) | BSD-3-Clause；仅构建选项，包含其上游内嵌配置；本项目不隐式选择这些配置 |
+| Expat 2.8.4 | Thai Open Source Software Center Ltd、Clark Cooper、Expat maintainers；[12cf0b1f25f026a022fe728ad8f7e3d017285b80](https://github.com/libexpat/libexpat/tree/12cf0b1f25f026a022fe728ad8f7e3d017285b80) | MIT；仅构建选项 |
+| yaml-cpp 0.9.0 | yaml-cpp contributors；[56e3bb550c91fd7005566f19c079cb7a503223cf](https://github.com/jbeder/yaml-cpp/tree/56e3bb550c91fd7005566f19c079cb7a503223cf) | MIT；仅构建选项 |
+| pystring 1.1.4 | Contributors to the Pystring project；[7d16bc814ccb4cad03c300dcb77440034caa84f7](https://github.com/imageworks/pystring/tree/7d16bc814ccb4cad03c300dcb77440034caa84f7) | BSD-3-Clause；独立编写 CMake 包装，不修改上游代码 |
+| Imath 3.2.3 | Contributors to the OpenEXR Project；[5f27ba266d3ea1565e912570c30b5eafc89959f1](https://github.com/AcademySoftwareFoundation/Imath/tree/5f27ba266d3ea1565e912570c30b5eafc89959f1) | BSD-3-Clause；仅构建选项 |
+| zlib 1.3.2 | Jean-loup Gailly、Mark Adler；[da607da739fa6047df13e66a2af6b8bec7c2a498](https://github.com/madler/zlib/tree/da607da739fa6047df13e66a2af6b8bec7c2a498) | Zlib；仅构建选项；此处固定提交归档与 FFmpeg 的发行归档分别记录身份 |
+| minizip-ng 4.2.2 | Nathan Moinvaziri、minizip-ng contributors；[7b2387161c542fa9f427352dcdef76097d0d692b](https://github.com/zlib-ng/minizip-ng/tree/7b2387161c542fa9f427352dcdef76097d0d692b) | Zlib；关闭加密、其他压缩库及自动下载，仅构建选项 |
+
+Rust 动态加载使用未修改的官方 libloading 0.8.9，作者为 libloading
+contributors，来源 [crates.io 固定发行版](https://crates.io/crates/libloading/0.8.9)，
+许可 ISC；现有 Cargo.lock 已锁定其归档 SHA-256
+`d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55`。
+该包原已用于图形依赖，此处新增直接依赖，不修改上游。
+
 ## OpenColorIO 数值参考工具（仅开发验收）
 
 后续配置目录导出同样使用该固定外部运行时，显式选择 CG 配置

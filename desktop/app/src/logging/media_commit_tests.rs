@@ -545,8 +545,35 @@ fn media_resource_cleanup_and_poisoned_reservation_preserve_default_channels() {
         stderr
             .matches("controlled native import provider panic")
             .count(),
+        4,
+        "two Error records plus two preserved original-hook reports"
+    );
+    assert_eq!(
+        stderr
+            .matches("ERROR motion_studio::logging: panic command=")
+            .count(),
         2
     );
+    let complete_reports = |stream: &str| {
+        stream
+            .matches("ERROR motion_studio::logging: panic command=")
+            .count()
+            == 2
+            && stream
+                .matches("controlled native import provider panic")
+                .count()
+                == 4
+    };
+    assert!(complete_reports(&stderr));
+    // Remove Error record prefixes while retaining all four original causes.
+    let missing_errors = stderr.replace("ERROR motion_studio::logging: panic command=", "");
+    assert!(!complete_reports(&missing_errors));
+    // The final occurrence belongs to the preserved original panic hook.
+    let cause = "controlled native import provider panic";
+    let last = stderr.rfind(cause).unwrap();
+    let mut missing_original = stderr.clone();
+    missing_original.replace_range(last..last + cause.len(), "");
+    assert!(!complete_reports(&missing_original));
     assert!(!stdout.contains("controlled native import provider panic"));
     assert!(!text.contains("PoisonError") && !stderr.contains("PoisonError"));
     for kind in ["audio", "video"] {

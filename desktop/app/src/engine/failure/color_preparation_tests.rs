@@ -6,6 +6,109 @@ use std::fs;
 mod fixture;
 
 #[test]
+fn native_color_runtime_load_failure_reaches_the_default_error_channels() {
+    const CHILD: &str = "MOTION_NATIVE_COLOR_LOG_CHILD";
+    const TEST: &str = "engine::failure::color_preparation_tests::native_color_runtime_load_failure_reaches_the_default_error_channels";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        let project = fixture::project();
+        fixture::write_resources(&root, &project);
+        let before = serde_json::to_value(&project).unwrap();
+        let observation = Observation::new(8101);
+        let error = prep::prepare_native_project_colors(
+            &project,
+            &root,
+            &root.join("unavailable-native-ocio.json"),
+            &observation,
+        )
+        .err()
+        .unwrap();
+        let prep::Error::Provider { source, .. } = error else {
+            panic!("native provider context must be retained")
+        };
+        let motion_host::Error::NativeColor(motion_effects::native_color::Error::Io {
+            phase: "manifest",
+            source,
+            ..
+        }) = *source
+        else {
+            panic!("original typed runtime IO error must be retained")
+        };
+        assert_eq!(source.kind(), std::io::ErrorKind::NotFound);
+        assert!(!observation.running());
+        assert_eq!(serde_json::to_value(&project).unwrap(), before);
+        let unmanaged = motion_core::Project::new(64, 64, 30, 120).unwrap();
+        assert!(prep::prepare_native_project_colors(
+            &unmanaged,
+            &root,
+            &root.join("unavailable-native-ocio.json"),
+            &Observation::new(8102)
+        )
+        .unwrap()
+        .is_none());
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let stdout_path = root.path().join("child.stdout");
+    let stderr_path = root.path().join("child.stderr");
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .stdout(fs::File::create(&stdout_path).unwrap())
+        .stderr(fs::File::create(&stderr_path).unwrap())
+        .spawn()
+        .unwrap();
+    let began = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if began.elapsed() > Duration::from_secs(20) {
+            let killed = child.kill();
+            let joined = child.wait();
+            panic!("native color log child exceeded 20s: kill={killed:?} wait={joined:?}");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let stdout = fs::read_to_string(stdout_path).unwrap();
+    let stderr = fs::read_to_string(stderr_path).unwrap();
+    assert!(status.success(), "{status}\n{stdout}\n{stderr}");
+    let file = fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    assert!(file.contains("logging initialized level=INFO"));
+    let errors: Vec<_> = file
+        .lines()
+        .filter(|line| line.contains("ERROR") && line.contains("color preparation request="))
+        .collect();
+    assert_eq!(errors.len(), 1, "{file}");
+    let error = errors[0];
+    for text in [
+        "request=8101",
+        "target=DefaultInput",
+        "provider failed",
+        "native OCIO phase=manifest",
+        "unavailable-native-ocio.json",
+        "elapsed_ms=",
+    ] {
+        assert!(error.contains(text), "{file}");
+        assert!(stderr.contains(text), "{stderr}");
+        assert!(!stdout.contains(text), "{stdout}");
+    }
+    let start = "color preparation request=8101 operation=prepare_project_colors phase=start";
+    assert!(file.find(start).unwrap() < file.find(error).unwrap());
+    assert!(!stderr.contains(start));
+    assert!(!errors.iter().any(|line| line.contains("request=8102")));
+    if let Some(directory) = std::env::var_os("MOTION_COLOR_TEST_EVIDENCE") {
+        let directory = PathBuf::from(directory);
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("motion-studio.log"), file).unwrap();
+        fs::write(directory.join("child.stdout"), stdout).unwrap();
+        fs::write(directory.join("child.stderr"), stderr).unwrap();
+    }
+}
+
+#[test]
 fn project_color_preparation_records_starts_original_causes_and_unwind_at_default_level() {
     const CHILD: &str = "MOTION_COLOR_PREPARATION_LOG_CHILD";
     const TEST: &str = "engine::failure::color_preparation_tests::project_color_preparation_records_starts_original_causes_and_unwind_at_default_level";
@@ -71,6 +174,7 @@ fn project_color_preparation_records_starts_original_causes_and_unwind_at_defaul
         .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
         .env(CHILD, root.path())
         .env_remove("MOTION_LOG")
+        .env("RUST_BACKTRACE", "0")
         .stdout(fs::File::create(&stdout_path).unwrap())
         .stderr(fs::File::create(&stderr_path).unwrap())
         .spawn()
@@ -124,11 +228,38 @@ fn project_color_preparation_records_starts_original_causes_and_unwind_at_defaul
         "phase=resolve",
         "phase=abandoned",
         "controlled color provider panic",
-        "Backtrace::force_capture",
     ] {
         assert!(file.contains(cause), "{file}");
         assert!(stderr.contains(cause), "{stderr}");
         assert!(!stdout.contains(cause));
+    }
+    let has_frame = |text: &str| {
+        text.lines().any(|line| {
+            line.trim_start()
+                .split_once(':')
+                .is_some_and(|(index, frame)| {
+                    index.parse::<u32>().is_ok() && !frame.trim().is_empty()
+                })
+        })
+    };
+    assert!(
+        has_frame(&file),
+        "forced file backtrace is required even with RUST_BACKTRACE=0"
+    );
+    assert!(
+        has_frame(&stderr),
+        "forced stderr backtrace is required even with RUST_BACKTRACE=0"
+    );
+    // Negative control uses the actual captured failure, retaining its cause
+    // and context but removing its frame records. A cause alone is not a trace.
+    for original in [&file, &stderr] {
+        let without_frames = original
+            .lines()
+            .filter(|line| !has_frame(line))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(without_frames.contains("controlled color provider panic"));
+        assert!(!has_frame(&without_frames));
     }
     assert!(!errors.iter().any(|line| line.contains("request=7004")));
     if let Some(directory) = std::env::var_os("MOTION_COLOR_TEST_EVIDENCE") {

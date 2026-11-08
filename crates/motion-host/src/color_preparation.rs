@@ -137,6 +137,44 @@ pub struct Request<'a> {
     pub output_alpha: AlphaMode,
 }
 
+/// Prepare with the explicitly bundled native runtime. Loading happens inside
+/// the existing observed provider operation, after its Info start and in-flight
+/// publication. The real native error remains in the host source chain.
+/// Scene installation still requires the full managed rendering contract.
+pub fn prepare_native_project_colors(
+    project: &Project,
+    root: &Path,
+    runtime_manifest: &Path,
+    observation: &Observation,
+) -> Result<Option<PreparedProjectColors>, Error> {
+    let mut runtime = None;
+    prepare_project_colors(
+        project,
+        root,
+        |request| {
+            if runtime.is_none() {
+                runtime = Some(motion_effects::native_color::NativeColorRuntime::load(
+                    runtime_manifest,
+                )?);
+            }
+            let native = runtime.as_ref().ok_or_else(|| {
+                crate::Error::from(motion_effects::native_color::Error::Admission(
+                    "native runtime was not retained",
+                ))
+            })?;
+            let program = native.prepare(
+                request.config,
+                request.selection,
+                request.phase,
+                request.input_alpha,
+                request.output_alpha,
+            )?;
+            Ok(program.source().clone())
+        },
+        observation,
+    )
+}
+
 #[derive(Clone)]
 pub enum PreparedInput {
     Color(Arc<CompiledColorImageProcessor>),

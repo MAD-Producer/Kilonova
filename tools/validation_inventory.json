@@ -472,6 +472,21 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow unittest discovery; tests counter identity/unknown/reset handling and real child failure rejection, not GPU acceptance."
+    },
+    "tools/prepare_ocio.py": {
+      "mode": "manual",
+      "command": "python tools/prepare_ocio.py --platform windows-x86_64 --output artifacts/ocio-native-new --source-cache artifacts/ocio-sources",
+      "requires": [
+        "Native C/C++ desktop toolchain, CMake 3.26+ and Ninja",
+        "Pinned sources or network access to official GitHub source archives",
+        "New exclusive output directory"
+      ],
+      "reason": "Explicit native runtime preparation. No ambient OCIO/Python fallback; current CI tests admission and provenance without installing the runtime or regenerating numerical references."
+    },
+    "tools/test_ci_ocio.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Verify source integrity, archive confinement, native build failure evidence, and exclusive runtime publication via standard unittest discovery."
     }
   },
   "android_tests": {
