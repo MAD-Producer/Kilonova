@@ -42,7 +42,7 @@ mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;
 mod readback;
-pub use readback::{ImageReadbackInfo, TimestampReadbackInfo};
+pub use readback::{ImageReadbackInfo, TimestampReadbackInfo, ReadbackError};
 mod memory;
 mod memory_pressure;
 pub use memory_pressure::{MemoryPressureLogScope, MemoryPressurePool, MemoryPressureReading, MemoryPressureSnapshot,
@@ -100,7 +100,7 @@ pub use presenter::{Presenter, ViewChannel};
 pub use viewer_snapshot::ViewerSnapshot;
 pub use quality::{PreviewMode, PreviewPolicy, PreviewTier};
 pub use renderer::premultiply_pixels;
-pub use renderer::ModelSourceCatalog;
+pub use renderer::{ModelSourceCatalog, ModelSourceError};
 pub use renderer::{CaptureTarget, ExposureTarget, LayerRaster, RenderError, RenderStats, RenderTarget, Renderer};
 pub use renderer::FIXED_RENDERER_ALLOCATION_BYTES;
 pub use renderer::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};

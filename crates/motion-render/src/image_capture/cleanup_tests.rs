@@ -1,0 +1,124 @@
+use super::*;
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn gpu_only_readback_releases_temporary_staging_after_cancelled_map_and_recovers() {
+    use motion_effects::image_contract::{ChannelPrecision, ImageContract, ImageMeaning};
+    use std::error::Error;
+
+    let renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let contract = ImageContract::new(
+        ImageMeaning::Color {
+            space: motion_effects::WorkingSpace::Linear,
+            alpha: motion_effects::AlphaMode::Premultiplied,
+        },
+        ChannelPrecision::Float32,
+    );
+    let target = renderer.image_render_target(17, 2, contract).unwrap();
+    let retained = renderer.allocation_budget().info().unwrap().admitted_bytes;
+    let before = renderer.image_readback_info();
+    crate::readback::cancel_next_map();
+    let error = renderer.read_image_target(&target).unwrap_err();
+    assert!(matches!(
+        &error,
+        RenderError::NativeReadback(crate::ReadbackError::Mapping {
+            context: "image capture mapping: ",
+            ..
+        })
+    ));
+    assert!(error
+        .source()
+        .unwrap()
+        .source()
+        .unwrap()
+        .is::<wgpu::BufferAsyncError>());
+    assert_eq!(target.readback_bytes(), 0);
+    assert_eq!(
+        renderer.allocation_budget().info().unwrap().admitted_bytes,
+        retained,
+        "failed temporary readback must release its staging allowance"
+    );
+    let failed = renderer.image_readback_info();
+    assert_eq!(failed.failed_calls, before.failed_calls + 1);
+    assert_eq!(failed.in_flight_calls, 0);
+    assert_eq!(failed.completed_calls, before.completed_calls);
+    renderer.check_health().unwrap();
+
+    let recovered = renderer.read_image_target(&target).unwrap();
+    assert_eq!(recovered.contract, contract);
+    assert_eq!(recovered.pixels, vec![0; 17 * 2 * 16]);
+    assert_eq!(
+        renderer.image_readback_info().completed_calls,
+        before.completed_calls + 1
+    );
+    assert_eq!(
+        renderer.allocation_budget().info().unwrap().admitted_bytes,
+        retained
+    );
+    renderer.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn unmap_guard_cleans_pending_and_successful_maps_without_repeating_a_failed_map() {
+    let renderer = pollster::block_on(Renderer::headless()).unwrap();
+    for phase in ["pending", "success", "failed"] {
+        let buffer = renderer.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("readback cleanup state"),
+            size: 256,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let (send, receive) = std::sync::mpsc::sync_channel(1);
+        buffer
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |result| {
+                send.send(result).unwrap();
+            });
+        if phase == "failed" {
+            buffer.unmap();
+        }
+        if phase != "pending" {
+            renderer
+                .device
+                .poll(wgpu::PollType::wait_indefinitely())
+                .unwrap();
+        }
+        drop(UnmapOnDrop {
+            buffer: &buffer,
+            receive: &receive,
+            failed: false,
+        });
+        renderer
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .unwrap();
+        if phase == "pending" {
+            assert!(receive.recv().unwrap().is_err());
+        } else {
+            assert!(matches!(
+                receive.try_recv(),
+                Err(std::sync::mpsc::TryRecvError::Disconnected)
+            ));
+        }
+        assert!(buffer.slice(..).get_mapped_range().is_err());
+        renderer.check_health().unwrap();
+        let (send, receive) = std::sync::mpsc::sync_channel(1);
+        buffer
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |result| {
+                send.send(result).unwrap();
+            });
+        renderer
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .unwrap();
+        receive.recv().unwrap().unwrap();
+        {
+            let view = buffer.slice(..).get_mapped_range().unwrap();
+            assert_eq!(&*view, &[0; 256]);
+        }
+        buffer.unmap();
+        renderer.check_health().unwrap();
+    }
+}

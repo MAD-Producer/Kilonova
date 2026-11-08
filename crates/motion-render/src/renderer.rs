@@ -16,7 +16,7 @@ mod model_layers;
 mod projected_mattes;
 mod depth_materials;
 use depth_materials::DepthMaterial;
-pub use model_layers::ModelSourceCatalog;
+pub use model_layers::{ModelSourceCatalog, ModelSourceError};
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
@@ -108,6 +108,8 @@ pub enum RenderError {
     ScratchGraph(#[from] crate::effect_plan::ScratchGraphError),
     #[error("GPU validation: {0}")]
     ScratchPlacement(#[from] crate::effect_plan::ScratchPlacementError),
+    #[error("GPU validation: {0}")]
+    TrackingPlate(#[from] motion_model::tracking::plate::Error),
     #[error(transparent)]
     LutPipeline(#[from] crate::NativeLutError),
     #[error(transparent)]
@@ -140,6 +142,8 @@ pub enum RenderError {
     ImageSamples(#[from] crate::image_formats::UnsupportedSamples),
     #[error("{0}")]
     Model(#[from] motion_model::Error),
+    #[error("GPU validation: {0}")]
+    ModelSource(#[from] ModelSourceError),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error("GPU validation: {0}")]
@@ -155,6 +159,8 @@ pub enum RenderError {
     Resource { rejection: ResourceRejection, message: String },
     #[error("GPU readback failed: {0}")]
     Readback(String),
+    #[error("GPU readback failed: {0}")]
+    NativeReadback(#[from] crate::ReadbackError),
     #[error(transparent)]
     CompositionPlan(#[from] crate::composition_plan::CompositionPlanError),
     // Keep protocol-facing text independent of the original boxed source.
@@ -2193,7 +2199,10 @@ impl Renderer {
         self.compositor.set_coverage_viewport(Some([viewport_width, viewport_height]));
         self.compositor
             .prepare(scene)
-            .map_err(|e| RenderError::Invalid(e.to_string()))?;
+            .map_err(|cause| {
+                let message = cause.to_string();
+                RenderError::from(cause).with_diagnostic(message)
+            })?;
         self.geometry_upload.clear();
         self.geometry_upload
             .extend(self.compositor.vertices.iter().map(|v| GeometryVertex {
@@ -3007,13 +3016,15 @@ impl Renderer {
             .map_async(wgpu::MapMode::Read, move |result| {
                 let _ = send.send(result);
             });
+        #[cfg(test)]
+        crate::readback::after_map(&target.buffer);
         self.device.poll(wgpu::PollType::wait_indefinitely())?;
         recv.recv()
-            .map_err(|e| RenderError::Readback(e.to_string()))?
-            .map_err(|e| RenderError::Readback(e.to_string()))?;
+            .map_err(|cause| crate::ReadbackError::Callback { context: "", cause })?
+            .map_err(|cause| crate::ReadbackError::Mapping { context: "", cause })?;
         let mut pixels = Vec::with_capacity((target.width * target.height * 4) as usize);
         {
-            let mapped = target.buffer.slice(..).get_mapped_range().map_err(|e| RenderError::Readback(e.to_string()))?;
+            let mapped = target.buffer.slice(..).get_mapped_range().map_err(|cause| crate::ReadbackError::Range { context: "", cause })?;
             observation.mapped(mapped.len() as u64);
             for row in mapped.chunks_exact(target.row_stride as usize) {
                 pixels.extend_from_slice(&row[..target.width as usize * 4]);

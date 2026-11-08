@@ -1,0 +1,65 @@
+{
+  "sourceCommit": "15067fc59fb7a814f0a1690c62f63949982e2220",
+  "run": 42346455984,
+  "namedPasses": 108,
+  "members": {
+    "controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "linux.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "linux.job.json": {
+      "bytes": 5898,
+      "sha256": "74655d66f2b71e7b0962c6df0dcf6f9328fdaeec8d9e834c95cdb965c0ff1efc"
+    },
+    "linux.log": {
+      "bytes": 528163,
+      "sha256": "be28ede8db4a82a2cbb37176128c412e70d0943f051f72ea40362e58c82257a3"
+    },
+    "macos.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "macos.job.json": {
+      "bytes": 5897,
+      "sha256": "f373426e488dcd65a75b71c02598a7caeacd4a6484ae67db8f24b0d06d568e14"
+    },
+    "macos.log": {
+      "bytes": 516144,
+      "sha256": "cd3338f24e1d4189c8dbf42b8fbea76c110804c410c6fa4bf786bb9733501523"
+    },
+    "receipt.json": {
+      "bytes": 25109,
+      "sha256": "64e3d32b3070e24eafa583258424194c8d43b247f7832eb330309e660fd2fcb8"
+    },
+    "session-consumed.json": {
+      "bytes": 77,
+      "sha256": "856d0a8cd7584b80f4f621751cb66cc79470963dffe0ea36d63664454586a2c6"
+    },
+    "windows.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "windows.job.json": {
+      "bytes": 5902,
+      "sha256": "3dbc9946a976f3bc2f9d6b84cc612ee81c3646f1a307c6e9a0c2c4b06c9e439c"
+    },
+    "windows.log": {
+      "bytes": 536226,
+      "sha256": "af820b8eaed7890f95f3d3f82e2f72801f48923096d1099b4994cd6ba43ed874"
+    },
+    "archive-controller-note.txt": {
+      "bytes": 103,
+      "sha256": "3156e6cf379a0e48e72a92bbfc6a43aaca744e93b14807ae9c0dde252f816ec7"
+    }
+  },
+  "archive": {
+    "file": "depth75-routing-ci-three-v1.zip",
+    "bytes": 363170,
+    "sha256": "4043a57afa17eef3353db8f3d2bf8238c05d4a05ba1ee61cfcf6576582c12369",
+    "verifiedMembers": 14
+  }
+}

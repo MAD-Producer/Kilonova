@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "status": "final_native_unqualified_rustc_access_violation_file_probe_passed",
+  "base": "32d3c8609f917fa2a2037c2280e13d2531338ed4",
+  "nativeExit": 101,
+  "nativeNamedPasses": 0,
+  "originalV1NamedPassesBeforeFlush": 41,
+  "limits": [
+    "Final native tests never started; earlier41 pass does not qualify final source",
+    "Actual corrected default file start while blocked and pixel Error file/stderr/stdout isolation passed",
+    "Compiler access violation cause remains unknown; no retries, assertion/feature/timeout/GPU changes",
+    "Source snapshots, failure, successful file control and original pre-flush failure retained; no full-workspace claim"
+  ],
+  "members": {
+    "native-final-failed/controller.py": {
+      "bytes": 2668,
+      "sha256": "baac8e508f6b168503cafc467b1ad788c6bd6a92c95088ebe1bac90d70801fcd"
+    },
+    "native-final-failed/receipt.json": {
+      "bytes": 855482,
+      "sha256": "82732ddb20b68aa567f45cf08476f97169b20a4c2c4f4f56ec2a51b57dc6b0e6"
+    },
+    "native-final-failed/session-consumed.json": {
+      "bytes": 82,
+      "sha256": "432c56f9a84fdf596693f7576f7b4e1eed387a2c34ee5251408d7be655eefe1d"
+    },
+    "native-final-failed/stderr.log": {
+      "bytes": 4021,
+      "sha256": "9c48a289baa2ee4259c8fd3fb5b9dee96b0ad6bc58743579c52db0b57c64c3b6"
+    },
+    "native-final-failed/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-final-passed/actual.stderr.log": {
+      "bytes": 137,
+      "sha256": "0468aee808f47469ebdbf843a43269f30f54a2f3cce9bcaf36c750b15b51c15c"
+    },
+    "file-final-passed/actual.stdout.log": {
+      "bytes": 52,
+      "sha256": "0ac34d69a8080ec7913bcc21c32c5be721f8058495921593a41677b98e3e42eb"
+    },
+    "file-final-passed/build.stderr.log": {
+      "bytes": 1648,
+      "sha256": "be8bcbb6648829dbf62186a62bfe20440346cb1eb562266d49e2906c56c3d99a"
+    },
+    "file-final-passed/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-final-passed/controller.py": {
+      "bytes": 3208,
+      "sha256": "3dd2e0c3179a26af4aace31fc45cbdc5a04e2223ee73f6daa0be504b9899843b"
+    },
+    "file-final-passed/metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-final-passed/metadata.stdout.log": {
+      "bytes": 1558889,
+      "sha256": "e57e0064099c4bd84151859f49ea7c4c034e5aad6745db483e8d067923f2d46a"
+    },
+    "file-final-passed/receipt.json": {
+      "bytes": 1598,
+      "sha256": "816d61da872ba4b1cc4695f2a260cd935ac6075077f6182ba07b9189b6c39d59"
+    },
+    "file-final-passed/session-consumed.json": {
+      "bytes": 81,
+      "sha256": "8e1b6ece3cb4fd4bf2ad7e671a171109995c9e22d8b7f87e232fe94d2e937fa1"
+    },
+    "file-final-passed/motion-studio.log": {
+      "bytes": 1394,
+      "sha256": "1a98e6152d962e62ec348b2da3554a750c10b1edc7bd1c68f6ff7ded3ce090d2"
+    },
+    "file-before-flush-failed/actual.stderr.log": {
+      "bytes": 284,
+      "sha256": "bc796817e75237fb2a14e5dae17e16380412b01a49a43981301baae1c95e5c28"
+    },
+    "file-before-flush-failed/actual.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-before-flush-failed/build.stderr.log": {
+      "bytes": 2132,
+      "sha256": "26422b72992020990abb3ef5a8b42a8aaa4a4afed935e74ae55f6a2eed376cf2"
+    },
+    "file-before-flush-failed/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-before-flush-failed/controller.py": {
+      "bytes": 3208,
+      "sha256": "983c9d779a7c64dfd1af3b43d213f9ba5e01fecffd3450129e6f4816d984d0a7"
+    },
+    "file-before-flush-failed/metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-before-flush-failed/metadata.stdout.log": {
+      "bytes": 1558889,
+      "sha256": "e57e0064099c4bd84151859f49ea7c4c034e5aad6745db483e8d067923f2d46a"
+    },
+    "file-before-flush-failed/receipt.json": {
+      "bytes": 1618,
+      "sha256": "84b4da5ced61dfb59c49601fb78554e4e578f027e1313e6be7db334d7508f02b"
+    },
+    "file-before-flush-failed/session-consumed.json": {
+      "bytes": 195,
+      "sha256": "c376cb764bc8c67b5df32cf7daf8837879e8da2701e00125bb3791f893f7f19b"
+    },
+    "file-before-flush-failed/motion-studio.log": {
+      "bytes": 4015,
+      "sha256": "3631afd0eba6a0dd5df7b027d760c57aae1b92a7d2a78e427370aa807f7a2fe5"
+    },
+    "source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 12906,
+      "sha256": "72348ff569a9a79f58fda96fde8a59078ef5f14ab2acebf6d7c450d03e361c6a"
+    },
+    "source/crates/motion-host/src/depth/transition/admission.rs": {
+      "bytes": 5350,
+      "sha256": "5fdf65a31ed06f8d97cb267d8a0b58206a6b95ed53698695f8f9cbc8efd898af"
+    },
+    "source/crates/motion-host/tests/depth_aligned_admission.rs": {
+      "bytes": 8125,
+      "sha256": "aef3843f1cb16eaf849f12f0323d3fa0803643e782e6cdb64141aaf9cb976eab"
+    },
+    "fixture/Cargo.toml": {
+      "bytes": 351,
+      "sha256": "7d4dbfb77eb578a545c6d4472b1ee5a7d4d28970dbaf5b9629e11674b357f73b"
+    },
+    "fixture/Cargo.lock": {
+      "bytes": 73402,
+      "sha256": "ce569fd9a9d5721209b47043114d250ee5caf713ed6958b8338ba4274758117f"
+    },
+    "fixture/src/main.rs": {
+      "bytes": 6483,
+      "sha256": "6ae868914b0bb80b1b2ff01a498ef380d5789baed6353fd90e12cb77b15df43c"
+    }
+  },
+  "archive": {
+    "file": "depth75-aligned-boundaries-v1.zip",
+    "bytes": 601483,
+    "sha256": "3cacf7686bb4b2a400d6ec4a9ba250701e843debd10af26328bd6cc39585c2c3",
+    "verifiedMembers": 32
+  }
+}

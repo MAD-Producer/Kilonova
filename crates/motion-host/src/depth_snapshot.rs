@@ -5,6 +5,8 @@ use motion_render::Scene;
 use std::path::Path;
 #[cfg(feature = "ai-depth")]
 mod video;
+#[cfg(feature = "ai-depth")]
+pub(crate) mod alignment;
 mod wire;
 #[cfg(feature = "ai-depth")]
 pub(crate) use video::VideoEntry;
@@ -26,6 +28,7 @@ pub(crate) struct Entry {
     pub input: PreparedDepthInput,
     pub calibration: SavedDepthCalibration,
     pub estimate: Arc<Estimate>,
+    pub alignment: Option<alignment::Frozen>,
     pub request: u64,
     pub decoded_budget: u64,
 }
@@ -153,15 +156,19 @@ impl DepthSnapshot {
             {
                 return Err("frozen depth resource differs from original request".into());
             }
-            entry
-                .calibration
-                .rebind(&entry.estimate.resource, entry.input)?;
+            if let Some(alignment) = &entry.alignment {
+                alignment.calibration(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
+            } else {
+                entry.calibration.rebind(&entry.estimate.resource, entry.input)?;
+            }
         }
         self.validate_videos(&objects)?;
         let mut identities: Vec<Owned> = Vec::new();
         let mut memory = 0u64;
         let mut disk = 0u64;
         for plane in self.entries.iter().map(|e| Owned::Memory(e.estimate.clone()))
+            .chain(self.entries.iter().filter_map(|e| e.alignment.as_ref())
+                .map(|a| Owned::Memory(a.reference().clone())))
             .chain(self.videos.iter().map(|e| e.estimate.clone())) {
             if !identities.iter().any(|old| old.same(&plane)) {
                 let total = match &plane { Owned::Memory(_) => &mut memory, Owned::File(_) => &mut disk };
@@ -381,12 +388,17 @@ impl DepthSnapshot {
                     )
                     .into());
                 }
-                prepared.attach_calibrated_depth(
-                    object,
-                    &entry.key.source,
-                    &entry.estimate.resource,
-                    entry.input,
-                )?;
+                if let Some(alignment) = &entry.alignment {
+                    let mapped = alignment.calibration(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
+                    prepared.attach_aligned_calibrated_depth(
+                        object, &entry.key.source, &alignment.reference().resource,
+                        &entry.estimate.resource, entry.input, &mapped, None,
+                    )?;
+                } else {
+                    prepared.attach_calibrated_depth(
+                        object, &entry.key.source, &entry.estimate.resource, entry.input,
+                    )?;
+                }
             }
             check()?;
             *scene = prepared;

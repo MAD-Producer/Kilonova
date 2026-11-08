@@ -11,6 +11,8 @@ mod exposure;
 mod project_shared;
 #[path = "model_layers/source_catalog.rs"]
 mod source_catalog;
+#[path = "model_layers/source_errors.rs"]
+mod source_errors;
 #[path = "model_layers/imported_cameras.rs"]
 mod imported_cameras;
 #[path = "model_layers/source_editing.rs"]

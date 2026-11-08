@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "status": "post_rebase_complete_host_and48_named_controls_passed",
+  "sourceCommit": "878e1c301a1f71ff95b1f14eace72016d5cb4888",
+  "rebasedMain": "adf529314647e559fad57a7da2107a1a3c4ffc92",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "motion-host",
+    "--features",
+    "ai-depth",
+    "--no-fail-fast",
+    "--",
+    "--test-threads=1"
+  ],
+  "totals": {
+    "passed": 443,
+    "failed": 0,
+    "ignored": 0,
+    "measured": 0,
+    "filtered": 0
+  },
+  "namedControls": 48,
+  "integrationTargets": 28,
+  "sourceDelta": {
+    "crates/motion-host/src/depth.rs": "07ca84eab3652009e8c4b779f3aa452265cc7c078887f1af658bd1df3586fc38",
+    "crates/motion-host/src/depth/onnx.rs": "c5ef7d24750c63418c7dd5ab2f23d92ab5c22cfdef1be25be34ce853ccaffd34",
+    "crates/motion-host/src/depth/transition.rs": "fe7ab6d1ca5609a204ae3f24f905f5b2d05ca4c08ae45aee458b39d06b33e26b",
+    "crates/motion-host/src/depth/transition/admission.rs": "934dbcdc48a9a406e9ad4740813bc3e6a79b229c8cef11eef7ce61f7a8082142",
+    "crates/motion-host/tests/depth_aligned_admission.rs": "aef3843f1cb16eaf849f12f0323d3fa0803643e782e6cdb64141aaf9cb976eab",
+    "crates/motion-host/tests/depth_worker_alignment.rs": "79d7281bbaca71d24fc1a1ba340ea61683730cd075e2c55fa047c0239fb643b1",
+    "desktop/app/src/logging/sink.rs": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+  },
+  "limits": [
+    "Actual complete host command after rebase to main-adf52931; older workspace5002 and host443 keep their earlier source boundaries",
+    "The original default-file RED/GREEN and final48 have identical selected code bytes and remain in the separate worker archive",
+    "Cross-platform CI for the new head and a fresh complete maintained workspace are separate qualifications",
+    "No Session automatic installation, persistent policy/cache/export, scene-quality tiers, video stability or thermal claim",
+    "No panel/UI, dependency, asset, Android, assertion, feature, ignore, GPU/backend, timeout or resource-admission change"
+  ],
+  "members": {
+    "controller.py": {
+      "bytes": 4972,
+      "sha256": "82c8b8a778f505199b61fe58df41e35082fb6474adc04b85785aad0680fe0b62"
+    },
+    "receipt.json": {
+      "bytes": 868959,
+      "sha256": "fd4d3e9345d3822a92806a1a71a57777638911533ca0b39a34c3d1eee9b73194"
+    },
+    "session-consumed.json": {
+      "bytes": 98,
+      "sha256": "18bac936342a9d04ec9d2fde3461b6aca8e8134fad9c6003d2ec5012527206de"
+    },
+    "stdout.log": {
+      "bytes": 48394,
+      "sha256": "6c47b6b5c6a848083fee6178d66d6b7118c39addd4e2d96cf2bb4fe5b4d51c4e"
+    },
+    "stderr.log": {
+      "bytes": 4933,
+      "sha256": "93f464e0281e53aaf8c1e0ca4c8eaeade0a08e31b3e6e65ade6844cd4ff12940"
+    },
+    "source/crates/motion-host/src/depth.rs": {
+      "bytes": 30962,
+      "sha256": "07ca84eab3652009e8c4b779f3aa452265cc7c078887f1af658bd1df3586fc38"
+    },
+    "source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 17638,
+      "sha256": "c5ef7d24750c63418c7dd5ab2f23d92ab5c22cfdef1be25be34ce853ccaffd34"
+    },
+    "source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 16056,
+      "sha256": "fe7ab6d1ca5609a204ae3f24f905f5b2d05ca4c08ae45aee458b39d06b33e26b"
+    },
+    "source/crates/motion-host/src/depth/transition/admission.rs": {
+      "bytes": 6854,
+      "sha256": "934dbcdc48a9a406e9ad4740813bc3e6a79b229c8cef11eef7ce61f7a8082142"
+    },
+    "source/crates/motion-host/tests/depth_aligned_admission.rs": {
+      "bytes": 8125,
+      "sha256": "aef3843f1cb16eaf849f12f0323d3fa0803643e782e6cdb64141aaf9cb976eab"
+    },
+    "source/crates/motion-host/tests/depth_worker_alignment.rs": {
+      "bytes": 15366,
+      "sha256": "79d7281bbaca71d24fc1a1ba340ea61683730cd075e2c55fa047c0239fb643b1"
+    },
+    "source/desktop/app/src/logging/sink.rs": {
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    },
+    "archive-controller.py": {
+      "bytes": 3896,
+      "sha256": "e69c4c45963fde3ab5009d3a9db3fd9abbc49d4e732e9c715df36d0b076d9b25"
+    }
+  },
+  "archive": {
+    "file": "depth75-worker-rebased-host-v1.zip",
+    "bytes": 333632,
+    "sha256": "8eed9110d2581ae06668f1b62b62ae52ffe4d23166fa23aed91ef8ba1a1184c6",
+    "verifiedMembers": 14
+  }
+}

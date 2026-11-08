@@ -1,0 +1,132 @@
+{
+  "status": "consumed_exact_parent_workspace_and_three_platform_controls",
+  "sourceCommit": "1a939a3dd71d4d37b6635fcbf8b035d615bd67b2",
+  "generatedUtc": "2026-11-07T12:14:08.711556+00:00",
+  "workspaceTotals": {
+    "passed": 5126,
+    "failed": 0,
+    "originalIgnored": 78,
+    "filtered": 0,
+    "summaryCount": 437,
+    "observedInvocations": 437,
+    "expectedInvocations": 437
+  },
+  "platforms": {
+    "linux": {
+      "job": 128369820921,
+      "namedPassingTests": 48
+    },
+    "macos": {
+      "job": 128369820920,
+      "namedPassingTests": 48
+    },
+    "windows": {
+      "job": 128369820889,
+      "namedPassingTests": 48
+    }
+  },
+  "members": {
+    "ci/linux/controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "ci/linux/linux.job.json": {
+      "bytes": 5897,
+      "sha256": "0b3e4f4f771fe01740c4c7a4763b8b8e287d7addf34afde4c815d6c29b128a9f"
+    },
+    "ci/linux/linux.log": {
+      "bytes": 536628,
+      "sha256": "f8ebac25a8db87fe22ab77e7c74fc57bc0ac26e7fcc4c6eb55be1c95b3e483b6"
+    },
+    "ci/linux/receipt.json": {
+      "bytes": 14122,
+      "sha256": "83b180474286a361292dea7b25980f404277bd621899f5f87ff5ee25618fe03d"
+    },
+    "ci/linux/session-consumed.json": {
+      "bytes": 154,
+      "sha256": "6dcdbf4c26a1761ab66ee20d34210e6eae8795ba66631a1a9908f1e6bffa650e"
+    },
+    "ci/macos/controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "ci/macos/macos.job.json": {
+      "bytes": 5896,
+      "sha256": "045a0e9624c86290810c63d72754b48076a5ddc216a45bce7fd815d48b473a02"
+    },
+    "ci/macos/macos.log": {
+      "bytes": 520776,
+      "sha256": "0be96930b5b40bfa519189d2578f5c07445bc18f9190715328c17c981dd1d3c3"
+    },
+    "ci/macos/receipt.json": {
+      "bytes": 14122,
+      "sha256": "7bd667d8b4a26a53084662b7a340914b52c916876e030c0d9eaa025d8e50412a"
+    },
+    "ci/macos/session-consumed.json": {
+      "bytes": 207,
+      "sha256": "ab08dc018411146e46772cddabcbcfb732ada94bb46d5b33ec3287a4f98c5464"
+    },
+    "ci/windows/controller.py": {
+      "bytes": 4821,
+      "sha256": "70e9bab2402011179164fdcfcc82e079ff29c11578b6eac77028a6f84f451e7b"
+    },
+    "ci/windows/receipt.json": {
+      "bytes": 14224,
+      "sha256": "e73878c4e126ab3a14051960627a2ce992cc8789b066769c8669ca62d7f2ed9c"
+    },
+    "ci/windows/session-consumed.json": {
+      "bytes": 207,
+      "sha256": "e4821e16aaac4be2c3337e2b0ddaa0a26317a71f1b6eab7261c63dbf90f164c8"
+    },
+    "ci/windows/windows.job.json": {
+      "bytes": 5901,
+      "sha256": "93494aa8373003e1e02d4c7b1dc52acf884c6bdbc727381f2b5d7032529b2674"
+    },
+    "ci/windows/windows.log": {
+      "bytes": 546013,
+      "sha256": "7a2950810f9cbc31a42d72e89bb982fbf488fdbc90deffe995a4bc8ef4d624ca"
+    },
+    "native/cache-preflight.json": {
+      "bytes": 240,
+      "sha256": "71280af14185d2505b21bd2a37edf14a4c68301db772a73e937c13351f8a0190"
+    },
+    "native/cargo-metadata.json": {
+      "bytes": 269195,
+      "sha256": "b1cfe8400a4875cda02b991f2d12a8d7fe90758b1d474d146d7500fa2b54ad82"
+    },
+    "native/controller.py": {
+      "bytes": 13609,
+      "sha256": "659486f3063b5dcc2b6843be46b299c84a81d70f2f57235e8e3ffd4054419eba"
+    },
+    "native/host-memory.jsonl": {
+      "bytes": 59746,
+      "sha256": "260e7df2674d6b8708c23f585f58f06c67153067806b07646efa144e4d746e8b"
+    },
+    "native/receipt.json": {
+      "bytes": 1001886,
+      "sha256": "55d509101bd4308f0f8aabbd8d95c8b75d6c95b2338456e8c242695a84e0dd9f"
+    },
+    "native/session-consumed.json": {
+      "bytes": 252,
+      "sha256": "ac0678b374fce99a1b0c145eca9782d6e993bbe0749536aaefb53fcc58978d22"
+    },
+    "native/stderr.log": {
+      "bytes": 159347,
+      "sha256": "e16034340e31ff3d5b0bfedd77a8485d2bdfc0c334e0dc8b3ac93d9add5e8fb5"
+    },
+    "native/stdout.log": {
+      "bytes": 591745,
+      "sha256": "3b395ba33c82d2576a643c029621877a020728674fe156e803bb7a9448c41dbe"
+    }
+  },
+  "limits": [
+    "Parent worker increment only; this does not qualify the separate uncommitted Session/Scene/export source",
+    "Original full command/features/assertions/ignores/default backend and10GiB admission preserved",
+    "No Android, real-model quality, automatic capability selection, video switch quality or thermal acceptance inferred",
+    "Original restart, compiler access violation and incompatible PDB failures remain separate preserved historical evidence",
+    "CI raw names are bound to completed selected jobs and the recorded PR head; no signed download URLs or per-frame media payloads included"
+  ],
+  "archiveBytes": 888013,
+  "archiveSha256": "145fc80814cb2dd390098d58577ce3e3fd133e1b3a1e91af17019d17185bdc94",
+  "verifiedMembers": 24
+}

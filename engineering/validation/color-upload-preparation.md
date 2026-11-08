@@ -35,4 +35,12 @@
 
 DX12 原始访问冲突仍未定位。`color-dx12-isolation/quiet-native` 去掉八处诊断输出、保持断言后，5 项测试通过；它是时序对照，不是原失败二进制的重现，也不是崩溃已修复的证据。测试源码随后逐字节恢复。
 
+## 同步主分支的读回清理
+
+追加上传提交后，GitHub 报告与 `main` 的读回修改冲突。同步 `ac65d279` 时，保留主分支的原生 Callback/Mapping/Range 错误 source 和失败映射清理，守卫及测试钩子统一使用实际选中的常驻或临时缓冲。没有回退为字符串错误，也没有覆盖主分支其他变更。
+
+新增 GPU-only 目标的真实取消映射测试：原始 `wgpu::BufferAsyncError` 保留在 source 链，失败计数平衡，临时 staging 预算立即归还，设备保持健康；下一次显式读取完整像素成功。原有 cleanup 和 readback 错误断言保持。
+
+同步验收记录位于 `artifacts/issue-goal-current/color-upload-main-sync/`。双后端图片、输出/capture/formats、容量与清理、原生读回和色彩错误合计 38 项不同测试通过；DX12 和恢复复验不重复计数。带 FFmpeg 全目标检查和上述三个文件的格式检查通过。把守卫改回无条件 unmap 的负对照在真实设备健康断言处失败，原始原因是 `Buffer is not mapped`；测试不变，守卫源码恢复后的复验记录单列为 `restored-cleanup`。
+
 没有改 UI，DESIGN.md §0.7 的每项均保持原状：本轮只涉及 GPU 资源与上传，不作视觉验收完成声明。没有新增依赖或第三方素材；现有 OCIO 配置、shader、数值表和参考文件字节保持。
