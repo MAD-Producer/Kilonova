@@ -4,6 +4,7 @@
 use super::{Backend, Cancellation, Costs, Error, Estimate, Input, Result};
 use motion_model::depth::{DepthDescriptor, DepthMeasure, DepthResource, NearDirection};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::{
     fs,
     io::Read,
@@ -145,6 +146,7 @@ pub struct Onnx {
     config: Config,
     last_provider: Option<String>,
     last_diagnostic: Option<String>,
+    execution: Option<super::cache::Execution>,
 }
 impl Onnx {
     /// Construction does not load a model or runtime on the caller's thread.
@@ -161,6 +163,7 @@ impl Onnx {
             config,
             last_provider: None,
             last_diagnostic: None,
+            execution: None,
         })
     }
 
@@ -169,6 +172,7 @@ impl Onnx {
         input: &Input,
         cancellation: &Cancellation,
         directory: &std::path::Path,
+        execution: Option<&super::cache::Execution>,
     ) -> Result<Estimate> {
         let transport_began = Instant::now();
         cancellation.check()?;
@@ -207,6 +211,7 @@ impl Onnx {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        if execution.is_some() { command.arg("--attest"); }
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -217,6 +222,11 @@ impl Onnx {
         let output_transport_began = Instant::now();
         let report: Report = serde_json::from_slice(&stdout)?;
         report.validate_identity(processing, &digest, input.size())?;
+        if let Some(expected) = execution {
+            if report.execution.as_ref() != Some(expected) {
+                return Err(Error::Invalid("executing runtime differs from pre-lookup cache identity"));
+            }
+        }
         if report.providers.is_empty()
             || report.providers.len() > 4
             || report
@@ -297,6 +307,54 @@ impl Onnx {
 }
 
 impl Backend for Onnx {
+    fn execution_identity(&mut self, input: &Input, cancellation: &Cancellation)
+        -> Result<Option<super::cache::Execution>> {
+        self.execution = None;
+        cancellation.check()?;
+        if !matches!(self.config.provider, Provider::Cpu) { return Ok(None); }
+        fs::create_dir_all(&self.config.scratch)?;
+        let temporary = tempfile::Builder::new().prefix("motion-depth-resolve-").tempdir_in(&self.config.scratch)?;
+        let result = (|| {
+            let directory = temporary.path();
+            fs::write(directory.join("worker.py"), WORKER)?;
+            let digest: String = input.key().model.sha256.iter().map(|b| format!("{b:02x}")).collect();
+            let [width, height] = input.size();
+            fs::write(directory.join("request.json"), serde_json::to_vec(&serde_json::json!({
+                "schema":1,"model":self.config.model,"sha256":digest,"processing":input.key().model.processing,
+                "width":width,"height":height,"provider":self.config.provider.name()}))?)?;
+            let mut command = Command::new(&self.config.python);
+            command.arg("-I").arg("-B").arg(directory.join("worker.py")).arg(directory).arg("--resolve")
+                .env("TMP",directory).env("TEMP",directory).env("PYTHONDONTWRITEBYTECODE","1")
+                .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+            #[cfg(windows)] {
+                use std::os::windows::process::CommandExt;
+                command.creation_flags(0x08000000);
+            }
+            let (stdout, stderr) = capture(&mut command, cancellation)?;
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Resolved { schema: u32, execution: super::cache::Execution }
+            let resolved: Resolved = serde_json::from_slice(&stdout)?;
+            resolved.execution.validate()?;
+            if resolved.schema != 1 || resolved.execution.backend != "onnx"
+                || resolved.execution.provider != "CPUExecutionProvider" || resolved.execution.precision != "float32"
+                || resolved.execution.plan_sha256 != <[u8;32]>::from(Sha256::digest(WORKER.as_bytes())) {
+                return Err(Error::Invalid("unqualified CPU cache execution attestation"));
+            }
+            if !stderr.is_empty() && self.last_diagnostic.as_ref() != Some(&stderr) {
+                log::warn!("operation=depth_runtime asset={} phase=cache_resolve cause={}", input.key().source.asset, stderr);
+                self.last_diagnostic = Some(stderr);
+            }
+            cancellation.check()?;
+            Ok(resolved.execution)
+        })();
+        match (result, temporary.close()) {
+            (Ok(execution), Ok(())) => { self.execution = Some(execution.clone()); Ok(Some(execution)) },
+            (Err(primary), Ok(())) => Err(primary),
+            (Err(primary), Err(cleanup)) => Err(Error::Cleanup { primary: Box::new(primary), cleanup }),
+            (Ok(_), Err(cleanup)) => Err(cleanup.into()),
+        }
+    }
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate> {
         let began = Instant::now();
         cancellation.check()?;
@@ -304,7 +362,8 @@ impl Backend for Onnx {
         let temporary = tempfile::Builder::new()
             .prefix("motion-depth-")
             .tempdir_in(&self.config.scratch)?;
-        let result = self.infer_in(input, cancellation, temporary.path());
+        let execution = self.execution.take();
+        let result = self.infer_in(input, cancellation, temporary.path(), execution.as_ref());
         match (result, temporary.close()) {
             (Ok(mut estimate), Ok(())) => {
                 estimate.costs.total = began.elapsed();
@@ -331,6 +390,7 @@ struct CostsNs {
 }
 #[derive(Deserialize)]
 struct Report {
+    execution: Option<super::cache::Execution>,
     schema: u32,
     sha256: String,
     processing: String,
