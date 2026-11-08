@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 37;
+pub const CURRENT_PROJECT_VERSION: u32 = 38;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -311,6 +311,8 @@ pub struct Project {
     /// One project-wide working precision, shared by every composition.
     /// Required on disk; unsupported GPU modes are never silently reduced.
     pub working_precision: motion_effects::image_contract::ChannelPrecision,
+    /// Required, explicit and shared across compositions and history snapshots.
+    pub color_management: std::sync::Arc<crate::color_management::ProjectColorManagement>,
     pub composition_id: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub compositions: Vec<crate::Composition>,
@@ -351,6 +353,7 @@ impl Project {
             version: CURRENT_PROJECT_VERSION,
             library: crate::ProjectLibrary::default(),
             working_precision: motion_effects::image_contract::ChannelPrecision::Unorm8,
+            color_management: std::sync::Arc::new(crate::color_management::ProjectColorManagement::Unmanaged {}),
             composition_id: crate::MAIN_COMPOSITION.into(),
             compositions: Vec::new(),
             name: "空间练习 01".into(),
@@ -411,6 +414,7 @@ impl Project {
     pub fn validate(&self) -> Result<()> {
         ensure(self.version == CURRENT_PROJECT_VERSION, &format!("unsupported project format: version={} expected={CURRENT_PROJECT_VERSION}", self.version))?;
         self.library.validate(self)?;
+        self.color_management.validate(self)?;
         ensure(self.fonts.len()<=128,"too many font assets")?;
         let mut font_ids=HashSet::new();
         for font in &self.fonts {

@@ -338,16 +338,10 @@ impl VerifiedColorConfig {
                 });
             }
         }
-        let mut digest = Sha256::new();
-        digest.update(b"motion-color-config-v1\0");
-        // BTreeMap keys and struct field order define a stable, path-independent
-        // representation. OCIO cache IDs alone are not content identities.
-        let manifest_bytes = serde_json::to_vec(&manifest)?;
-        bounded("manifest bytes", manifest_bytes.len(), MAX_MANIFEST_BYTES)?;
-        digest.update(manifest_bytes);
+        let key = manifest.declared_key()?;
         Ok(Self {
             manifest,
-            key: digest.finalize().into(),
+            key,
             config,
             resources,
         })
@@ -365,7 +359,27 @@ impl VerifiedColorConfig {
         self.resources.get(path).map(AsRef::as_ref)
     }
 
-    fn color_space(&self, reference: &SpaceReference) -> Result<&str> {
+    pub fn resolve(&self, selection: &ColorSelection) -> Result<ResolvedColorSelection> {
+        self.manifest.resolve_declared(selection)
+    }
+}
+
+impl ColorConfigManifest {
+    /// Identity of the declared catalogue and resource hashes. This does not
+    /// verify any file contents; only VerifiedColorConfig::new may do that.
+    pub fn declared_key(&self) -> Result<[u8; 32]> {
+        self.validate()?;
+        let manifest_bytes = serde_json::to_vec(self)?;
+        bounded("manifest bytes", manifest_bytes.len(), MAX_MANIFEST_BYTES)?;
+        let mut digest = Sha256::new();
+        // Keep the existing canonical identity byte-for-byte stable.
+        digest.update(b"motion-color-config-v1\0");
+        digest.update(manifest_bytes);
+        Ok(digest.finalize().into())
+    }
+
+    /// Resolve one declared non-data space, without claiming file verification.
+    pub fn declared_color_space(&self, reference: &SpaceReference) -> Result<&str> {
         let target = match reference {
             SpaceReference::Space { name: value } => {
                 name("selected space", value)?;
@@ -373,8 +387,7 @@ impl VerifiedColorConfig {
             }
             SpaceReference::Role { name: value } => {
                 name("selected role", value)?;
-                self.manifest
-                    .roles
+                self.roles
                     .get(value)
                     .ok_or_else(|| ColorConfigError::Missing {
                         kind: "role",
@@ -383,12 +396,13 @@ impl VerifiedColorConfig {
                     .as_str()
             }
         };
-        let (canonical, space) = self.manifest.spaces.get_key_value(target).ok_or_else(|| {
-            ColorConfigError::Missing {
-                kind: "space",
-                name: target.into(),
-            }
-        })?;
+        let (canonical, space) =
+            self.spaces
+                .get_key_value(target)
+                .ok_or_else(|| ColorConfigError::Missing {
+                    kind: "space",
+                    name: target.into(),
+                })?;
         if space.is_data {
             return Err(ColorConfigError::DataSpace {
                 name: canonical.clone(),
@@ -399,12 +413,13 @@ impl VerifiedColorConfig {
     fn display_view(&self, value: &DisplayView) -> Result<()> {
         name("selected display", &value.display)?;
         name("selected view", &value.view)?;
-        let views = self.manifest.displays.get(&value.display).ok_or_else(|| {
-            ColorConfigError::Missing {
+        let views = self
+            .displays
+            .get(&value.display)
+            .ok_or_else(|| ColorConfigError::Missing {
                 kind: "display",
                 name: value.display.clone(),
-            }
-        })?;
+            })?;
         if !views.contains(&value.view) {
             return Err(ColorConfigError::Missing {
                 kind: "view",
@@ -413,23 +428,25 @@ impl VerifiedColorConfig {
         }
         Ok(())
     }
-    pub fn resolve(&self, selection: &ColorSelection) -> Result<ResolvedColorSelection> {
-        if selection.config_key != self.key {
+    /// Resolve saved names against the declared catalogue. The caller must
+    /// separately verify config/resource bytes before creating a processor.
+    pub fn resolve_declared(&self, selection: &ColorSelection) -> Result<ResolvedColorSelection> {
+        if selection.config_key != self.declared_key()? {
             return Err(ColorConfigError::ConfigMismatch);
         }
-        let aces = match &self.manifest.origin {
+        let aces = match &self.origin {
             ConfigOrigin::Builtin { aces, .. } => Some(*aces),
             ConfigOrigin::Authored { .. } => None,
         };
         if selection.aces != aces {
             return Err(ColorConfigError::AcesMismatch);
         }
-        let input = self.color_space(&selection.input)?.to_owned();
-        let working = self.color_space(&selection.working)?.to_owned();
+        let input = self.declared_color_space(&selection.input)?.to_owned();
+        let working = self.declared_color_space(&selection.working)?.to_owned();
         self.display_view(&selection.display)?;
         let output = match &selection.output {
             OutputSelection::Space { space } => {
-                ResolvedColorOutput::Space(self.color_space(space)?.to_owned())
+                ResolvedColorOutput::Space(self.declared_color_space(space)?.to_owned())
             }
             OutputSelection::Display { display_view } => {
                 self.display_view(display_view)?;

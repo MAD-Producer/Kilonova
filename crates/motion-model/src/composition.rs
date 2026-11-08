@@ -286,6 +286,7 @@ impl Project {
         let body = self.composition_view(id)?;
         Ok(Self {
             working_precision: self.working_precision,
+            color_management: self.color_management.clone(),
             version: self.version,
             // A sampling view omits other compositions and is not a document.
             library: crate::ProjectLibrary::default(),
