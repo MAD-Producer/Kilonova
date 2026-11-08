@@ -19,9 +19,17 @@ use std::{
     ptr::NonNull,
     sync::{Arc, Mutex},
 };
+mod catalogue;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("native OCIO phase=catalogue field={field} name={name:?} expected={expected:?} actual={actual:?}")]
+    Catalogue {
+        field: &'static str,
+        name: String,
+        expected: String,
+        actual: String,
+    },
     #[error("native OCIO initialization lock poisoned")]
     Initialization(#[source] std::sync::PoisonError<()>),
     #[error("native OCIO phase={phase} path={path}")]
@@ -147,6 +155,7 @@ struct Api {
     table: Table,
     apply: Apply,
     release: Release,
+    catalogue: catalogue::Query,
     // Libraries outlive all copied function pointers and native program handles.
     _bridge: Library,
     _ocio: Library,
@@ -509,6 +518,12 @@ impl NativeColorRuntime {
                     b"motion_ocio_release\0",
                     "symbol:motion_ocio_release",
                 )?,
+                catalogue: symbol(
+                    &bridge_library,
+                    &bridge,
+                    b"motion_ocio_catalogue_row\0",
+                    "symbol:motion_ocio_catalogue_row",
+                )?,
                 _bridge: bridge_library,
                 _ocio: ocio_library,
             };
@@ -596,6 +611,7 @@ impl NativeColorRuntime {
                 tables: Vec::new(),
             },
         };
+        catalogue::verify(&program, config.manifest())?;
         program.read_source()?;
         Ok(program)
     }

@@ -63,6 +63,16 @@ int main() {
     if (!require(motion_ocio_initialize(callback, &error), "healthy initialization recovers") ||
         !require(error.kind == 0 && error.message[0] == 0 && logger.load() == callback, "success clears error and publishes callback")) return 1;
     std::puts("initialize null_callback=refused recovery=success error_cleared=true");
+    Program program{};
+    program.catalogue = catalogue(ocio::Config::CreateRaw());
+    CatalogueRow row{}; uint32_t count = 0;
+    if (!require(motion_ocio_catalogue_row(&program, 0, &row, &count, &error), "actual native catalogue row") ||
+        !require(count == program.catalogue.size() && row.name && row.value, "catalogue borrowed strings and count")) return 1;
+    if (!require(!motion_ocio_catalogue_row(&program, count, &row, &count, &error), "out-of-range row refused") ||
+        !require(error.kind == 1 && count == 0 && row.name == nullptr && row.value == nullptr, "failed catalogue query publishes no partial row")) return 1;
+    if (!require(!motion_ocio_catalogue_row(nullptr, 0, &row, &count, &error), "null program refused") ||
+        !require(error.kind == 1 && count == 0 && row.name == nullptr, "null program preserves bounded native error")) return 1;
+    std::puts("catalogue actual_config=passed invalid_index=refused null_program=refused partial_output=false");
     // Do not leave a std::function manager referring to the independently
     // compiled test translation unit during the core library's final teardown.
     ocio::ResetToDefaultLoggingFunction();

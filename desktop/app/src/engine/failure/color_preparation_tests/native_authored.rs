@@ -2,6 +2,8 @@
 use super::*;
 use motion_core::color_management::SignalRange;
 use motion_effects::{color_config::*, image_contract::ChannelPrecision, AlphaMode};
+#[path = "native_catalogue.rs"]
+mod catalogue;
 #[path = "native_images.rs"]
 mod images;
 

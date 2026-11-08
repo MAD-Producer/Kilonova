@@ -24,9 +24,18 @@ struct Table {
     const float *values;
     size_t count;
 };
+struct CatalogueEntry {
+    uint32_t kind, reference, data;
+    std::string name, value;
+};
+struct CatalogueRow {
+    uint32_t kind, reference, data;
+    const char *name, *value;
+};
 struct Program {
     ocio::ConstCPUProcessorRcPtr cpu;
     ocio::GpuShaderDescRcPtr gpu;
+    std::vector<CatalogueEntry> catalogue;
 };
 struct Admission : std::runtime_error { using std::runtime_error::runtime_error; };
 using LogFunction = void (*)(const char *, size_t);
@@ -132,6 +141,42 @@ static void table(const Program *program, uint32_t index, Table *out) {
     program->gpu->getTextureValues(index, out->values);
     if (!out->values) throw Admission("OCIO returned a null table");
 }
+// Snapshot the configuration's declared canonical spaces and active display/view
+// catalogue. Active lists are part of the admitted config bytes; environment
+// overrides were refused above. Ordering is not a colour-space identity.
+static std::vector<CatalogueEntry> catalogue(const ocio::ConstConfigRcPtr &config) {
+    std::vector<CatalogueEntry> rows;
+    auto add = [&](uint32_t kind, const char *name, const char *value, uint32_t reference = 0, uint32_t data = 0) {
+        if (!length(name, 256)) throw Admission("native catalogue name is empty");
+        length(value, 256);
+        if (rows.size() >= 2720) throw Admission("native catalogue row capacity exceeded");
+        rows.push_back({kind, reference, data, name, value});
+    };
+    const int spaces = config->getNumColorSpaces(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL);
+    const int roles = config->getNumRoles(), displays = config->getNumDisplays();
+    if (spaces < 1 || spaces > 512 || roles < 0 || roles > 128 || displays < 0 || displays > 32)
+        throw Admission("native catalogue spaces, roles or displays exceed capacity");
+    for (int i = 0; i < spaces; ++i) {
+        auto space = config->getColorSpace(config->getColorSpaceNameByIndex(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL, i));
+        const auto reference = space->getReferenceSpaceType();
+        if (reference != ocio::REFERENCE_SPACE_SCENE && reference != ocio::REFERENCE_SPACE_DISPLAY)
+            throw Admission("native catalogue reference space is unsupported");
+        add(0, space->getName(), space->getEncoding(), reference == ocio::REFERENCE_SPACE_DISPLAY ? 1 : 0, space->isData() ? 1 : 0);
+    }
+    for (int i = 0; i < roles; ++i) {
+        auto space = config->getColorSpace(config->getRoleColorSpace(i));
+        if (!space) throw Admission("native catalogue role has no resolved space");
+        add(1, config->getRoleName(i), space->getName());
+    }
+    for (int i = 0; i < displays; ++i) {
+        const char *display = config->getDisplay(i);
+        add(2, display, "");
+        const int views = config->getNumViews(display);
+        if (views < 1 || views > 64) throw Admission("native catalogue views exceed capacity");
+        for (int j = 0; j < views; ++j) add(3, display, config->getView(display, j));
+    }
+    return rows;
+}
 MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const char *from,
     const char *to, const char *view, Program **output, Error *error) noexcept {
     *output = nullptr;
@@ -146,6 +191,7 @@ MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const cha
         auto config = ocio::Config::CreateFromStream(stream);
         closed(config); // Before validate/getProcessor may resolve external files.
         config->validate();
+        auto declared = catalogue(config);
         auto input = config->getColorSpace(from);
         auto outputSpace = view ? ocio::ConstColorSpaceRcPtr{} : config->getColorSpace(to);
         if ((input && input->isData()) || (outputSpace && outputSpace->isData()))
@@ -153,6 +199,7 @@ MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const cha
         auto processor = view ? config->getProcessor(from, to, view, ocio::TRANSFORM_DIR_FORWARD) : config->getProcessor(from, to);
         if (processor->getProcessorMetadata()->getNumFiles()) throw Admission("processor references external files");
         auto program = std::make_unique<Program>();
+        program->catalogue = std::move(declared);
         program->cpu = processor->getDefaultCPUProcessor();
         program->gpu = ocio::GpuShaderDesc::CreateShaderDesc();
         program->gpu->setLanguage(ocio::GPU_LANGUAGE_GLSL_VK_4_6);
@@ -166,6 +213,16 @@ MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const cha
         length(program->gpu->getShaderText(), 256*1024);
         for (unsigned i = 0; i < program->gpu->getNumTextures(); ++i) { Table info{}; table(program.get(), i, &info); }
         *output = program.release();
+    });
+}
+MOTION_EXPORT bool motion_ocio_catalogue_row(const Program *program, uint32_t index,
+    CatalogueRow *out, uint32_t *count, Error *error) noexcept {
+    *out = {}; *count = 0;
+    return checked(error, [&] {
+        if (!program || index >= program->catalogue.size()) throw Admission("native catalogue row index outside program");
+        const auto &row = program->catalogue[index];
+        *out = {row.kind, row.reference, row.data, row.name.c_str(), row.value.c_str()};
+        *count = static_cast<uint32_t>(program->catalogue.size());
     });
 }
 MOTION_EXPORT bool motion_ocio_shader(const Program *program, const char **text, size_t *size,

@@ -1,5 +1,8 @@
 # 创作颜色工作区合成与原生程序平台验收
 
+原生配置目录与工程清单的完整声明核验见
+[`native-ocio-catalogue.md`](native-ocio-catalogue.md)。
+
 ## 功能范围
 
 #83 此批增加可直接调用的真实工程颜色路径：
