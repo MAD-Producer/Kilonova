@@ -168,11 +168,28 @@ static RUNTIME: Mutex<Option<(std::path::PathBuf, Arc<Api>)>> = Mutex::new(None)
 /// Rust, and no raw pointer or runtime function is exposed to callers.
 #[derive(Clone)]
 pub struct NativeColorRuntime(Arc<Api>);
+/// An exclusively owned native program may move between workers. It cannot be
+/// shared concurrently or cloned; no borrowed native handle is exposed.
+///
+/// ```compile_fail
+/// fn require_sync<T: Sync>() {}
+/// require_sync::<motion_effects::native_color::NativeColorProgram>();
+/// ```
 pub struct NativeColorProgram {
     raw: NonNull<c_void>,
     api: Arc<Api>,
     source: ColorProcessorSource,
 }
+// SAFETY: bridge.cpp publishes one heap-owned Program after preparation. It
+// owns OCIO's CPU processor, shader-description data and catalogue strings, not
+// a GPU device/context or a thread-affine platform handle. read_source copies
+// all exported text/tables before Rust publishes the program; callers have no
+// raw handle, native mutator or Clone. A move transfers that exclusive owner,
+// and Arc<Api> pins both libraries through the eventual C++ release in Drop.
+// Only Send is promised: NonNull keeps the program !Sync, preventing concurrent
+// calls through shared references. See native-ocio-ownership.md for the pinned
+// implementation review and actual native transfer/drop qualification.
+unsafe impl Send for NativeColorProgram {}
 impl Drop for NativeColorProgram {
     fn drop(&mut self) {
         unsafe { (self.api.release)(self.raw.as_ptr()) }

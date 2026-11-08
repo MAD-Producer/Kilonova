@@ -90,7 +90,7 @@ impl AuthoredSceneFrame {
     }
 }
 
-/// A native CPU program stays on its caller-owned thread. Two reusable scenes
+/// A native CPU program has one exclusive owner and may move with it. Two reusable scenes
 /// retain the last published frame while a new sample is being prepared. No
 /// native runtime load, program preparation or file IO occurs during sampling.
 pub struct AuthoredSceneSampler {

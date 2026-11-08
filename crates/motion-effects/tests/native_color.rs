@@ -12,6 +12,8 @@ mod catalogue;
 mod initialization_fixture;
 #[path = "support/native_program_equivalence.rs"]
 mod program_equivalence;
+#[path = "support/native_color_transfer.rs"]
+mod transfer;
 
 #[derive(Deserialize)]
 struct Config {

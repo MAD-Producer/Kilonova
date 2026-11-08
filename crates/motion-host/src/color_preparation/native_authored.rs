@@ -64,9 +64,9 @@ impl PreparedNativeAuthoredProject {
     }
 }
 
-/// Prepare on the owning render worker. The native sampler is thread-confined;
-/// it is not smuggled across threads with an unsafe Send implementation. The
-/// whole result is published only after GPU programs and authored binding pass.
+/// Prepare on the owning worker, then transfer the complete exclusive result if
+/// needed. Native handles are never shared or exposed. The whole result is
+/// published only after GPU programs and authored binding pass.
 pub fn prepare_native_authored_project(
     project: &Project,
     root: &Path,
