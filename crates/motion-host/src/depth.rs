@@ -202,6 +202,9 @@ pub struct Costs {
     pub alignment: Duration,
     pub input_bytes: u64,
     pub output_bytes: u64,
+    /// Owned inference child's lifetime OS high-water marks, when observed.
+    /// Excludes the host, other phases/processes and physical device memory.
+    pub inference_process_memory: Option<capability::memory::ProcessPeak>,
 }
 
 #[derive(Clone, Debug)]
@@ -949,7 +952,8 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
             estimate.costs.total = began.elapsed();
             let measurement = if measured {
                 Some(capability::Measurement::new(measurement_scope.clone(), job.request,
-                    execution.ok_or(Error::State)?, resolve_elapsed, estimate.costs.total, retained_gpu_buffers))
+                    execution.ok_or(Error::State)?, resolve_elapsed, estimate.costs.total, retained_gpu_buffers,
+                    estimate.costs.inference_process_memory.clone()))
             } else { None };
             let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image,
                 video_end_us: input.video_end_us, measurement };

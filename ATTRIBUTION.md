@@ -1,5 +1,24 @@
 # 第三方归属说明 / Third-party attribution
 
+## Owned inference-process memory API references
+
+- Authors: Microsoft Corporation; Python Software Foundation and contributors;
+  Linux man-pages contributors; Apple Inc. and XNU contributors
+- Sources/revision: [PROCESS_MEMORY_COUNTERS_EX](https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters_ex),
+  [GetProcessMemoryInfo](https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo),
+  [Python resource](https://docs.python.org/3/library/resource.html#resource.getrusage),
+  [Linux getrusage](https://man7.org/linux/man-pages/man2/getrusage.2.html),
+  accessed 2026-11-08; Darwin unit checked against official
+  [XNU kern_resource.c](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/kern_resource.c)
+  at revision `f6217f891ac0bb64f3d375211650a4c1ff8ca1ea`
+- Rights/scope: references to public API layouts and unit semantics only. No
+  upstream implementation, documentation prose or asset is copied or bundled;
+  the independently authored bindings, conversion and tests use the repository
+  MIT license. No rights in the reference documents or Apple source are claimed
+- Modification scope: self-process high-water marks in the already owned Python
+  worker, bounded unavailable metadata and typed host/probe propagation. No new
+  dependency, process enumeration, device measurement or product asset
+
 ## Windows 私有驱动缓存目录的系统接口
 
 - 作者：Microsoft Corporation 与 windows-rs contributors。

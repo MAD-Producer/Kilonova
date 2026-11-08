@@ -1,6 +1,11 @@
 {
   "version": 1,
   "tools": {
+    "tools/test_ci_depth_process_memory.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Exercise platform peak-memory units, bounded query failure and actual owned-child high-water marks before and after releasing touched memory, including optimized Python; no inference runtime or model."
+    },
     "tools/depth_reference_inputs.py": {
       "mode": "ci",
       "runner": "tools/test_ci_depth_reference_inputs.py",

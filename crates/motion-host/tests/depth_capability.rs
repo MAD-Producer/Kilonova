@@ -181,6 +181,37 @@ impl Drop for Release {
 }
 
 #[test]
+fn measured_worker_and_profile_retain_partial_process_memory_without_certifying_whole_memory() {
+    use motion_host::depth::capability::{memory::{Method, ProcessPeak}, Profile};
+    struct Memory(Controlled, Option<ProcessPeak>);
+    impl Backend for Memory {
+        fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate> {
+            let mut estimate = self.0.infer(input, cancellation)?;
+            estimate.costs.inference_process_memory = self.1.clone();
+            Ok(estimate)
+        }
+        fn execution_identity(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Option<Execution>> {
+            self.0.execution_identity(input, cancellation)
+        }
+    }
+    // These are metadata-retention fixtures, not OS/hardware measurements.
+    for memory in [Some(ProcessPeak::Observed {pid:75, method:Method::GetrusageLinux,
+        peak_resident_bytes:65536, peak_private_commit_bytes:None}),
+        Some(ProcessPeak::Unavailable {pid:75,cause:"original OS query failure".into()}),None] {
+        let expected = serde_json::to_value(&memory).unwrap();
+        let mut jobs = Jobs::start_measured(Memory(backend(Fault::None),memory)).unwrap();
+        jobs.request(input()).unwrap();
+        let ready = take(&mut jobs,1);
+        assert_eq!(serde_json::to_value(ready.measurement().unwrap().inference_process_memory()).unwrap(),expected);
+        let mut profile = Profile::new(1).unwrap();
+        profile.record(&ready).unwrap();
+        assert_eq!(serde_json::to_value(profile.observations()[0].measurement().inference_process_memory()).unwrap(),expected);
+        assert_eq!(jobs.counts().unwrap().completed,1);
+        assert!(ready.measurement().unwrap().retained_gpu_buffer_capacity().is_none());
+    }
+}
+
+#[test]
 fn measured_worker_publishes_resolution_before_entry_and_owns_full_timing() {
     let mut controlled = backend(Fault::None);
     let (entered, rx) = mpsc::channel();

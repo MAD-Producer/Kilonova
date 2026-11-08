@@ -71,6 +71,22 @@ mod profile_tests {
     }
 
     #[test]
+    fn memory_report_retains_unavailable_and_rejects_inconsistent_counters() {
+        use super::super::capability::memory::{Method, ProcessPeak};
+        let mut observed = report(PROCESSING, 3_219_888, 1_073_296);
+        observed.inference_process_memory = Some(ProcessPeak::Unavailable {
+            pid: 75, cause: "original OS query failure".into(),
+        });
+        let digest = "a".repeat(64);
+        observed.validate_identity(PROCESSING, &digest, [12, 8]).unwrap();
+        observed.inference_process_memory = Some(ProcessPeak::Observed {
+            pid: 75, method: Method::GetrusageLinux,
+            peak_resident_bytes: 4096, peak_private_commit_bytes: Some(4096),
+        });
+        assert!(observed.validate_identity(PROCESSING, &digest, [12, 8]).is_err());
+    }
+
+    #[test]
     fn report_requires_the_exact_requested_profile_and_tensor_byte_counts() {
         // Independent byte counts for RGB Float32 and scalar Float32 tensors.
         for (side, input_bytes, output_bytes) in [
@@ -301,6 +317,7 @@ impl Onnx {
                 alignment: Duration::ZERO,
                 input_bytes: report.input_host_copy_bytes,
                 output_bytes: report.output_host_copy_bytes,
+                inference_process_memory: report.inference_process_memory,
             },
         })
     }
@@ -390,6 +407,7 @@ struct CostsNs {
 }
 #[derive(Deserialize)]
 struct Report {
+    inference_process_memory: Option<super::capability::memory::ProcessPeak>,
     execution: Option<super::cache::Execution>,
     schema: u32,
     sha256: String,
@@ -407,6 +425,7 @@ struct Report {
 
 impl Report {
     fn validate_identity(&self, processing: &str, digest: &str, size: [u32; 2]) -> Result<()> {
+        if let Some(memory) = &self.inference_process_memory { memory.validate()?; }
         let side = processing_side(processing).map(u64::from);
         if self.schema != 1
             || self.sha256 != digest

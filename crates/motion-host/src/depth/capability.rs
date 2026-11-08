@@ -12,6 +12,7 @@ use std::{sync::Arc, time::Duration};
 
 pub mod latency;
 pub mod policy;
+pub mod memory;
 
 #[derive(Clone, Debug)]
 pub struct Measurement {
@@ -21,6 +22,7 @@ pub struct Measurement {
     resolve: Duration,
     total: Duration,
     retained_gpu_buffers: Option<u64>,
+    inference_process_memory: Option<memory::ProcessPeak>,
 }
 
 impl Measurement {
@@ -31,6 +33,7 @@ impl Measurement {
         resolve: Duration,
         total: Duration,
         retained_gpu_buffers: Option<u64>,
+        inference_process_memory: Option<memory::ProcessPeak>,
     ) -> Self {
         Self {
             scope,
@@ -39,6 +42,7 @@ impl Measurement {
             resolve,
             total,
             retained_gpu_buffers,
+            inference_process_memory,
         }
     }
 
@@ -70,6 +74,12 @@ impl Measurement {
     /// is explicitly unknown and must never be interpreted as zero usage.
     pub fn retained_gpu_buffer_capacity(&self) -> Option<u64> {
         self.retained_gpu_buffers
+    }
+
+    /// OS lifetime peaks for the owned inference child only. Missing or
+    /// unavailable observations cannot qualify the policy's whole-host budget.
+    pub fn inference_process_memory(&self) -> Option<&memory::ProcessPeak> {
+        self.inference_process_memory.as_ref()
     }
 
     /// Cloning one observation cannot turn it into a second independent run.

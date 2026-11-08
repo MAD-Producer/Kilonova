@@ -144,6 +144,7 @@ fn measure(
             "input_copy_ns": costs.input_copy.as_nanos(), "output_copy_ns": costs.output_copy.as_nanos(),
             "postprocess_ns": costs.postprocess.as_nanos(), "input_tensor_bytes": costs.input_bytes,
             "output_tensor_bytes": costs.output_bytes, "retained_gpu_buffer_capacity_bytes": measurement.retained_gpu_buffer_capacity(),
+            "inference_process_memory": measurement.inference_process_memory(),
             "depth_file": name, "depth_values": values.len(), "depth_sha256": <[u8;32]>::from(digest.finalize())}));
     }
     let counts = jobs.counts()?;

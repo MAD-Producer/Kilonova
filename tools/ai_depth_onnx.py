@@ -30,6 +30,66 @@ def elapsed(start):
     return time.perf_counter_ns() - start
 
 
+def _resident_peak_bytes(value, system):
+    # Linux ru_maxrss is KiB; Darwin's current kernel returns bytes, despite
+    # the older archived manual. Never guess units for another operating system.
+    multiplier = {"linux": 1024, "darwin": 1}.get(system)
+    if multiplier is None or type(value) is not int or not 0 < value <= ((1 << 64) - 1) // multiplier:
+        raise ValueError("unsupported or invalid process resident peak")
+    return value * multiplier
+
+
+def _process_peak():
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+
+        class Counters(ctypes.Structure):
+            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD)] + [
+                (name, ctypes.c_size_t) for name in (
+                    "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+                    "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage", "QuotaNonPagedPoolUsage",
+                    "PagefileUsage", "PeakPagefileUsage", "PrivateUsage")]
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.GetCurrentProcess.argtypes = []
+        kernel.GetCurrentProcess.restype = wintypes.HANDLE
+        query = ctypes.WinDLL("psapi", use_last_error=True).GetProcessMemoryInfo
+        query.argtypes = [wintypes.HANDLE, ctypes.POINTER(Counters), wintypes.DWORD]
+        query.restype = wintypes.BOOL
+        counters = Counters()
+        counters.cb = ctypes.sizeof(counters)
+        if not query(kernel.GetCurrentProcess(), ctypes.byref(counters), counters.cb):
+            raise ctypes.WinError(ctypes.get_last_error())
+        resident, private = counters.PeakWorkingSetSize, counters.PeakPagefileUsage
+        if resident <= 0 or private <= 0:
+            raise ValueError("process peak counters unavailable")
+        return "windows_process_memory_counters", resident, private
+    if sys.platform in ("linux", "darwin"):
+        import resource
+        resident = _resident_peak_bytes(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, sys.platform)
+        return "getrusage_" + sys.platform, resident, None
+    raise ValueError("process peak query unsupported on this operating system")
+
+
+def process_peak():
+    """Own-process OS high-water marks, observed after output preparation.
+
+    Includes runtime startup/model loading and retained Python allocations;
+    excludes the parent, sibling/child processes and physical device memory.
+    Query failure is observable metadata, not permission to fail inference or
+    fabricate zero usage. No process enumeration, sampling or file IO is used.
+    """
+    try:
+        method, resident, private = _process_peak()
+        return dict(status="observed", pid=os.getpid(), method=method,
+                    peak_resident_bytes=resident, peak_private_commit_bytes=private)
+    except Exception as error:
+        cause = f"{type(error).__name__}: {error}"
+        cause = ''.join(c if c.isprintable() else ' ' for c in cause)[:512]
+        return dict(status="unavailable", pid=os.getpid(), cause=cause)
+
+
 def letterbox_rectangle(width, height, side=SIDE):
     if type(side) is not int or side not in (266, 392, 518):
         raise ValueError("unsupported depth preprocessing resolution")
@@ -284,6 +344,7 @@ def infer(directory, resolve_only=False, attest=False):
                     "output_copy": output_copy_ns, "postprocess": postprocess_ns},
                 "input_host_copy_bytes": int(bound.nbytes), "output_host_copy_bytes": int(depth.nbytes),
                 "resource_bytes": output.size * 4,
+                "inference_process_memory": process_peak(),
                 "transfer_scope": "host copies measured; provider-internal transfers included in inference; no IO binding"}
     except Exception as error:
         raise RuntimeError(f"phase={phase} type={type(error).__name__} cause={str(error)[:1536]}") from error
