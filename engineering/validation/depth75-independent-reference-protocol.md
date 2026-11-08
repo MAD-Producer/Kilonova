@@ -78,3 +78,27 @@ parsing and the fixed nearest unique association order. Six analytic unittest
 cases passed for submicrosecond ordering, competing matches, tie ordering,
 the inclusive 20 ms boundary, first-32 selection and malformed inputs. Selection
 reads timestamp identities only; image content cannot alter the selected set.
+
+## Prepared input identities
+
+At `4ddb2e24`, the original preparation sealed the complete 32-pair selection
+before importing the decoder or reading a PNG member. All 64 selected PNGs
+decoded once at the registered 640 by 480 extent: RGB8 channels and original
+16-bit monochrome sensor values. The first eight pairs remain calibration;
+the following 24 remain held out. Maximum timestamp difference is 14,617,000 ns,
+within the original 20 ms limit. No input was replaced or selected by content.
+
+The original PNGs, decoded RGB and little-endian sensor arrays have retained
+SHA-256 identities. All 64 local output identities were independently read
+back before producing `data/depth75-reference-inputs-v1.json` and its verified
+ten-member evidence archive. Aggregate sensor coverage is 7,657,585 valid and
+2,172,815 missing pixels. Missing values remain missing; no residual-based
+pixel filtering is authorized.
+
+The existing separately attributed OpenCV 5.0.0 / NumPy 2.4.6 environment was
+used for CPU PNG decoding with one decoder thread and OpenCL disabled. RGB
+channels are retained directly without ICC/display conversion. Treating these
+sensor-encoded RGB8 channels as the model's expected RGB8 input is an explicit
+evaluation assumption, not color-management certification. No model inference,
+quality result, quality tier or temporal-stability conclusion is established
+by this preparation.
