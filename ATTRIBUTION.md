@@ -430,3 +430,27 @@ Naga GLSL 前端新增的间接官方 Cargo 依赖：
 |---|---|---|---|
 | pp-rs | Corentin Wallez / pp-rs Developers，https://github.com/Kangz/glslpp-rs | 0.2.1，BSD-3-Clause；精确 registry 校验和见 Cargo.lock，许可原文见 NOTICE | 无上游改动 |
 | unicode-xid | unicode-rs contributors，https://github.com/unicode-rs/unicode-xid | 0.2.6，MIT OR Apache-2.0；精确 registry 校验和见 Cargo.lock，随包保留许可 | 无上游改动 |
+
+## TUM RGB-D sensor reference (local depth validation only)
+
+Authors: J. Sturm, N. Engelhard, F. Endres, W. Burgard and D. Cremers.
+Source: https://cvg.cit.tum.de/data/datasets/rgbd-dataset and the official
+download catalogue https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download.
+Revision: the 2012 benchmark release, sequence `freiburg1_desk`, archive
+`rgbd_dataset_freiburg1_desk.tgz`. Exact acquired archive SHA-256 and any
+sequence-specific notices must be retained before inference. This entry
+precedes acquisition and does not claim that a dataset or model was evaluated.
+
+License: CC BY 4.0 unless a sequence-specific declaration states otherwise,
+as documented by the official benchmark page's License section. License link:
+https://creativecommons.org/licenses/by/4.0/ . Citation: *A Benchmark for the
+Evaluation of RGB-D SLAM Systems*, IROS, October 2012, the authors above.
+
+Modification scope: local timestamp association, PNG decoding, documented
+sensor-unit conversion and independently authored numerical evaluation only.
+No upstream evaluation script, implementation, image or sensor-depth array is
+copied into the product or evidence archive. The original external archive and
+selected frames remain local validation inputs. Author/source/revision/license
+and aggregate measurement identities accompany any published result. Sensor
+readings, asynchronous timestamps and missing values are not exact geometric
+ground truth or a certificate for other footage domains.

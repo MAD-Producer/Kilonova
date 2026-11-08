@@ -134,3 +134,14 @@ buffer interpolation, and uses the official Naga public IR to guard dispatch
 bounds before normal validation/WGSL output. No upstream library source patch,
 arbitrary 3D LUT approximation, or commercial binary content is used. This layer
 does not establish the final image, decode or OS display workflow.
+
+Independent learned-depth evaluation may use the separately attributed TUM
+RGB-D `freiburg1_desk` sensor sequence as an explicit local validation input.
+The official format documents registered color/depth pixels, the 5000 units
+per metre scale and zero-valued missing readings. Association, affine fitting
+and numerical reduction are independently authored; no upstream evaluator or
+commercial application's assets are incorporated. Exact archive identity and
+sequence notices must be reviewed before model inference. Only authored
+evaluators and aggregate identities/results may be published, not original
+frames or sensor arrays. This reference does not certify absolute ground truth,
+arbitrary domains, temporal stability or real-time inference.
