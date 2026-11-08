@@ -5,7 +5,8 @@ use motion_core::{color_management::*, Project};
 use motion_effects::{
     color_config::{ColorSelection, VerifiedColorConfig},
     color_processor::{
-        ColorProcessorError, ColorProcessorPhase, ColorProcessorSource, CompiledColorImageProcessor,
+        CodeValueRange, ColorProcessorError, ColorProcessorPhase, ColorProcessorSource,
+        CompiledColorImageProcessor,
     },
     image_contract::ImageMeaning,
     AlphaMode,
@@ -53,8 +54,14 @@ pub enum Error {
     Project(#[source] motion_core::Error),
     #[error("color preparation phase=resources")]
     Resources(#[source] motion_core::Error),
-    #[error("color preparation target={target:?}: range normalization is not installed")]
-    Range { target: Target },
+    #[error("color preparation target={target:?} black={black} white={white}: range cannot be represented for execution")]
+    Range {
+        target: Target,
+        black: f64,
+        white: f64,
+        #[source]
+        source: ColorProcessorError,
+    },
     #[error("color preparation target={target:?} phase={phase:?}: provider failed")]
     Provider {
         target: Target,
@@ -240,9 +247,18 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
         phase: ColorProcessorPhase,
         input_alpha: AlphaMode,
         output_alpha: AlphaMode,
+        input_range: CodeValueRange,
+        output_range: CodeValueRange,
     ) -> Result<Arc<CompiledColorImageProcessor>, Error> {
-        let key = serde_json::to_vec(&(selection, phase, input_alpha, output_alpha))
-            .map_err(Error::Json)?;
+        let key = serde_json::to_vec(&(
+            selection,
+            phase,
+            input_alpha,
+            output_alpha,
+            input_range,
+            output_range,
+        ))
+        .map_err(Error::Json)?;
         if let Some(program) = self.programs.get(&key) {
             return Ok(program.clone());
         }
@@ -280,7 +296,7 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
         }
         log::info!("color preparation request={} operation=prepare_project_colors target={target:?} phase=compile transform={phase:?}", self.observation.request);
         let program = source
-            .compile_image(self.config, selection)
+            .compile_image_with_ranges(self.config, selection, input_range, output_range)
             .map_err(|source| Error::Compile {
                 target,
                 phase,
@@ -304,11 +320,17 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
     }
 }
 
-fn full(signal: &ColorSignal, target: Target) -> Result<(), Error> {
-    if !matches!(signal.range, SignalRange::Full {}) {
-        return Err(Error::Range { target });
-    }
-    Ok(())
+fn range(signal: &ColorSignal, target: Target) -> Result<CodeValueRange, Error> {
+    let (black, white) = match signal.range {
+        SignalRange::Full {} => return Ok(CodeValueRange::FULL),
+        SignalRange::Limited { black, white } => (black, white),
+    };
+    CodeValueRange::new(black, white).map_err(|source| Error::Range {
+        target,
+        black,
+        white,
+        source,
+    })
 }
 
 fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
@@ -321,8 +343,8 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
     let ProjectColorManagement::Ocio { settings } = project.color_management.as_ref() else {
         return Ok(None);
     };
-    // These declarations cannot yet be executed faithfully. Refuse before any
-    // provider call rather than compiling a full-range program and mislabelling it.
+    // Refuse unrepresentable intervals before calling any provider. Valid code
+    // ranges are executed around the OCIO transform, never relabelled as full.
     for (signal, target) in [
         (&settings.default_input, Target::DefaultInput),
         (&settings.authored_input.signal, Target::AuthoredInput),
@@ -330,11 +352,11 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
         (&settings.display, Target::Display),
         (&settings.output, Target::Output),
     ] {
-        full(signal, target)?;
+        range(signal, target)?;
     }
     for source in &settings.sources {
         if let SourceInterpretation::Color { input } = &source.interpretation {
-            full(&input.signal, Target::Source(source.asset))?;
+            range(&input.signal, Target::Source(source.asset))?;
         }
     }
     log::info!(
@@ -351,12 +373,15 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
         payload_bytes: 0,
     };
     let working_alpha = settings.working.alpha;
+    let working_range = range(&settings.working, Target::Working)?;
     let default_input = programs.get(
         &settings.selection,
         Target::DefaultInput,
         ColorProcessorPhase::InputToWorking,
         settings.default_input.alpha,
         working_alpha,
+        range(&settings.default_input, Target::DefaultInput)?,
+        working_range,
     )?;
     let mut selection = settings.selection.clone();
     selection.input = settings.authored_input.space.clone();
@@ -366,6 +391,8 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
         ColorProcessorPhase::InputToWorking,
         settings.authored_input.signal.alpha,
         working_alpha,
+        range(&settings.authored_input.signal, Target::AuthoredInput)?,
+        working_range,
     )?;
     let assignments: BTreeMap<_, _> = settings
         .sources
@@ -390,6 +417,8 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
                     ColorProcessorPhase::InputToWorking,
                     input.signal.alpha,
                     working_alpha,
+                    range(&input.signal, Target::Source(asset))?,
+                    working_range,
                 )?)
             }
             None => PreparedInput::Color(default_input.clone()),
@@ -402,6 +431,8 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
         ColorProcessorPhase::WorkingToDisplay,
         working_alpha,
         settings.display.alpha,
+        working_range,
+        range(&settings.display, Target::Display)?,
     )?;
     let output = programs.get(
         &settings.selection,
@@ -409,6 +440,8 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
         ColorProcessorPhase::WorkingToOutput,
         working_alpha,
         settings.output.alpha,
+        working_range,
+        range(&settings.output, Target::Output)?,
     )?;
     let (program_count, payload_bytes) = (programs.programs.len(), programs.payload_bytes);
     drop(programs);

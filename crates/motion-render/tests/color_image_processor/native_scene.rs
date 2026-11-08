@@ -135,6 +135,7 @@ fn native_scene_output_enters_ocio_display_and_export_without_copy_or_intermedia
                 3,
                 4,
                 ColorImageContract {
+                    range: motion_effects::color_processor::CodeValueRange::FULL,
                     space: processor.output_space(),
                     alpha: processor.output_alpha(),
                     precision: ChannelPrecision::Float32,

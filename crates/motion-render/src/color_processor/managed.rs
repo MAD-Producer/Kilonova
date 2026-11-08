@@ -1,11 +1,14 @@
 //! Explicit OCIO image values, separate from the legacy Linear/sRGB scene ABI.
 //! The inner Float32 texture is raw transport: no transfer function is implied.
 use super::*;
-use motion_effects::{color_config::ColorSpaceIdentity, WorkingSpace};
+use motion_effects::{
+    color_config::ColorSpaceIdentity, color_processor::CodeValueRange, WorkingSpace,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ColorImageContract {
     pub space: ColorSpaceIdentity,
+    pub range: CodeValueRange,
     pub alpha: AlphaMode,
     pub precision: ChannelPrecision,
 }
@@ -62,6 +65,7 @@ impl ColorImageTarget {
             image,
             contract: ColorImageContract {
                 space,
+                range: CodeValueRange::FULL,
                 alpha,
                 precision: contract.precision,
             },
@@ -120,10 +124,10 @@ impl Renderer {
                 "OCIO image allocation requires floating raw transport".into(),
             ));
         }
-        ColorImageTarget::from_image(
-            self.image_render_target(width, height, contract.transport())?,
-            contract.space,
-        )
+        Ok(ColorImageTarget {
+            image: self.image_render_target(width, height, contract.transport())?,
+            contract,
+        })
     }
 
     /// Upload already interpreted Float32 RGBA without transfer, clamping or
@@ -213,6 +217,32 @@ pub struct ColorSpaceMismatch {
     pub expected: ColorSpaceIdentity,
     pub actual: ColorSpaceIdentity,
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("OCIO image phase={phase:?} boundary={boundary}: expected_range={expected:?} actual_range={actual:?}")]
+pub struct ColorRangeMismatch {
+    pub phase: ColorProcessorPhase,
+    pub boundary: &'static str,
+    pub expected: CodeValueRange,
+    pub actual: CodeValueRange,
+}
+fn range_matches(
+    phase: ColorProcessorPhase,
+    boundary: &'static str,
+    expected: CodeValueRange,
+    actual: CodeValueRange,
+) -> Result<(), RenderError> {
+    if expected != actual {
+        return Err(ColorRangeMismatch {
+            phase,
+            boundary,
+            expected,
+            actual,
+        }
+        .into());
+    }
+    Ok(())
+}
 fn matches(
     phase: ColorProcessorPhase,
     boundary: &'static str,
@@ -245,6 +275,18 @@ impl ColorProcessorOutput {
         processor: &CompiledColorImageProcessor,
         output: ColorImageContract,
     ) -> Result<Self, RenderError> {
+        range_matches(
+            processor.phase(),
+            "source",
+            processor.input_range(),
+            source.contract.range,
+        )?;
+        range_matches(
+            processor.phase(),
+            "output-declaration",
+            processor.output_range(),
+            output.range,
+        )?;
         matches(
             processor.phase(),
             "source",
@@ -279,6 +321,12 @@ impl ColorProcessorOutput {
     ) -> Result<(), RenderError> {
         self.raw
             .validate_destination(renderer, encoder, &destination.image)?;
+        range_matches(
+            self.phase,
+            "destination",
+            self.output.range,
+            destination.contract.range,
+        )?;
         matches(
             self.phase,
             "destination",

@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 mod image;
-pub use image::CompiledColorImageProcessor;
+pub use image::{CodeValueRange, CompiledColorImageProcessor};
 
 pub const COLOR_PROCESSOR_VERSION: u32 = 1;
 pub const MAX_PROCESSOR_JSON_BYTES: usize = 16 * 1024 * 1024;

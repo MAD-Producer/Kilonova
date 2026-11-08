@@ -6,6 +6,130 @@ use std::fs;
 mod fixture;
 
 #[test]
+fn unrepresentable_color_range_preserves_default_error_channels_and_primary_cause() {
+    const CHILD: &str = "MOTION_COLOR_RANGE_LOG_CHILD";
+    const TEST: &str = "engine::failure::color_preparation_tests::unrepresentable_color_range_preserves_default_error_channels_and_primary_cause";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        let mut project = fixture::project();
+        let motion_core::color_management::ProjectColorManagement::Ocio { settings } =
+            Arc::make_mut(&mut project.color_management)
+        else {
+            panic!("managed fixture");
+        };
+        settings.working.range = motion_core::color_management::SignalRange::Limited {
+            black: 0.5,
+            white: 0.5 + f64::EPSILON,
+        };
+        project.validate().unwrap();
+        let before = serde_json::to_value(&project).unwrap();
+        let observation = Observation::new(8201);
+        let error = prep::prepare_project_colors(
+            &project,
+            &root,
+            |_| panic!("unrepresentable range must not reach the provider"),
+            &observation,
+        )
+        .err()
+        .unwrap();
+        assert!(matches!(
+            error,
+            prep::Error::Range {
+                target: prep::Target::Working,
+                ..
+            }
+        ));
+        assert!(!observation.running());
+        assert_eq!(serde_json::to_value(&project).unwrap(), before);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let stdout_path = root.path().join("child.stdout");
+    let stderr_path = root.path().join("child.stderr");
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .stdout(fs::File::create(&stdout_path).unwrap())
+        .stderr(fs::File::create(&stderr_path).unwrap())
+        .spawn()
+        .unwrap();
+    let began = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if began.elapsed() > Duration::from_secs(20) {
+            let killed = child.kill();
+            let joined = child.wait();
+            panic!("color range log child exceeded 20s: kill={killed:?} wait={joined:?}");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let stdout = fs::read_to_string(stdout_path).unwrap();
+    let stderr = fs::read_to_string(stderr_path).unwrap();
+    assert!(status.success(), "{status}\n{stdout}\n{stderr}");
+    let file = fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    let start = "color preparation request=8201 operation=prepare_project_colors phase=start";
+    let cause = "black/white interval is not a normal positive Float32 value";
+    let verifies = |file: &str, stderr: &str, stdout: &str| {
+        let errors: Vec<_> = file
+            .lines()
+            .filter(|line| line.contains("ERROR") && line.contains("request=8201"))
+            .collect();
+        errors.len() == 1
+            && file.contains("logging initialized level=INFO")
+            && file
+                .find(start)
+                .zip(file.find(errors[0]))
+                .is_some_and(|(s, e)| s < e)
+            && [
+                "target=Working",
+                "range cannot be represented for execution",
+                "code range",
+                cause,
+                "elapsed_ms=",
+            ]
+            .iter()
+            .all(|text| errors[0].contains(text) && stderr.contains(text) && !stdout.contains(text))
+            && stderr
+                .lines()
+                .filter(|line| line.contains("request=8201"))
+                .count()
+                == 1
+            && !stderr.contains(start)
+            && !stdout.contains("color preparation request=")
+    };
+    assert!(
+        verifies(&file, &stderr, &stdout),
+        "{file}\n{stderr}\n{stdout}"
+    );
+    // Negative controls are mutations of the real captured outputs, not mock
+    // successful logger returns: each missing channel/cause/order must fail.
+    assert!(!verifies(&file.replace("ERROR", "DEBUG"), &stderr, &stdout));
+    assert!(!verifies(&file, "", &stdout));
+    assert!(!verifies(
+        &file.replace(cause, "missing cause"),
+        &stderr,
+        &stdout
+    ));
+    assert!(!verifies(&file, &stderr, &format!("{stdout}{stderr}")));
+    assert!(!verifies(
+        &format!("{}\n{start}", file.replace(start, "")),
+        &stderr,
+        &stdout
+    ));
+    if let Some(directory) = std::env::var_os("MOTION_COLOR_TEST_EVIDENCE") {
+        let directory = PathBuf::from(directory).join("code-range");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("motion-studio.log"), file).unwrap();
+        fs::write(directory.join("child.stdout"), stdout).unwrap();
+        fs::write(directory.join("child.stderr"), stderr).unwrap();
+    }
+}
+
+#[test]
 fn native_color_runtime_load_failure_reaches_the_default_error_channels() {
     const CHILD: &str = "MOTION_NATIVE_COLOR_LOG_CHILD";
     const TEST: &str = "engine::failure::color_preparation_tests::native_color_runtime_load_failure_reaches_the_default_error_channels";

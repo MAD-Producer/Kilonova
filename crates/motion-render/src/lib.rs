@@ -23,8 +23,11 @@ pub use image_capture::{CapturedImage, ImageCaptureTarget};
 mod color_output;
 mod color_lut;
 mod color_processor;
-pub use color_processor::{CapturedColorImage, ColorImageContract, ColorImageTarget, ColorProcessorOutput,
-    ColorImageRenderSourceError, ColorImageUploadError, ColorSpaceMismatch, NativeColorProcessorError};
+pub use color_processor::{
+    CapturedColorImage, ColorImageContract, ColorImageRenderSourceError, ColorImageTarget,
+    ColorImageUploadError, ColorProcessorOutput, ColorRangeMismatch, ColorSpaceMismatch,
+    NativeColorProcessorError,
+};
 pub use color_lut::{LutOutput, NativeLutError};
 mod lens_output;
 pub use lens_output::LensOutputPipeline;

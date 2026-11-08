@@ -248,6 +248,178 @@ fn actual_aces_documents_prepare_all_phases_deduplicate_and_preserve_data_routes
 }
 
 #[test]
+fn explicit_code_ranges_cover_every_role_and_are_part_of_program_identity() {
+    let reference = reference();
+    let limited8 = SignalRange::Limited {
+        black: 16. / 255.,
+        white: 235. / 255.,
+    };
+    let limited10 = SignalRange::Limited {
+        black: 64. / 1023.,
+        white: 940. / 1023.,
+    };
+    let range8 = CodeValueRange::new(16. / 255., 235. / 255.).unwrap();
+    let range10 = CodeValueRange::new(64. / 1023., 940. / 1023.).unwrap();
+    for config in &reference.configs {
+        for alpha in [AlphaMode::Straight, AlphaMode::Premultiplied] {
+            let root = tempfile::tempdir().unwrap();
+            let mut project = project(config, alpha, root.path());
+            let settings = settings(&mut project);
+            settings.default_input.range = limited8.clone();
+            settings.working.range = limited10.clone();
+            settings.output.range = limited8.clone();
+            let mut source = settings.authored_input.clone();
+            source.signal.range = limited10.clone();
+            settings.sources = vec![
+                SourceColorAssignment {
+                    asset: 2,
+                    interpretation: SourceInterpretation::Color { input: source },
+                },
+                SourceColorAssignment {
+                    asset: 3,
+                    interpretation: SourceInterpretation::Data {
+                        meaning: ImageMeaning::LinearDepth {},
+                    },
+                },
+            ];
+            let original = project.clone();
+            let observation = Observation::new(601);
+            let mut calls = Vec::new();
+            let prepared = prep::prepare_project_colors(
+                &project,
+                root.path(),
+                |request| {
+                    assert!(observation.running());
+                    calls.push(request.target);
+                    provider(&reference, request)
+                },
+                &observation,
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(
+                calls,
+                [
+                    Target::DefaultInput,
+                    Target::AuthoredInput,
+                    Target::Source(2),
+                    Target::Display,
+                    Target::Output
+                ]
+            );
+            assert_eq!(prepared.program_count(), 5);
+            assert_eq!(
+                (
+                    prepared.default_input().input_range(),
+                    prepared.default_input().output_range()
+                ),
+                (range8, range10)
+            );
+            assert_eq!(
+                (
+                    prepared.authored_input().input_range(),
+                    prepared.authored_input().output_range()
+                ),
+                (CodeValueRange::FULL, range10)
+            );
+            let Some(PreparedInput::Color(source)) = prepared.source(2) else {
+                panic!("explicit source color");
+            };
+            assert_eq!(
+                (source.input_range(), source.output_range()),
+                (range10, range10)
+            );
+            assert_ne!(source.key(), prepared.default_input().key());
+            assert_ne!(source.key(), prepared.authored_input().key());
+            assert_ne!(
+                prepared.default_input().key(),
+                prepared.authored_input().key()
+            );
+            for asset in [1, 4, 5] {
+                let Some(PreparedInput::Color(source)) = prepared.source(asset) else {
+                    panic!("default source color");
+                };
+                assert!(Arc::ptr_eq(source, prepared.default_input()));
+            }
+            assert_eq!(
+                (
+                    prepared.display().input_range(),
+                    prepared.display().output_range()
+                ),
+                (range10, CodeValueRange::FULL)
+            );
+            assert_eq!(
+                (
+                    prepared.output().input_range(),
+                    prepared.output().output_range()
+                ),
+                (range10, range8)
+            );
+            assert!(matches!(
+                prepared.source(3),
+                Some(PreparedInput::Data(ImageMeaning::LinearDepth {}))
+            ));
+            assert!(!observation.running());
+            assert_eq!(project, original);
+        }
+    }
+}
+
+#[test]
+fn every_unrepresentable_role_refuses_before_provider_with_its_original_cause() {
+    let reference = reference();
+    let root = tempfile::tempdir().unwrap();
+    let original = project(&reference.configs[0], AlphaMode::Straight, root.path());
+    for target in [
+        Target::DefaultInput,
+        Target::AuthoredInput,
+        Target::Working,
+        Target::Display,
+        Target::Output,
+        Target::Source(2),
+    ] {
+        let mut project = original.clone();
+        let settings = settings(&mut project);
+        let bad = SignalRange::Limited {
+            black: 0.5,
+            white: 0.5 + f64::EPSILON,
+        };
+        match target {
+            Target::DefaultInput => settings.default_input.range = bad,
+            Target::AuthoredInput => settings.authored_input.signal.range = bad,
+            Target::Working => settings.working.range = bad,
+            Target::Display => settings.display.range = bad,
+            Target::Output => settings.output.range = bad,
+            Target::Source(asset) => {
+                let mut input = settings.authored_input.clone();
+                input.signal.range = bad;
+                settings.sources.push(SourceColorAssignment {
+                    asset,
+                    interpretation: SourceInterpretation::Color { input },
+                });
+            }
+        }
+        project.validate().unwrap();
+        let snapshot = project.clone();
+        let observation = Observation::new(602);
+        let error = prep::prepare_project_colors(
+            &project,
+            root.path(),
+            |_| panic!("unrepresentable range entered provider"),
+            &observation,
+        )
+        .err()
+        .unwrap();
+        assert!(
+            matches!(&error, prep::Error::Range { target: got, source: ColorProcessorError::Invalid { field: "code range", reason }, .. } if *got == target && *reason == "black/white interval is not a normal positive Float32 value")
+        );
+        assert!(error.source().is_some());
+        assert!(!observation.running());
+        assert_eq!(project, snapshot);
+    }
+}
+
+#[test]
 fn distinct_authored_and_source_spaces_do_not_inherit_the_default_input() {
     let reference = reference();
     let root = tempfile::tempdir().unwrap();
@@ -380,24 +552,26 @@ fn wrong_phase_alpha_identity_shader_and_provider_causes_refuse_without_partial_
 }
 
 #[test]
-fn missing_changed_and_limited_inputs_refuse_before_provider_and_unmanaged_is_a_normal_none() {
+fn missing_changed_and_unrepresentable_inputs_refuse_before_provider_and_unmanaged_is_a_normal_none(
+) {
     let reference = reference();
     let root = tempfile::tempdir().unwrap();
     let mut project = project(&reference.configs[0], AlphaMode::Straight, root.path());
     let observation = Observation::new(401);
     settings(&mut project).default_input.range = SignalRange::Limited {
-        black: 16. / 255.,
-        white: 235. / 255.,
+        black: 0.5,
+        white: 0.5 + f64::EPSILON,
     };
     assert!(matches!(
         prep::prepare_project_colors(
             &project,
             root.path(),
-            |_| panic!("unsupported range cannot compile"),
+            |_| panic!("unrepresentable range cannot compile"),
             &observation
         ),
         Err(prep::Error::Range {
-            target: Target::DefaultInput
+            target: Target::DefaultInput,
+            ..
         })
     ));
     settings(&mut project).default_input.range = SignalRange::Full {};

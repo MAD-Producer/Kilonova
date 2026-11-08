@@ -3,6 +3,7 @@ use motion_render::{ColorImageUploadError, RenderError};
 
 fn contract(processor: &CompiledColorImageProcessor, input: bool) -> ColorImageContract {
     ColorImageContract {
+        range: motion_effects::color_processor::CodeValueRange::FULL,
         space: if input {
             processor.input_space()
         } else {

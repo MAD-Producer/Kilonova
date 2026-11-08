@@ -9,10 +9,12 @@ use serde::Deserialize;
 use std::{collections::BTreeMap, sync::Arc};
 #[path = "color_image_processor/chain.rs"]
 mod chain;
-#[path = "color_image_processor/uploads.rs"]
-mod uploads;
 #[path = "color_image_processor/native_scene.rs"]
 mod native_scene;
+#[path = "color_image_processor/ranges.rs"]
+mod ranges;
+#[path = "color_image_processor/uploads.rs"]
+mod uploads;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,
@@ -171,6 +173,7 @@ fn native_ocio_images_match_cpu_across_rows_phases_versions_and_alpha() {
                 3,
                 4,
                 ColorImageContract {
+                    range: motion_effects::color_processor::CodeValueRange::FULL,
                     space: p.input_space(),
                     alpha: p.input_alpha(),
                     precision: ChannelPrecision::Float32,
@@ -182,6 +185,7 @@ fn native_ocio_images_match_cpu_across_rows_phases_versions_and_alpha() {
                 3,
                 4,
                 ColorImageContract {
+                    range: motion_effects::color_processor::CodeValueRange::FULL,
                     space: p.output_space(),
                     alpha: p.output_alpha(),
                     precision: ChannelPrecision::Float32,
@@ -250,6 +254,7 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
             3,
             4,
             ColorImageContract {
+                range: motion_effects::color_processor::CodeValueRange::FULL,
                 space: p.input_space(),
                 alpha: p.input_alpha(),
                 precision: ChannelPrecision::Float32,
@@ -261,6 +266,7 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
             3,
             4,
             ColorImageContract {
+                range: motion_effects::color_processor::CodeValueRange::FULL,
                 space: p.output_space(),
                 alpha: p.output_alpha(),
                 precision: ChannelPrecision::Float32,
@@ -292,6 +298,7 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
             3,
             4,
             ColorImageContract {
+                range: motion_effects::color_processor::CodeValueRange::FULL,
                 space: p.output_space(),
                 alpha: AlphaMode::Premultiplied,
                 precision: ChannelPrecision::Float32,
@@ -308,6 +315,7 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
             3,
             4,
             ColorImageContract {
+                range: motion_effects::color_processor::CodeValueRange::FULL,
                 space: p.input_space(),
                 alpha: AlphaMode::Premultiplied,
                 precision: ChannelPrecision::Float32,
@@ -400,6 +408,7 @@ fn image_transform_resources_survive_encoding_and_submission_then_retire() {
                 3,
                 4,
                 ColorImageContract {
+                    range: motion_effects::color_processor::CodeValueRange::FULL,
                     space: p.input_space(),
                     alpha: p.input_alpha(),
                     precision: ChannelPrecision::Float32,
@@ -411,6 +420,7 @@ fn image_transform_resources_survive_encoding_and_submission_then_retire() {
                 3,
                 4,
                 ColorImageContract {
+                    range: motion_effects::color_processor::CodeValueRange::FULL,
                     space: p.output_space(),
                     alpha: p.output_alpha(),
                     precision: ChannelPrecision::Float32,

@@ -1,8 +1,29 @@
 # 色彩管理准备与数值验收
 
-这是 #83 的底层 LUT 验收工具，不是应用的运行时依赖，也不是 OCIO 配置加载器。
-应用与 CI 测试只消费提交的独立 Cube 数值样例及参考 JSON，不要求安装 Python
-或 OpenColorIO。原生 Rust/WGSL 实现不链接 OCIO。
+本目录的 Python 工具只用于独立准备和验收，产品不依赖 Python。
+固定原生 OCIO 随桌面包交付的范围与限制见
+[`native-ocio-bundling.md`](../../engineering/validation/native-ocio-bundling.md)。
+
+## RGB 码值范围增量
+
+`compile_image_with_ranges` 在反预乘之后将明确的黑白码值归一化，在输出预乘
+之前重新编码。范围属于 `ColorImageContract`；绑定和编码都校验范围身份。
+全范围路径沿用原来的程序，不裁剪负值和高亮，也不改变透明度。
+原始目标显式包装接口声明全范围；有限范围生产者必须传完整 contract 分配或上传。
+
+```text
+python tools/color-management/generate_range_reference.py crates/motion-effects/tests/color_processor/reference.json <new-range-reference.json>
+```
+
+生成器使用固定外部 OCIO 2.6.0 和显式 Float32 边界，独占创建新参考文件。
+60 组参考覆盖三个阶段、原三份配置、透明度组合，以及输入 8 位有限范围、
+输出 10 位有限范围和两端有限范围。既有三份参考字节不变。CI 只消费参考，
+不会重跑生成器来更新验收值。这不代表普通 managed Session 已接入。
+
+## 独立 Cube 参考
+
+底层 LUT 验收只消费提交的独立 Cube 数值样例及参考 JSON；不把参考生成器
+当作应用运行时依赖，也不将 Cube 文件解析器当作 OCIO 配置加载器。
 
 在独立 Python 环境安装官方 `opencolorio==2.6.0` 后运行：
 

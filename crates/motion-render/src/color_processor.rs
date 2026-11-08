@@ -13,8 +13,8 @@ use std::{error::Error, fmt, sync::Arc};
 
 mod managed;
 pub use managed::{
-    CapturedColorImage, ColorImageContract, ColorImageTarget, ColorProcessorOutput,
-    ColorImageRenderSourceError, ColorImageUploadError, ColorSpaceMismatch,
+    CapturedColorImage, ColorImageContract, ColorImageRenderSourceError, ColorImageTarget,
+    ColorImageUploadError, ColorProcessorOutput, ColorRangeMismatch, ColorSpaceMismatch,
 };
 
 /// Retains primary admission and all native causes without displaying complete

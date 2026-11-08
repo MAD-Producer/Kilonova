@@ -152,6 +152,7 @@ fn actual_16bit_files_enter_project_input_and_ocio_endpoints_without_rgba8_or_re
                 3,
                 4,
                 ColorImageContract {
+                    range: motion_effects::color_processor::CodeValueRange::FULL,
                     space: processor.output_space(),
                     alpha: processor.output_alpha(),
                     precision: ChannelPrecision::Float32,

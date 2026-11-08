@@ -122,6 +122,8 @@ fn program_count_and_retained_payload_limits_refuse_without_publishing_partial_e
             ColorProcessorPhase::InputToWorking,
             AlphaMode::Straight,
             AlphaMode::Straight,
+            CodeValueRange::FULL,
+            CodeValueRange::FULL,
         )
         .err()
         .unwrap();
@@ -138,6 +140,8 @@ fn program_count_and_retained_payload_limits_refuse_without_publishing_partial_e
             ColorProcessorPhase::InputToWorking,
             AlphaMode::Straight,
             AlphaMode::Straight,
+            CodeValueRange::FULL,
+            CodeValueRange::FULL,
         )
         .unwrap();
     programs.programs.clear();
@@ -154,6 +158,8 @@ fn program_count_and_retained_payload_limits_refuse_without_publishing_partial_e
             ColorProcessorPhase::InputToWorking,
             AlphaMode::Straight,
             AlphaMode::Straight,
+            CodeValueRange::FULL,
+            CodeValueRange::FULL,
         )
         .err()
         .unwrap();

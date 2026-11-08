@@ -30,6 +30,12 @@
       ],
       "reason": "Maintainer-only numerical reference generation uses a pinned external runtime; CI consumes committed fixtures without installing OCIO or regenerating acceptance values."
     },
+    "tools/color-management/generate_range_reference.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/generate_range_reference.py crates/motion-effects/tests/color_processor/reference.json <new-range-reference.json>",
+      "requires": ["Separately installed official opencolorio==2.6.0 reference runtime", "Unchanged pinned processor reference and a new output file"],
+      "reason": "Independent OCIO CPU code-range oracle with explicit Float32 and alpha boundaries; CI consumes committed results without regenerating acceptance values."
+    },
     "tools/color-management/generate_source_reference.py": {
       "mode": "manual",
       "command": "python tools/color-management/generate_source_reference.py crates/motion-effects/tests/color_processor/reference.json <new-source-reference.json>",

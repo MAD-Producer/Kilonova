@@ -136,6 +136,13 @@ bounds before normal validation/WGSL output. No upstream library source patch,
 arbitrary 3D LUT approximation, or commercial binary content is used. This layer
 does not establish the final image, decode or OS display workflow.
 
+The additional RGB code-range adapter independently normalizes storage values
+after unpremultiplication and encodes them before output premultiplication.
+Its separate 60-case CPU oracle uses the same pinned official OCIO 2.6.0 runtime,
+retains the original reference identity, and does not replace any existing
+configuration, shader, numeric table or full-range pixel reference. No third-party
+implementation code was copied for the range arithmetic or image contracts.
+
 The explicit native-runtime recipe separately builds pinned, unmodified OCIO
 2.6.0 and six static dependencies from official source archives. Its C ABI
 bridge and Rust ownership/admission layer are independently authored. The

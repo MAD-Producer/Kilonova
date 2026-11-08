@@ -139,6 +139,7 @@ impl PreparedProjectColors {
                     pixels.height,
                     ColorImageContract {
                         space: processor.input_space(),
+                        range: processor.input_range(),
                         alpha: processor.input_alpha(),
                         precision: ChannelPrecision::Float32,
                     },
@@ -154,6 +155,7 @@ impl PreparedProjectColors {
                     source.height,
                     ColorImageContract {
                         space: processor.output_space(),
+                        range: processor.output_range(),
                         alpha: processor.output_alpha(),
                         precision: ChannelPrecision::Float32,
                     },

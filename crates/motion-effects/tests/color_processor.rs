@@ -100,6 +100,46 @@ fn fixed_interface_compiles_and_roundtrips_without_gpu_or_native_ocio() {
 }
 
 #[test]
+fn code_range_requires_distinct_normal_float32_endpoints() {
+    for (black, white) in [
+        (f64::NAN, 1.),
+        (0., f64::INFINITY),
+        (-0.01, 1.),
+        (0., 1.01),
+        (0.5, 0.5),
+        (1., 0.),
+        (0.5, 0.5 + f64::EPSILON),
+        (0., f32::MIN_POSITIVE as f64 / 2.),
+    ] {
+        let error = CodeValueRange::new(black, white).unwrap_err();
+        assert!(matches!(
+            error,
+            ColorProcessorError::Invalid {
+                field: "code range",
+                ..
+            }
+        ));
+    }
+    assert_eq!(CodeValueRange::new(-0., 1.).unwrap(), CodeValueRange::FULL);
+    let range = CodeValueRange::new(16. / 255., 235. / 255.).unwrap();
+    assert!(!range.is_full());
+    assert_eq!(range.black(), (16. / 255.) as f32);
+    assert_eq!(range.white(), (235. / 255.) as f32);
+    let (config, selection) = config();
+    let source = source(&config, &selection);
+    let original = source.compile_image(&config, &selection).unwrap();
+    let decode = source
+        .compile_image_with_ranges(&config, &selection, range, CodeValueRange::FULL)
+        .unwrap();
+    let encode = source
+        .compile_image_with_ranges(&config, &selection, CodeValueRange::FULL, range)
+        .unwrap();
+    assert_ne!(original.key(), decode.key());
+    assert_ne!(original.key(), encode.key());
+    assert_ne!(decode.key(), encode.key());
+}
+
+#[test]
 fn tables_preserve_hdr_and_use_explicit_buffer_interpolation() {
     let (config, selection) = config();
     let mut source = source(&config, &selection);

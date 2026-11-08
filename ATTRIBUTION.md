@@ -426,6 +426,11 @@ contributors，来源 [crates.io 固定发行版](https://crates.io/crates/liblo
 `tools/color-management/generate_source_reference.py` 使用同一固定运行时与三份
 配置生成，记录原参考 SHA-256。输入为本项目生成的 16 位整数色卡；仅新增
 原文件输入链路的 14 组 CPU 参考，不修改上游配置、着色器或数值表。
+`crates/motion-effects/tests/color_processor/range_reference.json` 由独立编写的
+`tools/color-management/generate_range_reference.py` 使用同一固定 OCIO 2.6.0
+运行时与三份原始配置生成，记录原参考 SHA-256。60 组 CPU 参考仅新增 RGB
+有限码值范围的解码、编码及透明度次序验收；不修改既有配置、着色器、数值表
+或三份既有数值参考，不进入产品默认资源。Float32 边界计算由本项目独立编写。
 内容身份、目录验证、
 选择解析及故障夹具由本项目独立编写；不复制 OCIO 实现代码。
 

@@ -19,6 +19,7 @@ struct ChainCase {
 }
 fn input_contract(p: &CompiledColorImageProcessor) -> ColorImageContract {
     ColorImageContract {
+        range: motion_effects::color_processor::CodeValueRange::FULL,
         space: p.input_space(),
         alpha: p.input_alpha(),
         precision: ChannelPrecision::Float32,
@@ -26,6 +27,7 @@ fn input_contract(p: &CompiledColorImageProcessor) -> ColorImageContract {
 }
 fn output_contract(p: &CompiledColorImageProcessor) -> ColorImageContract {
     ColorImageContract {
+        range: motion_effects::color_processor::CodeValueRange::FULL,
         space: p.output_space(),
         alpha: p.output_alpha(),
         precision: ChannelPrecision::Float32,
@@ -218,6 +220,7 @@ fn wrong_spaces_and_configuration_are_refused_before_allocation_or_destination_w
                 3,
                 4,
                 ColorImageContract {
+                    range: motion_effects::color_processor::CodeValueRange::FULL,
                     space: p.input_space(),
                     ..destination.contract()
                 },
@@ -231,6 +234,7 @@ fn wrong_spaces_and_configuration_are_refused_before_allocation_or_destination_w
             .unwrap();
         mismatch(error, "source", p.input_space(), space);
         let declaration = ColorImageContract {
+            range: motion_effects::color_processor::CodeValueRange::FULL,
             space: p.input_space(),
             ..destination.contract()
         };

@@ -119,6 +119,8 @@ pub enum RenderError {
     #[error(transparent)]
     ColorSpaceMismatch(#[from] crate::ColorSpaceMismatch),
     #[error(transparent)]
+    ColorRangeMismatch(#[from] crate::ColorRangeMismatch),
+    #[error(transparent)]
     PipelinePreparation(#[from] crate::PipelinePreparationError),
     #[error("GPU validation: {0}")]
     EffectPipeline(#[from] crate::NativeEffectPipelineError),
