@@ -1,9 +1,12 @@
 # Depth capability measurements (#75)
 
-Status: implementation prepared; native tests and real-model qualification are
-pending. This is a prerequisite for measured selection, not completion of #75.
-No Android work is included. The cache qualification on the parent commit does
-not qualify these new sources.
+Status: the original 175-target host/render/media regression and all nineteen
+new native controls passed at `26b9156d`; actual predecoded CPU and WGSL probes
+also passed. The first actual video probe failed the existing managed-asset path
+contract. Its source path has been corrected; corrected actual-video and the
+thirteen later multi-criterion policy controls remain pending. The complete
+first controller failed and has not been relabeled as a pass. This is not
+completion of #75. No Android work is included.
 
 ## Construction and timing boundary
 
@@ -167,24 +170,59 @@ planes are released between samples. The explicit manual-driver wait remains
 The single stdout result and `measurements.json` retain observed whole-worker
 and backend phase timings. Default file logging publishes starts before source
 registration/probing and before worker decode/inference; failures retain original
-causes and reach Error file/stderr. This is prepared source, not yet a successful
-actual-codec run. Even a successful small authored-video control would establish
+causes and reach Error file/stderr. The first actual-codec run exposed the
+managed-path error described below; corrected execution is pending. Even a
+successful small authored-video control would establish
 pipeline execution only; it would not establish photographed-video accuracy,
 quality-transition stability, peak memory or sustained/thermal qualification.
 
+## Actual native and initial model observations
+
+Original controller session 16790 completed and was consumed with exit 1 at
+`26b9156d`, with every tracked source byte unchanged. Its complete original
+host/render/media command finished successfully first: 175/175 source-bound
+targets, 1,628 passed, zero failed, three original ignores and zero filtering.
+All 103 required named controls passed exactly once, including nineteen new
+worker/latency/video controls. This is a changed-crate regression, not the
+entire maintained workspace at that source.
+
+The actual pinned Small518 CPU and Vulkan WGSL predecoded probes each completed
+two uncached worker requests on the authored 12x8 RGB input. Both actual output
+documents retained one JSON stdout result, zero reuse, original actual execution
+identity and default Info starts before resolution and inference.
+
+| Actual backend | All observed worker totals (ms) | Retained managed GPU buffers | Explicit 1,000 ms latency request |
+| --- | --- | --- | --- |
+| CPU ONNX | 16725.4254, 4644.7378 | Unknown | Precomputed required |
+| WGSL Vulkan, RTX 4070 Laptop | 20241.2204, 16415.0600 | 227,968,156 bytes | Precomputed required |
+
+No cold or slow sample was discarded. These actual child-runtime wall
+observations include resolution and complete worker work; they do not promise
+warm inference, realtime playback, photographic quality or thermal stability.
+The insufficient-latency disposition has no resolved inference configuration.
+
+The same original controller then encoded its three-frame authored video and
+attempted the actual desktop libav probe. The probe registered `source.mp4`
+outside `assets/`, so the unchanged asset validator rejected it with
+`assets must be inside the assets directory`. The original Error appeared in
+file and stderr, stdout stayed empty, and the probe produced no measurement.
+No subsequent WGSL video or planned failure stage ran. The original failed
+outputs are retained in `depth75-measured-capability-v1`.
+
+The corrected driver now creates `assets/source.mp4` in its new owned root and
+registers that same relative managed path. It preserves original-byte checks,
+the asset validator, original frame selection and every numerical/timing gate.
+This source correction requires its own actual video verification. The separate
+multi-criterion policy is documented in
+[its current validation record](depth75-qualified-capability-policy-current.md).
+
 ## Pending acceptance and remaining issue scope
 
-- Run all nineteen new native controls, including a resolver held at a controlled
-  barrier, cancellation, identity/provider refusal, backend error/panic,
-  cache exclusion, duplicate observation identity, bounded profile statistics
-  and atomic identity/capacity refusal, unknown/bounded memory observations,
-  exact route delegation, stale WGSL memory reset before cancelled work and the
-  bounded latency admission stage and original-video measurement boundary
-- Run the relevant original host/depth regressions without changed assertions,
-  GPU policy, original ignores or deadlines
-- Run actual CPU and WGSL probes against pinned resources, bind their output to
-  source/lock/runtime identity, and verify default-level file starts, Error
-  stderr and stdout isolation on real failure as well as success
+- Run all thirteen later policy controls with the original fifteen controls in
+  the same integration target; preserve assertions, GPU/FFmpeg features and
+  the original runtime/build policy
+- Retain and publish the failed original controller alongside the qualified
+  native/predecoded stages and the corrected example's independent results
 - Run the actual libav video example on consecutive source samples for CPU and
   WGSL, verify preserved original bytes/PTS/RGB/depth ownership and phase costs,
   then perform the separately required real-video/quality-transition benchmark
@@ -196,6 +234,9 @@ quality-transition stability, peak memory or sustained/thermal qualification.
   assigning fast/standard/high. Neither backend name, model input resolution nor
   a single successful timing establishes a quality rank or device capability
 
-The full workspace regression currently running on parent `4729ab6d` must finish
-and have its actual session consumed before another own heavy workload starts.
-That source tree remains unchanged while this independent worktree is edited.
+The separate full maintained workspace at parent `4729ab6d` finished and its
+original session 27030 was consumed with exit 0 before session 16790 started:
+5,240 passes, zero failures, 78 original ignores, zero filtering and all 447
+source-bound targets. Its separate remote CI expression-budget failure remains
+unresolved. Neither that parent pass nor the current partial controller proves
+later policy, corrected actual-video, complete workspace or final CI acceptance.
