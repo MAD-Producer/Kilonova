@@ -1,6 +1,40 @@
 //! Error identity survives worker replies; presentation may format it as text.
 use std::{fmt, sync::Arc, time::Duration};
 
+/// New native color failures carry nested, typed preparation/IO causes. Keep
+/// those causes in the command's own record, alongside its real request ID;
+/// the deferred phase record is additional evidence, not a replacement.
+pub(super) fn command_cause(error: &motion_host::Error) -> String {
+    if !matches!(
+        error,
+        motion_host::Error::ColorPreparation(_)
+            | motion_host::Error::NativeColor(_)
+            | motion_host::Error::Render(motion_render::RenderError::AuthoredScene(_))
+    ) {
+        return crate::fallback_observation::error_cause(error);
+    }
+    struct Chain<'a>(&'a dyn std::error::Error);
+    impl fmt::Display for Chain<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let mut cause = Some(self.0);
+            for index in 0..8 {
+                let Some(current) = cause else {
+                    break;
+                };
+                write!(
+                    f,
+                    "{}{}",
+                    if index == 0 { "" } else { ": " },
+                    crate::fallback_observation::short(current)
+                )?;
+                cause = current.source();
+            }
+            Ok(())
+        }
+    }
+    crate::fallback_observation::error_cause(Chain(error))
+}
+
 #[derive(Clone, Debug)]
 pub(crate) enum Error {
     Host(Arc<motion_host::Error>),

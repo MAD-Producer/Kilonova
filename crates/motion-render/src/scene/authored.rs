@@ -21,7 +21,7 @@ pub enum AuthoredSceneError {
         object: Option<u64>,
         reason: &'static str,
     },
-    #[error("authored color phase={phase}: model failed")]
+    #[error("authored color phase={phase}: model failed: {source}")]
     Model {
         phase: &'static str,
         #[source]
@@ -52,7 +52,7 @@ pub enum AuthoredSceneError {
         expected: [u32; 2],
         actual: [u32; 2],
     },
-    #[error("authored color phase=transform object={object:?}: native processor failed")]
+    #[error("authored color phase=transform object={object:?}: native processor failed: {source}")]
     Native {
         object: Option<u64>,
         #[source]
@@ -68,14 +68,19 @@ fn refuse(phase: &'static str, object: Option<u64>, reason: &'static str) -> Aut
     }
 }
 
-/// The scene is private: a legacy sRGB consumer cannot accidentally draw these
-/// already-transformed RGB values. The complete output contract is immutable.
+/// The complete output contract is immutable. Inspection contexts retain a
+/// private identity marker, so legacy renderers refuse their working RGB.
 pub struct AuthoredSceneFrame {
     pub(crate) scene: Scene,
     contract: ColorImageContract,
     assets: Arc<[motion_model::Asset]>,
 }
 impl AuthoredSceneFrame {
+    /// Read geometry and sampled state without removing the color contract.
+    /// Cloning this context does not authorize a legacy sRGB renderer.
+    pub fn scene(&self) -> &Scene {
+        &self.scene
+    }
     pub fn contract(&self) -> ColorImageContract {
         self.contract
     }
@@ -182,6 +187,10 @@ impl AuthoredSceneSampler {
             alpha: AlphaMode::Premultiplied,
             precision: ChannelPrecision::Float32,
         };
+        let mut current = empty();
+        current.color_contract = Some(contract);
+        let mut spare = empty();
+        spare.color_contract = Some(contract);
         Ok(Self {
             vectors: Default::default(),
             settings: project.color_management.clone(),
@@ -189,11 +198,11 @@ impl AuthoredSceneSampler {
             input_range,
             input_alpha: settings.authored_input.signal.alpha,
             current: AuthoredSceneFrame {
-                scene: empty(),
+                scene: current,
                 contract,
                 assets: project.assets.clone().into(),
             },
-            spare: empty(),
+            spare,
             published: false,
         })
     }
@@ -207,14 +216,7 @@ impl AuthoredSceneSampler {
         frame: f64,
         evaluator: &dyn motion_model::FrameEvaluator,
     ) -> Result<&AuthoredSceneFrame> {
-        if project.color_management != self.settings {
-            return Err(refuse(
-                "binding",
-                None,
-                "project color settings changed; prepare a new sampler",
-            ));
-        }
-        admit(project)?;
+        self.validate_project(project)?;
         let cursor = SourceTimeSample {
             frame,
             rate: 1.,
@@ -242,16 +244,9 @@ impl AuthoredSceneSampler {
                 "evaluator changed the prepared color contract",
             ));
         }
+        self.validate_project(&evaluated)?;
         // Validate evaluated routes before Scene can resolve cameras, nested
         // compositions or raster sources. Evaluate exactly once per sample.
-        admit(&evaluated)?;
-        if evaluated.assets.as_slice() != self.current.assets.as_ref() {
-            return Err(refuse(
-                "source_binding",
-                None,
-                "source declarations changed; prepare new image bindings and sampler",
-            ));
-        }
         self.spare
             .sample_inner(
                 project,
@@ -303,6 +298,26 @@ impl AuthoredSceneSampler {
         std::mem::swap(&mut self.current.scene, &mut self.spare);
         self.published = true;
         Ok(&self.current)
+    }
+    /// Check an edit candidate against the installed immutable binding without
+    /// loading native libraries or reopening a configuration during sampling.
+    pub fn validate_project(&self, project: &Project) -> Result<()> {
+        if project.color_management != self.settings {
+            return Err(refuse(
+                "binding",
+                None,
+                "project color settings changed; prepare a new sampler",
+            ));
+        }
+        admit(project)?;
+        if project.assets.as_slice() != self.current.assets.as_ref() {
+            return Err(refuse(
+                "source_binding",
+                None,
+                "source declarations changed; prepare new image bindings and sampler",
+            ));
+        }
+        Ok(())
     }
     /// Explicit inspection only; an Err from sample must still reach the host's
     /// error channel. This is not an automatic last-good-frame fallback.

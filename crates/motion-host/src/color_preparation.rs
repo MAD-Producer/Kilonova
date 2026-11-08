@@ -21,7 +21,16 @@ use std::{
     time::Instant,
 };
 
+macro_rules! color_log {
+    ($level:ident, $($args:tt)*) => {
+        if log::log_enabled!(log::Level::$level) {
+            $crate::color_preparation::observation::record(
+                log::Level::$level, module_path!(), format_args!($($args)*));
+        }
+    };
+}
 mod images;
+pub(crate) mod observation;
 pub use images::{PreparedSourceImage, SourceImageRequest};
 mod native_authored;
 pub use native_authored::{prepare_native_authored_project, PreparedNativeAuthoredProject};
@@ -127,7 +136,8 @@ impl Drop for Flight<'_> {
     fn drop(&mut self) {
         self.observation.running.store(false, Ordering::Release);
         if !self.finished {
-            log::error!(
+            color_log!(
+                Error,
                 "color preparation request={} operation={} phase=abandoned elapsed_ms={}",
                 self.observation.request,
                 self.operation,
@@ -274,7 +284,7 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
             });
         }
         // Publish before entering an arbitrary provider or a native compiler.
-        log::info!("color preparation request={} operation=prepare_project_colors target={target:?} phase=provider transform={phase:?}", self.observation.request);
+        color_log!(Info, "color preparation request={} operation=prepare_project_colors target={target:?} phase=provider transform={phase:?}", self.observation.request);
         let source = (self.provider)(Request {
             config: self.config,
             selection,
@@ -298,7 +308,7 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
                 reason: "provider phase/alpha differs from the request",
             });
         }
-        log::info!("color preparation request={} operation=prepare_project_colors target={target:?} phase=compile transform={phase:?}", self.observation.request);
+        color_log!(Info, "color preparation request={} operation=prepare_project_colors target={target:?} phase=compile transform={phase:?}", self.observation.request);
         let program = source
             .compile_image_with_ranges(self.config, selection, input_range, output_range)
             .map_err(|source| Error::Compile {
@@ -363,7 +373,8 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
             range(&input.signal, Target::Source(source.asset))?;
         }
     }
-    log::info!(
+    color_log!(
+        Info,
         "color preparation request={} operation=prepare_project_colors phase=read_config",
         observation.request
     );
@@ -470,7 +481,9 @@ pub fn prepare_project_colors<F: FnMut(Request<'_>) -> crate::Result<ColorProces
     mut provider: F,
     observation: &Observation,
 ) -> Result<Option<PreparedProjectColors>, Error> {
-    observed_prepare(observation, || prepare(project, root, &mut provider, observation))
+    observed_prepare(observation, || {
+        prepare(project, root, &mut provider, observation)
+    })
 }
 
 fn observed_prepare<T>(
@@ -497,17 +510,18 @@ fn observed_operation<T>(
         started: Instant::now(),
         finished: false,
     };
-    log::info!(
+    color_log!(
+        Info,
         "color preparation request={} operation={operation} phase=start",
         observation.request,
     );
     let result = prepare();
     match &result {
-        Ok(_) => log::debug!("color preparation request={} operation={operation} phase=done elapsed_ms={}", observation.request, flight.started.elapsed().as_millis()),
+        Ok(_) => color_log!(Debug, "color preparation request={} operation={operation} phase=done elapsed_ms={}", observation.request, flight.started.elapsed().as_millis()),
         Err(Error::SourceImage { source, .. }) if matches!(source.as_ref(), crate::Error::ImageResource(motion_render::image_resources::Error::Cancelled)) => {
-            log::debug!("color preparation request={} operation={operation} phase=cancelled elapsed_ms={}", observation.request, flight.started.elapsed().as_millis());
+            color_log!(Debug, "color preparation request={} operation={operation} phase=cancelled elapsed_ms={}", observation.request, flight.started.elapsed().as_millis());
         }
-        Err(error) => log::error!("color preparation request={} operation={operation} phase=failed elapsed_ms={} cause={}",
+        Err(error) => color_log!(Error, "color preparation request={} operation={operation} phase=failed elapsed_ms={} cause={}",
             observation.request, flight.started.elapsed().as_millis(), brief(error)),
     }
     flight.finished = true;

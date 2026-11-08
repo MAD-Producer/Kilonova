@@ -82,7 +82,7 @@ impl PreparedProjectColors {
             started: Instant::now(),
             finished: false,
         };
-        log::info!("color preparation request={} operation=prepare_source_color_image asset={} phase=start", observation.request, request.asset);
+        color_log!(Info, "color preparation request={} operation=prepare_source_color_image asset={} phase=start", observation.request, request.asset);
         let mut phase = "validate";
         let result = (|| {
             request.project.validate().map_err(Error::Project)?;
@@ -122,10 +122,10 @@ impl PreparedProjectColors {
             };
             cancelled()?;
             phase = "resolve_source";
-            log::info!("color preparation request={} operation=prepare_source_color_image asset={} phase={phase} path={}", observation.request, asset.id, asset.path.chars().take(512).collect::<String>().escape_debug());
+            color_log!(Info, "color preparation request={} operation=prepare_source_color_image asset={} phase={phase} path={}", observation.request, asset.id, asset.path.chars().take(512).collect::<String>().escape_debug());
             let source = Source::new(request.root, asset).map_err(|e| context(phase, e.into()))?;
             phase = "decode_original";
-            log::info!("color preparation request={} operation=prepare_source_color_image asset={} phase={phase}", observation.request, asset.id);
+            color_log!(Info, "color preparation request={} operation=prepare_source_color_image asset={} phase={phase}", observation.request, asset.id);
             let pixels = decode(
                 &source,
                 renderer.memory_policy().decoded_image_budget_bytes,
@@ -135,7 +135,7 @@ impl PreparedProjectColors {
             cancelled()?;
             let source_precision = pixels.source_precision;
             phase = "upload_float32";
-            log::info!("color preparation request={} operation=prepare_source_color_image asset={} phase={phase} size={}x{} precision={source_precision:?}", observation.request, asset.id, pixels.width, pixels.height);
+            color_log!(Info, "color preparation request={} operation=prepare_source_color_image asset={} phase={phase} size={}x{} precision={source_precision:?}", observation.request, asset.id, pixels.width, pixels.height);
             let raw = renderer
                 .upload_color_image_f32(
                     pixels.width,
@@ -151,7 +151,7 @@ impl PreparedProjectColors {
                 .map_err(|e| context(phase, e.into()))?;
             drop(pixels);
             phase = "compile_input_transform";
-            log::info!("color preparation request={} operation=prepare_source_color_image asset={} phase={phase}", observation.request, asset.id);
+            color_log!(Info, "color preparation request={} operation=prepare_source_color_image asset={} phase={phase}", observation.request, asset.id);
             let working = renderer
                 .color_image_target(
                     source.width,
@@ -168,7 +168,7 @@ impl PreparedProjectColors {
                 ColorProcessorOutput::new(renderer, &raw, processor, working.contract())
                     .map_err(|e| context(phase, e.into()))?;
             phase = "submit_input_transform";
-            log::info!("color preparation request={} operation=prepare_source_color_image asset={} phase={phase}", observation.request, asset.id);
+            color_log!(Info, "color preparation request={} operation=prepare_source_color_image asset={} phase={phase}", observation.request, asset.id);
             let mut encoder = renderer
                 .allocation_command_encoder_for(
                     motion_render::gpu_commands::CommandStage::MediaPreparation,
@@ -192,11 +192,11 @@ impl PreparedProjectColors {
             }))
         })();
         match &result {
-            Ok(_) => log::debug!("color preparation request={} operation=prepare_source_color_image asset={} phase=done elapsed_ms={}", observation.request, request.asset, flight.started.elapsed().as_millis()),
+            Ok(_) => color_log!(Debug, "color preparation request={} operation=prepare_source_color_image asset={} phase=done elapsed_ms={}", observation.request, request.asset, flight.started.elapsed().as_millis()),
             Err(Error::SourceImage { source, .. }) if matches!(source.as_ref(), crate::Error::ImageResource(image_resources::Error::Cancelled)) => {
-                log::debug!("color preparation request={} operation=prepare_source_color_image asset={} phase=cancelled elapsed_ms={}", observation.request, request.asset, flight.started.elapsed().as_millis());
+                color_log!(Debug, "color preparation request={} operation=prepare_source_color_image asset={} phase=cancelled elapsed_ms={}", observation.request, request.asset, flight.started.elapsed().as_millis());
             }
-            Err(error) => log::error!("color preparation request={} operation=prepare_source_color_image asset={} phase={phase} elapsed_ms={} cause={}", observation.request, request.asset, flight.started.elapsed().as_millis(), brief(error)),
+            Err(error) => color_log!(Error, "color preparation request={} operation=prepare_source_color_image asset={} phase={phase} elapsed_ms={} cause={}", observation.request, request.asset, flight.started.elapsed().as_millis(), brief(error)),
         }
         flight.finished = true;
         result

@@ -71,6 +71,12 @@ pub trait Platform: Send + Sync {
     /// Short identifier recorded in preview and export reports.
     fn name(&self) -> &'static str;
 
+    /// Explicit bundled OCIO capability. No probing, library loading or fallback
+    /// configuration belongs here. None keeps this host's managed-render refusal.
+    fn color_runtime_manifest(&self) -> crate::Result<Option<std::path::PathBuf>> {
+        Ok(None)
+    }
+
     /// Cold tracking import only: decode every source frame to EOF and compare
     /// native rational PTS/raw dimensions. A backend without this capability
     /// returns an error rather than claiming proof from rounded preview times.

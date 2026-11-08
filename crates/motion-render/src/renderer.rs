@@ -953,6 +953,7 @@ impl Renderer {
     /// snapshot production and its worker/queue; this API does not spawn threads.
     pub fn prepare_effect_pipeline_job(&mut self, scenes: Vec<Scene>, width: u32, height: u32,
         context: crate::PipelinePreparationContext) -> Result<crate::PipelinePreparationJob> {
+        for scene in &scenes { scene.require_legacy_colors()?; }
         crate::PipelinePreparationJob::new(self, scenes, width, height, context)
     }
     pub fn cancel_effect_pipeline_preparation(&mut self) { self.pipeline_preparation.cancel(); }
@@ -2042,6 +2043,7 @@ impl Renderer {
         self.draw_internal(scene,view,width,height,false,crate::gpu_commands::CommandStage::Composition)
     }
     fn draw_internal(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,preview:bool,stage:crate::gpu_commands::CommandStage)->Result<RenderStats> {
+        scene.require_legacy_colors()?;
         let mut encoder = self
             .allocation_command_encoder_for(stage, &wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio frame"),
@@ -2087,6 +2089,7 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
     ) -> Result<RenderStats> {
+        scene.require_legacy_colors()?;
         self.snapshot_encodes.clear();
         scene.validate_depth_ready()?;
         self.allocation_budget.check()?;

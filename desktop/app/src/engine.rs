@@ -1666,7 +1666,7 @@ fn respond<T>(reply: Sender<Result<T, Error>>, value: motion_host::Result<T>) {
     if let Err(reason) = &value {
         if let Some(flight) = CURRENT_COMMAND.get() {
             log::error!("error #{} {} {}ms: {}", flight.request, flight.operation,
-                flight.started.elapsed().as_millis(), crate::fallback_observation::error_cause(reason));
+                flight.started.elapsed().as_millis(), error::command_cause(reason));
         }
     }
     let _ = reply.send(value.map_err(Error::from));

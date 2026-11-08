@@ -12,6 +12,8 @@ mod image_composition;
 mod vector_composition;
 #[path = "authored_transfer.rs"]
 mod transfer;
+#[path = "authored_session.rs"]
+mod session_installation;
 
 fn runtime() -> std::path::PathBuf {
     std::env::var_os("MOTION_TEST_OCIO_RUNTIME")

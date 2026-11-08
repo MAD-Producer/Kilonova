@@ -6,6 +6,8 @@ use motion_effects::{color_config::*, image_contract::ChannelPrecision, AlphaMod
 mod catalogue;
 #[path = "native_images.rs"]
 mod images;
+#[path = "native_session.rs"]
+mod session;
 
 fn project(root: &std::path::Path) -> motion_core::Project {
     #[derive(serde::Deserialize)]

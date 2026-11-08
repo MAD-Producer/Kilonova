@@ -40,6 +40,7 @@ mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 mod sampling;
+pub(crate) mod color;
 pub(crate) mod pipeline_preparation;
 pub use pipeline_preparation::{DriverPipelineCacheStorage, PipelinePreparationObservation};
 pub mod viewer;
@@ -61,6 +62,8 @@ mod resource_observation_tests;
 mod last_error_observation_tests;
 #[cfg(test)]
 mod registry_scope_tests;
+#[cfg(test)]
+mod color_observation_tests;
 
 static NEXT: AtomicI64 = AtomicI64::new(1);
 type SessionRegistry = HashMap<i64, Arc<SessionSlot>>;
@@ -116,6 +119,7 @@ pub struct Session {
     pub font_store: Option<motion_media::fonts::FontStore>,
     pub engine: Engine,
     pub scene: Scene,
+    pub(crate) colors: Option<crate::color_preparation::PreparedNativeAuthoredProject>,
     pub geometry: motion_render::PlaneCompositor,
     pub observer: Observer,
     pub(crate) observer_history: crate::ops::preview::CameraHistory,
@@ -174,25 +178,35 @@ impl Session {
     pub fn new(project: Project, root: PathBuf, platform: Arc<dyn Platform>) -> Result<Self> {
         let engine = Engine::new(project).map_err(crate::Error::from)?;
         let project = engine.project();
-        let mut scene = Scene::new(project)?;
-        scene.set_model_source_catalog(motion_render::ModelSourceCatalog::prepare(project, &root, &Default::default())?);
-        // A newly opened project has no compiled expressions on this worker.
-        // Prepare source bytecode before the first frame's unchanged deadline,
-        // just as SetExpression already does before evaluating an edit.
-        let initial_sample = motion_core::prepare_expression_sources(project)
-            .and_then(|()| scene.sample(project, 0.0, None, &motion_core::ExpressionEvaluator));
-        let initial_error = match initial_sample {
-            Ok(()) => None,
-            Err(error @ motion_core::Error::Expression { .. }) => {
-                let mut base = project.clone();
-                for expression in &mut base.expressions {
-                    expression.enabled = false;
+        let document_generation = next_document_generation()?;
+        let mut colors = color::prepare(project, &root, platform.as_ref(), "scene_create", document_generation)?;
+        let (mut scene, initial_error) = if let Some(prepared) = &mut colors {
+            color::initial(prepared, project)?
+        } else {
+            let mut scene = Scene::new(project)?;
+            scene.set_model_source_catalog(motion_render::ModelSourceCatalog::prepare(project, &root, &Default::default())?);
+            // A newly opened project has no compiled expressions on this worker.
+            // Prepare source bytecode before the first frame's unchanged deadline,
+            // just as SetExpression already does before evaluating an edit.
+            let initial_sample = motion_core::prepare_expression_sources(project)
+                .and_then(|()| scene.sample(project, 0.0, None, &motion_core::ExpressionEvaluator));
+            let initial_error = match initial_sample {
+                Ok(()) => None,
+                Err(error @ motion_core::Error::Expression { .. }) => {
+                    let mut base = project.clone();
+                    for expression in &mut base.expressions {
+                        expression.enabled = false;
+                    }
+                    scene.sample(&base, 0.0, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
+                    Some(error.to_string())
                 }
-                scene.sample(&base, 0.0, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
-                Some(error.to_string())
-            }
-            Err(error) => return Err(error.into()),
+                Err(error) => return Err(error.into()),
+            };
+            (scene, initial_error)
         };
+        if colors.is_some() {
+            scene.set_model_source_catalog(motion_render::ModelSourceCatalog::prepare(project, &root, &Default::default())?);
+        }
         let observer = Observer::new(project.width, project.height);
         let plugin_root = root
             .parent()
@@ -225,13 +239,14 @@ impl Session {
             font_store: None,
             engine,
             scene,
+            colors,
             geometry: motion_render::PlaneCompositor::new(),
             observer,
             observer_history: Default::default(),
             observing: false,
             frame: 0.0,
             root,
-            document_generation: next_document_generation()?,
+            document_generation,
             graphics: None,
             owner: thread::current().id(),
             presented: 0,
@@ -346,7 +361,10 @@ impl Session {
             batch.cancel()?;
         }
         let document_generation = next_document_generation()?;
-        let mut next_scene = Scene::new(engine.project())?;
+        let mut colors = color::prepare(engine.project(), &root, self.platform.as_ref(), "scene_create", document_generation)?;
+        let mut next_scene = if let Some(prepared) = &mut colors {
+            color::initial(prepared, engine.project())?.0
+        } else { Scene::new(engine.project())? };
         next_scene.set_model_source_catalog(motion_render::ModelSourceCatalog::prepare(
             engine.project(), &root, &self.scene.model_source_catalog())?);
         let mut registry=self.effects.registry.clone();
@@ -374,6 +392,7 @@ impl Session {
         if let Some(graphics)=&mut self.graphics{graphics.renderer.set_effect_registry(registry);}
         self.effects.alpha_images.clear();
         self.scene = next_scene;
+        self.colors = colors;
         self.observer = Observer::new(engine.project().width, engine.project().height);
         self.composition_contexts.clear();
         self.media_compositions.clear();
@@ -470,6 +489,7 @@ impl Session {
     /// Bind a host-created surface. Everything after surface creation is shared
     /// with the Android preview path.
     pub fn attach(&mut self, target: SurfaceTarget) -> Result<()> {
+        color::require_surface(&self.colors)?;
         if !self.allocation_budget.same_budget(target.renderer.allocation_budget()) {
             return Err("surface renderer was not constructed with the session allocation budget".into());
         }
@@ -538,6 +558,7 @@ impl Session {
     }
     pub fn present_retained_with_view(&mut self, viewport: [f32; 4], image: Option<[f32; 4]>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        color::require_surface(&self.colors)?;
         validate_canvas_image(image)?;
         let Some(g) = &self.graphics else { return Ok(false); };
         let [x, y, w, h] = viewport;
@@ -568,6 +589,7 @@ impl Session {
     }
     pub fn render_with_view(&mut self, frame: f64, viewport: Option<[f32; 4]>, image: Option<[f32; 4]>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        color::require_surface(&self.colors)?;
         validate_canvas_image(image)?;
         use motion_render::preview_memory::PREVIEW_MEMORY_LEVELS;
         let began = Instant::now();
@@ -940,6 +962,24 @@ impl Session {
     }
 
     pub fn sample(&mut self) -> Result<()> {
+        if let Some(prepared) = &mut self.colors {
+            let result = color::sample(prepared, self.engine.project(), self.frame).and_then(|scene| {
+                if self.observing {
+                    scene.fork_view(motion_render::ViewCamera::Observer(&self.observer)).map_err(crate::Error::from)
+                } else { Ok(scene) }
+            });
+            return match result {
+                Ok(scene) => {
+                    self.scene = scene;
+                    if self.last_error.as_ref().is_some_and(|error|
+                        error.starts_with("expression ") || error.starts_with("authored color phase=evaluate")) {
+                        self.last_error = None;
+                    }
+                    Ok(())
+                }
+                Err(error) => { self.last_error = Some(error.to_string()); Err(error) }
+            };
+        }
         let model_sources = self.synchronize_model_sources();
         #[cfg(feature = "ai-depth")]
         self.synchronize_depth()?;
@@ -1148,6 +1188,7 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
     let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);
     let _metadata_scope = metadata_observation::Scope::enter();
     let _registry_scope = registry_observation::Scope::enter(id);
+    let _color_scope = crate::color_preparation::observation::Scope::enter(id);
     let _relink_scope = crate::ops::media::relink::observation::Scope::enter();
     let mut command_logs = motion_render::gpu_commands::GpuCommandLogScope::new(Some(id));
     let slot = {
