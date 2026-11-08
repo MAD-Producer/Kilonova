@@ -466,3 +466,66 @@ pub fn select(requested: Request, inputs: &[Input<'_>]) -> Result<Decision> {
         selected,
     })
 }
+
+/// Current caller-verified application context. These digests identify records;
+/// they do not measure or authenticate hardware, sensors or source domains.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Context {
+    pub environment_sha256: [u8; 32],
+    pub measurement_protocol_sha256: [u8; 32],
+    pub domain: String,
+}
+
+/// Immutable qualified choices consumed by the actual Jobs/Session worker.
+/// At most eight configurations, each with a unique model/geometry route.
+/// Missing qualification/precomputed dispositions cannot construct a binding.
+#[derive(Clone, Debug)]
+pub struct Bindings {
+    context: Context,
+    decisions: Vec<Decision>,
+}
+impl Bindings {
+    /// The host must independently verify the current environment, domain and
+    /// referenced external reports. A matching digest is not authentication.
+    /// This constructor performs no runtime/decoder/model IO or inference.
+    pub fn new(context: Context, decisions: &[&Decision]) -> Result<Self> {
+        if !nonzero(context.environment_sha256)
+            || !nonzero(context.measurement_protocol_sha256)
+            || !label(&context.domain)
+            || decisions.is_empty()
+            || decisions.len() > 8
+        {
+            return Err(Error::Invalid("qualified bindings require a current context and one to eight choices"));
+        }
+        let mut retained: Vec<Decision> = Vec::with_capacity(decisions.len());
+        for decision in decisions {
+            if decision.requested.environment_sha256 != context.environment_sha256
+                || decision.requested.measurement_protocol_sha256 != context.measurement_protocol_sha256
+                || decision.requested.domain != context.domain
+            {
+                return Err(Error::Invalid("qualified choice differs from current application context"));
+            }
+            let resolved = decision.resolved().ok_or(Error::Invalid(
+                "precomputed depth is required; no qualified inference choice",
+            ))?;
+            if retained.iter().filter_map(Decision::resolved).any(|previous| {
+                previous.model() == resolved.model() && previous.geometry() == resolved.geometry()
+            }) {
+                return Err(Error::Invalid("qualified bindings repeat an ambiguous model/geometry route"));
+            }
+            retained.push((*decision).clone());
+        }
+        Ok(Self { context, decisions: retained })
+    }
+    pub fn context(&self) -> &Context { &self.context }
+    /// Requested limits, actual resolved identity and every original refusal
+    /// remain available after profile/report owners have been released.
+    pub fn decisions(&self) -> &[Decision] { &self.decisions }
+    pub(crate) fn execution(&self, key: &crate::depth::Key) -> Result<&Execution> {
+        self.decisions.iter().filter_map(Decision::resolved).find(|summary| {
+            summary.model() == &key.model && summary.geometry() == &key.geometry
+        }).map(Summary::execution).ok_or(Error::Invalid(
+            "no qualified inference binding for the exact model and geometry",
+        ))
+    }
+}

@@ -572,7 +572,7 @@ impl Session {
     /// destinations. The directory is trusted application cache configuration;
     /// creating files is deferred to the worker and obeys the existing quota.
     pub fn configure_depth_in(&mut self, backend: impl Backend, directory: PathBuf) -> Result<()> {
-        self.configure_depth_worker(backend, directory, None)
+        self.configure_depth_worker(backend, directory, None, None)
     }
 
     /// Opt in to strict cross-session inference reuse in a separate, dedicated
@@ -581,11 +581,26 @@ impl Session {
     pub fn configure_depth_cached_in(&mut self, backend: impl Backend, directory: PathBuf,
         cache: depth::cache::Config) -> Result<()> {
         cache.validate()?;
-        self.configure_depth_worker(backend, directory, Some(cache))
+        self.configure_depth_worker(backend, directory, Some(cache), None)
+    }
+
+    /// Configure the existing Session worker with caller-verified capability
+    /// choices. Current model/geometry and actual execution remain mandatory
+    /// for ordinary inference, transitions, persistent reuse and frozen export.
+    /// No automatic tier mapping or new source/domain certification is implied.
+    pub fn configure_qualified_depth_in(&mut self, backend: impl Backend, directory: PathBuf,
+        bindings: depth::capability::policy::Bindings, cache: Option<depth::cache::Config>) -> Result<()> {
+        if let Some(cache) = &cache { cache.validate()?; }
+        self.configure_depth_worker(backend, directory, cache, Some(bindings))
+    }
+
+    pub fn depth_qualified_bindings(&self) -> Result<Option<&depth::capability::policy::Bindings>> {
+        self.check_thread()?;
+        Ok(self.depth.as_ref().and_then(|state| state.jobs.qualified_bindings()))
     }
 
     fn configure_depth_worker(&mut self, backend: impl Backend, directory: PathBuf,
-        cache: Option<depth::cache::Config>) -> Result<()> {
+        cache: Option<depth::cache::Config>, bindings: Option<depth::capability::policy::Bindings>) -> Result<()> {
         self.check_thread()?;
         if self.depth.is_some() {
             return Err(
@@ -593,7 +608,10 @@ impl Session {
             );
         }
         self.depth = Some(State {
-            jobs: match cache { Some(cache) => Jobs::start_cached(backend, cache)?, None => Jobs::start(backend)? },
+            jobs: match bindings {
+                Some(bindings) => Jobs::start_qualified(backend, bindings, cache)?,
+                None => match cache { Some(cache) => Jobs::start_cached(backend, cache)?, None => Jobs::start(backend)? },
+            },
             binding: None,
             installed: None,
             prepared: None,

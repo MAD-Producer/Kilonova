@@ -517,12 +517,13 @@ type Shared = Arc<(Mutex<State>, Condvar)>;
 
 pub struct Jobs {
     shared: Shared,
+    bindings: Option<Arc<capability::policy::Bindings>>,
     worker: Option<JoinHandle<()>>,
 }
 
 impl Jobs {
     pub fn start(backend: impl Backend) -> Result<Self> {
-        Self::start_configured(backend, None, false)
+        Self::start_configured(backend, None, false, None)
     }
 
     /// Explicit capability probe on the same bounded serial worker. Resolve the
@@ -531,24 +532,41 @@ impl Jobs {
     /// Source preparation is included; queueing and caller-side IO are not.
     /// This does not certify quality, peak memory, or sustained performance.
     pub fn start_measured(backend: impl Backend) -> Result<Self> {
-        Self::start_configured(backend, None, true)
+        Self::start_configured(backend, None, true, None)
     }
 
     /// Explicit, strict persistent cache. Unsupported execution identities and
     /// corrupt entries are failures; neither silently launches inference.
     pub fn start_cached(backend: impl Backend, cache: cache::Config) -> Result<Self> {
         cache.validate()?;
-        Self::start_configured(backend, Some(cache), false)
+        Self::start_configured(backend, Some(cache), false, None)
     }
 
-    fn start_configured(backend: impl Backend, cache: Option<cache::Config>, measured: bool) -> Result<Self> {
+    /// Execute only explicitly admitted configurations. Actual runtime identity
+    /// is resolved before either cache/spill reuse or inference. An unknown or
+    /// changed execution is an error, never a fallback to another binding.
+    pub fn start_qualified(backend: impl Backend, bindings: capability::policy::Bindings,
+        cache: Option<cache::Config>) -> Result<Self> {
+        if let Some(cache) = &cache { cache.validate()?; }
+        Self::start_configured(backend, cache, false, Some(bindings))
+    }
+
+    pub fn qualified_bindings(&self) -> Option<&capability::policy::Bindings> {
+        self.bindings.as_deref()
+    }
+
+    fn start_configured(backend: impl Backend, cache: Option<cache::Config>, measured: bool,
+        bindings: Option<capability::policy::Bindings>) -> Result<Self> {
         let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
         let worker_shared = shared.clone();
+        let bindings = bindings.map(Arc::new);
+        let worker_bindings = bindings.clone();
         let worker = thread::Builder::new()
             .name("motion-depth".into())
-            .spawn(move || run(backend, worker_shared, cache, measured))?;
+            .spawn(move || run(backend, worker_shared, cache, measured, worker_bindings))?;
         Ok(Self {
             shared,
+            bindings,
             worker: Some(worker),
         })
     }
@@ -751,7 +769,8 @@ fn panic_cause(payload: &(dyn Any + Send)) -> String {
     message.chars().take(512).collect()
 }
 
-fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, measured: bool) {
+fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, measured: bool,
+    bindings: Option<Arc<capability::policy::Bindings>>) {
     // Measurements retain this private identity, so a future profile consumer
     // can distinguish equal request numbers from different worker instances.
     let measurement_scope = Arc::new(());
@@ -824,15 +843,23 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
             // Resolve before *either* reusable result path. Session-local spill
             // must not bypass a changed actual runtime/provider/plan identity.
             let resolve_began = Instant::now();
-            let execution = if cache.is_some() || measured {
-                stage = if measured { "capability_resolve" } else { "cache_resolve" };
-                if measured { capability_phase(&shared, job.request, asset, stage)?; }
+            let required = bindings.as_ref().map(|bindings| bindings.execution(input.key())).transpose()?;
+            let execution = if cache.is_some() || measured || required.is_some() {
+                stage = if required.is_some() { "qualified_resolve" }
+                    else if measured { "capability_resolve" } else { "cache_resolve" };
+                if required.is_some() { qualification_phase(&shared, job.request, asset, stage)?; }
+                else if measured { capability_phase(&shared, job.request, asset, stage)?; }
                 else { cache_phase(&shared, job.request, asset, stage)?; }
                 let execution = backend.execution_identity(&input, &job.cancellation)?
-                    .ok_or(Error::Invalid(if measured {
+                    .ok_or(Error::Invalid(if required.is_some() {
+                        "qualified inference requires an attested execution identity"
+                    } else if measured {
                         "capability measurement requires an attested execution identity"
                     } else { "persistent cache requires an attested execution identity" }))?;
                 execution.validate()?;
+                if let Some(required) = required {
+                    validate_qualified_execution(required, &execution)?;
+                }
                 Some(execution)
             } else { None };
             let resolve_elapsed = resolve_began.elapsed();
@@ -874,7 +901,10 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
                     estimate
                 }
             } else {
-                if measured {
+                if required.is_some() {
+                    stage = "backend";
+                    qualification_phase(&shared, job.request, asset, stage)?;
+                } else if measured {
                     stage = "backend";
                     capability_phase(&shared, job.request, asset, stage)?;
                 }
@@ -882,7 +912,7 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
             };
             job.cancellation.check()?;
             estimate.validate(input.key())?;
-            if measured {
+            if measured || required.is_some() {
                 execution.as_ref().ok_or(Error::State)?.validate_result(&estimate)?;
             }
             let retained_gpu_buffers = if measured {
@@ -1020,5 +1050,39 @@ fn capability_phase(shared: &Shared, request: u64, asset: u64, phase: &'static s
     set_phase(shared, phase)?;
     log::info!("start #{} depth_capability asset={} phase={}", request, asset, phase);
     log::logger().flush();
+    Ok(())
+}
+
+fn qualification_phase(shared: &Shared, request: u64, asset: u64, phase: &'static str) -> Result<()> {
+    set_phase(shared, phase)?;
+    log::info!("start #{} depth_qualification asset={} phase={}", request, asset, phase);
+    log::logger().flush();
+    Ok(())
+}
+
+fn validate_qualified_execution(required: &cache::Execution, actual: &cache::Execution) -> Result<()> {
+    // Report the first changed field rather than two complete identities. Both
+    // sides then fit the worker's bounded Error cause, including both digests.
+    for (field, expected, resolved) in [
+        ("backend", &required.backend, &actual.backend),
+        ("provider", &required.provider, &actual.provider),
+        ("precision", &required.precision, &actual.precision),
+    ] {
+        if expected != resolved {
+            return Err(Error::Backend(format!(
+                "qualified execution differs field={field} required={expected:?} resolved={resolved:?}"
+            )));
+        }
+    }
+    for (field, expected, resolved) in [
+        ("runtime_sha256", &required.runtime_sha256, &actual.runtime_sha256),
+        ("plan_sha256", &required.plan_sha256, &actual.plan_sha256),
+    ] {
+        if expected != resolved {
+            return Err(Error::Backend(format!(
+                "qualified execution differs field={field} required={expected:?} resolved={resolved:?}"
+            )));
+        }
+    }
     Ok(())
 }

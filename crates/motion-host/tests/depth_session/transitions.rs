@@ -7,6 +7,8 @@ use motion_host::depth::{
 mod frozen;
 #[path = "transitions/cached.rs"]
 mod cached;
+#[path = "transitions/qualified.rs"]
+mod qualified;
 
 fn policy() -> Policy {
     Policy {

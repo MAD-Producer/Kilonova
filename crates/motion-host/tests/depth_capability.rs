@@ -1,5 +1,8 @@
 #![cfg(feature = "ai-depth")]
 
+#[path = "depth_capability/bindings.rs"]
+mod bindings;
+
 use motion_host::depth::{
     cache::{Config, Execution},
     Backend, Cancellation, Costs, Error, Estimate, Input, Jobs, Key, PreparedEstimate, Result,
