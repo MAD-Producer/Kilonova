@@ -1,0 +1,99 @@
+{
+  "archive": "depth75-reference-ci-v2.zip",
+  "bytes": 313390,
+  "sha256": "78e4a62501f26734b45403324edd5f905336bb7742d390de6e1e137625b83316",
+  "head": "be26574f4f8ca1d7c7a4b849d04a60bed885467a",
+  "actual_reference_controls": {
+    "passed": 11,
+    "failed": 0,
+    "skipped": 0
+  },
+  "complete_ci_tools": {
+    "total": 146,
+    "passed": 145,
+    "failed": 0,
+    "original_skipped": 1
+  },
+  "environment": {
+    "version": "6.0.3",
+    "file": "E:\\Dev\\aem\\.tools\\skill-validation-python\\yaml\\__init__.py"
+  },
+  "limits": [
+    "Existing E-drive PyYAML6.0.3 supplied to this invocation; no install or source/test-expectation change",
+    "Original missing-dependency invocation remains failed in its own archive",
+    "The11 reference controls are included in146 full-suite entries; they are not157 unique tests",
+    "Native default discovery and final-head cross-platform qualification remain separate"
+  ],
+  "members": [
+    {
+      "path": "controller.py",
+      "bytes": 3543,
+      "sha256": "f1d3d060a5b0181853ab4f3673f5f6ab26357476c3569b152e00a50ea0112f7d"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 873962,
+      "sha256": "73e9174b0bd4c18f74e29f7786a0bdcc60bec60b3eaadc65c1d956458c86fcbc"
+    },
+    {
+      "path": "session-consumed.json",
+      "bytes": 54,
+      "sha256": "7017888153c7f877bba0c3f8d11ee891bfb26281380b37266de74a3fb3e4a565"
+    },
+    {
+      "path": "reference-controls.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reference-controls.stderr.log",
+      "bytes": 1981,
+      "sha256": "ebed59d178110b997053ddb5619bb9c39eaf9ace06b547dac5ac72980933538b"
+    },
+    {
+      "path": "complete-tools.stdout.log",
+      "bytes": 2123,
+      "sha256": "a65904af5bc078fe8931cd26ca8941c1927f12477ef22e85d4ef7051ab6c8fed"
+    },
+    {
+      "path": "complete-tools.stderr.log",
+      "bytes": 27180,
+      "sha256": "f5b4651cdc25b95bace5417133bc3925b08f9818cab5f060d25481739ca2fe73"
+    },
+    {
+      "path": "source/tools/depth_reference_inputs.py",
+      "bytes": 3592,
+      "sha256": "3f955b74de8ce7e74b07c1bc055fda319d36664aa37121c65adf8c2cdb928c3e"
+    },
+    {
+      "path": "source/tools/depth_reference_metrics.py",
+      "bytes": 7687,
+      "sha256": "b0db4978eace06ddb3a3ce4c26310ae44a047e46bfa1b5e0387b1dc3d7a69a06"
+    },
+    {
+      "path": "source/tools/test_ci_depth_reference_inputs.py",
+      "bytes": 2825,
+      "sha256": "96f7fcff26aed381e2605380e94a53e2c13d668c62462842390a4527388e7229"
+    },
+    {
+      "path": "source/tools/test_ci_depth_reference_metrics.py",
+      "bytes": 2849,
+      "sha256": "602860a08c5e8ba5ea40c08f08bd5430c17ffe6d0c82085629a10898f924f5f4"
+    },
+    {
+      "path": "source/tools/validation_inventory.json",
+      "bytes": 49964,
+      "sha256": "beefaa33e062edaef422274569f1f6ca3e9368e28f4b2b292704fdc16827ea93"
+    },
+    {
+      "path": "source/crates/motion-host/Cargo.toml",
+      "bytes": 1988,
+      "sha256": "9e1df154c8d942f06323760780fe1f71ed438327d7f375d9beee3f64aef537f3"
+    },
+    {
+      "path": "archive-controller.py",
+      "bytes": 2771,
+      "sha256": "4e949c0ceb327451ce30cc6a1f918c73ef5a14ee84845bd8ca791b7f74b41673"
+    }
+  ]
+}

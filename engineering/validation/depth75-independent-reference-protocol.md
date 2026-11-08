@@ -262,3 +262,19 @@ The Rust reference example now also declares `test = true`, so its three
 already exercised source/worker identity controls participate in ordinary
 Cargo test discovery whenever `ai-depth` is enabled. This changes test routing,
 not the CLI implementation or any measured backend/executable identity.
+
+At `be26574f`, the distinct corrected environment used the existing E-drive
+PyYAML 6.0.3 installation explicitly. The actual 11 reference controls passed;
+complete CI discovery then ran 146 entries: 145 passed, zero failed, one original
+skip. The 11 reference controls are included in that complete count, not added
+as separate unique tests. Both commands completed once; original session 71343
+was consumed with exit 0 and the source remained unchanged. No dependency was
+installed and no source, expected assertion, limit or skip policy changed during
+the corrected invocation. `data/depth75-reference-ci-v2.json` identifies the
+verified archive of raw results and corresponding source paths. The preceding
+missing-dependency command remains failed.
+
+`git fetch origin main` reconfirmed baseline
+`ac65d279c57626d7aa7e28061a1a7fdf7889c68a`, already an ancestor of this branch.
+Current default Cargo discovery and the full related native regression must
+now verify the new example test routing. Broader issue acceptance remains open.
