@@ -146,8 +146,50 @@ raw-digest substitution, transposed dimensions and one-byte replacement. The
 original source, role, request, provider, timing and output-extent checks remain.
 Mismatch errors now retain bounded actual/expected fields. This correction
 changes the evaluation caller, not the production inference or cache contract.
-Its native tests, rebuilt CLI and next actual cohort require separate evidence.
+Its native tests, rebuilt CLI and next actual cohort are recorded separately below.
 
 RGB decoding remains an earlier separately identified stage; its cost must not
-be hidden inside, or claimed as part of, worker inference timing. Actual cohort
-measurements, independent held-out reduction and other acceptance remain pending.
+be hidden inside, or claimed as part of, worker inference timing.
+
+## First completed actual reference cohort
+
+At `08dddbb9`, all three native caller controls passed without ignored/filtered
+tests. The rebuilt CLI also retained the original pre-inference source-refusal,
+default Info file records, Error file/stderr output and empty stdout. Original
+native session 86270 and actual cohort session 76813 were consumed with exit 0.
+Both kept exactly the same frozen source. Evidence is identified by
+`data/depth75-reference-onnx266-v2.json`; its archive includes all raw measurement
+rows and logs but no model, RGB/sensor images or learned prediction arrays.
+
+All 32 CPU266 requests completed without failure, cancellation, cache reuse or
+restoration. All private prediction arrays were independently read back and
+SHA-256 checked before archiving. The original eight calibration frames used
+2,020,231 valid pixels and retained 437,369 missing pixels. Their one fitted
+inverse-depth map has slope 0.20058113727943536 and offset 0.3929613881077111.
+The following 24 held-out frames retain 5,637,354 valid and 1,735,446 missing
+pixels. No frame was replaced, refitted, clipped or selected by residual.
+
+| CPU266 held-out statistic | Inverse metres |
+| --- | ---: |
+| Pixel-weighted RMS | 0.13330743961888267 |
+| Mean absolute error | 0.11466807898351689 |
+| Maximum absolute error | 1.0977689458419422 |
+
+Normalization is exactly one inverse metre. These measured residuals are not
+ONNX/WGSL numerical-equivalence errors or a quality-tier admission. All 32 cold
+worker observations are retained: fastest 2.4321458 s, median 2.8730603 s and
+slowest 6.0936272 s. They include source fingerprinting, execution resolution,
+inference and transport, while excluding caller PNG decoding and queue wait.
+The result does not demonstrate real-time interactive inference.
+
+The next five routes remain in the original declared order: WGSL266, CPU392,
+WGSL392, CPU518, WGSL518. Inspection establishes that the current pinned WGSL
+implementation accepts only its 518 model/program/processing identity. Its 266
+and 392 routes must therefore retain explicit unavailable results, without a
+different backend, model or program being substituted. They cannot count as
+successful model measurements. All available routes retain the same 32 frames
+and eight/24 division. Missing routes do not authorize changing the protocol.
+
+Additional transition jump remains unknown. Arbitrary-domain quality, complete
+memory/weight/activation peaks, longer thermal behavior, quality-tier selection
+and the remaining issue acceptance are still pending.
