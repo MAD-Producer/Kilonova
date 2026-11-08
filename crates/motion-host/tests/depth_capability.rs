@@ -66,6 +66,7 @@ struct Controlled {
     resolves: Arc<AtomicUsize>,
     infers: Arc<AtomicUsize>,
     fault: Fault,
+    execution: Execution,
     block: Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>,
 }
 impl Backend for Controlled {
@@ -82,7 +83,7 @@ impl Backend for Controlled {
                 runtime_sha256: [0; 32],
                 ..execution()
             })),
-            _ => Ok(Some(execution())),
+            _ => Ok(Some(self.execution.clone())),
         }
     }
     fn infer(&mut self, input: &Input, _: &Cancellation) -> Result<Estimate> {
@@ -116,11 +117,10 @@ impl Backend for Controlled {
                 None,
             )?,
             provider: if matches!(self.fault, Fault::Provider) {
-                "foreign-provider"
+                "foreign-provider".into()
             } else {
-                "actual-provider"
-            }
-            .into(),
+                self.execution.provider.clone()
+            },
             // A backend's claimed total cannot become a worker measurement.
             costs: Costs {
                 total: Duration::MAX,
@@ -134,6 +134,7 @@ fn backend(fault: Fault) -> Controlled {
         resolves: Arc::new(AtomicUsize::new(0)),
         infers: Arc::new(AtomicUsize::new(0)),
         fault,
+        execution: execution(),
         block: None,
     }
 }
@@ -323,4 +324,112 @@ fn observation_identity_distinguishes_clones_requests_and_worker_instances() {
     let third = take(&mut other, 1).measurement().unwrap().clone();
     assert_eq!(first.request(), third.request());
     assert!(!first.same_observation(&third));
+}
+
+#[test]
+fn bounded_profile_keeps_every_independent_observation_and_exact_order_statistics() {
+    use motion_host::depth::capability::Profile;
+    let mut profile = Profile::new(2).unwrap();
+    assert!(profile.summary().is_err());
+    let mut jobs = Jobs::start_measured(backend(Fault::None)).unwrap();
+    jobs.request(input()).unwrap();
+    let first = take(&mut jobs, 1);
+    profile.record(&first).unwrap();
+    assert!(profile.record(&first.clone()).is_err());
+    assert_eq!(profile.observations().len(), 1);
+    assert_eq!(profile.observations()[0].source(), &key().source);
+    assert_eq!(profile.observations()[0].input(), first.input());
+    assert!(profile.observations()[0]
+        .measurement()
+        .same_observation(first.measurement().unwrap()));
+    jobs.request(input()).unwrap();
+    let second = take(&mut jobs, 2);
+    profile.record(&second).unwrap();
+    let summary = profile.summary().unwrap();
+    let mut expected = [
+        first.measurement().unwrap().total(),
+        second.measurement().unwrap().total(),
+    ];
+    expected.sort_unstable();
+    assert_eq!(summary.samples(), 2);
+    assert_eq!(summary.fastest(), expected[0]);
+    assert_eq!(summary.median(), expected[1]);
+    assert_eq!(summary.slowest(), expected[1]);
+    assert_eq!(
+        summary.resolve_slowest(),
+        first
+            .measurement()
+            .unwrap()
+            .resolve()
+            .max(second.measurement().unwrap().resolve())
+    );
+    assert_eq!(summary.model(), &key().model);
+    assert_eq!(summary.geometry(), &key().geometry);
+    assert_eq!(summary.execution(), &execution());
+    jobs.request(input()).unwrap();
+    let third = take(&mut jobs, 3);
+    assert!(profile.record(&third).is_err());
+    assert_eq!(profile.observations().len(), 2);
+    assert_eq!(profile.summary().unwrap().slowest(), summary.slowest());
+}
+
+#[test]
+fn profile_refuses_raw_results_and_changed_model_geometry_or_execution_atomically() {
+    use motion_host::depth::capability::Profile;
+    for capacity in [0, 65, usize::MAX] {
+        assert!(Profile::new(capacity).is_err());
+    }
+    let mut profile = Profile::new(8).unwrap();
+    let mut ordinary = Jobs::start(backend(Fault::None)).unwrap();
+    ordinary.request(input()).unwrap();
+    assert!(profile.record(&take(&mut ordinary, 1)).is_err());
+    assert!(profile.observations().is_empty());
+    drop(ordinary);
+    let mut jobs = Jobs::start_measured(backend(Fault::None)).unwrap();
+    jobs.request(input()).unwrap();
+    profile.record(&take(&mut jobs, 1)).unwrap();
+    let original = profile.summary().unwrap();
+    drop(jobs);
+    for field in 0..6 {
+        let mut k = key();
+        let mut controlled = backend(Fault::None);
+        match field {
+            0 => k.model.processing.push_str("-other"),
+            1 => k.geometry.mirror_x = true,
+            2 => controlled.execution.provider.push_str("-other"),
+            3 => controlled.execution.runtime_sha256 = [61; 32],
+            4 => controlled.execution.plan_sha256 = [62; 32],
+            _ => controlled.execution.precision = "float16".into(),
+        }
+        let candidate = Input::new(k.clone(), [2, 1], Arc::from([1u8, 2, 3, 4, 5, 6])).unwrap();
+        let mut other = Jobs::start_measured(controlled).unwrap();
+        other.request(candidate).unwrap();
+        wait_done(&other, 1);
+        let ready = other.take_prepared_ready(&k).unwrap().unwrap();
+        assert!(profile.record(&ready).is_err());
+        let retained = profile.summary().unwrap();
+        assert_eq!(retained.samples(), 1);
+        assert_eq!(retained.model(), original.model());
+        assert_eq!(retained.geometry(), original.geometry());
+        assert_eq!(retained.execution(), original.execution());
+        assert_eq!(retained.slowest(), original.slowest());
+    }
+    // Another worker's request #1 is independent, and source/PTS changes remain
+    // explicit observations rather than being silently replaced or trimmed.
+    let mut k = key();
+    k.source.asset += 1;
+    k.source.pts.ticks += 2;
+    let candidate = Input::new(k.clone(), [2, 1], Arc::from([6u8, 5, 4, 3, 2, 1])).unwrap();
+    let mut other = Jobs::start_measured(backend(Fault::None)).unwrap();
+    other.request(candidate).unwrap();
+    wait_done(&other, 1);
+    profile
+        .record(&other.take_prepared_ready(&k).unwrap().unwrap())
+        .unwrap();
+    assert_eq!(profile.observations().len(), 2);
+    assert_eq!(profile.observations()[1].source(), &k.source);
+    assert_ne!(
+        profile.observations()[0].input().rgb_sha256,
+        profile.observations()[1].input().rgb_sha256
+    );
 }

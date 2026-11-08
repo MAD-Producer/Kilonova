@@ -19,6 +19,7 @@ mod engine {
 fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<serde_json::Value> {
     let mut jobs = Jobs::start_measured(backend)?;
     let mut rows = Vec::with_capacity(count);
+    let mut profile = depth::capability::Profile::new(count)?;
     for _ in 0..count {
         let request = jobs.request(input.clone())?;
         let deadline = Instant::now() + Duration::from_secs(60);
@@ -46,6 +47,7 @@ fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<s
             ));
         }
         let c = &ready.estimate().costs;
+        profile.record(&ready)?;
         rows.push(serde_json::json!({
             "request": request, "execution": measured.execution(), "input": ready.input(),
             "worker_total_ns": measured.total().as_nanos(), "resolve_ns": measured.resolve().as_nanos(),
@@ -58,6 +60,7 @@ fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<s
         }));
     }
     let counts = jobs.counts()?;
+    let summary = profile.summary()?;
     if counts.completed != count as u64
         || counts.failed != 0
         || counts.canceled != 0
@@ -73,7 +76,10 @@ fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<s
     Ok(serde_json::json!({
         "schema": 1, "key": input.key(), "samples": rows,
         "scope": "predecoded opaque RGB8 sRGB; worker preparation, resolution, inference and output checks; no queue wait, caller decode, alignment, renderer, quality, peak memory or thermal claim",
-        "cache_hits": counts.cache_hits, "restored": counts.restored
+        "cache_hits": counts.cache_hits, "restored": counts.restored,
+        "profile": {"samples": summary.samples(), "fastest_ns": summary.fastest().as_nanos(),
+            "median_ns": summary.median().as_nanos(), "slowest_ns": summary.slowest().as_nanos(),
+            "resolve_slowest_ns": summary.resolve_slowest().as_nanos()}
     }))
 }
 

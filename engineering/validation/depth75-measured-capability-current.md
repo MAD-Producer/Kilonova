@@ -38,6 +38,20 @@ backend phase costs remain available separately; their input/output tensor byte
 counts are not peak memory measurements. Input geometry, model identity and
 actual execution identity must accompany all published comparisons.
 
+`capability::Profile` retains at most 64 observations and never keeps RGB or
+depth planes. It accepts only worker-measured results for the same exact model,
+geometry, actual provider, runtime, plan and numerical precision. Duplicate
+worker/request observations, ordinary results, identity changes and capacity
+overflow are rejected atomically. Every retained observation exposes its source
+and prepared-input fingerprint. A different worker's request number is a
+different observation; cloning one result is not.
+
+The read-only summary reports all retained observations' minimum, upper median,
+maximum and maximum resolution duration. It removes no warm-up or outlier. These
+are observed order statistics, not future latency guarantees or proof that a
+caller-selected sample set represents a video. The real-model example records
+its results through this same profile admission path.
+
 ## Reproducible probes
 
 The manual `depth_capability` example uses the actual workspace dependency graph
@@ -64,16 +78,18 @@ timeout or worker restart.
 
 ## Pending acceptance and remaining issue scope
 
-- Run all seven new native controls, including a resolver held at a controlled
+- Run all nine new native controls, including a resolver held at a controlled
   barrier, cancellation, identity/provider refusal, backend error/panic,
-  cache exclusion and duplicate observation identity
+  cache exclusion, duplicate observation identity, bounded profile statistics
+  and atomic identity/capacity refusal
 - Run the relevant original host/depth regressions without changed assertions,
   GPU policy, original ignores or deadlines
 - Run actual CPU and WGSL probes against pinned resources, bind their output to
   source/lock/runtime identity, and verify default-level file starts, Error
   stderr and stdout isolation on real failure as well as success
-- Implement bounded profile aggregation and an explicit measured selection
-  policy with requested/resolved backend/model and precomputed-depth disposition
+- Qualify the implemented bounded profile aggregation, then implement an explicit
+  measured selection policy with requested/resolved backend/model and
+  precomputed-depth disposition
 - Qualify accuracy/domain suitability, conservative memory admission, sustained
   execution/thermal behavior and continuous-video quality transitions before
   assigning fast/standard/high. Neither backend name, model input resolution nor
