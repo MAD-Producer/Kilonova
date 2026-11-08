@@ -12,6 +12,18 @@ crate-type = ["rlib"]
 name = "wgsl_depth"
 required-features = ["ai-depth"]
 
+[[example]]
+name = "wgsl_depth_cache"
+required-features = ["ai-depth"]
+
+[[example]]
+name = "wgsl_depth_cache_boundaries"
+required-features = ["ai-depth"]
+
+[[example]]
+name = "wgsl_depth_cache_identity"
+required-features = ["ai-depth"]
+
 [features]
 default = ["gpu-tests"]
 # Test selection only; product rendering is always compiled.

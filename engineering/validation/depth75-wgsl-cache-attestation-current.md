@@ -180,3 +180,70 @@ quality, backend comparison, full-path latency, memory and sustained-load
 qualification remain separate obligations. No panels or UI behavior is changed;
 no product dependency or third-party asset is added. The local inspection-only
 tools and their license scope are recorded in `ATTRIBUTION.md`.
+
+## Maintained-main product build and complete changed-crate gate
+
+After aligning with main `ac65d279c57626d7aa7e28061a1a7fdf7889c68a`, source
+`d853223c3893457719f54964ab62b069c6cb63f0` passed the desktop check and actual
+`motion-desktop` package build of `motion-depth-wgsl`, with FFmpeg and both host
+and desktop-media AI-depth features. The complete original host/render/media
+GPU/FFmpeg command then passed: 1,609 tests, zero failures, three original
+ignores, zero filters, and all 174 expected test targets accounted for by Cargo
+metadata and source-bound dep-info. All 84 named depth controls passed. All
+tracked source hashes were unchanged. Actual session 24454 was consumed with
+exit zero. Receipt: `artifacts/pr-queue/depth75-wgsl-cache-product-v2`.
+
+This is not the complete maintained-workspace or desktop integration gate.
+Historical native crashes on other source snapshots remain unresolved; this
+successful run does not establish their root cause or remove their records.
+
+The subsequent standalone consumer fixture did not reach inference: its build
+failed when rustc exited with `0xc0000005` while compiling `motion-effects`.
+Actual session 57772 was consumed with exit one. The original output remains in
+`artifacts/pr-queue/depth75-wgsl-cache-product-actual-v1`; dependent controls were
+not launched. Neither a model failure nor a compiler-crash fix is inferred.
+
+## Reproducible workspace acceptance drivers
+
+The following manual examples now use the real workspace dependency graph and
+root lockfile. They retain the original actual-cache fixture assertions,
+numerical bounds, deadlines and controlled publication barriers. They delegate
+all inference and cache admission to the production host; no model result is
+provided by a fixture. They are not model-free CI tests. Their addition alone
+does not qualify a successful real-model run.
+
+```text
+cargo build --locked -p motion-desktop -p motion-host \
+  --bin motion-depth-wgsl --example wgsl_depth_cache \
+  --example wgsl_depth_cache_boundaries --example wgsl_depth_cache_identity \
+  --features motion-desktop/ffmpeg,motion-host/ai-depth,motion-desktop-media/ai-depth
+```
+
+Use separately installed, licensed pinned Small 518 model resources and the
+existing Python numerical runtime. Supply absolute paths with `MOTION_LOG`
+unset; output directories belong exclusively to these controls:
+
+- `wgsl_depth_cache <new-output-root> <python> <model.onnx> <program.json>
+  <native-worker>` performs one cold inference, reopens the cache in a new
+  worker, compares all scalar bits and fresh resource identity, then deliberately
+  corrupts its own entry and requires refusal without another inference. Its
+  controlled blocking and file/stderr/stdout assertions remain unchanged
+- `wgsl_depth_cache_boundaries <owned-output-root> <python> <model.onnx>
+  <copied-program.json> <native-worker> <cold-proof-root> <copied-weight-file>`
+  requires an owned repaired copy of the cold control's cache. It checks fresh
+  alignment and generation, resource refusal/recovery, cancellation before
+  lookup and independent CPU numerical agreement. Both mutable resource paths
+  must reside inside the owned output root
+- `wgsl_depth_cache_identity <owned-output-root> <python> <model.onnx>
+  <program.json> <copied-worker>` requires an independently copied worker and
+  its runtime libraries inside the owned output root. It changes that copy
+  after actual resolution, requires refusal before native inference, restores
+  its bytes and independently resolves again. It refuses a worker outside the
+  owned root
+
+The cold control leaves its cache deliberately corrupt as failure evidence.
+Boundary setup repairs the single changed byte only in another owned copy;
+never reuse that evidence directory as a normal application cache. The
+identity control must never receive an installed application executable.
+No asset, dependency, UI or normal backend behavior changes accompany these
+explicit acceptance tools.
