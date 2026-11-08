@@ -11,6 +11,7 @@ use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, PreparedDepthI
 use std::{sync::Arc, time::Duration};
 
 pub mod latency;
+pub mod policy;
 
 #[derive(Clone, Debug)]
 pub struct Measurement {

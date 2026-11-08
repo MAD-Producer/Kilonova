@@ -711,3 +711,549 @@ fn latency_selection_bounds_requests_and_keeps_model_geometry_refusal_reasons() 
         assert!(latency::select(request, &[]).is_err());
     }
 }
+
+fn policy_request() -> motion_host::depth::capability::policy::Request {
+    use motion_host::depth::capability::policy::{Request, Tier};
+    Request {
+        tier: Tier::Standard,
+        domain: "authored-control-domain".into(),
+        environment_sha256: [80; 32],
+        geometry: key().geometry,
+        model: None,
+        backend: None,
+        minimum_samples: 2,
+        maximum_worker_latency: Duration::from_secs(10),
+        maximum_host_peak_bytes: 1024,
+        maximum_device_peak_bytes: 2048,
+        maximum_quality_rms: 0.1,
+        maximum_quality_error: 0.2,
+        maximum_transition_jump: 0.05,
+        minimum_sustained_duration: Duration::from_secs(2),
+        maximum_temperature_celsius: 80.,
+    }
+}
+
+// These explicit caller reports are controlled admission fixtures, not real
+// quality, whole-memory or thermal measurements and not evidence for a device.
+fn policy_qualification(
+    profile: &motion_host::depth::capability::Profile,
+) -> motion_host::depth::capability::policy::Qualification {
+    use motion_host::depth::capability::policy::{self, Memory, Qualification, Quality, Sustained};
+    let summary = profile.summary().unwrap();
+    Qualification {
+        model: summary.model().clone(),
+        geometry: summary.geometry().clone(),
+        execution: summary.execution().clone(),
+        cohort_sha256: policy::cohort_sha256(profile).unwrap(),
+        environment_sha256: [80; 32],
+        domain: "authored-control-domain".into(),
+        quality: Some(Quality {
+            record_sha256: [81; 32],
+            independent_reference_sha256: [82; 32],
+            samples: summary.samples(),
+            normalized_rms: 0.1,
+            normalized_maximum: 0.2,
+            maximum_additional_transition_jump: 0.05,
+        }),
+        memory: Some(Memory {
+            record_sha256: [83; 32],
+            host_peak_bytes: 1024,
+            device_peak_bytes: 2048,
+            weight_bytes: 256,
+            activation_peak_bytes: 512,
+        }),
+        sustained: Some(Sustained {
+            record_sha256: [84; 32],
+            samples: 2,
+            failed: 0,
+            canceled: 0,
+            duration: Duration::from_secs(2),
+            maximum_worker_latency: Duration::from_secs(1),
+            maximum_temperature_celsius: 80.,
+        }),
+    }
+}
+
+#[test]
+fn capability_policy_preserves_requested_tier_and_actual_configuration_at_exact_bounds() {
+    use motion_host::depth::capability::policy::{self, Input, Tier};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let qualification = policy_qualification(&profile);
+    for tier in [Tier::Fast, Tier::Standard, Tier::High] {
+        let mut request = policy_request();
+        request.tier = tier;
+        request.model = Some(key().model);
+        request.backend = Some(execution().backend);
+        let decision = policy::select(
+            request,
+            &[Input {
+                profile: &profile,
+                qualification: Some(&qualification),
+            }],
+        )
+        .unwrap();
+        assert_eq!(decision.requested().tier, tier);
+        assert_eq!(decision.requested().model.as_ref(), Some(&key().model));
+        assert!(decision.candidates()[0].refusals().is_empty());
+        assert_eq!(decision.resolved().unwrap().model(), &key().model);
+        assert_eq!(decision.resolved().unwrap().execution(), &execution());
+        assert_eq!(decision.resolved().unwrap().samples(), 2);
+    }
+}
+
+#[test]
+fn capability_policy_requires_each_unknown_dimension_without_synthetic_success() {
+    use motion_host::depth::capability::{
+        latency::Disposition,
+        policy::{self, Input, Refusal},
+    };
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let empty = policy::select(policy_request(), &[]).unwrap();
+    assert_eq!(empty.disposition(), Disposition::PrecomputedRequired);
+    assert!(empty.resolved().is_none());
+    let absent = policy::select(
+        policy_request(),
+        &[Input {
+            profile: &profile,
+            qualification: None,
+        }],
+    )
+    .unwrap();
+    assert_eq!(
+        absent.candidates()[0].refusals(),
+        &[Refusal::MissingQualification]
+    );
+    assert!(absent.resolved().is_none());
+    let mut qualification = policy_qualification(&profile);
+    qualification.quality = None;
+    qualification.memory = None;
+    qualification.sustained = None;
+    let missing = policy::select(
+        policy_request(),
+        &[Input {
+            profile: &profile,
+            qualification: Some(&qualification),
+        }],
+    )
+    .unwrap();
+    assert_eq!(
+        missing.candidates()[0].refusals(),
+        &[
+            Refusal::MissingQuality,
+            Refusal::MissingMemory,
+            Refusal::MissingSustained
+        ]
+    );
+    assert_eq!(missing.disposition(), Disposition::PrecomputedRequired);
+    assert!(missing.resolved().is_none());
+    assert_eq!(profile.observations().len(), 2);
+}
+
+#[test]
+fn capability_policy_does_not_replace_requested_model_backend_environment_or_domain() {
+    use motion_host::depth::capability::policy::{self, Input, Refusal};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let qualification = policy_qualification(&profile);
+    let mut request = policy_request();
+    let mut model = key().model;
+    model.processing.push_str("-different");
+    request.model = Some(model);
+    request.backend = Some("unavailable-backend".into());
+    request.environment_sha256 = [90; 32];
+    request.domain = "other-domain".into();
+    let decision = policy::select(
+        request,
+        &[Input {
+            profile: &profile,
+            qualification: Some(&qualification),
+        }],
+    )
+    .unwrap();
+    assert_eq!(
+        decision.candidates()[0].refusals(),
+        &[
+            Refusal::DifferentModel,
+            Refusal::DifferentBackend,
+            Refusal::DifferentEnvironment,
+            Refusal::DifferentDomain
+        ]
+    );
+    assert!(decision.resolved().is_none());
+    assert_eq!(
+        decision.requested().backend.as_deref(),
+        Some("unavailable-backend")
+    );
+}
+
+#[test]
+fn capability_policy_reports_all_quality_memory_latency_and_sustained_refusals() {
+    use motion_host::depth::capability::policy::{self, Input, Refusal};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let mut qualification = policy_qualification(&profile);
+    let slowest = profile.summary().unwrap().slowest();
+    let sustained = qualification.sustained.as_mut().unwrap();
+    sustained.maximum_worker_latency = slowest;
+    sustained.duration = sustained.duration.max(slowest);
+    let mut request = policy_request();
+    request.minimum_samples = 3;
+    request.maximum_worker_latency = slowest - Duration::from_nanos(1);
+    request.maximum_host_peak_bytes -= 1;
+    request.maximum_device_peak_bytes -= 1;
+    request.maximum_quality_rms = 0.099;
+    request.maximum_quality_error = 0.199;
+    request.maximum_transition_jump = 0.049;
+    request.minimum_sustained_duration = sustained.duration + Duration::from_nanos(1);
+    request.maximum_temperature_celsius = 79.99;
+    let decision = policy::select(
+        request,
+        &[Input {
+            profile: &profile,
+            qualification: Some(&qualification),
+        }],
+    )
+    .unwrap();
+    assert_eq!(
+        decision.candidates()[0].refusals(),
+        &[
+            Refusal::InsufficientSamples,
+            Refusal::OverLatencyBudget,
+            Refusal::InsufficientQualitySamples,
+            Refusal::OverQualityRms,
+            Refusal::OverQualityError,
+            Refusal::OverTransitionJump,
+            Refusal::OverHostMemory,
+            Refusal::OverDeviceMemory,
+            Refusal::InsufficientSustainedSamples,
+            Refusal::InsufficientSustainedDuration,
+            Refusal::OverSustainedLatency,
+            Refusal::OverTemperature,
+        ]
+    );
+    assert!(decision.resolved().is_none());
+}
+
+#[test]
+fn capability_policy_refuses_foreign_reports_and_cherry_picked_quality_counts() {
+    use motion_host::depth::capability::policy::{self, Input};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    for field in 0..7 {
+        let mut qualification = policy_qualification(&profile);
+        match field {
+            0 => qualification.model.sha256 = [1; 32],
+            1 => qualification.geometry.mirror_x = true,
+            2 => qualification.execution.plan_sha256 = [1; 32],
+            3 => qualification.cohort_sha256 = [1; 32],
+            4 => qualification.quality.as_mut().unwrap().samples = 1,
+            5 => qualification.quality.as_mut().unwrap().samples = 3,
+            _ => qualification.execution.precision.push_str("-different"),
+        }
+        assert!(policy::select(
+            policy_request(),
+            &[Input {
+                profile: &profile,
+                qualification: Some(&qualification)
+            }]
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn capability_policy_does_not_hide_failed_or_canceled_sustained_work() {
+    use motion_host::depth::capability::policy::{self, Input, Refusal};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    for canceled in [false, true] {
+        let mut qualification = policy_qualification(&profile);
+        let sustained = qualification.sustained.as_mut().unwrap();
+        if canceled {
+            sustained.canceled = 1;
+        } else {
+            sustained.failed = 1;
+        }
+        let decision = policy::select(
+            policy_request(),
+            &[Input {
+                profile: &profile,
+                qualification: Some(&qualification),
+            }],
+        )
+        .unwrap();
+        assert_eq!(
+            decision.candidates()[0].refusals(),
+            &[Refusal::IncompleteSustainedRun]
+        );
+        assert!(decision.resolved().is_none());
+    }
+}
+
+#[test]
+fn capability_policy_rejects_malformed_reports_without_changing_profiles() {
+    use motion_host::depth::capability::policy::{self, Input};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    for field in 0..12 {
+        let mut q = policy_qualification(&profile);
+        match field {
+            0 => q.quality.as_mut().unwrap().record_sha256 = [0; 32],
+            1 => q.quality.as_mut().unwrap().independent_reference_sha256 = [0; 32],
+            2 => q.quality.as_mut().unwrap().normalized_rms = f64::NAN,
+            3 => q.quality.as_mut().unwrap().normalized_maximum = 0.09,
+            4 => {
+                q.quality
+                    .as_mut()
+                    .unwrap()
+                    .maximum_additional_transition_jump = -0.01
+            }
+            5 => q.memory.as_mut().unwrap().host_peak_bytes = 0,
+            6 => q.memory.as_mut().unwrap().activation_peak_bytes = 0,
+            7 => q.sustained.as_mut().unwrap().record_sha256 = [0; 32],
+            8 => q.sustained.as_mut().unwrap().duration = Duration::from_nanos(1),
+            9 => q.sustained.as_mut().unwrap().maximum_temperature_celsius = f64::INFINITY,
+            10 => q.sustained.as_mut().unwrap().failed = usize::MAX,
+            _ => q.domain = "x".repeat(129),
+        }
+        assert!(policy::select(
+            policy_request(),
+            &[Input {
+                profile: &profile,
+                qualification: Some(&q)
+            }]
+        )
+        .is_err());
+        assert_eq!(profile.observations().len(), 2);
+    }
+}
+
+#[test]
+fn capability_policy_selects_across_models_without_using_quality_labels_as_backend_names() {
+    use motion_host::depth::capability::policy::{self, Input, Refusal, Tier};
+    let a = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let mut k = key();
+    k.model.processing.push_str("-separate-model-profile");
+    let b = sampled_profile(k, execution(), [1, 2, 3, 4, 5, 6], 2);
+    let qa = policy_qualification(&a);
+    let mut qb = policy_qualification(&b);
+    qb.quality.as_mut().unwrap().normalized_rms = 0.01;
+    qb.quality.as_mut().unwrap().normalized_maximum = 0.02;
+    let mut request = policy_request();
+    request.tier = Tier::High;
+    request.maximum_quality_rms = 0.05;
+    request.maximum_quality_error = 0.1;
+    let decision = policy::select(
+        request,
+        &[
+            Input {
+                profile: &a,
+                qualification: Some(&qa),
+            },
+            Input {
+                profile: &b,
+                qualification: Some(&qb),
+            },
+        ],
+    )
+    .unwrap();
+    assert_eq!(
+        decision.candidates()[0].refusals(),
+        &[Refusal::OverQualityRms, Refusal::OverQualityError]
+    );
+    assert!(decision.candidates()[1].refusals().is_empty());
+    assert_eq!(
+        decision.resolved().unwrap().model(),
+        b.summary().unwrap().model()
+    );
+    assert_eq!(decision.resolved().unwrap().execution(), &execution());
+    assert_eq!(decision.requested().tier, Tier::High);
+}
+
+#[test]
+fn capability_policy_cohort_is_rationally_canonical_and_refuses_unpaired_models() {
+    use motion_host::depth::capability::policy::{self, Input};
+    let a = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let mut k = key();
+    k.source.pts.ticks *= 2;
+    k.source.pts.timescale *= 2;
+    k.model.processing.push_str("-other");
+    let b = sampled_profile(k.clone(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    assert_eq!(
+        policy::cohort_sha256(&a).unwrap(),
+        policy::cohort_sha256(&b).unwrap()
+    );
+    assert!(policy::select(
+        policy_request(),
+        &[
+            Input {
+                profile: &a,
+                qualification: None
+            },
+            Input {
+                profile: &b,
+                qualification: None
+            },
+        ]
+    )
+    .unwrap()
+    .resolved()
+    .is_none());
+    k.source.pts.ticks += 1;
+    let changed = sampled_profile(k, execution(), [1, 2, 3, 4, 5, 6], 2);
+    assert!(policy::select(
+        policy_request(),
+        &[
+            Input {
+                profile: &a,
+                qualification: None
+            },
+            Input {
+                profile: &changed,
+                qualification: None
+            },
+        ]
+    )
+    .is_err());
+    assert!(policy::select(
+        policy_request(),
+        &[
+            Input {
+                profile: &a,
+                qualification: None
+            },
+            Input {
+                profile: &a,
+                qualification: None
+            },
+        ]
+    )
+    .is_err());
+}
+
+#[test]
+fn capability_policy_bounds_requests_candidates_and_nonfinite_limits() {
+    use motion_host::depth::capability::{
+        policy::{self, Input},
+        Profile,
+    };
+    for field in 0..15 {
+        let mut r = policy_request();
+        match field {
+            0 => r.domain.clear(),
+            1 => r.environment_sha256 = [0; 32],
+            2 => r.backend = Some("x".repeat(129)),
+            3 => r.minimum_samples = 0,
+            4 => r.minimum_samples = 65,
+            5 => r.maximum_worker_latency = Duration::ZERO,
+            6 => r.maximum_host_peak_bytes = 0,
+            7 => r.maximum_device_peak_bytes = 0,
+            8 => r.maximum_quality_rms = f64::NAN,
+            9 => r.maximum_quality_error = 0.01,
+            10 => r.maximum_transition_jump = f64::INFINITY,
+            11 => r.minimum_sustained_duration = Duration::ZERO,
+            12 => r.maximum_temperature_celsius = f64::NAN,
+            13 => r.maximum_temperature_celsius = -274.,
+            _ => {
+                r.model = Some(DepthModel {
+                    sha256: [0; 32],
+                    ..key().model
+                })
+            }
+        }
+        assert!(policy::select(r, &[]).is_err());
+    }
+    let empty = Profile::new(2).unwrap();
+    assert!(policy::select(
+        policy_request(),
+        &[Input {
+            profile: &empty,
+            qualification: None
+        }]
+    )
+    .is_err());
+    let inputs: Vec<_> = (0..9)
+        .map(|_| Input {
+            profile: &empty,
+            qualification: None,
+        })
+        .collect();
+    assert!(policy::select(policy_request(), &inputs).is_err());
+}
+
+#[test]
+fn capability_policy_memory_report_cannot_understate_actual_managed_gpu_capacity() {
+    use motion_host::depth::capability::{
+        policy::{self, Input},
+        Profile,
+    };
+    let mut controlled = backend(Fault::None);
+    controlled.retained_gpu_buffers = Some(4096);
+    let mut jobs = Jobs::start_measured(controlled).unwrap();
+    let mut profile = Profile::new(2).unwrap();
+    for n in 1..=2 {
+        jobs.request(input()).unwrap();
+        profile.record(&take(&mut jobs, n)).unwrap();
+    }
+    let mut qualification = policy_qualification(&profile);
+    assert!(policy::select(
+        policy_request(),
+        &[Input {
+            profile: &profile,
+            qualification: Some(&qualification)
+        }]
+    )
+    .is_err());
+    qualification.memory.as_mut().unwrap().device_peak_bytes = 4096;
+    let mut request = policy_request();
+    request.maximum_device_peak_bytes = 4096;
+    let accepted = policy::select(
+        request,
+        &[Input {
+            profile: &profile,
+            qualification: Some(&qualification),
+        }],
+    )
+    .unwrap();
+    assert!(accepted.resolved().is_some());
+    assert_eq!(
+        accepted.resolved().unwrap().retained_gpu_buffer_capacity(),
+        Some(4096)
+    );
+}
+
+#[test]
+fn capability_policy_ranks_only_fully_admitted_candidates_by_all_observations() {
+    use motion_host::depth::capability::policy::{self, Input};
+    let a = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let mut k = key();
+    k.model.sha256 = [91; 32];
+    let b = sampled_profile(k, execution(), [1, 2, 3, 4, 5, 6], 2);
+    let qa = policy_qualification(&a);
+    let qb = policy_qualification(&b);
+    let decision = policy::select(
+        policy_request(),
+        &[
+            Input {
+                profile: &a,
+                qualification: Some(&qa),
+            },
+            Input {
+                profile: &b,
+                qualification: Some(&qb),
+            },
+        ],
+    )
+    .unwrap();
+    assert!(decision
+        .candidates()
+        .iter()
+        .all(|c| c.refusals().is_empty()));
+    let sa = a.summary().unwrap();
+    let sb = b.summary().unwrap();
+    let expected = if (sa.slowest(), sa.median()) <= (sb.slowest(), sb.median()) {
+        &sa
+    } else {
+        &sb
+    };
+    assert_eq!(decision.resolved().unwrap().model(), expected.model());
+    assert_eq!(decision.resolved().unwrap().slowest(), expected.slowest());
+    assert_eq!(decision.resolved().unwrap().samples(), 2);
+    assert_eq!(a.observations().len(), 2);
+    assert_eq!(b.observations().len(), 2);
+}
