@@ -126,8 +126,23 @@ WGSL、Float32 RGBA 数值表及完整处理器身份。输入 JSON 最大 16 Mi
 建立不可变的源纹理绑定、管线和预算准入后的数值表。源和输出必须为颜色、
 Float32 且 alpha 与已准备程序完全一致；数据、深度、法线和覆盖率应走原有
 数值路径。本接口明确拒绝其他精度，不通过隐式裁剪掩盖 half-float 溢出。
-`ImageContract` 中历史 Linear/sRGB 标签不能替代完整 OCIO 空间：调用方仍须
-保证图片值属于编译时明确选择的空间，本批没有新增工程/资产的完整空间标记。
+`ImageContract` 中历史 Linear/sRGB 标签不能替代完整 OCIO 空间。后续接线
+使用 `ColorImageContract` 和 `ColorImageTarget`，将完整配置 hash 与明确空间/
+display/view 的身份带入纹理；`VerifiedColorConfig::space_identity` 解析角色为
+规范空间名，同一角色和名称得到相同身份。编译后的处理器公开两端身份，
+创建绑定时检查源与输出声明，编码时再次检查目标。错误返回 typed
+`ColorSpaceMismatch`，没有隐式改标签或替代变换。原始存储管线已收为私有。
+
+`Renderer::color_image_target` 分配有明确身份的浮点纹理；
+`ColorImageTarget::from_image` 是生产者显式声明边界，拒绝数据图像、整数
+存储和旧 sRGB 语义，不能替代像素转换。内部 Linear 标签仅为原有 ABI 选择
+不做传递函数的浮点存储。`read_color_image_target` 同时返回空间身份与原始
+字节；读取仍只用于明确导出/验收。普通 scene/effect DAG 尚未使用此身份。
+
+两阶段 CPU 参考保存在 `chain_reference.json`：三份原始配置、14 组输入→工作
+空间→显示/输出，含透明度组合；每阶段按 Float32 存储量化，记录原参考文件
+SHA-256。原始配置、shader 和数值表保持不变。对应 GPU 测试在同一编码器内
+连续建立两次绘制，中间不读回 CPU，另验证空间/配置不匹配时不分配表、不写目标。
 
 每帧复用该绑定，经原有 `AllocationEncoder` 调用 `encode`，目标必须等大、
 与源分离且声明匹配。提交仍走 `Renderer::submit_allocated`，合并绑定与目标

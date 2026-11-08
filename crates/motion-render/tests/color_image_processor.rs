@@ -4,9 +4,11 @@ use motion_effects::{
     image_contract::{ChannelPrecision, DataChannels, ImageContract, ImageMeaning},
     AlphaMode, WorkingSpace,
 };
-use motion_render::{ColorProcessorOutput, ImageCaptureTarget, Renderer};
+use motion_render::{ColorImageContract, ColorImageTarget, ColorProcessorOutput, Renderer};
 use serde::Deserialize;
 use std::{collections::BTreeMap, sync::Arc};
+#[path = "color_image_processor/chain.rs"]
+mod chain;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,
@@ -50,16 +52,7 @@ fn configs(reference: &Reference) -> Vec<(VerifiedColorConfig, ColorSelection)> 
         })
         .collect()
 }
-fn contract(alpha: AlphaMode) -> ImageContract {
-    ImageContract::new(
-        ImageMeaning::Color {
-            space: WorkingSpace::Linear,
-            alpha,
-        },
-        ChannelPrecision::Float32,
-    )
-}
-fn paint(renderer: &Renderer, target: &ImageCaptureTarget, pixels: &[[f32; 4]]) {
+fn paint(renderer: &Renderer, target: &ColorImageTarget, pixels: &[[f32; 4]]) {
     let pixels = pixels
         .iter()
         .map(|v| format!("vec4<f32>({:?},{:?},{:?},{:?})", v[0], v[1], v[2], v[3]))
@@ -88,7 +81,7 @@ fn paint(renderer: &Renderer, target: &ImageCaptureTarget, pixels: &[[f32; 4]]) 
                 entry_point: Some("fs"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: motion_render::image_formats::native_format(target.storage()),
+                    format: motion_render::image_formats::native_format(target.image().storage()),
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -105,7 +98,7 @@ fn paint(renderer: &Renderer, target: &ImageCaptureTarget, pixels: &[[f32; 4]]) 
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: target.view(),
+                view: target.image().view(),
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -128,9 +121,9 @@ fn paint(renderer: &Renderer, target: &ImageCaptureTarget, pixels: &[[f32; 4]]) 
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 }
-fn read(renderer: &Renderer, target: &ImageCaptureTarget) -> Vec<[f32; 4]> {
+fn read(renderer: &Renderer, target: &ColorImageTarget) -> Vec<[f32; 4]> {
     renderer
-        .read_image_target(target)
+        .read_color_image_target(target)
         .unwrap()
         .pixels
         .chunks_exact(16)
@@ -139,7 +132,7 @@ fn read(renderer: &Renderer, target: &ImageCaptureTarget) -> Vec<[f32; 4]> {
         })
         .collect()
 }
-fn submit(renderer: &Renderer, binding: &ColorProcessorOutput, output: &ImageCaptureTarget) {
+fn submit(renderer: &Renderer, binding: &ColorProcessorOutput, output: &ColorImageTarget) {
     let before = renderer.allocation_budget().info().unwrap().admitted_bytes;
     let mut encoder = renderer
         .allocation_command_encoder(&Default::default())
@@ -170,10 +163,26 @@ fn native_ocio_images_match_cpu_across_rows_phases_versions_and_alpha() {
         let (config, selection) = &configs[case.config];
         let p = case.processor.compile_image(config, selection).unwrap();
         let source = renderer
-            .image_capture_target(3, 4, contract(p.input_alpha()))
+            .color_image_target(
+                3,
+                4,
+                ColorImageContract {
+                    space: p.input_space(),
+                    alpha: p.input_alpha(),
+                    precision: ChannelPrecision::Float32,
+                },
+            )
             .unwrap();
         let output = renderer
-            .image_capture_target(3, 4, contract(p.output_alpha()))
+            .color_image_target(
+                3,
+                4,
+                ColorImageContract {
+                    space: p.output_space(),
+                    alpha: p.output_alpha(),
+                    precision: ChannelPrecision::Float32,
+                },
+            )
             .unwrap();
         assert_eq!(case.input.len(), 12);
         assert_eq!(case.expected.len(), 12);
@@ -233,10 +242,26 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
     let p = case.processor.compile_image(config, selection).unwrap();
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let source = renderer
-        .image_capture_target(3, 4, contract(p.input_alpha()))
+        .color_image_target(
+            3,
+            4,
+            ColorImageContract {
+                space: p.input_space(),
+                alpha: p.input_alpha(),
+                precision: ChannelPrecision::Float32,
+            },
+        )
         .unwrap();
     let output = renderer
-        .image_capture_target(3, 4, contract(p.output_alpha()))
+        .color_image_target(
+            3,
+            4,
+            ColorImageContract {
+                space: p.output_space(),
+                alpha: p.output_alpha(),
+                precision: ChannelPrecision::Float32,
+            },
+        )
         .unwrap();
     paint(&renderer, &source, &case.input);
     paint(&renderer, &output, &case.input);
@@ -251,7 +276,7 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
         .to_string()
         .contains("distinct"));
     let short = renderer
-        .image_capture_target(3, 3, output.contract())
+        .color_image_target(3, 3, output.contract())
         .unwrap();
     assert!(binding
         .encode(&renderer, &mut encoder, &short)
@@ -259,14 +284,35 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
         .to_string()
         .contains("extents"));
     let other_alpha = renderer
-        .image_capture_target(3, 4, contract(AlphaMode::Premultiplied))
+        .color_image_target(
+            3,
+            4,
+            ColorImageContract {
+                space: p.output_space(),
+                alpha: AlphaMode::Premultiplied,
+                precision: ChannelPrecision::Float32,
+            },
+        )
         .unwrap();
     assert!(binding
         .encode(&renderer, &mut encoder, &other_alpha)
         .unwrap_err()
         .to_string()
         .contains("contract"));
-    assert!(ColorProcessorOutput::new(&renderer, &other_alpha, &p, output.contract()).is_err());
+    let other_source_alpha = renderer
+        .color_image_target(
+            3,
+            4,
+            ColorImageContract {
+                space: p.input_space(),
+                alpha: AlphaMode::Premultiplied,
+                precision: ChannelPrecision::Float32,
+            },
+        )
+        .unwrap();
+    assert!(
+        ColorProcessorOutput::new(&renderer, &other_source_alpha, &p, output.contract()).is_err()
+    );
     assert!(ColorProcessorOutput::new(&renderer, &source, &p, other_alpha.contract()).is_err());
     drop(encoder);
     assert_eq!(read(&renderer, &output), before);
@@ -275,21 +321,40 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
             channels: DataChannels::Vector4,
         },
         ImageMeaning::Coverage {},
+        ImageMeaning::Weight { normalized: false },
         ImageMeaning::RelativeDepth {},
         ImageMeaning::LinearDepth {},
         ImageMeaning::Normal {},
     ] {
         let data_contract = ImageContract::new(meaning, ChannelPrecision::Float32);
         let data = renderer.image_capture_target(3, 4, data_contract).unwrap();
-        assert!(ColorProcessorOutput::new(&renderer, &data, &p, output.contract()).is_err());
-        assert!(ColorProcessorOutput::new(&renderer, &source, &p, data_contract).is_err());
+        assert!(ColorImageTarget::from_image(data, p.input_space()).is_err());
     }
-    for precision in [ChannelPrecision::Unorm8, ChannelPrecision::Float16] {
+    for precision in [ChannelPrecision::Float16] {
         let mut declaration = source.contract();
         declaration.precision = precision;
-        let lower = renderer.image_capture_target(3, 4, declaration).unwrap();
+        let lower = renderer.color_image_target(3, 4, declaration).unwrap();
         assert!(ColorProcessorOutput::new(&renderer, &lower, &p, output.contract()).is_err());
         assert!(ColorProcessorOutput::new(&renderer, &source, &p, declaration).is_err());
+    }
+    let mut integer = source.contract();
+    integer.precision = ChannelPrecision::Unorm8;
+    assert!(renderer.color_image_target(3, 4, integer).is_err());
+    for precision in [ChannelPrecision::Unorm8, ChannelPrecision::Float32] {
+        let legacy = renderer
+            .image_capture_target(
+                3,
+                4,
+                ImageContract::new(
+                    ImageMeaning::Color {
+                        space: WorkingSpace::Srgb,
+                        alpha: p.input_alpha(),
+                    },
+                    precision,
+                ),
+            )
+            .unwrap();
+        assert!(ColorImageTarget::from_image(legacy, p.input_space()).is_err());
     }
     let foreign = pollster::block_on(Renderer::headless()).unwrap();
     let mut foreign_encoder = foreign
@@ -302,9 +367,7 @@ fn image_transform_rejects_data_alpha_extent_ownership_and_alias_without_writes(
     assert!(binding
         .encode(&renderer, &mut foreign_encoder, &output)
         .is_err());
-    let foreign_target = foreign
-        .image_capture_target(3, 4, output.contract())
-        .unwrap();
+    let foreign_target = foreign.color_image_target(3, 4, output.contract()).unwrap();
     let mut local_encoder = renderer
         .allocation_command_encoder(&Default::default())
         .unwrap();
@@ -329,10 +392,26 @@ fn image_transform_resources_survive_encoding_and_submission_then_retire() {
     let baseline = budget.info().unwrap().admitted_bytes;
     for submit_work in [false, true] {
         let source = renderer
-            .image_capture_target(3, 4, contract(p.input_alpha()))
+            .color_image_target(
+                3,
+                4,
+                ColorImageContract {
+                    space: p.input_space(),
+                    alpha: p.input_alpha(),
+                    precision: ChannelPrecision::Float32,
+                },
+            )
             .unwrap();
         let output = renderer
-            .image_capture_target(3, 4, contract(p.output_alpha()))
+            .color_image_target(
+                3,
+                4,
+                ColorImageContract {
+                    space: p.output_space(),
+                    alpha: p.output_alpha(),
+                    precision: ChannelPrecision::Float32,
+                },
+            )
             .unwrap();
         paint(&renderer, &source, &case.input);
         let binding = ColorProcessorOutput::new(&renderer, &source, &p, output.contract()).unwrap();

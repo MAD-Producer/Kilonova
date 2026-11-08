@@ -11,6 +11,12 @@ use motion_effects::{
 };
 use std::{error::Error, fmt, sync::Arc};
 
+mod managed;
+pub use managed::{
+    CapturedColorImage, ColorImageContract, ColorImageTarget, ColorProcessorOutput,
+    ColorSpaceMismatch,
+};
+
 /// Retains primary admission and all native causes without displaying complete
 /// shader source in the outer diagnostic. Callers traverse source/native APIs.
 #[derive(Debug)]
@@ -64,10 +70,9 @@ impl Error for NativeColorProcessorError {
     }
 }
 
-/// Reuse while updating the original texture in place. ImageContract's legacy
-/// Linear/sRGB tag is not an OCIO space name; the compiled processor carries the
-/// explicit config/selection/phase identity. Caller must supply matching pixels.
-pub struct ColorProcessorOutput {
+/// Private raw transport. The public wrapper checks complete endpoint identity;
+/// ImageContract's legacy Linear tag only selects non-transferring float storage.
+struct RawColorProcessorOutput {
     pipeline: wgpu::RenderPipeline,
     tables_group: wgpu::BindGroup,
     source_group: wgpu::BindGroup,
@@ -103,7 +108,7 @@ fn table_entry(binding: u32, bytes: u64) -> wgpu::BindGroupLayoutEntry {
         count: None,
     }
 }
-impl ColorProcessorOutput {
+impl RawColorProcessorOutput {
     pub fn new(
         renderer: &Renderer,
         source: &ImageCaptureTarget,
@@ -290,15 +295,12 @@ impl ColorProcessorOutput {
     pub fn key(&self) -> [u8; 32] {
         self.key
     }
-    pub fn output_contract(&self) -> ImageContract {
-        self.output
-    }
     /// Exact image extents, one fragment per pixel. No resampling or implicit
     /// display transfer; AllocationEncoder retains admission through completion.
-    pub fn encode(
+    fn validate_destination(
         &self,
         renderer: &Renderer,
-        encoder: &mut AllocationEncoder,
+        encoder: &AllocationEncoder,
         destination: &ImageCaptureTarget,
     ) -> Result<(), RenderError> {
         renderer.check_health()?;
@@ -324,6 +326,9 @@ impl ColorProcessorOutput {
                 "OCIO source and destination must be distinct".into(),
             ));
         }
+        Ok(())
+    }
+    fn encode_validated(&self, encoder: &mut AllocationEncoder, destination: &ImageCaptureTarget) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("direct OCIO image transform"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -341,7 +346,6 @@ impl ColorProcessorOutput {
         pass.set_bind_group(0, &self.tables_group, &[]);
         pass.set_bind_group(1, &self.source_group, &[]);
         pass.draw(0..3, 0..1);
-        Ok(())
     }
     pub fn texture_resource_ledger(&self) -> TextureResourceLedger {
         let mut ledger = TextureResourceLedger::default();

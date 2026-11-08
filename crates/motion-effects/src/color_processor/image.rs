@@ -1,6 +1,7 @@
 //! Direct image variant: native analytic operations and the same explicit table
 //! interpolation, without per-frame image buffers or CPU readback.
 use super::*;
+use crate::color_config::{ColorSpaceIdentity, OutputSelection};
 
 /// Immutable image program. Image contracts still describe storage and alpha;
 /// complete color-space identity belongs to this explicitly selected processor.
@@ -10,6 +11,8 @@ pub struct CompiledColorImageProcessor {
     key: [u8; 32],
     input_alpha: AlphaMode,
     output_alpha: AlphaMode,
+    input_space: ColorSpaceIdentity,
+    output_space: ColorSpaceIdentity,
 }
 impl CompiledColorImageProcessor {
     pub fn key(&self) -> [u8; 32] {
@@ -30,6 +33,12 @@ impl CompiledColorImageProcessor {
     pub fn output_alpha(&self) -> AlphaMode {
         self.output_alpha
     }
+    pub fn input_space(&self) -> ColorSpaceIdentity {
+        self.input_space
+    }
+    pub fn output_space(&self) -> ColorSpaceIdentity {
+        self.output_space
+    }
 }
 impl ColorProcessorSource {
     /// Prepare away from Present. Validate the same configuration and numerical
@@ -40,6 +49,25 @@ impl ColorProcessorSource {
         selection: &ColorSelection,
     ) -> Result<CompiledColorImageProcessor> {
         let core = self.compile(config, selection)?;
+        let (input_space, output_space) = match self.phase {
+            ColorProcessorPhase::InputToWorking => (
+                config.space_identity(&selection.input)?,
+                config.space_identity(&selection.working)?,
+            ),
+            ColorProcessorPhase::WorkingToDisplay => (
+                config.space_identity(&selection.working)?,
+                config.display_identity(&selection.display)?,
+            ),
+            ColorProcessorPhase::WorkingToOutput => (
+                config.space_identity(&selection.working)?,
+                match &selection.output {
+                    OutputSelection::Space { space } => config.space_identity(space)?,
+                    OutputSelection::Display { display_view } => {
+                        config.display_identity(display_view)?
+                    }
+                },
+            ),
+        };
         let mut glsl = self.glsl_source()?;
         glsl.push_str("\nlayout(set=1,binding=0) uniform texture2D motion_source;\nlayout(location=0) out vec4 motion_output;\nvoid main() { vec4 original=texelFetch(motion_source,ivec2(gl_FragCoord.xy),0); vec4 color=original;\n");
         if self.input_alpha == AlphaMode::Premultiplied {
@@ -91,6 +119,8 @@ impl ColorProcessorSource {
             key: digest.finalize().into(),
             input_alpha: self.input_alpha,
             output_alpha: self.output_alpha,
+            input_space,
+            output_space,
         })
     }
 }

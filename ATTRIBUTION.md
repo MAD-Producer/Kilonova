@@ -386,6 +386,11 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 `crates/motion-effects/tests/color_processor/reference.json`，仅供测试，不接入
 应用默认配置。对应固定配置 ID 如上，版本及原始配置字节 SHA-256 保存在
 夹具内的 manifest。生成源码和表未手工修改；输入色卡和容差独立编写。
+`crates/motion-effects/tests/color_processor/chain_reference.json` 使用同一
+固定 OCIO 2.6.0 运行时和上述三份原始配置生成 14 组两阶段 CPU 数值参考。
+不修改原始配置、着色器或数值表；每阶段按实际 Float32 及透明度声明
+计算后保存结果，并记录原参考 JSON 的 SHA-256。该派生数据仅用于验收，
+不进入产品默认资源；生成与信号身份/纹理绑定代码均独立编写。
 内容身份、目录验证、
 选择解析及故障夹具由本项目独立编写；不复制 OCIO 实现代码。
 

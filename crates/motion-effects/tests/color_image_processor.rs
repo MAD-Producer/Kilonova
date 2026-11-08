@@ -47,6 +47,21 @@ fn all_explicit_ocio_programs_prepare_direct_image_shaders() {
         assert_eq!(image.input_alpha(), c.processor.input_alpha);
         assert_eq!(image.output_alpha(), c.processor.output_alpha);
         assert_eq!(image.phase(), c.processor.phase);
+        let input = config.space_identity(&selection.input).unwrap();
+        let working = config.space_identity(&selection.working).unwrap();
+        let display = config.display_identity(&selection.display).unwrap();
+        let output = match &selection.output {
+            OutputSelection::Space { space } => config.space_identity(space).unwrap(),
+            OutputSelection::Display { display_view } => {
+                config.display_identity(display_view).unwrap()
+            }
+        };
+        let expected = match c.processor.phase {
+            ColorProcessorPhase::InputToWorking => (input, working),
+            ColorProcessorPhase::WorkingToDisplay => (working, display),
+            ColorProcessorPhase::WorkingToOutput => (working, output),
+        };
+        assert_eq!((image.input_space(), image.output_space()), expected);
         assert_eq!(image.tables(), compute.tables());
         assert_ne!(image.key(), compute.key());
         assert!(keys.insert(image.key()));

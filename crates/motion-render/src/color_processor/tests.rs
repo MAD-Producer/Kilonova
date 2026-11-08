@@ -46,7 +46,7 @@ fn failed_image_shader_retains_native_cause_and_releases_table_admission() {
         .image_capture_target(3, 4, contract(p.input_alpha()))
         .unwrap();
     let before = renderer.allocation_budget().info().unwrap().admitted_bytes;
-    let error = match ColorProcessorOutput::create(
+    let error = match RawColorProcessorOutput::create(
         &renderer,
         &source,
         &p,
@@ -82,7 +82,7 @@ fn failed_image_shader_retains_native_cause_and_releases_table_admission() {
     );
     renderer.check_health().unwrap();
     let healthy =
-        ColorProcessorOutput::new(&renderer, &source, &p, contract(p.output_alpha())).unwrap();
+        RawColorProcessorOutput::new(&renderer, &source, &p, contract(p.output_alpha())).unwrap();
     assert_eq!(healthy.key(), p.key());
     drop(healthy);
     assert_eq!(
@@ -105,16 +105,16 @@ fn refused_image_tables_keep_typed_budget_reason_and_allow_recovery() {
     budget
         .set_limit(before.admitted_bytes + first_bytes - 1)
         .unwrap();
-    let error = match ColorProcessorOutput::new(&renderer, &source, &p, contract(p.output_alpha()))
-    {
-        Err(e) => e,
-        Ok(_) => panic!("table must exceed budget"),
-    };
+    let error =
+        match RawColorProcessorOutput::new(&renderer, &source, &p, contract(p.output_alpha())) {
+            Err(e) => e,
+            Ok(_) => panic!("table must exceed budget"),
+        };
     assert!(error.resource_rejection().is_some(), "{error:?}");
     assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
     budget.set_limit(before.budget_bytes).unwrap();
     let healthy =
-        ColorProcessorOutput::new(&renderer, &source, &p, contract(p.output_alpha())).unwrap();
+        RawColorProcessorOutput::new(&renderer, &source, &p, contract(p.output_alpha())).unwrap();
     drop(healthy);
     assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
 }
