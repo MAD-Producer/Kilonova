@@ -276,5 +276,18 @@ missing-dependency command remains failed.
 
 `git fetch origin main` reconfirmed baseline
 `ac65d279c57626d7aa7e28061a1a7fdf7889c68a`, already an ancestor of this branch.
-Current default Cargo discovery and the full related native regression must
-now verify the new example test routing. Broader issue acceptance remains open.
+At `4c9c86c8`, the unchanged full host/render/desktop-media native command
+completed with the existing AI-depth, GPU and FFmpeg features: 1,656 passed,
+zero failed, three original ignores and zero filtered. All 176 metadata-derived
+targets were accounted for, including the actual default `depth_reference`
+test harness and all three reference controls. The actual reference/capability/
+video examples and WGSL worker then built successfully. Original session 47248
+was consumed with exit 0; every tracked source hash remained unchanged.
+
+`data/depth75-reference-related-native-v1.json` identifies the verified archive
+of complete command output, metadata, source-bound executable dependency
+records, example source and original controller. This is a complete regression
+of those three related crates, not the full maintained workspace or a current
+cross-platform CI pass. The preceding fixture, fingerprint and local dependency
+failures retain their original failed results. Broader issue acceptance remains
+open.

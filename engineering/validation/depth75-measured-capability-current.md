@@ -271,11 +271,12 @@ No weights, plans, executable binaries, media, RGB or depth tensors are included
 
 ## Pending acceptance and remaining issue scope
 
-- Measure independent domain accuracy, conservative whole-host/device memory,
-  sustained execution and thermal behavior; external policy report fixtures
-  establish admission behavior only and cannot qualify real hardware or models
-- Supply those actual records to the explicit multi-criterion selection and
-  integrate qualified choices into transition, installation and frozen export
+- Extend the fixed sensor-reference measurements to independently admitted
+  domain quality; measure conservative whole-host/device memory and longer
+  sustained/thermal behavior. External policy report fixtures establish
+  admission behavior only and cannot qualify real hardware or models
+- Populate the existing explicit qualified worker/Session bindings with those
+  independently admitted actual records before automatic selection
 - Verify continuous photographed-video quality transitions before assigning
   automatic fast/standard/high mappings; backend names, resolution or successful
   timing alone do not establish a quality rank
@@ -297,4 +298,23 @@ The [eight-request sensor record](depth75-sustained-sensor-current.md) adds an
 actual 151.875-second desktop WGSL workload at `d68a9d65`, preserving all attempts
 and 141 sampled device readings. Its 70–77 degree Celsius range and absence of
 sampled thermal-slowdown flags are finite observations, not a long-run guarantee.
-Whole-host memory, independent quality and continuous transitions remain open.
+Whole-host memory, domain-wide quality admission and continuous transitions
+remain open.
+
+## Later independent reference and complete related regression
+
+The [fixed sensor-reference protocol](depth75-independent-reference-protocol.md)
+now retains four complete 32-request routes (CPU266/392/518 and WGSL518), two
+explicit unsupported WGSL resolutions and 32 same-weight backend comparisons.
+These independent sensor residuals are distinct from numerical equivalence,
+and do not by themselves assign quality tiers or certify a source domain.
+
+At `4c9c86c8`, the complete related host/render/desktop-media command passed
+1,656 tests with zero failures, three original ignores and zero filtering.
+All 176 targets were accounted for, including the three reference-example
+controls through default Cargo discovery. Actual examples/worker builds also
+passed, source hashes remained unchanged, and original session 47248 was
+consumed with exit 0. The [manifest](data/depth75-reference-related-native-v1.json)
+and verified archive preserve full commands and executable/source bindings.
+This does not replace the older source-specific full maintained-workspace pass,
+new-head cross-platform CI or the remaining measurements above.

@@ -77,6 +77,18 @@ an empty CLI response; the separately retained actual video CLI controls cover
 empty stdout. The original failed 175-target command remains failed. This
 supplement is not a fresh full-workspace or cross-platform CI pass.
 
+The subsequent full related regression at `4c9c86c8` also completed: all 176
+host/render/desktop-media targets, 1,656 passes, zero failures, three original
+ignores and zero filtered, with the original GPU/AI-depth/FFmpeg features and
+no-fail-fast command. This includes both complete capability/Session targets
+and the three newly discovered reference-example controls. The actual reference,
+capability and video examples plus WGSL worker built successfully afterward.
+Original session 47248 was consumed with exit 0, and tracked source hashes
+remained unchanged. `data/depth75-reference-related-native-v1.json` retains the
+verified complete command and independent executable-to-source bindings. The
+original 175-target fixture failure remains failed; this distinct later run
+does not relabel it or establish full-workspace/current cross-platform acceptance.
+
 Passing these tests alone will not close #75: independent domain quality, conservative complete
 memory, longer thermal behavior, actual continuous-video transitions and
 current cross-platform CI remain required. The finite sensor run and actual
