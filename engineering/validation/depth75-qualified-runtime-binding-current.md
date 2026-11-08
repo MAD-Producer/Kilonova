@@ -59,9 +59,23 @@ its SHA-256 verified archive. The fixture now receives an initial Idle tick at
 100 ms, matching the positive control. Every existing assertion, count, policy
 limit and production source remains unchanged. A new child-process control
 reuses the actual desktop sink to verify default Info file output before a
-blocked resolver, Error file/stderr output and harness-only stdout. The two
-complete capability/Session targets and skipped product build are pending on
-this supplementary source; no earlier failed command is relabeled as green.
+blocked resolver, Error file/stderr output and harness-only stdout.
+
+At `441b5e13`, both complete targets passed: 38 capability and 32 Session tests,
+70 total, zero failed, ignored or filtered. The changed-runtime fixture reached
+the actual guard, refused backend entry and prevented freezing the older
+reference. The actual `depth_capability` / `depth_video_capability` examples
+and `motion-depth-wgsl` binary also built successfully. The production identity,
+worker and Session source blobs are byte-identical to `6d3798d9`.
+
+`data/depth75-qualified-file-output-v1.json` and its verified archive retain
+the complete supplementary commands, default-level file records, Error stderr,
+child harness stdout and authored test sources. Start was read from the actual
+file while identity resolution was blocked. Error was read before worker/sink
+drop, and no inference occurred. This stdout proof covers a Rust harness, not
+an empty CLI response; the separately retained actual video CLI controls cover
+empty stdout. The original failed 175-target command remains failed. This
+supplement is not a fresh full-workspace or cross-platform CI pass.
 
 Passing these tests alone will not close #75: independent domain quality, conservative complete
 memory, longer thermal behavior, actual continuous-video transitions and
