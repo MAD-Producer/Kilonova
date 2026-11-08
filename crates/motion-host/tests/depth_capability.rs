@@ -3,6 +3,15 @@
 #[path = "depth_capability/bindings.rs"]
 mod bindings;
 
+#[path = "../../../desktop/app/src/logging/sink.rs"]
+mod file_logging;
+mod engine {
+    // This harness has no desktop Engine worker.
+    pub fn current_command() -> Option<(u64, &'static str, std::time::Duration)> {
+        None
+    }
+}
+
 use motion_host::depth::{
     cache::{Config, Execution},
     Backend, Cancellation, Costs, Error, Estimate, Input, Jobs, Key, PreparedEstimate, Result,

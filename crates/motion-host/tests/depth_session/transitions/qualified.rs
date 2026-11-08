@@ -242,6 +242,10 @@ fn qualified_session_changed_runtime_cannot_freeze_old_reference_or_retry_settle
     let root = tempfile::tempdir().unwrap();
     let (mut session, seen, epoch) = prepared(root.path());
     epoch.store(1, Ordering::SeqCst);
+    assert!(session
+        .request_image_depth_transition(Activity::Idle, Duration::from_millis(100))
+        .unwrap()
+        .is_none());
     session
         .request_image_depth_transition(Activity::Idle, Duration::from_millis(400))
         .unwrap()

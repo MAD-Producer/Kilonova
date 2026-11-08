@@ -2,6 +2,9 @@ use super::*;
 use motion_host::depth::capability::policy::{self, Bindings, Context, Decision};
 use std::sync::{Mutex, Once};
 
+#[path = "file_output.rs"]
+mod file_output;
+
 // External quality/memory/sustained reports remain explicitly controlled test
 // fixtures. These tests qualify routing invariants, not a real model or device.
 fn decision(k: Key, execution: Execution) -> Decision {

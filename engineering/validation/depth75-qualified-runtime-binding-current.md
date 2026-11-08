@@ -34,7 +34,7 @@ The existing transition, calibration and frozen-export ownership rules remain
 in force; a failed settled request cannot freeze an older raw reference as a
 successful settled result.
 
-## Verification plan and limits
+## Verification and limits
 
 Nine worker controls cover context and route bounds, retained reports,
 controlled blocking before identity resolution, all five identity fields,
@@ -45,11 +45,25 @@ round-trip, plus changed-runtime refusal without backend entry or a retry.
 External quality, memory and sustained reports in these tests are explicitly
 controlled fixtures. They do not qualify an actual learned model or GPU.
 
-Native verification is pending on this source revision. Because shared Jobs
-and Session execution changed, acceptance requires the complete host, render
-and desktop-media test command with the existing GPU, AI-depth and FFmpeg
-features, original assertions, ignores and deadlines preserved. Passing tests
-alone will not close #75: independent domain quality, conservative complete
+The original native command at `6d3798d9` ran all 175 host/render/desktop-media
+targets with the existing GPU, AI-depth and FFmpeg features: 1,651 passed,
+one failed, three original ignores and zero filtered. All 37 capability tests
+and the positive Session transition/frozen control passed. The new negative
+Session fixture provided only its first Idle tick at 400 ms, so it unwrapped
+None before submitting a settled request or reaching the runtime guard. The
+original command remains failed; the product-build stage did not run.
+
+The complete failed command, source identities and independent target binding
+are retained in `data/depth75-qualified-runtime-binding-failure-v1.json` and
+its SHA-256 verified archive. The fixture now receives an initial Idle tick at
+100 ms, matching the positive control. Every existing assertion, count, policy
+limit and production source remains unchanged. A new child-process control
+reuses the actual desktop sink to verify default Info file output before a
+blocked resolver, Error file/stderr output and harness-only stdout. The two
+complete capability/Session targets and skipped product build are pending on
+this supplementary source; no earlier failed command is relabeled as green.
+
+Passing these tests alone will not close #75: independent domain quality, conservative complete
 memory, longer thermal behavior, actual continuous-video transitions and
 current cross-platform CI remain required. The finite sensor run and actual
 CPU/WGSL video measurements remain separately scoped evidence. #88's retained
