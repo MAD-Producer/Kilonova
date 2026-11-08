@@ -1,0 +1,23 @@
+{
+  "archive": "tracking88-target-support-audit-v1.zip",
+  "bytes": 2615,
+  "sha256": "04b3f4efbb64b0e5687a85cf59703d2f2f01c975d978b877d593cd9ab856e933",
+  "members": [
+    {
+      "path": "audit.py",
+      "bytes": 3855,
+      "sha256": "f86ec68f58bf9558613b136db346552fde9eaec8c34b3ad17de08f770897ebe1"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 1339,
+      "sha256": "b760c5a12fdbb5ef29ac436b76c517fbea583bbb1fb57487391debd8fcd7eaa6"
+    }
+  ],
+  "scope": [
+    "Historical30-frame diagnostic correspondences, not the complete2300-frame acceptance output",
+    "Membership refers to reference coordinates and the initial four-corner annotation; it cannot establish actual feature identity, nonplanarity, reflection or annotation correctness",
+    "No video/CV/model/GPU work, feature recomputation, tracker mutation, threshold/coverage tuning or new native/CI qualification",
+    "No third-party annotation arrays, point coordinates, media or per-frame rows are redistributed"
+  ]
+}

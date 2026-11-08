@@ -249,3 +249,26 @@ No third-party video, annotation, full request or per-frame observation is
 redistributed. Native/Surface integration and remote CI are outside this
 experiment. The cause of the original photographed disagreement and issue 88
 acceptance remain unresolved.
+
+## Retained reference-support membership diagnostic
+
+A standard-library-only check examined the previously sealed thirty-frame
+correspondence diagnostic at source coordinates 1801–1830. Authored clockwise,
+counterclockwise, boundary and outside-polygon controls verified the independent
+membership calculation. All 2,664 retained reference-coordinate observations
+lie inside the initial annotated target quadrilateral, including every fitting
+and held-out point. Each frame retains 88–98 features, at least63 fitting and25
+held-out features. No video was decoded and no tracker or CV procedure ran.
+
+This does not support an explanation based on these reference coordinates
+falling outside the initially annotated target. It does not establish the actual
+identity of their later image correspondences, validate the annotations or rule
+out reflection, nonplanarity or later misassociation. The historical selected
+segment is distinct from the complete2,300-frame acceptance output. The original
+21 complete-sequence failures, accuracy/coverage gates and product tracker remain
+unchanged; this diagnostic is not a quality fix or #88 completion.
+
+The [archive](data/tracking88-target-support-audit-v1.zip) and
+[manifest](data/tracking88-target-support-audit-v1.json) retain only the authored
+audit, aggregate results and input identities. Both members were read back and
+verified. No annotations, point arrays, video or photographs are redistributed.
