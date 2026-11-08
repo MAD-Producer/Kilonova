@@ -3,6 +3,8 @@
 mod admission;
 #[path = "../convolution_admission.rs"]
 mod convolution_admission;
+#[path = "../execution_identity.rs"]
+mod execution_identity;
 
 use admission::{Case, MODEL, Request, WEIGHTS};
 use serde_json::{Value, json};

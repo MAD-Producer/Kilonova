@@ -11,6 +11,14 @@ struct GraphRequest {
     requested_backend: String,
     input: Tensor,
 }
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ResolveRequest {
+    version: u32,
+    program: String,
+    program_sha256: String,
+    requested_backend: String,
+}
 fn finite(bytes: &[u8]) -> bool {
     bytes.len() % 4 == 0
         && bytes
@@ -356,24 +364,46 @@ fn execute_graph(
     report["pool_retained_through_completion"] = true.into();
     Ok(())
 }
-fn run(request_path: &Path, out: &Path, report: &mut Value) -> Result<()> {
+fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -> Result<()> {
     require(
         cfg!(target_endian = "little"),
         "explicit little endian F32 required",
     )?;
     let raw = limited_read(request_path, 16 * 1024)?;
-    let request: GraphRequest =
-        serde_json::from_slice(&raw).map_err(|e| format!("graph request schema: {e}"))?;
+    let (version, program, program_sha256, requested_backend, input) =
+        if matches!(mode, Invocation::Resolve) {
+            let request: ResolveRequest = serde_json::from_slice(&raw)
+                .map_err(|e| format!("graph resolve request schema: {e}"))?;
+            (
+                request.version,
+                request.program,
+                request.program_sha256,
+                request.requested_backend,
+                None,
+            )
+        } else {
+            let request: GraphRequest =
+                serde_json::from_slice(&raw).map_err(|e| format!("graph request schema: {e}"))?;
+            (
+                request.version,
+                request.program,
+                request.program_sha256,
+                request.requested_backend,
+                Some(request.input),
+            )
+        };
     require(
-        request.version == 1 && request.program_sha256 == PROGRAM,
+        version == 1 && program_sha256 == PROGRAM,
         "unqualified graph request identity/version",
     )?;
-    require(
-        request.input.name == "rgb" && request.input.shape == [1, 3, 518, 518],
-        "graph input name/shape differs",
-    )?;
+    if let Some(input) = &input {
+        require(
+            input.name == "rgb" && input.shape == [1, 3, 518, 518],
+            "graph input name/shape differs",
+        )?;
+    }
     report["request_sha256"] = digest(&raw).into();
-    let program_path = Path::new(&request.program);
+    let program_path = Path::new(&program);
     require(program_path.is_absolute(), "absolute program path required")?;
     let program_raw = limited_read(program_path, 4 << 20)?;
     require(
@@ -392,8 +422,11 @@ fn run(request_path: &Path, out: &Path, report: &mut Value) -> Result<()> {
         .ok_or("request root missing")?
         .canonicalize()
         .map_err(|e| e.to_string())?;
-    let input = tensor_bytes(&request_root, &request.input)?;
-    let backend = match request.requested_backend.as_str() {
+    let input = input
+        .as_ref()
+        .map(|tensor| tensor_bytes(&request_root, tensor))
+        .transpose()?;
+    let backend = match requested_backend.as_str() {
         "vulkan" => wgpu::Backends::VULKAN,
         "dx12" => wgpu::Backends::DX12,
         "metal" => wgpu::Backends::METAL,
@@ -433,10 +466,78 @@ fn run(request_path: &Path, out: &Path, report: &mut Value) -> Result<()> {
     .map_err(|e| format!("graph device: {e}"))?;
     report["program_sha256"] = PROGRAM.into();
     report["model_sha256"] = graph.model_sha256.clone().into();
+    if !matches!(mode, Invocation::Infer) {
+        phase(out, report, "verify_cache_model_resources")?;
+        for (index, name) in compiled.persistent_names.iter().enumerate() {
+            let _flight = engine::enter(index as u64 + 1, "verify_model_resource");
+            let resource = &graph.resources[name];
+            log::info!(
+                "start #{} verify_model_resource name={name} bytes={}",
+                index + 1,
+                resource.bytes
+            );
+            logging::flush();
+            let path = root
+                .join(&resource.file)
+                .canonicalize()
+                .map_err(|e| format!("resource {name}: {e}"))?;
+            require(
+                path.starts_with(&root),
+                "canonical model resource escapes program root",
+            )?;
+            let bytes = limited_read(&path, resource.bytes)?;
+            require(
+                bytes.len() as u64 == resource.bytes
+                    && digest(&bytes) == resource.sha256
+                    && finite(&bytes),
+                &format!("resource {name} length, digest or finite-value check failed"),
+            )?;
+            report["verified_resources"] = json!(index + 1);
+        }
+        phase(out, report, "resolve_actual_native_execution")?;
+        let execution = execution_identity::resolve(
+            PROGRAM,
+            &std::env::current_exe().map_err(|e| e.to_string())?,
+            &info,
+            &device.limits(),
+        )?;
+        if let Invocation::Attest(expected) = mode {
+            require(
+                expected.is_absolute(),
+                "absolute expected native execution path required",
+            )?;
+            let expected: execution_identity::Execution =
+                serde_json::from_slice(&limited_read(expected, 65536)?)
+                    .map_err(|e| format!("expected native execution schema: {e}"))?;
+            require(
+                expected == execution,
+                "native execution changed since cache resolution",
+            )?;
+        }
+        report["execution"] = serde_json::to_value(execution).map_err(|e| e.to_string())?;
+        if matches!(mode, Invocation::Resolve) {
+            report["status"] = "actual_execution_identity_resolved_without_inference".into();
+            report["phase"] = "completed".into();
+            report["final_readbacks"] = 0.into();
+            report["in_flight"] = Value::Null;
+            if let Some((_, _, elapsed)) = engine::current_command() {
+                report["elapsed_ms"] = json!(elapsed.as_millis());
+                log::debug!("done #0 resolve_cache_execution {}ms", elapsed.as_millis());
+            }
+            return save(out, report);
+        }
+    }
     let oom = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
     let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
     let executed = execute_graph(
-        &device, &queue, &graph, &compiled, &root, &input, out, report,
+        &device,
+        &queue,
+        &graph,
+        &compiled,
+        &root,
+        input.as_deref().ok_or("inference tensor missing")?,
+        out,
+        report,
     );
     let validation_cause = pollster::block_on(validation.pop());
     let oom_cause = pollster::block_on(oom.pop());

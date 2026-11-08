@@ -47,6 +47,15 @@ No old-project migration or compatibility fallback is introduced.
   zero failed, 40 original GPU-dependent ignores and zero filtered. GPU features
   were not requested for this scoped invocation; these ignores are not GPU
   acceptance. No complete host/render/media regression pass is claimed
+- The shared helper is also verified with the actual separately installed Small
+  266 CPU ONNX model. The original file-cache probe assertions are unchanged;
+  only the harness source paths point to this branch. One inference populated
+  the cache, a new worker restored all 96 scalar bit patterns, and a corrupt
+  entry was refused without another inference. Default Info publication before
+  the controlled handler returned, Error file/stderr and single-JSON stdout
+  isolation passed. This synthetic input does not qualify model/video quality,
+  sustained performance or native WGSL caching. Receipt:
+  `artifacts/pr-queue/depth75-wgsl-shared-runtime-cpu-model-v1`
 
 The actual numerical receipt is local under
 `artifacts/pr-queue/depth75-wgsl-transform-validation-v2`; the scoped regression
@@ -61,11 +70,31 @@ persistent-cache requests still fail explicitly through the existing unsupported
 execution-identity boundary; they must not claim that this transform precursor
 alone makes a GPU result reusable.
 
-The next implementation must resolve and validate the pinned native program,
-all installed weight resources and the actual admitted adapter/driver/device
-contract before lookup. The worker must recompute that identity in the actual
-inference child before learned operations, and the host must combine it with
-the transform identity. Cancellation, cleanup, original causes, in-flight
+The native worker now has separate `--resolve` and `--attest` entry points.
+Resolution requests have a strict input-free schema; inference requests retain
+their existing input tensor contract. Before publishing a native identity, the
+source verifies every admitted pinned weight resource and includes its own
+executable digest, the actual adapter/driver metadata, required device limits,
+explicit Float32 procedure and bounded native numerical environment. The
+attested inference path compares that identity before learned operations.
+Missing driver identity, software adapters and changed execution are refused;
+the ordinary inference invocation remains available independently.
+
+Current product worker sources compiled in a minimal isolated harness using
+only verified lockfile dependencies. Its 16 admission tests pass, including
+worker/driver/backend/limit/program identity and bounds controls. A real default
+Info child invocation retained the original invalid-request failure in both
+the file log and Error stderr, with an empty stdout and zero encoded model
+operations. These checks do not exercise successful hardware resolution or
+actual attested model inference. The harness is not a product-package build.
+Receipt: `artifacts/pr-queue/depth75-wgsl-native-identity-contract-v2`. The v2
+source retains the ordinary invocation's original version-before-shape error
+precedence; the earlier v1 receipt remains a separate historical stage.
+
+The host must next invoke and independently validate native resolution before
+lookup, combine it with the transform identity, and request/recheck attested
+preparation, native inference and remapping on a miss. Cancellation, cleanup,
+original causes, in-flight
 publication, file/Error-stderr logging and stdout isolation must be retained.
 
 Acceptance still requires a real native WGSL inference, a fresh-worker raw-cache
