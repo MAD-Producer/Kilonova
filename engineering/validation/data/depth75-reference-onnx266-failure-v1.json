@@ -1,0 +1,74 @@
+{
+  "archive": "depth75-reference-onnx266-failure-v1.zip",
+  "bytes": 312596,
+  "sha256": "71b6f9d53f8776a27dc5aa5732a70fcf2b840b454df986af509a1c8bcef7d63c",
+  "head": "53d3f9bae7fca370c2478dba1b816eb4d05d3bff",
+  "source_unchanged": true,
+  "original_session": 22317,
+  "consumed_exit_code": 1,
+  "status": "original_cohort_failed_in_caller_after_first_actual_inference",
+  "accepted_samples": 0,
+  "cause": "Caller compared raw RGB file SHA-256 against versioned format/dimensions/RGB fingerprint",
+  "limits": [
+    "No accepted prediction array or quality result; worker backend and metadata phases returned once",
+    "Original failure remains failed; subsequent source correction requires new tests/build and a distinct cohort",
+    "No model, sensor/RGB image, prediction array or executable redistributed"
+  ],
+  "members": [
+    {
+      "path": "actual.stderr.log",
+      "bytes": 132,
+      "sha256": "c99e4480505cefcb6040dbb7bc50e29fad28bba72612f6285ebc692c44bf326f"
+    },
+    {
+      "path": "actual.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "archive-controller.py",
+      "bytes": 3588,
+      "sha256": "3b0f3c78269cae2ee71c5b6aa54d729deeedc6a012a8c1825d105e2b50e5ec8f"
+    },
+    {
+      "path": "controller.py",
+      "bytes": 8219,
+      "sha256": "ad49118194921e2b112907df6ba9cf7b01f9472bc31b7ea0f066ddf6d8c2a584"
+    },
+    {
+      "path": "onnx266/logs/motion-studio.log",
+      "bytes": 1253,
+      "sha256": "910a97cb8ea355f2e7f8a2a43038c32cab3a05eea33f482bee265c6a9923dc2a"
+    },
+    {
+      "path": "onnx266/measurements.json",
+      "bytes": 311,
+      "sha256": "7d81556e54c55ca966a28698c453e8027da3da6d8379c1d937ea783f2cb54f5b"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 873535,
+      "sha256": "7e4698cb6de8965bfdf60d5096ba4544801f02e03f79028e993925d96a4d4e12"
+    },
+    {
+      "path": "session-consumed.json",
+      "bytes": 54,
+      "sha256": "debff9c021e92f8d5fcc790e4443fd82e84ef0562e54f807e03cb46ea79d1fbe"
+    },
+    {
+      "path": "source/crates/motion-host/examples/depth_reference.rs",
+      "bytes": 14637,
+      "sha256": "4616835e2e8203ed30556b5c90430526c980025b2d7efc0499aaf6df8e2d5155"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth.rs",
+      "bytes": 43434,
+      "sha256": "bd917ac5e6eb7467d765a117f55b547158f0523a792f5aac808be91d02fcb68b"
+    },
+    {
+      "path": "source/crates/motion-model/src/depth/prepared.rs",
+      "bytes": 1113,
+      "sha256": "f9c26b0c1c1d514af9d02c15c3f7a75e98d4213b09a35842b6bc92fe280bedce"
+    }
+  ]
+}

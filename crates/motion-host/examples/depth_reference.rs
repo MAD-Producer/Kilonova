@@ -1,7 +1,7 @@
 //! Explicit measured inference over the fixed sensor-reference input cohort.
 //! Outputs remain private evaluation inputs, not quality certificates or assets.
 use motion_host::depth::{self, Backend, Input, Jobs, Key};
-use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime};
+use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime, PreparedDepthInput};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
@@ -96,6 +96,20 @@ fn read_rgb(root: &Path, row: &Spec) -> Result<Vec<u8>> {
     }
     Ok(rgb)
 }
+fn prepared_identity(size: [u32; 2], rgb: &[u8]) -> PreparedDepthInput {
+    // PreparedDepthInput hashes its versioned RGB contract and dimensions too.
+    // The input manifest's raw file digest is checked separately by read_rgb.
+    let mut hash = Sha256::new();
+    hash.update(b"MotionStudio/depth/rgb8-srgb-opaque/v1\0");
+    for dimension in size {
+        hash.update(dimension.to_le_bytes());
+    }
+    hash.update(rgb);
+    PreparedDepthInput {
+        rgb_size: size,
+        rgb_sha256: hash.finalize().into(),
+    }
+}
 fn write_report(
     root: &Path,
     status: &str,
@@ -125,6 +139,7 @@ fn samples(backend: impl Backend, model: DepthModel, input_root: &Path, root: &P
         for row in &plan {
             let loading = Instant::now();
             let rgb = read_rgb(input_root, row)?;
+            let expected_input = prepared_identity([640, 480], &rgb);
             let caller_rgb_load = loading.elapsed();
             let key = Key {
                 source: DepthSource {
@@ -163,12 +178,15 @@ fn samples(backend: impl Backend, model: DepthModel, input_root: &Path, root: &P
                 || measurement.execution().provider != estimate.provider
                 || measurement.total() != estimate.costs.total
                 || measurement.total() < measurement.resolve()
-                || ready.input().rgb_sha256 != decode_digest(&row.rgb_input.sha256)?
+                || ready.input() != expected_input
                 || estimate.resource.values().len() != 640 * 480
             {
-                return Err(
-                    "reference worker changed source, extent or measurement identity".into(),
-                );
+                return Err(format!(
+                    "reference identity mismatch index={} request={request}/{} provider={}/{} total_ns={}/{} resolve_ns={} input={:?}/{expected_input:?} output_values={}",
+                    row.index, measurement.request(), measurement.execution().provider,
+                    estimate.provider, measurement.total().as_nanos(), estimate.costs.total.as_nanos(),
+                    measurement.resolve().as_nanos(), ready.input(), estimate.resource.values().len()
+                ).into());
             }
             profile.record(&ready)?;
             let writing = Instant::now();
@@ -366,5 +384,83 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("differs from frozen preparation identity"));
+    }
+
+    #[test]
+    fn prepared_identity_matches_worker_and_separates_bytes_and_dimensions() {
+        use motion_model::depth::{DepthDescriptor, DepthMeasure, DepthResource, NearDirection};
+        struct Controlled;
+        impl Backend for Controlled {
+            fn infer(
+                &mut self,
+                input: &Input,
+                _: &depth::Cancellation,
+            ) -> depth::Result<depth::Estimate> {
+                let key = input.key();
+                Ok(depth::Estimate {
+                    resource: DepthResource::new(
+                        DepthDescriptor {
+                            size: input.size(),
+                            source: key.source.clone(),
+                            geometry: key.geometry.clone(),
+                            model: key.model.clone(),
+                            measure: DepthMeasure::Relative {
+                                near: NearDirection::Increasing,
+                            },
+                            scale: 1.,
+                            offset: 0.,
+                            valid_range: None,
+                        },
+                        vec![1.; 6],
+                        None,
+                        None,
+                    )?,
+                    provider: "controlled".into(),
+                    costs: depth::Costs::default(),
+                })
+            }
+        }
+        let rgb: Vec<u8> = (0..18).collect();
+        let expected = prepared_identity([3, 2], &rgb);
+        let key = Key {
+            source: DepthSource {
+                asset: 75,
+                revision: 1,
+                pts: DepthTime {
+                    ticks: 0,
+                    timescale: 24,
+                },
+            },
+            geometry: DepthGeometry {
+                source_size: [3, 2],
+                crop: [0, 0, 3, 2],
+                quarter_turns: 0,
+                mirror_x: false,
+            },
+            model: DepthModel {
+                id: "identity-control".into(),
+                revision: "r1".into(),
+                sha256: [75; 32],
+                processing: "controlled".into(),
+            },
+        };
+        let mut jobs = Jobs::start(Controlled).unwrap();
+        jobs.request(Input::new(key.clone(), [3, 2], Arc::from(rgb.clone())).unwrap())
+            .unwrap();
+        let began = Instant::now();
+        let ready = loop {
+            if let Some(ready) = jobs.take_prepared_ready(&key).unwrap() {
+                break ready;
+            }
+            assert!(began.elapsed() < Duration::from_secs(5));
+            std::thread::sleep(Duration::from_millis(1));
+        };
+        assert_eq!(ready.input(), expected);
+        assert_ne!(expected.rgb_sha256, <[u8; 32]>::from(Sha256::digest(&rgb)));
+        assert_ne!(expected, prepared_identity([2, 3], &rgb));
+        let mut replaced = rgb;
+        replaced[0] ^= 1;
+        assert_ne!(expected, prepared_identity([3, 2], &replaced));
+        assert_eq!(jobs.counts().unwrap().completed, 1);
     }
 }
