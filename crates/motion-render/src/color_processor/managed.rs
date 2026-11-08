@@ -109,10 +109,80 @@ impl Renderer {
             ));
         }
         ColorImageTarget::from_image(
-            self.image_capture_target(width, height, contract.transport())?,
+            self.image_render_target(width, height, contract.transport())?,
             contract.space,
         )
     }
+
+    /// Upload already interpreted Float32 RGBA without transfer, clamping or
+    /// alpha conversion. The caller supplies its exact OCIO space identity.
+    /// Call only during resource preparation, never as a per-frame replacement.
+    /// Pending queue writes retain the allocation until submission completes.
+    pub fn upload_color_image_f32(
+        &mut self,
+        width: u32,
+        height: u32,
+        contract: ColorImageContract,
+        pixels: &[[f32; 4]],
+    ) -> Result<ColorImageTarget, RenderError> {
+        self.check_health()?;
+        if contract.precision != ChannelPrecision::Float32 {
+            return Err(ColorImageUploadError::Precision(contract.precision).into());
+        }
+        let expected = u64::from(width) * u64::from(height);
+        if width == 0 || height == 0 || expected != pixels.len() as u64 {
+            return Err(ColorImageUploadError::Count {
+                width,
+                height,
+                expected,
+                actual: pixels.len(),
+            }
+            .into());
+        }
+        for (pixel, rgba) in pixels.iter().enumerate() {
+            for (channel, value) in rgba.iter().enumerate() {
+                if !value.is_finite() || (channel == 3 && !(0.0..=1.0).contains(value)) {
+                    return Err(ColorImageUploadError::Pixel { pixel, channel }.into());
+                }
+            }
+        }
+        let target = self.color_image_target(width, height, contract)?;
+        self.allocation_uploads()
+            .track(target.image.texture().allocation())?;
+        self.queue.write_texture(
+            target.image.texture().as_image_copy(),
+            bytemuck::cast_slice(pixels),
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 16),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.check_health()?;
+        Ok(target)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ColorImageUploadError {
+    #[error("OCIO image upload requires Float32 storage, got {0:?}")]
+    Precision(ChannelPrecision),
+    #[error(
+        "OCIO image upload size={width}x{height} expected_pixels={expected} actual_pixels={actual}"
+    )]
+    Count {
+        width: u32,
+        height: u32,
+        expected: u64,
+        actual: usize,
+    },
+    #[error("OCIO image upload invalid pixel={pixel} channel={channel}: requires finite RGB and alpha in [0,1]")]
+    Pixel { pixel: usize, channel: usize },
 }
 
 #[derive(Debug, thiserror::Error)]

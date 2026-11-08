@@ -7,7 +7,7 @@ use motion_effects::image_contract::{ImageContract, ImageStorage, ImageUsage};
 pub struct ImageCaptureTarget {
     texture: OwnedTexture,
     view: crate::AdmittedTextureView,
-    buffer: crate::allocation_buffer::AllocationBuffer,
+    buffer: Option<crate::allocation_buffer::AllocationBuffer>,
     owner: std::sync::Arc<()>,
     contract: ImageContract,
     storage: ImageStorage,
@@ -64,9 +64,10 @@ impl ImageCaptureTarget {
     pub fn texture_bytes(&self) -> u64 {
         u64::from(self.row_bytes) * u64::from(self.height)
     }
-    /// Staging buffer capacity is separate from the texture ledger.
+    /// Retained staging capacity, separate from the texture ledger. GPU-only
+    /// targets report zero; explicit reads use temporary admitted staging.
     pub fn readback_bytes(&self) -> u64 {
-        u64::from(self.row_stride) * u64::from(self.height)
+        self.buffer.as_ref().map_or(0, |buffer| buffer.size())
     }
     pub fn texture_resource_ledger(&self) -> TextureResourceLedger {
         let mut ledger = TextureResourceLedger::default();
@@ -89,11 +90,33 @@ impl Renderer {
         height: u32,
         contract: ImageContract,
     ) -> Result<ImageCaptureTarget, RenderError> {
+        self.image_target(width, height, contract, true)
+    }
+
+    /// GPU-only intermediate/source. Explicit readback allocates a temporary
+    /// staging buffer; ordinary rendering retains no readback capacity.
+    pub(crate) fn image_render_target(
+        &self,
+        width: u32,
+        height: u32,
+        contract: ImageContract,
+    ) -> Result<ImageCaptureTarget, RenderError> {
+        self.image_target(width, height, contract, false)
+    }
+
+    fn image_target(
+        &self,
+        width: u32,
+        height: u32,
+        contract: ImageContract,
+        retain_readback: bool,
+    ) -> Result<ImageCaptureTarget, RenderError> {
         self.check_health()?;
         let required = ImageUsage {
             sampled: true,
             render: true,
             copy_src: true,
+            copy_dst: !retain_readback,
             ..Default::default()
         };
         let storage = self
@@ -104,7 +127,15 @@ impl Renderer {
                     format!("image capture {width}x{height} phase=format-capabilities: {cause}");
                 RenderError::from(cause).with_diagnostic(message)
             })?;
-        let layout = capture_layout(width, height, storage, &self.device.limits())?;
+        let layout = image_layout(
+            width, height, storage, &self.device.limits(), retain_readback,
+        )?;
+        let mut usage = wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::COPY_SRC
+            | wgpu::TextureUsages::TEXTURE_BINDING;
+        if !retain_readback {
+            usage |= wgpu::TextureUsages::COPY_DST;
+        }
         let texture = self.device.create_admitted_texture(
             &wgpu::TextureDescriptor {
                 label: Some("Motion Studio format-preserving image capture"),
@@ -117,25 +148,27 @@ impl Renderer {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: image_formats::native_format(storage),
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                    | wgpu::TextureUsages::COPY_SRC
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                usage,
                 view_formats: &[],
             },
             self.allocation_budget(),
             crate::TextureCategory::CaptureTargets,
         )?;
         let view = texture.admitted_view()?;
-        let buffer = crate::allocation_buffer::AllocationBuffer::new(
-            &self.device,
-            self.allocation_budget(),
-            &wgpu::BufferDescriptor {
-                label: Some("Motion Studio format-preserving image staging"),
-                size: layout.buffer_bytes,
-                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                mapped_at_creation: false,
-            },
-        )?;
+        let buffer = retain_readback
+            .then(|| {
+                crate::allocation_buffer::AllocationBuffer::new(
+                    &self.device,
+                    self.allocation_budget(),
+                    &wgpu::BufferDescriptor {
+                        label: Some("Motion Studio format-preserving image staging"),
+                        size: layout.buffer_bytes,
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                        mapped_at_creation: false,
+                    },
+                )
+            })
+            .transpose()?;
         Ok(ImageCaptureTarget {
             texture,
             view,
@@ -163,6 +196,26 @@ impl Renderer {
                 "image capture phase=readback: target belongs to another renderer".into(),
             ));
         }
+        let temporary;
+        let buffer = match &target.buffer {
+            Some(buffer) => buffer,
+            None => {
+                let layout = capture_layout(
+                    target.width, target.height, target.storage, &self.device.limits(),
+                )?;
+                temporary = crate::allocation_buffer::AllocationBuffer::new(
+                    &self.device,
+                    self.allocation_budget(),
+                    &wgpu::BufferDescriptor {
+                        label: Some("Motion Studio explicit image readback staging"),
+                        size: layout.buffer_bytes,
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                        mapped_at_creation: false,
+                    },
+                )?;
+                &temporary
+            }
+        };
         let mut encoder = self.allocation_command_encoder_for(
             crate::gpu_commands::CommandStage::ReadbackCopy,
             &wgpu::CommandEncoderDescriptor {
@@ -172,7 +225,7 @@ impl Renderer {
         encoder.copy_texture_to_buffer(
             target.texture.as_image_copy(),
             wgpu::TexelCopyBufferInfo {
-                buffer: &target.buffer,
+                buffer,
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(target.row_stride),
@@ -194,14 +247,13 @@ impl Renderer {
             u64::from(target.row_stride) * u64::from(target.height.saturating_sub(1)) + row_bytes,
         );
         let (send, receive) = std::sync::mpsc::sync_channel(1);
-        target
-            .buffer
+        buffer
             .slice(..)
             .map_async(wgpu::MapMode::Read, move |result| {
                 let _ = send.send(result);
             });
         // Covers poll, device-health, callback and mapped-range failures too.
-        let _unmap = UnmapOnDrop(&target.buffer);
+        let _unmap = UnmapOnDrop(buffer);
         self.device.poll(wgpu::PollType::wait_indefinitely())?;
         self.check_health()?;
         receive
@@ -209,8 +261,7 @@ impl Renderer {
             .map_err(|cause| RenderError::Readback(format!("image capture callback: {cause}")))?
             .map_err(|cause| RenderError::Readback(format!("image capture mapping: {cause}")))?;
         let pixels = (|| {
-            let mapped = target
-                .buffer
+            let mapped = buffer
                 .slice(..)
                 .get_mapped_range()
                 .map_err(|cause| {
@@ -305,6 +356,16 @@ fn capture_layout(
     storage: ImageStorage,
     limits: &wgpu::Limits,
 ) -> Result<CaptureLayout, RenderError> {
+    image_layout(width, height, storage, limits, true)
+}
+
+fn image_layout(
+    width: u32,
+    height: u32,
+    storage: ImageStorage,
+    limits: &wgpu::Limits,
+    readback: bool,
+) -> Result<CaptureLayout, RenderError> {
     let invalid = |reason: &str| {
         RenderError::Invalid(format!(
             "image capture {width}x{height} {storage:?}: {reason}"
@@ -325,8 +386,7 @@ fn capture_layout(
         .checked_mul(u64::from(height))
         .ok_or_else(|| invalid("staging capacity overflow"))?;
     if row_stride > u64::from(u32::MAX)
-        || buffer_bytes > limits.max_buffer_size
-        || buffer_bytes > usize::MAX as u64
+        || (readback && (buffer_bytes > limits.max_buffer_size || buffer_bytes > usize::MAX as u64))
     {
         return Err(invalid(
             "staging capacity exceeds device or address-space limit",
@@ -342,6 +402,21 @@ fn capture_layout(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn gpu_only_layout_does_not_require_an_unallocated_readback_buffer() {
+        let mut limits = wgpu::Limits::default();
+        limits.max_buffer_size = 1024;
+        let layout = image_layout(17, 3, ImageStorage::Rgba32Float, &limits, false).unwrap();
+        assert_eq!(
+            (layout.row_bytes, layout.row_stride, layout.buffer_bytes),
+            (272, 512, 1536),
+        );
+        assert!(capture_layout(17, 3, ImageStorage::Rgba32Float, &limits).is_err());
+        assert!(image_layout(0, 3, ImageStorage::Rgba32Float, &limits, false).is_err());
+        assert!(image_layout(
+            limits.max_texture_dimension_2d + 1, 3, ImageStorage::Rgba32Float, &limits, false,
+        ).is_err());
+    }
     #[test]
     fn capture_capacity_checks_include_alignment_precision_and_device_buffer_limit() {
         let mut limits = wgpu::Limits::default();

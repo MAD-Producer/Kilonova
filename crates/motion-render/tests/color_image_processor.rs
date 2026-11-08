@@ -9,6 +9,8 @@ use serde::Deserialize;
 use std::{collections::BTreeMap, sync::Arc};
 #[path = "color_image_processor/chain.rs"]
 mod chain;
+#[path = "color_image_processor/uploads.rs"]
+mod uploads;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,

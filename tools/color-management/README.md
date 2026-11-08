@@ -177,3 +177,15 @@ panic 传播并由 RAII 清理状态。接口不新增线程、重试、重启�
 导出链。managed 工程的既有拒绝边界继续存在。实际数值程序和高位深/OS
 显示能力分别验收，不能由 CPU 准备成功推断。见
 [本次交付与限制](../../engineering/validation/project-color-preparation.md)。
+
+## Float32 素材上传与 GPU-only 目标
+
+`Renderer::upload_color_image_f32` 接受明确空间身份、alpha 和 Float32 RGBA，
+在分配前检查数量与有限值，保留负值、高光及通道位模式；不执行色彩转换或
+预乘。调用方提供正确的像素解释，再通过明确程序变换。写队列前接入原有
+pending-upload 预算保留，未提交时销毁包装也不会提前释放准入。
+
+`color_image_target` 不再预留整图读回缓冲；显式读回才创建有预算准入的临时
+缓冲并在完成后释放。原 `image_capture_target` 的可复用读回缓冲行为保持。
+这还不是普通素材解码或 Session 接线，不据此宣称高位深导入或 HDR 显示完成。
+见[上传与资源验收](../../engineering/validation/color-upload-preparation.md)。

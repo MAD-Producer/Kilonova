@@ -102,6 +102,8 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
+    #[error("{0}")]
+    ColorImageUpload(#[from] #[source] crate::ColorImageUploadError),
     #[error("GPU validation: {0}")]
     ScratchGraph(#[from] crate::effect_plan::ScratchGraphError),
     #[error("GPU validation: {0}")]
