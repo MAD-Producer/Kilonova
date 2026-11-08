@@ -111,6 +111,8 @@ pub enum RenderError {
     #[error(transparent)]
     LutPipeline(#[from] crate::NativeLutError),
     #[error(transparent)]
+    ColorProcessorPipeline(#[from] crate::NativeColorProcessorError),
+    #[error(transparent)]
     PipelinePreparation(#[from] crate::PipelinePreparationError),
     #[error("GPU validation: {0}")]
     EffectPipeline(#[from] crate::NativeEffectPipelineError),
@@ -179,6 +181,7 @@ impl RenderError {
                 Self::Resource { rejection, .. } => return Some(rejection),
                 Self::ImageResource(cause) => return cause.resource_rejection(),
                 Self::LutPipeline(cause) => return cause.admission_error().and_then(Self::resource_rejection),
+                Self::ColorProcessorPipeline(cause) => return cause.admission_error().and_then(Self::resource_rejection),
                 Self::Context { cause, .. } | Self::Diagnostic { cause, .. } => error = cause,
                 Self::Shared(cause) => error = cause,
                 Self::CompositionPlan(crate::composition_plan::CompositionPlanError::Encoding(cause)) => error = cause,

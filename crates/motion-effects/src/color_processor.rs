@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
+mod image;
+pub use image::CompiledColorImageProcessor;
+
 pub const COLOR_PROCESSOR_VERSION: u32 = 1;
 pub const MAX_PROCESSOR_JSON_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_PROCESSOR_SHADER_BYTES: usize = 256 * 1024;
@@ -75,6 +78,8 @@ pub enum ColorProcessorError {
     Parse(#[source] naga::front::glsl::ParseErrors),
     #[error("color processor phase=shader-validation")]
     Validation(#[source] naga::WithSpan<naga::valid::ValidationError>),
+    #[error("color processor phase=image-wgsl-parse")]
+    WgslParse(#[source] naga::front::wgsl::ParseError),
     #[error("color processor phase=wgsl-write")]
     Write(#[source] naga::back::wgsl::Error),
 }
@@ -200,22 +205,7 @@ impl ColorProcessorSource {
         Ok(())
     }
 
-    pub fn compile(
-        &self,
-        config: &VerifiedColorConfig,
-        selection: &ColorSelection,
-    ) -> Result<CompiledColorProcessor> {
-        self.validate()?;
-        let resolved = config.resolve(selection)?;
-        if self.config_key != config.key()
-            || self.selection_key != resolved.key
-            || self.ocio_version != config.manifest().ocio_version
-        {
-            return Err(invalid(
-                "identity",
-                "processor differs from selected config, policy or runtime",
-            ));
-        }
+    fn glsl_source(&self) -> Result<String> {
         let mut source = self.shader.clone();
         // OCIO emits nested RGB swizzles. Flatten only the exact equivalent
         // components; Naga 30 GLSL otherwise creates an invalid store pointer.
@@ -227,7 +217,6 @@ impl ColorProcessorSource {
             );
         }
         let mut header = String::from("#version 460\n");
-        let mut tables = Vec::new();
         for (index, table) in self.tables.iter().enumerate() {
             let declaration = format!(
                 "layout(set=0, binding = {}) uniform sampler2D {};",
@@ -249,7 +238,32 @@ impl ColorProcessorSource {
             }
             source = source.replace(&call, &format!("motion_sample_{index}("));
             header.push_str(&sample_function(index, table));
-            tables.push(
+        }
+        header.push_str(&source);
+        Ok(header)
+    }
+
+    pub fn compile(
+        &self,
+        config: &VerifiedColorConfig,
+        selection: &ColorSelection,
+    ) -> Result<CompiledColorProcessor> {
+        self.validate()?;
+        let resolved = config.resolve(selection)?;
+        if self.config_key != config.key()
+            || self.selection_key != resolved.key
+            || self.ocio_version != config.manifest().ocio_version
+        {
+            return Err(invalid(
+                "identity",
+                "processor differs from selected config, policy or runtime",
+            ));
+        }
+        let mut header = self.glsl_source()?;
+        let tables = self
+            .tables
+            .iter()
+            .map(|table| {
                 table
                     .values
                     .chunks_exact(table.channels as usize)
@@ -260,10 +274,9 @@ impl ColorProcessorSource {
                             [v[0], v[1], v[2], 1.]
                         }
                     })
-                    .collect(),
-            );
-        }
-        header.push_str(&source);
+                    .collect()
+            })
+            .collect();
         header.push_str("\nlayout(local_size_x=1) in;\nlayout(set=1,binding=0,std430) readonly buffer MotionInputs { vec4 pixels[]; } input_values;\nlayout(set=1,binding=1,std430) buffer MotionOutputs { vec4 pixels[]; } output_values;\nvoid main() { uint i=gl_GlobalInvocationID.x; vec4 original=input_values.pixels[i]; vec4 color=original;\n");
         if self.input_alpha == AlphaMode::Premultiplied {
             header.push_str("color.rgb = original.a > 0.0 ? color.rgb/original.a : vec3(0.0);\n");
@@ -279,7 +292,7 @@ impl ColorProcessorSource {
                 &header,
             )
             .map_err(ColorProcessorError::Parse)?;
-        validate_bindings(&module, self.tables.len())?;
+        validate_bindings(&module, self.tables.len(), false)?;
         add_dispatch_guard(&mut module)?;
         let info = naga::valid::Validator::new(
             naga::valid::ValidationFlags::all(),
@@ -361,12 +374,33 @@ fn sample_function(index: usize, table: &ColorProcessorTable) -> String {
     code
 }
 
-fn validate_bindings(module: &naga::Module, tables: usize) -> Result<()> {
+fn validate_bindings(module: &naga::Module, tables: usize, image: bool) -> Result<()> {
     let mut seen = BTreeSet::new();
     for (_, global) in module.global_variables.iter() {
         if let Some(binding) = &global.binding {
             let (group, index) = (binding.group, binding.binding);
-            let allowed = (group == 0 && (index as usize) < tables) || (group == 1 && index <= 1);
+            if image && group == 1 && index == 0 {
+                if global.space != naga::AddressSpace::Handle
+                    || module.types[global.ty].inner
+                        != (naga::TypeInner::Image {
+                            dim: naga::ImageDimension::D2,
+                            arrayed: false,
+                            class: naga::ImageClass::Sampled {
+                                kind: naga::ScalarKind::Float,
+                                multi: false,
+                            },
+                        })
+                    || !seen.insert((group, index))
+                {
+                    return Err(invalid(
+                        "image input",
+                        "requires one non-arrayed Float32 sampled 2D image",
+                    ));
+                }
+                continue;
+            }
+            let allowed =
+                (group == 0 && (index as usize) < tables) || (!image && group == 1 && index <= 1);
             let naga::AddressSpace::Storage { access } = global.space else {
                 return Err(invalid(
                     "shader binding",
@@ -422,11 +456,19 @@ fn validate_bindings(module: &naga::Module, tables: usize) -> Result<()> {
             ));
         }
     }
-    if seen.len() != tables + 2 || module.entry_points.len() != 1 {
+    if seen.len() != tables + if image { 1 } else { 2 } || module.entry_points.len() != 1 {
         return Err(invalid(
             "shader interface",
             "requires the fixed processor entry point and all bindings",
         ));
+    }
+    let expected = if image {
+        naga::ShaderStage::Fragment
+    } else {
+        naga::ShaderStage::Compute
+    };
+    if module.entry_points[0].stage != expected {
+        return Err(invalid("entry point", "unexpected processor shader stage"));
     }
     Ok(())
 }
