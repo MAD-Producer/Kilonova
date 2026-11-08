@@ -2,7 +2,7 @@
 //! All three child phases are owned/reaped directly by this backend. The render
 //! session and its device are never passed to the inference worker. Quality and
 //! model processing identity stay independent of the execution backend.
-use super::{Backend, Cancellation, Costs, Error, Estimate, Input, Result};
+use super::{cache::Execution, Backend, Cancellation, Costs, Error, Estimate, Input, Result};
 use motion_model::depth::{DepthDescriptor, DepthMeasure, DepthResource, NearDirection};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -22,6 +22,8 @@ const SIDE: u64 = 518;
 const TENSOR_BYTES: u64 = 3 * SIDE * SIDE * 4;
 const DEPTH_BYTES: u64 = SIDE * SIDE * 4;
 const BUFFER_BYTES: u64 = 227_968_156;
+mod identity;
+use identity::Attestation;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Hardware {
@@ -60,6 +62,7 @@ pub struct Wgsl {
     config: Config,
     last_diagnostic: Option<String>,
     last_provider: Option<String>,
+    attestation: Option<Attestation>,
 }
 impl Wgsl {
     pub fn new(config: Config) -> Result<Self> {
@@ -80,6 +83,7 @@ impl Wgsl {
             config,
             last_diagnostic: None,
             last_provider: None,
+            attestation: None,
         })
     }
     fn child(
@@ -103,6 +107,7 @@ impl Wgsl {
             "operation=depth_wgsl asset={} phase={phase} start",
             input.key().source.asset
         );
+        log::logger().flush();
         let began = Instant::now();
         let (stdout, stderr) =
             super::onnx::capture(&mut command, cancellation).map_err(|error| {
@@ -136,6 +141,7 @@ impl Wgsl {
         );
         Ok(stdout)
     }
+    #[allow(clippy::too_many_arguments)]
     fn transform(
         &mut self,
         root: &Path,
@@ -144,6 +150,7 @@ impl Wgsl {
         rgb: &str,
         depth: Option<&str>,
         cancellation: &Cancellation,
+        expected: Option<&Execution>,
     ) -> Result<Transform> {
         let [width, height] = input.size();
         let request = serde_json::json!({"schema":1,"stage":stage,"processing":super::onnx::PROCESSING,
@@ -151,9 +158,14 @@ impl Wgsl {
         fs::write(root.join("transform.json"), serde_json::to_vec(&request)?)?;
         // Isolated Python deliberately omits the script directory from sys.path.
         // The tiny -c loader admits exactly our generated, owned module root.
-        let command = python_transform(&self.config.python, root);
+        let mode = if expected.is_some() {
+            TransformInvocation::Attest
+        } else {
+            TransformInvocation::Plain
+        };
+        let command = python_transform(&self.config.python, root, mode);
         let stdout = self.child(command, input, stage, cancellation)?;
-        let report: Transform = serde_json::from_slice(&stdout)?;
+        let report = Transform::decode(&stdout, expected)?;
         report.validate(input, stage, rgb, depth)?;
         Ok(report)
     }
@@ -162,6 +174,7 @@ impl Wgsl {
         root: &Path,
         input: &Input,
         cancellation: &Cancellation,
+        attestation: Option<&Attestation>,
     ) -> Result<Estimate> {
         cancellation.check()?;
         let model = input
@@ -178,10 +191,24 @@ impl Wgsl {
         }
         fs::write(root.join("depth_tensor.py"), TRANSFORM)?;
         fs::write(root.join("ai_depth_onnx.py"), SHARED)?;
+        if let Some(expected) = attestation {
+            fs::write(
+                root.join("transform-execution.json"),
+                serde_json::to_vec(&expected.transform)?,
+            )?;
+        }
         fs::write(root.join("input.rgb"), input.rgb())?;
         let rgb = digest(input.rgb());
         let pre_began = Instant::now();
-        let prepared = self.transform(root, input, "prepare", &rgb, None, cancellation)?;
+        let prepared = self.transform(
+            root,
+            input,
+            "prepare",
+            &rgb,
+            None,
+            cancellation,
+            attestation.map(|a| &a.transform),
+        )?;
         let pre = pre_began.elapsed();
         let tensor = read_owned(
             &root.join("tensor.f32"),
@@ -198,6 +225,17 @@ impl Wgsl {
         fs::write(&native_path, &native_request)?;
         let native_root = root.join("native");
         let mut command = Command::new(&self.config.worker);
+        if let Some(expected) = attestation {
+            identity::worker_unchanged(
+                &self.config.worker,
+                input,
+                cancellation,
+                expected.worker_sha256,
+            )?;
+            let path = root.join("native-execution.json");
+            fs::write(&path, serde_json::to_vec(&expected.native)?)?;
+            command.arg("--attest").arg(path);
+        }
         command
             .arg(&native_path)
             .arg(&native_root)
@@ -231,9 +269,12 @@ impl Wgsl {
         if !stdout.is_empty() {
             return Err(Error::Invalid("native WGSL worker wrote to stdout"));
         }
-        let report: Native =
-            serde_json::from_slice(&read_limited(&native_root.join("receipt.json"), 65536)?)?;
+        let receipt = read_limited(&native_root.join("receipt.json"), 65536)?;
+        let report: Native = serde_json::from_slice(&receipt)?;
         report.validate(self.config.hardware, &digest(&native_request))?;
+        if let Some(expected) = attestation {
+            expected.validate_native_result(&serde_json::from_slice(&receipt)?, &report)?;
+        }
         let depth = read_owned(
             &native_root.join("relative_inverse_depth.f32"),
             DEPTH_BYTES,
@@ -249,6 +290,7 @@ impl Wgsl {
             &rgb,
             Some(&report.output_sha256),
             cancellation,
+            attestation.map(|a| &a.transform),
         )?;
         let post = post_began.elapsed();
         let bytes = read_owned(
@@ -300,6 +342,17 @@ impl Wgsl {
     }
 }
 impl Backend for Wgsl {
+    fn execution_identity(
+        &mut self,
+        input: &Input,
+        cancellation: &Cancellation,
+    ) -> Result<Option<Execution>> {
+        self.attestation = None;
+        let attestation = self.resolve_cache_identity(input, cancellation)?;
+        let execution = attestation.combined()?;
+        self.attestation = Some(attestation);
+        Ok(Some(execution))
+    }
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate> {
         let began = Instant::now();
         cancellation.check()?;
@@ -307,7 +360,8 @@ impl Backend for Wgsl {
         let directory = tempfile::Builder::new()
             .prefix("motion-depth-wgsl-")
             .tempdir_in(&self.config.scratch)?;
-        let result = self.infer_in(directory.path(), input, cancellation);
+        let attestation = self.attestation.take();
+        let result = self.infer_in(directory.path(), input, cancellation, attestation.as_ref());
         match (result, directory.close()) {
             (Ok(mut estimate), Ok(())) => {
                 estimate.costs.total = began.elapsed();
@@ -327,10 +381,26 @@ impl Backend for Wgsl {
         }
     }
 }
-fn python_transform(python: &Path, root: &Path) -> Command {
+enum TransformInvocation {
+    Plain,
+    Resolve,
+    Attest,
+}
+fn python_transform(python: &Path, root: &Path, mode: TransformInvocation) -> Command {
     let mut command = Command::new(python);
-    command.args(["-I","-B","-c","import runpy,sys; sys.path.insert(0,sys.argv[1]); sys.argv=[sys.argv[1]+'/depth_tensor.py',sys.argv[1]]; runpy.run_path(sys.argv[0],run_name='__main__')"])
+    command.args(["-I","-B","-c","import runpy,sys; root=sys.argv.pop(1); sys.path.insert(0,root); sys.argv[0]=root+'/depth_tensor.py'; runpy.run_path(sys.argv[0],run_name='__main__')"])
         .arg(root).env("TMP",root).env("TEMP",root).env("PYTHONDONTWRITEBYTECODE","1");
+    match mode {
+        TransformInvocation::Plain => {
+            command.arg(root);
+        }
+        TransformInvocation::Resolve => {
+            command.arg("--resolve");
+        }
+        TransformInvocation::Attest => {
+            command.arg("--attest").arg(root);
+        }
+    }
     command
 }
 fn digest(bytes: &[u8]) -> String {
@@ -491,6 +561,27 @@ struct Transform {
     elapsed_ns: u64,
 }
 impl Transform {
+    fn decode(bytes: &[u8], expected: Option<&Execution>) -> Result<Self> {
+        if let Some(expected) = expected {
+            let mut value: serde_json::Value = serde_json::from_slice(bytes)?;
+            let actual = value
+                .as_object_mut()
+                .and_then(|v| v.remove("execution"))
+                .ok_or(Error::Invalid(
+                    "WGSL transform omitted its execution attestation",
+                ))?;
+            let actual: Execution = serde_json::from_value(actual)?;
+            actual.validate()?;
+            if &actual != expected {
+                return Err(Error::Invalid(
+                    "WGSL transform execution differs from cache resolution",
+                ));
+            }
+            Ok(serde_json::from_value(value)?)
+        } else {
+            Ok(serde_json::from_slice(bytes)?)
+        }
+    }
     fn validate(&self, input: &Input, stage: &str, rgb: &str, depth: Option<&str>) -> Result<()> {
         let bytes = if stage == "prepare" {
             TENSOR_BYTES

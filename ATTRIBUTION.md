@@ -188,6 +188,18 @@ Apache-2.0, [source](https://github.com/onnx/onnx)). Their existing licenses and
 notices remain in their external installations; no runtime binaries or packages
 are redistributed by this change.
 
+Local #75 resource restoration also uses an isolated, unmodified inspection
+installation of ONNX 1.23.2, ml_dtypes 0.5.4 (ml_dtypes authors,
+[source](https://github.com/jax-ml/ml_dtypes), Apache-2.0 with the included
+Eigen MPL-2.0 notice), and typing_extensions 4.15.0 (Python typing contributors,
+[source](https://github.com/python/typing_extensions), PSF-2.0). The exact PyPI
+wheel URLs and SHA-256 values are recorded in the local
+`artifacts/pr-queue/depth75-onnx-inspection-environment-v1` installation reports.
+These tools only read the already attributed Small export and restore resources
+against its pinned blueprint hashes. Their original licenses remain in the
+external installation. They do not change the inference environment and are
+not product dependencies, source modifications or redistributed assets.
+
 External depth validation also uses NASA's Eileen Collins portrait, distributed
 as `skimage/data/astronaut.png` in scikit-image v0.25.2 (Git blob
 `834cda0012478c5edc8d43bade96d315dedeaab4`). Author/credit: NASA; source:

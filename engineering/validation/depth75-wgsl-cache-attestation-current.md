@@ -43,7 +43,7 @@ No old-project migration or compatibility fallback is introduced.
   procedure byte for byte. An altered expected identity was rejected without
   replacing an existing output. The v2 receipt repeats this on the current
   bounded-context implementation, with source hashes unchanged
-- Scoped host/cache regression passes: five requested Rust targets, 269 passed,
+- Scoped host/cache regression passes: five requested Rust targets, 277 passed,
   zero failed, 40 original GPU-dependent ignores and zero filtered. GPU features
   were not requested for this scoped invocation; these ignores are not GPU
   acceptance. No complete host/render/media regression pass is claimed
@@ -59,16 +59,19 @@ No old-project migration or compatibility fallback is introduced.
 
 The actual numerical receipt is local under
 `artifacts/pr-queue/depth75-wgsl-transform-validation-v2`; the scoped regression
-uses `artifacts/pr-queue/depth75-wgsl-transform-contract-v1`. These are independent
+uses `artifacts/pr-queue/depth75-wgsl-host-identity-contract-v1`. These are independent
 evidence stages and do not replace the original failed full regression on
 PR #649. That PR remains a draft despite green remote checks.
 
-## Remaining execution boundary
+## Host execution boundary
 
-The product host does not yet call the new transform identity modes. WGSL
-persistent-cache requests still fail explicitly through the existing unsupported
-execution-identity boundary; they must not claim that this transform precursor
-alone makes a GPU result reusable.
+The product host now resolves both procedures before cache lookup. It combines
+the observed native execution, NumPy/OpenCV execution and actual configured
+worker-file digest. A miss requests attested preparation, native inference and
+remapping; each actual receipt must agree with the independently resolved
+identity. A hit still resolves actual hardware, numerical runtime and all
+282 pinned model resources before accepting raw values. It does not reuse a
+cached GPU object or bypass resource ownership/alignment admission.
 
 The native worker now has separate `--resolve` and `--attest` entry points.
 Resolution requests have a strict input-free schema; inference requests retain
@@ -91,15 +94,55 @@ Receipt: `artifacts/pr-queue/depth75-wgsl-native-identity-contract-v2`. The v2
 source retains the ordinary invocation's original version-before-shape error
 precedence; the earlier v1 receipt remains a separate historical stage.
 
-The host must next invoke and independently validate native resolution before
-lookup, combine it with the transform identity, and request/recheck attested
-preparation, native inference and remapping on a miss. Cancellation, cleanup,
-original causes, in-flight
-publication, file/Error-stderr logging and stdout isolation must be retained.
+Eight new host unit controls cover the three independent identity components,
+wrong backend/precision/procedure, partial or stale resolution, missing or
+changed actual receipts, cancellation clearing stale state before scratch IO,
+and a changed actual worker file. Existing assertions remain unchanged.
+Cancellation, primary/cleanup causes, directly owned children and in-flight
+publication retain their existing contracts. Starts are flushed before blocking
+children or worker-file identity reads; healthy Present behavior is unchanged.
 
-Acceptance still requires a real native WGSL inference, a fresh-worker raw-cache
-restore without inference, invalidation/refusal controls, current alignment
-admission, full regression and exact-head cross-platform CI. Broader #75 video
+## Actual hardware and fresh-worker cache proof
+
+The pinned 518 Small export was recovered from an existing local installation,
+not downloaded or added to the product. All 282 resource entries (238 unique
+files) matched their blueprint dimensions, Float32 byte counts, finite values
+and SHA-256 digests. The initial resource-restoration v1 failed because the
+optional ONNX inspection package was absent; its output remains preserved.
+Restoration v2 used an isolated external inspection-tool directory, leaving the
+actual NumPy/OpenCV/ORT inference environment unchanged. Resource receipt:
+`artifacts/pr-queue/depth75-wgsl-cache-resources-v2`.
+
+The current production host and native-worker source then passed a real Vulkan
+execution on an NVIDIA GeForce RTX 4070 Laptop GPU. The external probe delegates
+resolution and inference to the actual WGSL backend; it does not supply model
+results. Its cold miss passed the production receipt requirements (429 encoded
+operations, one final readback, 282 verified resources and the pinned retained
+buffer contract). A newly constructed worker restored all 96 scalar bit patterns
+with a new resource ownership identity, zero inference cost and only one backend
+inference call across both workers. Corrupting the cache caused the original
+content-digest error without another inference.
+
+The controlled pre-handler pause proved that `cache_resolve` in-flight state and
+its default Info file record were visible before the backend returned, without
+a fixture-side logger flush. The actual corrupt-entry Error appeared in both
+the file and stderr; stdout contained exactly one fixture JSON record.
+
+Single-sample descriptive timings were 25,806.6975 ms cold full path,
+12,692.9692 ms reported native inference and 6,887.5837 ms new-worker hit full
+path. Cold excludes the controlled publication pause; hit includes actual
+resource/hardware/runtime resolution. These measurements concern one 12-by-8
+synthetic input and do not qualify visual quality or sustained performance.
+The source hashes remained unchanged. Receipt and independently authored probe:
+`artifacts/pr-queue/depth75-wgsl-cache-actual-v1` (actual session 77445, exit 0).
+Both binaries used isolated manifests with exact root-lockfile dependency
+checksums; this proves the current-source execution, not a full product-package
+build.
+
+Acceptance still requires broader actual invalidation/cancellation/refusal
+controls, current alignment qualification, full regression, product-package
+builds and exact-head cross-platform CI. Broader #75 video
 quality, backend comparison, full-path latency, memory and sustained-load
-qualification remain separate obligations. No panels, UI, new dependency or
-third-party asset is changed here.
+qualification remain separate obligations. No panels or UI behavior is changed;
+no product dependency or third-party asset is added. The local inspection-only
+tools and their license scope are recorded in `ATTRIBUTION.md`.
