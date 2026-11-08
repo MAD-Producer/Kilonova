@@ -103,3 +103,35 @@ Both archive members were read back and verified: 3,426 bytes, SHA-256
 No photographs, annotation payloads, original requests or per-frame observation
 arrays are redistributed. This is a review of historical measurements, not a
 new algorithm, native regression, Surface test, CI result or #88 acceptance.
+
+## Spatial extent of the retained disagreement
+
+A second standard-library-only audit independently fitted the projective map
+defined by each annotation quadrilateral. Its normalized linear solver passed
+authored translation/projective controls on independent probes and reproduced
+all four input corners within `1e-6` pixels. It retained every original automatic
+visible sample and the original 15-pixel annotated-corner gate. No frame was
+decoded, no feature correspondence was recomputed and no tracker source changed.
+
+For each retained result it compared the tracker and annotation-defined maps at
+the four original ROI corners and its center. Across the same 21 failing original
+observations, the maximum error over those probes ranged from `12.972169` to
+`38.373664` pixels, with median `20.150855`. Fifteen of the 21 exceeded 15 pixels
+at an ROI probe; none was within 3 pixels. The two rejected candidates showed
+the same counts: fifteen above 15 pixels and none within 3 pixels. All original
+coverage, corner maximum and RMS values were reproduced.
+
+The spatial disagreement therefore extends into the ROI probe locations as well
+as the annotated outer corners. These probe references are interpolated from
+four corner annotations; they are not independently measured interior ground
+truth. This audit establishes neither feature misassociation, nonplanarity,
+distortion nor annotation error as the cause. The next experiment must inspect
+measured correspondence/model uncertainty while retaining the original complete
+sequence, corner accuracy and useful coverage gates.
+
+The [archive](data/tracking88-extent-residual-audit-v1.zip) and
+[manifest](data/tracking88-extent-residual-audit-v1.json) retain only the independent
+script, aggregate results and input/output hashes. Both members were read back
+and verified. Third-party images, annotations, requests and per-frame outputs
+remain local. This adds evidence for the next algorithm decision and does not
+qualify photographed tracking, native integration or cross-platform CI.
