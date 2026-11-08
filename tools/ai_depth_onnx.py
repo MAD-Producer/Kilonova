@@ -87,7 +87,9 @@ def execution_environment(ort, np, cv2):
     site = roots[0][1].parent
     # Wheels keep BLAS/OpenCV dependencies in sibling .libs directories on
     # Unix. Those bytes affect numerical execution just as the extension does.
-    for root in site.iterdir():
+    for index, root in enumerate(site.iterdir()):
+        if index >= 8192:
+            raise ValueError("runtime site-packages enumeration exceeds entry bound")
         if root.name.endswith(".libs") and root.name.startswith(("numpy", "opencv", "onnxruntime")):
             if root.is_symlink():
                 raise ValueError("linked runtime dependency directory rejected")

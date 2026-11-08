@@ -55,6 +55,9 @@ pub(crate) struct Sample {
     pub input: PreparedDepthInput,
     pub end_us: u64,
     pub plane: Arc<Plane>,
+    /// Worker-attested numerical environment when persistent caching is enabled.
+    /// None is the original uncached Session-spill contract.
+    pub execution: Option<cache::Execution>,
 }
 
 impl Store {
@@ -120,8 +123,24 @@ impl Store {
         estimate: &Estimate,
         check: &dyn Fn() -> Result<()>,
     ) -> Result<()> {
+        self.append_qualified_checked(root, request, object, input, fingerprint, estimate, None, check)
+    }
+    pub fn append_qualified(
+        &self, root: &Path, request: u64, object: u64, input: &Input,
+        fingerprint: PreparedDepthInput, estimate: &Estimate,
+        execution: Option<&cache::Execution>, cancel: &Cancellation,
+    ) -> Result<()> {
+        self.append_qualified_checked(root, request, object, input, fingerprint, estimate,
+            execution, &|| cancel.check())
+    }
+    fn append_qualified_checked(
+        &self, root: &Path, request: u64, object: u64, input: &Input,
+        fingerprint: PreparedDepthInput, estimate: &Estimate,
+        execution: Option<&cache::Execution>, check: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
         check()?;
         estimate.validate(input.key())?;
+        if let Some(execution) = execution { execution.validate()?; execution.validate_result(estimate)?; }
         let end_us = input
             .video_end_us
             .ok_or(Error::Invalid("stored sample requires video interval"))?;
@@ -167,6 +186,7 @@ impl Store {
             input: fingerprint,
             end_us,
             plane,
+            execution: execution.cloned(),
         });
         // The index lock never spans file IO. Publish only a complete sample;
         // its file Arc remains valid after Store/Session teardown.
