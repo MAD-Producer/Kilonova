@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "status": "rejected_candidate_original_quality_or_coverage_failure_retained",
+  "base": "3a405e1d",
+  "independently_recomputed": [
+    {
+      "mode": "no-corrections",
+      "track": "feature",
+      "automaticVisible": 1,
+      "automaticLost": 2298,
+      "manualSamples": 0,
+      "maxPixels": 1.5972466766167048,
+      "rmsPixels": 1.5972466766167048,
+      "automaticOver15Pixels": 0
+    },
+    {
+      "mode": "no-corrections",
+      "track": "plane",
+      "automaticVisible": 62,
+      "automaticLost": 2237,
+      "manualSamples": 0,
+      "maxPixels": 5.210919733811117,
+      "rmsPixels": 2.3719956777916633,
+      "automaticOver15Pixels": 0
+    },
+    {
+      "mode": "periodic-manual-200",
+      "track": "feature",
+      "automaticVisible": 172,
+      "automaticLost": 2116,
+      "manualSamples": 11,
+      "maxPixels": 2.955397389069884,
+      "rmsPixels": 1.2152698314957862,
+      "automaticOver15Pixels": 0
+    },
+    {
+      "mode": "periodic-manual-200",
+      "track": "plane",
+      "automaticVisible": 515,
+      "automaticLost": 1773,
+      "manualSamples": 11,
+      "maxPixels": 57.39923718448063,
+      "rmsPixels": 7.026667790897714,
+      "automaticOver15Pixels": 21
+    }
+  ],
+  "limits": [
+    "All original analytic assertions preserved",
+    "Both complete2300-frame original modes, original ROI/corrections/source/PTS/15px gate retained",
+    "Read full annotation archive only after both blind outputs are sealed",
+    "No parameter search, threshold changes, production/panel edits or auto recovery",
+    "Original915-plane coverage is not replaced by dropping difficult frames",
+    "Only launch after original71826 thermal session is actually consumed",
+    "Actual both-mode result rejected: coverage worsened and the same severe-plane-error category persists",
+    "Controller exit0 is measurement completion, not acceptance; original product algorithm remains unchanged",
+    "No video, annotations, full requests or per-frame observations redistributed",
+    "No native/Surface integration or CI result established by this experiment"
+  ],
+  "archive": "tracking88-full-resolution-flow-v1.zip",
+  "bytes": 25758,
+  "sha256": "7610c51326f451158859da6aa24417b1dce7ccc39ba941f552873db90563c23d",
+  "members_readback_verified": 16
+}

@@ -211,3 +211,41 @@ were read back and verified: 3,857 bytes, SHA-256
 No third-party video, annotations or per-frame output arrays are redistributed.
 This rules out an unqualified shortcut, not a tracking-quality defect. Source
 algorithms and acceptance bounds are unchanged; issue 88 remains incomplete.
+
+## Rejected full-resolution adjacent-flow candidate
+
+A distinct isolated experiment removed the coarse pyramid from adjacent-frame
+LK, retaining full-resolution flow for both local and explicit-reference checks.
+Only that algorithm option changed. All eight original analytic controls passed,
+with their source assertions unchanged. Both original complete photographed
+modes then ran on all 2,300 source coordinates with identical video, requests,
+ROI, manual corrections, timestamps and publication gates. Their complete blind
+outputs were sealed before the full annotation archive was read.
+
+| Mode | Track | Original automatic visible | Candidate automatic visible | Candidate maximum error (px) | Above 15 px |
+| --- | --- | ---: | ---: | ---: | ---: |
+| No corrections | Point | 57 | 1 | 1.597247 | 0 |
+| No corrections | Plane | 68 | 62 | 5.210920 | 0 |
+| Periodic manual corrections | Point | 943 | 172 | 2.955397 | 0 |
+| Periodic manual corrections | Plane | 915 | 515 | 57.399237 | 21 |
+
+Coverage became worse for every track/mode, while all 21 severe plane failures
+remained and the worst error increased. The candidate is rejected, has not been
+adopted, and is not a quality fix. A smaller error on a much smaller visible
+subset cannot replace the original coverage requirement. Neither the original
+algorithm nor any quality/coverage assertion was changed.
+
+Original session 83732 was consumed with transport exit 0: the measurement
+completed, but its photographed quality and coverage gates failed. This is not
+an acceptance pass. Independent standard-library reduction reproduced each
+complete-sequence count, maximum and RMS against the pinned annotation archive.
+
+The [archive](data/tracking88-full-resolution-flow-v1.zip) and
+[manifest](data/tracking88-full-resolution-flow-v1.json) retain authored candidate
+sources, original analytic logs, both-mode execution logs, aggregate results and
+independent audit. All 16 members were read back and verified: 25,758 bytes,
+SHA-256 `7610c51326f451158859da6aa24417b1dce7ccc39ba941f552873db90563c23d`.
+No third-party video, annotation, full request or per-frame observation is
+redistributed. Native/Surface integration and remote CI are outside this
+experiment. The cause of the original photographed disagreement and issue 88
+acceptance remain unresolved.
