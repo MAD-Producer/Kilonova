@@ -14,6 +14,8 @@ mod vector_composition;
 mod transfer;
 #[path = "authored_session.rs"]
 mod session_installation;
+#[path = "surface_contract.rs"]
+mod surface_contract;
 
 fn runtime() -> std::path::PathBuf {
     std::env::var_os("MOTION_TEST_OCIO_RUNTIME")

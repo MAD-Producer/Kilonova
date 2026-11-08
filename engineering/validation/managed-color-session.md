@@ -40,6 +40,9 @@ TLS 借用也在调用 sink 前结束。最多保存 64 条普通记录和另留
 原生能力调用尚未返回时读取这两个信号，不能用操作结束后刷出的记录代替。
 独立 `prepare_project_colors` 等调用不在 Session 边界内时仍即时记录开始，
 其 Observation 在 provider 进入前设为 running，在返回和 unwind 后清除。
+实际默认文件缓冲区的阻塞前可见性缺口由后续
+[不透明显示准备](opaque-display-preparation.md) 暴露并修正；本批测试 logger
+接收记录的证据不能代替磁盘已刷出的证明。
 Session 本身不是另一个串行 worker；其他嵌入宿主仍须在自己的命令入口承担
 同样的开始/在途发布。内层 request 当前对应文档代次，桌面外层 request 才是
 该次命令编号；不能把二者当成同一请求空间。

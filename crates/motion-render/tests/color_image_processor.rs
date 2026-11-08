@@ -19,6 +19,8 @@ mod uploads;
 mod native_runtime;
 #[path = "color_image_processor/managed_display.rs"]
 mod managed_display;
+#[path = "color_image_processor/opaque_display.rs"]
+mod opaque_display;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,

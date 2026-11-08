@@ -73,8 +73,12 @@ pub struct CompiledColorImageProcessor {
     output_space: ColorSpaceIdentity,
     input_range: CodeValueRange,
     output_range: CodeValueRange,
+    opaque_display: bool,
 }
 impl CompiledColorImageProcessor {
+    pub fn is_opaque_display(&self) -> bool {
+        self.opaque_display
+    }
     pub fn input_range(&self) -> CodeValueRange {
         self.input_range
     }
@@ -141,6 +145,42 @@ impl ColorProcessorSource {
         input_range: CodeValueRange,
         output_range: CodeValueRange,
     ) -> Result<CompiledColorImageProcessor> {
+        self.compile_image_mode(config, selection, input_range, output_range, false)
+    }
+
+    /// Composite premultiplied working RGB over working black before the display
+    /// transform. This produces opaque surface pixels without an extra image pass
+    /// or the incorrect alternative of matting already-encoded display values.
+    pub fn compile_display_over_black(
+        &self,
+        config: &VerifiedColorConfig,
+        selection: &ColorSelection,
+    ) -> Result<CompiledColorImageProcessor> {
+        if self.phase != ColorProcessorPhase::WorkingToDisplay
+            || self.input_alpha != AlphaMode::Premultiplied
+        {
+            return Err(invalid(
+                "opaque display",
+                "requires WorkingToDisplay with premultiplied full-range working RGB",
+            ));
+        }
+        self.compile_image_mode(
+            config,
+            selection,
+            CodeValueRange::FULL,
+            CodeValueRange::FULL,
+            true,
+        )
+    }
+
+    fn compile_image_mode(
+        &self,
+        config: &VerifiedColorConfig,
+        selection: &ColorSelection,
+        input_range: CodeValueRange,
+        output_range: CodeValueRange,
+        opaque_display: bool,
+    ) -> Result<CompiledColorImageProcessor> {
         let core = self.compile(config, selection)?;
         let (input_space, output_space) = match self.phase {
             ColorProcessorPhase::InputToWorking => (
@@ -162,7 +202,13 @@ impl ColorProcessorSource {
             ),
         };
         let mut glsl = self.glsl_source()?;
-        glsl.push_str("\nlayout(set=1,binding=0) uniform texture2D motion_source;\nlayout(location=0) out vec4 motion_output;\nvoid main() { vec4 original=texelFetch(motion_source,ivec2(gl_FragCoord.xy),0); vec4 color=original;\n");
+        glsl.push_str("\nlayout(set=1,binding=0) uniform texture2D motion_source;\nlayout(location=0) out vec4 motion_output;\nvoid main() { vec4 original=texelFetch(motion_source,ivec2(gl_FragCoord.xy),0);\n");
+        if opaque_display {
+            glsl.push_str(
+                "original.rgb=original.a>0.0 ? original.rgb : vec3(0.0); original.a=1.0;\n",
+            );
+        }
+        glsl.push_str("vec4 color=original;\n");
         if self.input_alpha == AlphaMode::Premultiplied {
             if input_range.is_full() {
                 glsl.push_str("color.rgb = original.a > 0.0 ? color.rgb/original.a : vec3(0.0);\n");
@@ -239,6 +285,7 @@ impl ColorProcessorSource {
             output_space,
             input_range,
             output_range,
+            opaque_display,
         })
     }
 }

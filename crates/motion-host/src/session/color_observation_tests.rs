@@ -33,7 +33,21 @@ impl log::Log for Capture {
         drop(prep::observation::Scope::enter(-1));
         self.0.lock().unwrap().push((record.level(), text));
     }
-    fn flush(&self) {}
+    fn flush(&self) {
+        let slots: Vec<_> = sessions()
+            .try_lock()
+            .expect("registry unlocked during flush")
+            .values()
+            .cloned()
+            .collect();
+        for slot in slots {
+            assert!(
+                !matches!(slot.session.try_lock(), Err(std::sync::TryLockError::WouldBlock)),
+                "Session held during color log flush"
+            );
+        }
+        drop(prep::observation::Scope::enter(-1));
+    }
 }
 
 #[test]

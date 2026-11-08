@@ -28,12 +28,25 @@ pub enum SignalRange {
 pub struct ColorSignal {
     /// The OCIO encoding category, not a substitute for its transfer function.
     pub encoding: String,
+    /// Explicit signal transfer. OCIO's encoding category alone cannot establish
+    /// an sRGB surface contract; arbitrary configured transforms remain distinct.
+    pub transfer: ColorTransfer,
     /// CIE xy red, green and blue. Imaginary wide-gamut primaries are allowed.
     pub primaries: [[f64; 2]; 3],
     pub white_point: [f64; 2],
     pub range: SignalRange,
     pub reference: ReferenceSpace,
     pub alpha: AlphaMode,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColorTransfer {
+    Linear,
+    Srgb,
+    /// Defined by the selected, content-verified OCIO processor. This is not a
+    /// declaration that an operating-system surface accepts the resulting codes.
+    ConfigDefined,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

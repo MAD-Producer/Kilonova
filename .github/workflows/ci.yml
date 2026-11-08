@@ -356,6 +356,7 @@ jobs:
         run: |
           cargo test -p motion-render --test color_image_processor native_runtime::freshly_prepared_native_programs_match_original_cpu_pixels_on_the_gpu --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-render --test color_image_processor managed_display::native_display_surface_codes_match_original_cpu_references_without_double_encoding --locked -- --ignored --exact --nocapture --test-threads=1
+          cargo test -p motion-render --test color_image_processor opaque_display::opaque_display_mattes_before_native_view_and_keeps_alpha_endpoint_separate --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-effects --test native_color --locked -- --include-ignored --nocapture --test-threads=1
           cargo test -p motion-host --lib color_preparation::tests --locked -- --include-ignored --nocapture --test-threads=1
           cargo test -p motion-host --test color_preparation authored:: --locked -- --ignored --nocapture --test-threads=1
@@ -364,6 +365,7 @@ jobs:
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::images::authored_image_failure_reaches_default_channels_and_cancellation_is_normal --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::catalogue::catalogue_mismatch_reaches_default_channels_and_does_not_publish_a_project --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::session::managed_session_worker_publishes_before_blocking_and_preserves_failed_edits --locked -- --ignored --exact --nocapture --test-threads=1
+          cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::surface::surface_preparation_publishes_before_blocking_and_preserves_default_failure_channels --locked -- --ignored --exact --nocapture --test-threads=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure() || (always() && github.event_name != 'pull_request')
         with:

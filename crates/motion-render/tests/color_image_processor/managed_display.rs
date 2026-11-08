@@ -1,7 +1,7 @@
 use super::*;
 use motion_render::{ManagedDisplayPresenter, ManagedDisplayTarget};
 
-fn pixels(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
+pub(super) fn pixels(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
     let stride = texture.width().div_ceil(64) * 256;
     let buffer = renderer.device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("managed display qualification readback"),
@@ -48,7 +48,7 @@ fn pixels(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
     buffer.unmap();
     result
 }
-fn surface(renderer: &Renderer, format: wgpu::TextureFormat) -> wgpu::Texture {
+pub(super) fn surface(renderer: &Renderer, format: wgpu::TextureFormat) -> wgpu::Texture {
     sized_surface(renderer, format, 3, 4)
 }
 fn sized_surface(
@@ -72,7 +72,7 @@ fn sized_surface(
         view_formats: &[],
     })
 }
-fn errors(bytes: &[u8], expected: &[[f32; 4]], format: wgpu::TextureFormat) -> usize {
+pub(super) fn errors(bytes: &[u8], expected: &[[f32; 4]], format: wgpu::TextureFormat) -> usize {
     assert_eq!(
         bytes.len(),
         expected.len() * 4,

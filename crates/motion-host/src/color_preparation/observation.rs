@@ -122,6 +122,14 @@ pub(super) fn record(level: log::Level, target: &'static str, args: fmt::Argumen
     });
     if !deferred {
         log::log!(target: target, level, "{args}");
+        if level == log::Level::Info {
+            // Independent cold preparation can block in the very next call.
+            // Publish its start/phase to buffered sinks before entering it.
+            // Session callbacks stay deferred: their outer serial command has
+            // already flushed its start before acquiring the owner lock.
+            // The TLS borrow above is released before any sink is invoked.
+            log::logger().flush();
+        }
     }
 }
 

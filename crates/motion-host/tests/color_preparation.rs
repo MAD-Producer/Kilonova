@@ -10,10 +10,10 @@ use std::{
     sync::{mpsc, Arc},
     time::Duration,
 };
-#[path = "color_preparation/images.rs"]
-mod images;
 #[path = "color_preparation/authored.rs"]
 mod authored;
+#[path = "color_preparation/images.rs"]
+mod images;
 
 #[derive(Deserialize)]
 struct Reference {
@@ -45,6 +45,11 @@ fn signal(manifest: &ColorConfigManifest, space: &SpaceReference, alpha: AlphaMo
     let working = name == "ACEScg";
     ColorSignal {
         encoding: space.encoding.clone(),
+        transfer: if space.encoding == "scene-linear" {
+            ColorTransfer::Linear
+        } else {
+            ColorTransfer::ConfigDefined
+        },
         reference: space.reference,
         primaries: if working {
             [[0.713, 0.293], [0.165, 0.83], [0.128, 0.044]]
@@ -392,7 +397,7 @@ fn every_unrepresentable_role_refuses_before_provider_with_its_original_cause() 
             Target::DefaultInput => settings.default_input.range = bad,
             Target::AuthoredInput => settings.authored_input.signal.range = bad,
             Target::Working => settings.working.range = bad,
-            Target::Display => settings.display.range = bad,
+            Target::Display | Target::SurfaceDisplay => settings.display.range = bad,
             Target::Output => settings.output.range = bad,
             Target::Source(asset) => {
                 let mut input = settings.authored_input.clone();

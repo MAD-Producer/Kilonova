@@ -9,7 +9,7 @@ use motion_effects::{
     native_color::{self, NativeColorProgram},
     AlphaMode,
 };
-use motion_model::color_management::{ProjectColorManagement, SignalRange};
+use motion_model::color_management::{ColorTransfer, ProjectColorManagement, SignalRange};
 use std::sync::Arc;
 mod vectors;
 
@@ -131,6 +131,7 @@ impl AuthoredSceneSampler {
             ));
         };
         if settings.working.encoding != "scene-linear"
+            || settings.working.transfer != ColorTransfer::Linear
             || settings.working.reference != ReferenceSpace::Scene
             || settings.working.range != (SignalRange::Full {})
             || settings.working.alpha != AlphaMode::Premultiplied

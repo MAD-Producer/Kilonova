@@ -45,6 +45,7 @@ pub enum Target {
     Working,
     Source(u64),
     Display,
+    SurfaceDisplay,
     Output,
 }
 
@@ -211,6 +212,7 @@ pub struct PreparedProjectColors {
     authored_input: Arc<CompiledColorImageProcessor>,
     sources: BTreeMap<u64, PreparedInput>,
     display: Arc<CompiledColorImageProcessor>,
+    surface_display: Option<Arc<CompiledColorImageProcessor>>,
     output: Arc<CompiledColorImageProcessor>,
     program_count: usize,
     payload_bytes: usize,
@@ -233,6 +235,11 @@ impl PreparedProjectColors {
     }
     pub fn display(&self) -> &Arc<CompiledColorImageProcessor> {
         &self.display
+    }
+    /// Opaque sRGB surface program, prepared independently of the reusable
+    /// alpha-preserving display endpoint. None never means an inferred fallback.
+    pub fn surface_display(&self) -> Option<&Arc<CompiledColorImageProcessor>> {
+        self.surface_display.as_ref()
     }
     pub fn output(&self) -> &Arc<CompiledColorImageProcessor> {
         &self.output
@@ -264,6 +271,35 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
         input_range: CodeValueRange,
         output_range: CodeValueRange,
     ) -> Result<Arc<CompiledColorImageProcessor>, Error> {
+        self.get_mode(
+            selection,
+            target,
+            phase,
+            input_alpha,
+            output_alpha,
+            input_range,
+            output_range,
+            false,
+        )
+    }
+    fn get_mode(
+        &mut self,
+        selection: &ColorSelection,
+        target: Target,
+        phase: ColorProcessorPhase,
+        input_alpha: AlphaMode,
+        output_alpha: AlphaMode,
+        input_range: CodeValueRange,
+        output_range: CodeValueRange,
+        opaque_display: bool,
+    ) -> Result<Arc<CompiledColorImageProcessor>, Error> {
+        if opaque_display && (!input_range.is_full() || !output_range.is_full()) {
+            return Err(Error::Binding {
+                target,
+                phase,
+                reason: "opaque surface requires full-range working and display values",
+            });
+        }
         let key = serde_json::to_vec(&(
             selection,
             phase,
@@ -271,6 +307,7 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
             output_alpha,
             input_range,
             output_range,
+            opaque_display,
         ))
         .map_err(Error::Json)?;
         if let Some(program) = self.programs.get(&key) {
@@ -309,13 +346,16 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
             });
         }
         color_log!(Info, "color preparation request={} operation=prepare_project_colors target={target:?} phase=compile transform={phase:?}", self.observation.request);
-        let program = source
-            .compile_image_with_ranges(self.config, selection, input_range, output_range)
-            .map_err(|source| Error::Compile {
-                target,
-                phase,
-                source,
-            })?;
+        let program = if opaque_display {
+            source.compile_display_over_black(self.config, selection)
+        } else {
+            source.compile_image_with_ranges(self.config, selection, input_range, output_range)
+        }
+        .map_err(|source| Error::Compile {
+            target,
+            phase,
+            source,
+        })?;
         let requested = self
             .payload_bytes
             .checked_add(program.payload_bytes())
@@ -345,6 +385,17 @@ fn range(signal: &ColorSignal, target: Target) -> Result<CodeValueRange, Error> 
         white,
         source,
     })
+}
+
+pub(crate) fn sdr_surface_eligible(settings: &OcioProject) -> bool {
+    settings.working.transfer == ColorTransfer::Linear
+        && settings.working.alpha == AlphaMode::Premultiplied
+        && settings.working.range == (SignalRange::Full {})
+        && settings.display.transfer == ColorTransfer::Srgb
+        && settings.display.reference == motion_effects::color_config::ReferenceSpace::Display
+        && settings.display.primaries == [[0.64, 0.33], [0.3, 0.6], [0.15, 0.06]]
+        && settings.display.white_point == [0.3127, 0.3290]
+        && settings.display.range == (SignalRange::Full {})
 }
 
 fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
@@ -449,6 +500,20 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
         working_range,
         range(&settings.display, Target::Display)?,
     )?;
+    let surface_display = if sdr_surface_eligible(settings) {
+        Some(programs.get_mode(
+            &settings.selection,
+            Target::SurfaceDisplay,
+            ColorProcessorPhase::WorkingToDisplay,
+            working_alpha,
+            settings.display.alpha,
+            working_range,
+            range(&settings.display, Target::SurfaceDisplay)?,
+            true,
+        )?)
+    } else {
+        None
+    };
     let output = programs.get(
         &settings.selection,
         Target::Output,
@@ -467,6 +532,7 @@ fn prepare<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>>(
         authored_input,
         sources,
         display,
+        surface_display,
         output,
         program_count,
         payload_bytes,

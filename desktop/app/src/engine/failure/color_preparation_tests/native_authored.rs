@@ -8,6 +8,8 @@ mod catalogue;
 mod images;
 #[path = "native_session.rs"]
 mod session;
+#[path = "native_surface.rs"]
+mod surface;
 
 fn project(root: &std::path::Path) -> motion_core::Project {
     #[derive(serde::Deserialize)]
