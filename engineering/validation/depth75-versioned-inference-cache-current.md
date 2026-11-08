@@ -69,12 +69,40 @@ not a portable repository download or cross-platform qualification.
 
 ## Required follow-up before final cache acceptance
 
-- Exercise actual closed/reopened Session configuration, saved calibration,
-  current-reference refit and exported pixel equality through the new APIs
-- Ensure existing Session video-spill restore cannot bypass changed persistent
-  execution identity; add a dedicated video control before claiming video reuse
-- Bound sibling site-packages enumeration itself and test runtime identity
-  rejection/change paths in addition to the already bounded package traversal
+The Session/video follow-up was then implemented and qualified before main
+realignment. Actual target session 26252 completed with 325 passes and one failed
+new video control. Its fixture had omitted authored indexed calibration, so the
+Session correctly created no indexed spill (observed zero restores/bytes). The
+original failed output and exact executed source remain in
+`artifacts/pr-queue/depth75-cache-target-v3/`. The fixture was corrected by
+authoring an actual indexed sample; every assertion was retained.
+
+Actual session 21720 (`depth75-cache-target-v4`) was consumed with exit zero:
+all four complete native targets passed, 326 tests, zero failures/ignores/filters;
+all seven cache controls and both new integration controls passed. Feature-off
+check and all 12 Python controls passed, including three new runtime identity
+controls. Source remained unchanged during execution. The new controls prove:
+
+- Closed/reopened Session, saved calibration, fresh resource identity and an
+  actual current-reference refit; all four raw/first-session/reopened/frozen-wire
+  outputs agree exactly at camera frames 0, 15 and 30, with visible occlusion and
+  actual animation. The reopened Session invokes neither inference route
+- Enabled persistent caching resolves actual execution identity before indexed
+  Session spill lookup; retained samples carry that identity. A changed runtime
+  cannot restore the old numerical result: exactly one new inference occurs,
+  followed by reuse of the newly qualified spill with bounded physical bytes.
+  Ordinary uncached append/restore behavior is preserved
+- Sibling site-packages enumeration is bounded. Changing package/native sibling
+  dependency bytes, CPU features or numerical environment changes the attested
+  identity; unbounded enumeration is rejected
+
+Actual session 38507 (`depth75-cache-file-v2`) was consumed with exit zero on the
+same unchanged source: the separately installed CPU model inferred once
+(225.8869 ms), then restored identical scalar bits in a new worker. Corruption
+was refused without another inference; default file start-before-return, actual
+worker Error file/stderr and one-line JSON stdout isolation passed again. These
+remain pre-rebase results, not qualification of later main changes.
+
 - Qualify WGSL/accelerator execution identity independently; do not guess it
   from a requested hardware name or infer CPU coverage applies to it
 - Run complete changed-crate regression, desktop integration and exact-source

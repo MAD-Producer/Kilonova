@@ -5,6 +5,8 @@ use motion_host::depth::{
 };
 #[path = "transitions/frozen.rs"]
 mod frozen;
+#[path = "transitions/cached.rs"]
+mod cached;
 
 fn policy() -> Policy {
     Policy {

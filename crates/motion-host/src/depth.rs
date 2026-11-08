@@ -776,8 +776,19 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) 
                 log::info!("request={} operation=depth_infer asset={} revision={} phase=source_ready pts={}/{} source_prepare_ms={}",
                     job.request,asset,revision,input.key().source.pts.ticks,input.key().source.pts.timescale,source_prepare.as_millis());
             }
+            // Resolve before *either* reusable result path. Session-local spill
+            // must not bypass a changed actual runtime/provider/plan identity.
+            let execution = if cache.is_some() {
+                stage = "cache_resolve";
+                cache_phase(&shared, job.request, asset, stage)?;
+                let execution = backend.execution_identity(&input, &job.cancellation)?
+                    .ok_or(Error::Invalid("persistent cache requires an attested execution identity"))?;
+                execution.validate()?;
+                Some(execution)
+            } else { None };
             let cached = match (&store, &identity) {
-                (Some(store), Identity::Video(key)) => store.lookup(key)?,
+                (Some(store), Identity::Video(key)) => store.lookup(key)?
+                    .filter(|sample| execution.is_none() || sample.execution == execution),
                 _ => None,
             };
             let mut estimate = if let Some(sample) = cached {
@@ -792,11 +803,7 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) 
                 restored = true;
                 estimate
             } else if let Some(cache) = &cache {
-                stage = "cache_resolve";
-                cache_phase(&shared, job.request, asset, stage)?;
-                let execution = backend.execution_identity(&input, &job.cancellation)?
-                    .ok_or(Error::Invalid("persistent cache requires an attested execution identity"))?;
-                execution.validate()?;
+                let execution = execution.as_ref().ok_or(Error::State)?;
                 stage = "cache_read";
                 cache_phase(&shared, job.request, asset, stage)?;
                 if let Some(estimate) = cache.read(&input, prepared_input, &execution, &job.cancellation)? {
@@ -830,8 +837,14 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) 
                     log::logger().flush();
                     // The root is captured with the job; no Session or GPU
                     // state is accessed on this worker.
-                    store.append(store_root.as_deref().ok_or(Error::State)?, job.request,
-                        key.object, &input, prepared_input, &estimate, &job.cancellation)?;
+                    let root = store_root.as_deref().ok_or(Error::State)?;
+                    if let Some(execution) = execution.as_ref() {
+                        store.append_qualified(root, job.request, key.object, &input, prepared_input,
+                            &estimate, Some(execution), &job.cancellation)?;
+                    } else {
+                        store.append(root, job.request, key.object, &input, prepared_input,
+                            &estimate, &job.cancellation)?;
+                    }
                 }
             }
             estimate.costs.total = began.elapsed();

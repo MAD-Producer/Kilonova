@@ -3,6 +3,58 @@
 use super::*;
 
 #[test]
+fn persistent_execution_change_cannot_be_hidden_by_an_indexed_session_spill_hit() {
+    struct Qualified { echo: Echo, epoch: Arc<AtomicUsize> }
+    impl Backend for Qualified {
+        fn execution_identity(&mut self, _: &Input, cancel: &Cancellation)
+            -> motion_host::depth::Result<Option<motion_host::depth::cache::Execution>> {
+            cancel.check()?;
+            Ok(Some(motion_host::depth::cache::Execution {
+                backend: "controlled".into(), provider: "controlled_cpu".into(),
+                runtime_sha256: [1 + self.epoch.load(Ordering::SeqCst) as u8;32],
+                plan_sha256: [9;32], precision: "float32".into(),
+            }))
+        }
+        fn infer(&mut self, input: &Input, cancel: &Cancellation) -> motion_host::depth::Result<Estimate> {
+            let mut value = self.echo.infer(input, cancel)?;
+            value.resource = DepthResource::new(value.resource.descriptor().clone(),
+                value.resource.values().iter().map(|v| *v + 100. * self.epoch.load(Ordering::SeqCst) as f32).collect(), None, None)?;
+            Ok(value)
+        }
+    }
+    let cache = tempfile::tempdir().unwrap();
+    let mut f = fixture(Mode::Rgba);
+    // Indexed Session spill exists only for an authored video calibration.
+    // Seed that actual path before replacing the Session with its cached worker.
+    request(&mut f.session).unwrap(); done(&mut f.session, 1);
+    f.session.poll_depth().unwrap().unwrap();
+    let command = author_indexed_sample(&mut f.session, 10.);
+    f.session.apply_command_batch(vec![command]).unwrap();
+    f.session = Session::new(f.session.engine.snapshot(), f.dir.path().into(), f.platform.clone()).unwrap();
+    let epoch = Arc::new(AtomicUsize::new(0));
+    let (sender, seen) = mpsc::channel(); f.seen = seen;
+    f.session.configure_depth_cached_in(Qualified { echo: Echo { seen: sender, release: None }, epoch: epoch.clone() },
+        cache.path().into(), motion_host::depth::cache::Config {
+            directory: cache.path().join("persistent"), byte_limit: 1 << 20, entry_limit: 8,
+        }).unwrap();
+    for count in 1..=2 {
+        request(&mut f.session).unwrap(); done(&mut f.session, count);
+        assert_eq!(f.session.poll_depth().unwrap().unwrap().resource.values()[0], 10.);
+    }
+    assert_eq!(f.seen.try_iter().count(), 1);
+    let before = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((before.counts.restored, before.stored_bytes), (1, 24));
+    epoch.store(1, Ordering::SeqCst);
+    for count in 3..=4 {
+        request(&mut f.session).unwrap(); done(&mut f.session, count);
+        assert_eq!(f.session.poll_depth().unwrap().unwrap().resource.values()[0], 110.);
+    }
+    assert_eq!(f.seen.try_iter().count(), 1, "changed runtime must infer once, then reuse its own spill");
+    let after = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((after.counts.restored, after.counts.cache_misses, after.stored_samples, after.stored_bytes), (2, 2, 1, 48));
+}
+
+#[test]
 fn indexed_spill_keeps_150_samples_after_the_128_sample_live_cache_evicts_the_first() {
     let mut f = fixture(Mode::ManyFrames);
     for frame in 0..150 {
