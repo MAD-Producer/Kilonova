@@ -508,3 +508,206 @@ fn routed_probes_keep_only_the_selected_backends_buffer_observation() {
         second_key.model
     );
 }
+
+fn sampled_profile(
+    k: Key,
+    execution: Execution,
+    rgb: [u8; 6],
+    count: usize,
+) -> motion_host::depth::capability::Profile {
+    let mut controlled = backend(Fault::None);
+    controlled.execution = execution;
+    let mut jobs = Jobs::start_measured(controlled).unwrap();
+    let mut profile = motion_host::depth::capability::Profile::new(count).unwrap();
+    for n in 1..=count {
+        jobs.request(Input::new(k.clone(), [2, 1], Arc::from(rgb)).unwrap())
+            .unwrap();
+        wait_done(&jobs, n as u64);
+        profile
+            .record(&jobs.take_prepared_ready(&k).unwrap().unwrap())
+            .unwrap();
+    }
+    profile
+}
+
+fn latency_request() -> motion_host::depth::capability::latency::Request {
+    motion_host::depth::capability::latency::Request {
+        model: key().model,
+        geometry: key().geometry,
+        backend: None,
+        maximum_worker_latency: Duration::MAX,
+        minimum_samples: 2,
+    }
+}
+
+#[test]
+fn latency_selection_retains_requested_and_actual_execution_without_backend_fallback() {
+    use motion_host::depth::capability::latency::{self, Admission, Disposition};
+    let first = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let mut actual = execution();
+    actual.backend = "other-backend".into();
+    actual.provider = "actual-other-provider".into();
+    actual.runtime_sha256 = [81; 32];
+    actual.precision = "float16".into();
+    let second = sampled_profile(key(), actual.clone(), [1, 2, 3, 4, 5, 6], 2);
+    let mut request = latency_request();
+    request.backend = Some(actual.backend.clone());
+    let decision = latency::select(request, &[&first, &second]).unwrap();
+    assert_eq!(decision.disposition(), Disposition::Selected);
+    assert_eq!(
+        decision.requested().backend.as_deref(),
+        Some("other-backend")
+    );
+    assert_eq!(decision.requested().model, key().model);
+    assert_eq!(decision.resolved().unwrap().execution(), &actual);
+    assert_eq!(
+        decision.candidates()[0].admission(),
+        Admission::DifferentBackend
+    );
+    assert_eq!(decision.candidates()[1].admission(), Admission::Eligible);
+
+    let automatic = latency::select(latency_request(), &[&first, &second]).unwrap();
+    let resolved = automatic.resolved().unwrap();
+    let a = first.summary().unwrap();
+    let b = second.summary().unwrap();
+    assert_eq!(resolved.slowest(), a.slowest().min(b.slowest()));
+    assert!(resolved.execution() == &execution() || resolved.execution() == &actual);
+    assert!(automatic.requested().backend.is_none());
+
+    let mut unavailable = latency_request();
+    unavailable.backend = Some("unavailable-backend".into());
+    let refused = latency::select(unavailable, &[&first, &second]).unwrap();
+    assert_eq!(refused.disposition(), Disposition::PrecomputedRequired);
+    assert!(refused.resolved().is_none());
+    assert!(refused
+        .candidates()
+        .iter()
+        .all(|c| c.admission() == Admission::DifferentBackend));
+    let empty = latency::select(latency_request(), &[]).unwrap();
+    assert_eq!(empty.disposition(), Disposition::PrecomputedRequired);
+    assert!(empty.resolved().is_none());
+}
+
+#[test]
+fn latency_selection_uses_all_samples_and_preserves_the_exact_budget_boundary() {
+    use motion_host::depth::capability::latency::{self, Admission};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 3);
+    let slowest = profile.summary().unwrap().slowest();
+    assert!(!slowest.is_zero());
+    let mut request = latency_request();
+    request.maximum_worker_latency = slowest;
+    let accepted = latency::select(request.clone(), &[&profile]).unwrap();
+    assert_eq!(accepted.candidates()[0].admission(), Admission::Eligible);
+    assert_eq!(accepted.resolved().unwrap().samples(), 3);
+    assert_eq!(accepted.resolved().unwrap().slowest(), slowest);
+    request.maximum_worker_latency = slowest - Duration::from_nanos(1);
+    let refused = latency::select(request, &[&profile]).unwrap();
+    assert_eq!(
+        refused.candidates()[0].admission(),
+        Admission::OverLatencyBudget
+    );
+    assert!(refused.resolved().is_none());
+    assert_eq!(refused.candidates()[0].summary().samples(), 3);
+    assert_eq!(profile.observations().len(), 3);
+    let mut request = latency_request();
+    request.minimum_samples = 4;
+    let insufficient = latency::select(request, &[&profile]).unwrap();
+    assert_eq!(
+        insufficient.candidates()[0].admission(),
+        Admission::InsufficientSamples
+    );
+    assert!(insufficient.resolved().is_none());
+}
+
+#[test]
+fn latency_selection_refuses_unpaired_source_rgb_counts_and_duplicate_executions() {
+    use motion_host::depth::capability::latency;
+    let first = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    assert!(latency::select(latency_request(), &[&first, &first]).is_err());
+    let duplicate = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    assert!(latency::select(latency_request(), &[&first, &duplicate]).is_err());
+    let mut alternate = execution();
+    alternate.provider.push_str("-other");
+    for field in 0..5 {
+        let mut k = key();
+        let mut rgb = [1, 2, 3, 4, 5, 6];
+        let mut count = 2;
+        match field {
+            0 => k.source.asset += 1,
+            1 => k.source.revision += 1,
+            2 => k.source.pts.ticks += 1,
+            3 => rgb[0] += 1,
+            _ => count = 1,
+        }
+        let other = sampled_profile(k, alternate.clone(), rgb, count);
+        assert!(latency::select(latency_request(), &[&first, &other]).is_err());
+    }
+    // Rationally equivalent PTS denotes the same sample, rather than a false
+    // source mismatch introduced by an alternate clock representation.
+    let mut equivalent = key();
+    equivalent.source.pts.ticks *= 2;
+    equivalent.source.pts.timescale *= 2;
+    let paired = sampled_profile(equivalent, alternate, [1, 2, 3, 4, 5, 6], 2);
+    assert!(latency::select(latency_request(), &[&first, &paired])
+        .unwrap()
+        .resolved()
+        .is_some());
+    let mut forward = motion_host::depth::capability::Profile::new(2).unwrap();
+    let mut reverse = motion_host::depth::capability::Profile::new(2).unwrap();
+    for (index, profile) in [&mut forward, &mut reverse].into_iter().enumerate() {
+        let mut controlled = backend(Fault::None);
+        controlled.execution.provider = format!("ordered-provider-{index}");
+        let mut jobs = Jobs::start_measured(controlled).unwrap();
+        for n in 0..2 {
+            let mut k = key();
+            k.source.pts.ticks += if index == 0 { n } else { 1 - n };
+            jobs.request(Input::new(k.clone(), [2, 1], Arc::from([1u8, 2, 3, 4, 5, 6])).unwrap())
+                .unwrap();
+            wait_done(&jobs, (n + 1) as u64);
+            profile
+                .record(&jobs.take_prepared_ready(&k).unwrap().unwrap())
+                .unwrap();
+        }
+    }
+    assert!(latency::select(latency_request(), &[&forward, &reverse]).is_err());
+}
+
+#[test]
+fn latency_selection_bounds_requests_and_keeps_model_geometry_refusal_reasons() {
+    use motion_host::depth::capability::{
+        latency::{self, Admission},
+        Profile,
+    };
+    let mut other_model = key();
+    other_model.model.processing.push_str("-other");
+    let model = sampled_profile(other_model, execution(), [1, 2, 3, 4, 5, 6], 2);
+    let mut other_geometry = key();
+    other_geometry.geometry.mirror_x = true;
+    let geometry = sampled_profile(other_geometry, execution(), [1, 2, 3, 4, 5, 6], 2);
+    let refused = latency::select(latency_request(), &[&model, &geometry]).unwrap();
+    assert_eq!(
+        refused.candidates()[0].admission(),
+        Admission::DifferentModel
+    );
+    assert_eq!(
+        refused.candidates()[1].admission(),
+        Admission::DifferentGeometry
+    );
+    assert!(refused.resolved().is_none());
+    let empty = Profile::new(2).unwrap();
+    assert!(latency::select(latency_request(), &[&empty]).is_err());
+    assert!(latency::select(latency_request(), &[&model; 9]).is_err());
+    for field in 0..7 {
+        let mut request = latency_request();
+        match field {
+            0 => request.maximum_worker_latency = Duration::ZERO,
+            1 => request.minimum_samples = 0,
+            2 => request.minimum_samples = 65,
+            3 => request.backend = Some(String::new()),
+            4 => request.backend = Some("a".repeat(129)),
+            5 => request.backend = Some("bad\nidentity".into()),
+            _ => request.model.sha256 = [0; 32],
+        }
+        assert!(latency::select(request, &[]).is_err());
+    }
+}

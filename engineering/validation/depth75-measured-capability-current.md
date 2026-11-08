@@ -80,7 +80,8 @@ Error records also reach stderr. It requires `MOTION_LOG` to be unset.
 ```text
 cargo build --locked -p motion-host --features ai-depth --example depth_capability
 depth_capability <new-output-root> <onnx|wgsl> <python> <model.onnx> \
-  <program.json|-> <native-worker|-> <rgb-file> <width>x<height> <samples:1..16>
+  <program.json|-> <native-worker|-> <rgb-file> <width>x<height> <samples:1..16> \
+  <maximum-worker-latency-ms:1..60000>
 ```
 
 WGSL additionally requires an actual compatible `motion-depth-wgsl` build and
@@ -91,21 +92,53 @@ are not warm-session latency promises. The example's external 60-second wait
 only bounds this explicit acceptance driver; it is not a product per-command
 timeout or worker restart.
 
+## Latency admission stage
+
+`capability::latency::select` accepts at most eight measured profiles and an
+explicit exact-model, geometry, optional backend, minimum-sample and maximum
+worker-latency request. It preserves that request independently of its resolved
+model and actual execution identity. A requested unavailable backend does not
+select another backend. Comparable profiles must retain the same ordered
+source/revision/PTS and prepared RGB fingerprints; equivalent rational PTS is
+accepted. Repeated executions, empty profiles, unpaired inputs and malformed
+requests are errors. All candidates retain their observations and individual
+admission reasons.
+
+Among eligible profiles, selection minimizes the observed maximum, then upper
+median, preserving caller order on exact ties. No observation is discarded.
+Exactly meeting the maximum is eligible; exceeding it by any amount is refused.
+Insufficient evidence, missing configurations or no configuration within the
+budget produce `PrecomputedRequired` with no resolved inference configuration.
+This reports a required alternative, not a loaded precomputed result or AI
+success. No inference, retries, IO or product configuration change occurs.
+
+The actual probe driver runs this stage on its measured profile and emits its
+explicit budget, request, resolved identity or precomputed disposition. Its
+minimum is two samples; one-sample runs remain observable but cannot pass this
+admission. The independent controls cover paired-input refusal, requested-backend
+isolation, actual provider/numerical identity, bounded requests, exact budget
+boundaries, insufficient samples and the no-evidence alternative.
+
+This is one necessary stage of capability selection. Quality/domain, complete
+memory and sustained/thermal qualification remain prerequisites before any
+fast/standard/high mapping or automatic product selection is authorized.
+
 ## Pending acceptance and remaining issue scope
 
-- Run all twelve new native controls, including a resolver held at a controlled
+- Run all sixteen new native controls, including a resolver held at a controlled
   barrier, cancellation, identity/provider refusal, backend error/panic,
   cache exclusion, duplicate observation identity, bounded profile statistics
   and atomic identity/capacity refusal, unknown/bounded memory observations,
-  exact route delegation and stale WGSL memory reset before cancelled work
+  exact route delegation, stale WGSL memory reset before cancelled work and the
+  bounded latency admission stage described above
 - Run the relevant original host/depth regressions without changed assertions,
   GPU policy, original ignores or deadlines
 - Run actual CPU and WGSL probes against pinned resources, bind their output to
   source/lock/runtime identity, and verify default-level file starts, Error
   stderr and stdout isolation on real failure as well as success
-- Qualify the implemented bounded profile aggregation, then implement an explicit
-  measured selection policy with requested/resolved backend/model and
-  precomputed-depth disposition
+- Qualify the implemented bounded profile aggregation and latency admission,
+  then combine them with quality/memory/sustained evidence in a complete measured
+  policy with requested/resolved backend/model and precomputed-depth disposition
 - Qualify accuracy/domain suitability, conservative memory admission, sustained
   execution/thermal behavior and continuous-video quality transitions before
   assigning fast/standard/high. Neither backend name, model input resolution nor

@@ -10,6 +10,8 @@ use super::{cache::Execution, Error, PreparedEstimate, Result};
 use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, PreparedDepthInput};
 use std::{sync::Arc, time::Duration};
 
+pub mod latency;
+
 #[derive(Clone, Debug)]
 pub struct Measurement {
     scope: Arc<()>,

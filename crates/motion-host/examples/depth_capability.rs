@@ -16,7 +16,12 @@ mod engine {
     }
 }
 
-fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<serde_json::Value> {
+fn samples(
+    backend: impl Backend,
+    input: Input,
+    count: usize,
+    latency_budget: Duration,
+) -> depth::Result<serde_json::Value> {
     let mut jobs = Jobs::start_measured(backend)?;
     let mut rows = Vec::with_capacity(count);
     let mut profile = depth::capability::Profile::new(count)?;
@@ -62,6 +67,22 @@ fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<s
     }
     let counts = jobs.counts()?;
     let summary = profile.summary()?;
+    let decision = depth::capability::latency::select(
+        depth::capability::latency::Request {
+            model: input.key().model.clone(),
+            geometry: input.key().geometry.clone(),
+            backend: Some(summary.execution().backend.clone()),
+            maximum_worker_latency: latency_budget,
+            minimum_samples: 2,
+        },
+        &[&profile],
+    )?;
+    let resolved = decision.resolved().map(|s| {
+        serde_json::json!({
+            "model": s.model(), "execution": s.execution(), "samples": s.samples(),
+            "slowest_ns": s.slowest().as_nanos(),
+        })
+    });
     if counts.completed != count as u64
         || counts.failed != 0
         || counts.canceled != 0
@@ -78,6 +99,14 @@ fn samples(backend: impl Backend, input: Input, count: usize) -> depth::Result<s
         "schema": 1, "key": input.key(), "samples": rows,
         "scope": "predecoded opaque RGB8 sRGB; worker preparation, resolution, inference and output checks; no queue wait, caller decode, alignment, renderer, quality, peak memory or thermal claim",
         "cache_hits": counts.cache_hits, "restored": counts.restored,
+        "latency_selection": {
+            "scope": "worker-latency admission only; quality, memory and sustained admission remain unqualified",
+            "requested": {"model": decision.requested().model, "geometry": decision.requested().geometry,
+                "backend": decision.requested().backend, "maximum_worker_latency_ns": latency_budget.as_nanos(),
+                "minimum_samples": decision.requested().minimum_samples},
+            "disposition": decision.disposition(), "resolved": resolved,
+            "candidate_admission": decision.candidates()[0].admission(),
+        },
         "profile": {"samples": summary.samples(), "fastest_ns": summary.fastest().as_nanos(),
             "median_ns": summary.median().as_nanos(), "slowest_ns": summary.slowest().as_nanos(),
             "resolve_slowest_ns": summary.resolve_slowest().as_nanos(),
@@ -99,8 +128,8 @@ fn bounded_read(path: &Path, limit: u64) -> Result<Vec<u8>, Box<dyn std::error::
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args.len() != 9 {
-        return Err("usage: depth_capability <new-output-root> <onnx|wgsl> <python> <model.onnx> <program.json|-> <worker|-> <rgb-file> <width>x<height> <samples:1..16>".into());
+    if args.len() != 10 {
+        return Err("usage: depth_capability <new-output-root> <onnx|wgsl> <python> <model.onnx> <program.json|-> <worker|-> <rgb-file> <width>x<height> <samples:1..16> <maximum-worker-latency-ms:1..60000>".into());
     }
     if std::env::var_os("MOTION_LOG").is_some() {
         return Err("unset MOTION_LOG for default-level qualification".into());
@@ -131,6 +160,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if !(1..=16).contains(&count) {
         return Err("sample count outside 1..16".into());
     }
+    let budget_ms: u64 = args[9]
+        .to_str()
+        .ok_or("latency budget must be UTF-8")?
+        .parse()?;
+    if !(1..=60_000).contains(&budget_ms) {
+        return Err("latency budget outside 1..60000 milliseconds".into());
+    }
+    let latency_budget = Duration::from_millis(budget_ms);
     if [&python, &model, &rgb_path]
         .iter()
         .any(|p| !p.is_absolute())
@@ -194,6 +231,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             })?,
             input,
             count,
+            latency_budget,
         )?,
         "wgsl" if program.is_absolute() && worker.is_absolute() => samples(
             depth::wgsl::Wgsl::new(depth::wgsl::Config {
@@ -205,6 +243,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             })?,
             input,
             count,
+            latency_budget,
         )?,
         _ => {
             return Err("explicit onnx or wgsl with absolute program/worker paths required".into())
