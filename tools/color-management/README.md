@@ -153,3 +153,27 @@ GPU 创建失败返回 `RenderError::ColorProcessorPipeline`，原始 wgpu cause
 相关错误、poll 和可能的首要预算错误分别保留。外层文字仅包含阶段、短身份
 和错误种类，不展示整段 shader。宿主命令、开始/在途状态和默认日志/错误信道
 尚未接线，不能把这些库级返回值描述为应用错误提示已完成。
+
+## 工程与宿主 CPU 准备边界
+
+工程现在通过 `ProjectColorManagement` 显式保存配置、选择和素材解释；
+`motion_core::storage::read_color_config` 读取项目目录内的完整哈希资源闭包。
+这些字段及资源验证不等于 managed 渲染已启用。
+
+`motion_host::color_preparation::prepare_project_colors` 接受工程、项目目录、
+可信程序准备器回调和带 request ID 的 `Observation`。回调收到确切配置字节、
+完整选择、阶段与两端 alpha，返回已有 `ColorProcessorSource`；它不自动启动
+外部 OCIO/Python，不搜索配置，不选择替代角色或变换。项目中的不同输入由
+各自程序处理，相同请求复用 `Arc`；数据素材保持独立路由。全部编译成功才
+返回不可变程序集。当前只准入 full-range，有限范围输入不会被错误套用
+full-range 程序。程序数、编译 shader/数值表有效载荷均有硬上限。
+
+准备必须在调用方的非 Present 操作中执行。进入文件读取、准备器或编译前
+发布 in-flight 并写 Info；实际失败保留原始 source，通过现有 logger 记录 Error。
+unmanaged 是正常 None。独立观察不需要会话锁；不返回的准备器保持在途，
+panic 传播并由 RAII 清理状态。接口不新增线程、重试、重启或产品超时。
+
+这一步仍未将程序集安装进普通 Session/Scene、合成和 effect DAG、显示或
+导出链。managed 工程的既有拒绝边界继续存在。实际数值程序和高位深/OS
+显示能力分别验收，不能由 CPU 准备成功推断。见
+[本次交付与限制](../../engineering/validation/project-color-preparation.md)。

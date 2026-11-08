@@ -37,6 +37,6 @@
 
 ## 未完成范围
 
-实际宿主准备器、工程保存的资源到原生处理器的安装、逐素材与 authored 输入转换、普通合成和 effect DAG 的工作/知觉空间、预览 display 与导出 output、高位深解码、Float16 和系统显示链仍须继续实现。工程 managed 模式的既有拒绝边界保留。
+后续已增加[工程色彩程序的宿主 CPU 准备](project-color-preparation.md)，将验证过的工程资源、逐素材与 authored 选择交给明确提供的程序准备器，并发布开始/在途状态。准备结果到 Session/GPU 的安装、实际素材与 authored 像素转换、普通合成和 effect DAG 的工作/知觉空间、预览 display 与导出 output、高位深解码、Float16 和系统显示链仍须继续实现。工程 managed 模式的既有拒绝边界保留。
 
 未改动 UI；DESIGN.md §0.7 全部面板整改项保持原状，本次不据编译或像素结果声称 UI 验收通过。

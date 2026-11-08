@@ -39,6 +39,17 @@ impl CompiledColorImageProcessor {
     pub fn output_space(&self) -> ColorSpaceIdentity {
         self.output_space
     }
+    /// Logical retained shader/table payload, excluding allocator/GPU overhead.
+    pub fn payload_bytes(&self) -> usize {
+        self.wgsl.len()
+            + self.core.wgsl().len()
+            + self
+                .core
+                .tables()
+                .iter()
+                .map(|table| table.len() * std::mem::size_of::<[f32; 4]>())
+                .sum::<usize>()
+    }
 }
 impl ColorProcessorSource {
     /// Prepare away from Present. Validate the same configuration and numerical
