@@ -1,5 +1,8 @@
 """Analytic sensor-depth oracles, independent of any dataset or learned model."""
 import math
+import subprocess
+import sys
+from pathlib import Path
 import unittest
 
 import depth_reference_metrics as metrics
@@ -36,6 +39,20 @@ class SensorDepthMetrics(unittest.TestCase):
             with self.subTest(prediction=prediction):
                 with self.assertRaisesRegex(ValueError, 'nonfinite prediction'):
                     metrics.score(calibration, [1.0, prediction], [5000, 0])
+
+
+    def test_analytic_failures_remain_failures_under_optimized_python(self):
+        tools = Path(__file__).resolve().parent
+        code = ("import sys; sys.path.insert(0, sys.argv[1]); "
+                "import depth_reference_metrics as metrics; "
+                "metrics.math.isclose = lambda *args, **kwargs: False; metrics.controls()")
+        for flags in ([], ['-O']):
+            with self.subTest(flags=flags):
+                result = subprocess.run([sys.executable, '-B', *flags, '-c', code, str(tools)],
+                                        capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.stdout, b'')
+                self.assertIn(b'AssertionError: analytic control failed:', result.stderr)
 
 
 if __name__ == '__main__':

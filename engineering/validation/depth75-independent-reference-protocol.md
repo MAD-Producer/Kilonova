@@ -193,3 +193,57 @@ and eight/24 division. Missing routes do not authorize changing the protocol.
 Additional transition jump remains unknown. Arbitrary-domain quality, complete
 memory/weight/activation peaks, longer thermal behavior, quality-tier selection
 and the remaining issue acceptance are still pending.
+
+## Completed declared route inventory
+
+At `e7461aca`, original session 42461 completed and was consumed with exit 0.
+The complete source snapshot remained unchanged. The original declared route
+order was retained. CPU392, CPU518 and WGSL518 each completed all 32 requests;
+WGSL266 and WGSL392 each explicitly refused their unsupported model/processing
+identity before native inference. Both refusals preserved the original cause
+in default-level file/stderr output, empty stdout, zero accepted samples and
+no substitute backend or model. An unavailable route is not an inference pass.
+
+| Route | Held-out RMS (m^-1) | Maximum (m^-1) | Median worker seconds | Worst worker seconds |
+| --- | ---: | ---: | ---: | ---: |
+| CPU266, preceding cohort | 0.1333074396 | 1.0977689458 | 2.8730603 | 6.0936272 |
+| CPU392 | 0.1222982912 | 1.2110056933 | 3.8076713 | 8.7054381 |
+| CPU518 | 0.1099756634 | 1.1606672852 | 4.2956094 | 8.4155761 |
+| WGSL518 | 0.1099756357 | 1.1606679537 | 16.6736628 | 21.3163454 |
+| WGSL266 / WGSL392 | unavailable | unavailable | unavailable | unavailable |
+
+Every available route uses the same eight calibration and 24 held-out frames,
+with identical valid/missing coverage. Each retains all cold requests, including
+the slowest observation; no warm-up observation was discarded. No observed
+route establishes real-time performance. Larger resolution reduced RMS on this
+cohort but did not monotonically reduce maximum error; this is not a basis for
+assigning a tier without independently declared acceptance limits.
+
+After the original controller was consumed, all 32 paired CPU518/WGSL518 outputs
+were compared independently, including pixels missing from sensor ground truth.
+The original same-weight numerical bounds remain maximum 0.0002 and mean
+0.00002, normalized by each CPU output span. All frames passed: largest observed
+maximum 0.000027715290698834655 and largest frame mean
+0.0000003761387523919777. This numerical-equivalence normalization is distinct
+from the fixed physical normalization of the independent sensor metric.
+
+`data/depth75-reference-remaining-v1.json` identifies the verified 30-member
+archive. All 96 private prediction arrays from this remaining controller were
+independently read back and SHA-256 checked before archiving. The archive retains
+every measurement/quality row, explicit refusal, original logs, controllers and
+identities, without redistributing model, sensor/RGB or prediction arrays.
+
+## CI discovery follow-up
+
+The two analytic test modules now use the existing `test_ci_*.py` discovery
+pattern, and all four helper/test paths are explicitly classified in
+`tools/validation_inventory.json`. No new CI job or optional runtime is needed.
+The 13 original analytic checks use explicit `AssertionError` failures so that
+Python optimization cannot remove them. An AST comparison verified every
+original condition and all four numerical functions unchanged. A new child
+control exercises the actual failure under normal and optimized Python.
+
+The proposal passed all 11 controls and the complete inventory check in an
+isolated source copy while inference source remained frozen. That preflight
+is not a final-source CI pass. Actual-source discovery/full tools validation
+and current-head cross-platform acceptance must be recorded separately.

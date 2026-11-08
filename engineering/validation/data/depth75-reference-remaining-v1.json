@@ -1,0 +1,633 @@
+{
+  "archive": "depth75-reference-remaining-v1.zip",
+  "bytes": 351741,
+  "sha256": "fbb0fd55446b3594b6f8a53cd0fcfc711a1656238ae24c03156ad67728eb68e0",
+  "head": "e7461aca9e22197793a8336300113c7ee3c18c16",
+  "cohorts": [
+    {
+      "name": "wgsl266",
+      "status": "explicitly_unavailable_no_inference_or_fallback",
+      "cause": "depth input rejected: WGSL backend does not implement the requested model/processing identity",
+      "actual_summary": null,
+      "quality_aggregate": null,
+      "calibration": null
+    },
+    {
+      "name": "onnx392",
+      "status": "actual32_inferences_and24_held_out_sensor_reduction_completed",
+      "cause": null,
+      "actual_summary": {
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "canceled": 0,
+        "completed": 32,
+        "execution": {
+          "backend": "onnx",
+          "plan_sha256": [
+            44,
+            214,
+            29,
+            2,
+            160,
+            213,
+            29,
+            137,
+            89,
+            237,
+            181,
+            24,
+            13,
+            114,
+            166,
+            91,
+            43,
+            111,
+            100,
+            243,
+            237,
+            83,
+            210,
+            199,
+            12,
+            129,
+            11,
+            135,
+            40,
+            217,
+            59,
+            240
+          ],
+          "precision": "float32",
+          "provider": "CPUExecutionProvider",
+          "runtime_sha256": [
+            177,
+            132,
+            56,
+            238,
+            248,
+            142,
+            5,
+            220,
+            225,
+            13,
+            70,
+            176,
+            69,
+            162,
+            22,
+            236,
+            4,
+            110,
+            72,
+            244,
+            45,
+            114,
+            156,
+            175,
+            217,
+            107,
+            40,
+            126,
+            109,
+            127,
+            194,
+            156
+          ]
+        },
+        "failed": 0,
+        "fastest_ns": 3149375700,
+        "median_ns": 3807671300,
+        "model": {
+          "id": "depth-anything-v2-small",
+          "processing": "dav2-small-rgb8-letterbox392-align-corners-relative-v1",
+          "revision": "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf",
+          "sha256": [
+            247,
+            133,
+            152,
+            227,
+            37,
+            130,
+            131,
+            81,
+            253,
+            216,
+            133,
+            158,
+            232,
+            169,
+            192,
+            95,
+            104,
+            77,
+            84,
+            83,
+            143,
+            101,
+            70,
+            0,
+            157,
+            218,
+            49,
+            168,
+            72,
+            233,
+            3,
+            85
+          ]
+        },
+        "restored": 0,
+        "samples": 32,
+        "slowest_ns": 8705438100,
+        "submitted": 32
+      },
+      "quality_aggregate": {
+        "frames": 24,
+        "valid": 5637354,
+        "missing": 1735446,
+        "mean_absolute_inverse_metres": 0.10684938848918835,
+        "rms_inverse_metres": 0.12229829120510421,
+        "maximum_inverse_metres": 1.211005693335553,
+        "normalized_rms": 0.12229829120510421,
+        "normalized_maximum": 1.211005693335553
+      },
+      "calibration": {
+        "slope": 0.1668575899091976,
+        "offset": 0.4383925703457068,
+        "reference_scale_inverse_metres": 1.0,
+        "samples": 2020231,
+        "missing": 437369
+      }
+    },
+    {
+      "name": "wgsl392",
+      "status": "explicitly_unavailable_no_inference_or_fallback",
+      "cause": "depth input rejected: WGSL backend does not implement the requested model/processing identity",
+      "actual_summary": null,
+      "quality_aggregate": null,
+      "calibration": null
+    },
+    {
+      "name": "onnx518",
+      "status": "actual32_inferences_and24_held_out_sensor_reduction_completed",
+      "cause": null,
+      "actual_summary": {
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "canceled": 0,
+        "completed": 32,
+        "execution": {
+          "backend": "onnx",
+          "plan_sha256": [
+            44,
+            214,
+            29,
+            2,
+            160,
+            213,
+            29,
+            137,
+            89,
+            237,
+            181,
+            24,
+            13,
+            114,
+            166,
+            91,
+            43,
+            111,
+            100,
+            243,
+            237,
+            83,
+            210,
+            199,
+            12,
+            129,
+            11,
+            135,
+            40,
+            217,
+            59,
+            240
+          ],
+          "precision": "float32",
+          "provider": "CPUExecutionProvider",
+          "runtime_sha256": [
+            177,
+            132,
+            56,
+            238,
+            248,
+            142,
+            5,
+            220,
+            225,
+            13,
+            70,
+            176,
+            69,
+            162,
+            22,
+            236,
+            4,
+            110,
+            72,
+            244,
+            45,
+            114,
+            156,
+            175,
+            217,
+            107,
+            40,
+            126,
+            109,
+            127,
+            194,
+            156
+          ]
+        },
+        "failed": 0,
+        "fastest_ns": 3862351700,
+        "median_ns": 4295609400,
+        "model": {
+          "id": "depth-anything-v2-small",
+          "processing": "dav2-small-rgb8-letterbox518-align-corners-relative-v1",
+          "revision": "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf",
+          "sha256": [
+            39,
+            67,
+            104,
+            3,
+            76,
+            15,
+            206,
+            240,
+            143,
+            155,
+            25,
+            125,
+            51,
+            182,
+            6,
+            186,
+            233,
+            197,
+            120,
+            172,
+            202,
+            134,
+            30,
+            247,
+            47,
+            235,
+            38,
+            129,
+            67,
+            178,
+            20,
+            52
+          ]
+        },
+        "restored": 0,
+        "samples": 32,
+        "slowest_ns": 8415576100,
+        "submitted": 32
+      },
+      "quality_aggregate": {
+        "frames": 24,
+        "valid": 5637354,
+        "missing": 1735446,
+        "mean_absolute_inverse_metres": 0.09674817406446783,
+        "rms_inverse_metres": 0.10997566338552187,
+        "maximum_inverse_metres": 1.1606672851903048,
+        "normalized_rms": 0.10997566338552187,
+        "normalized_maximum": 1.1606672851903048
+      },
+      "calibration": {
+        "slope": 0.13666127845269554,
+        "offset": 0.4613784527484296,
+        "reference_scale_inverse_metres": 1.0,
+        "samples": 2020231,
+        "missing": 437369
+      }
+    },
+    {
+      "name": "wgsl518",
+      "status": "actual32_inferences_and24_held_out_sensor_reduction_completed",
+      "cause": null,
+      "actual_summary": {
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "canceled": 0,
+        "completed": 32,
+        "execution": {
+          "backend": "wgsl",
+          "plan_sha256": [
+            237,
+            133,
+            198,
+            201,
+            40,
+            107,
+            136,
+            58,
+            58,
+            197,
+            133,
+            182,
+            86,
+            3,
+            54,
+            164,
+            169,
+            60,
+            155,
+            247,
+            244,
+            68,
+            199,
+            10,
+            174,
+            25,
+            211,
+            224,
+            166,
+            192,
+            232,
+            223
+          ],
+          "precision": "float32",
+          "provider": "WGSL:Vulkan:NVIDIA GeForce RTX 4070 Laptop GPU",
+          "runtime_sha256": [
+            17,
+            52,
+            245,
+            83,
+            161,
+            210,
+            156,
+            4,
+            205,
+            82,
+            38,
+            99,
+            64,
+            210,
+            199,
+            45,
+            36,
+            64,
+            159,
+            183,
+            53,
+            62,
+            190,
+            76,
+            107,
+            230,
+            194,
+            64,
+            130,
+            215,
+            193,
+            228
+          ]
+        },
+        "failed": 0,
+        "fastest_ns": 13124096200,
+        "median_ns": 16673662800,
+        "model": {
+          "id": "depth-anything-v2-small",
+          "processing": "dav2-small-rgb8-letterbox518-align-corners-relative-v1",
+          "revision": "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf",
+          "sha256": [
+            39,
+            67,
+            104,
+            3,
+            76,
+            15,
+            206,
+            240,
+            143,
+            155,
+            25,
+            125,
+            51,
+            182,
+            6,
+            186,
+            233,
+            197,
+            120,
+            172,
+            202,
+            134,
+            30,
+            247,
+            47,
+            235,
+            38,
+            129,
+            67,
+            178,
+            20,
+            52
+          ]
+        },
+        "restored": 0,
+        "samples": 32,
+        "slowest_ns": 21316345400,
+        "submitted": 32
+      },
+      "quality_aggregate": {
+        "frames": 24,
+        "valid": 5637354,
+        "missing": 1735446,
+        "mean_absolute_inverse_metres": 0.09674814735791736,
+        "rms_inverse_metres": 0.10997563568210106,
+        "maximum_inverse_metres": 1.1606679537404099,
+        "normalized_rms": 0.10997563568210106,
+        "normalized_maximum": 1.1606679537404099
+      },
+      "calibration": {
+        "slope": 0.13666126378029225,
+        "offset": 0.461378491353608,
+        "reference_scale_inverse_metres": 1.0,
+        "samples": 2020231,
+        "missing": 437369
+      }
+    }
+  ],
+  "same_weight_backend_comparison": {
+    "status": "all32_source_matched_cpu518_wgsl518_numerical_comparisons_passed",
+    "original_maximum_bound": 0.0002,
+    "original_mean_bound": 2e-05,
+    "maximum_observed": 2.7715290698834655e-05,
+    "maximum_frame_mean": 3.761387523919777e-07
+  },
+  "limits": [
+    "Original CPU266 predecessor retained; complete fixed32 source pairs, first8fit and next24heldout for available routes",
+    "WGSL266/392 are currently unimplemented; explicit original refusals only, no substitute backend/model/program",
+    "No retries, per-frame fit, residual clipping/trimming, sample replacement or quality-tier decision",
+    "No additional transition-jump, complete memory/thermal or arbitrary-domain certification",
+    "No source/panel edit, cleanup, download or concurrent own heavy workload",
+    "All96 available-route raw outputs independently read back before archive; no arrays redistributed",
+    "Same-weight backend numerical agreement is separate from independently sensed quality"
+  ],
+  "members": [
+    {
+      "path": "archive-controller.py",
+      "bytes": 3465,
+      "sha256": "0ebc9552aa5acd9fcb2878d29078f39dd57c890832b12283abf820076063bda1"
+    },
+    {
+      "path": "controller.py",
+      "bytes": 9384,
+      "sha256": "7f2049e096938c6a51624994e37507f46b7fadfddbee1b0471d93d18b6168c75"
+    },
+    {
+      "path": "equivalence/controller.py",
+      "bytes": 3530,
+      "sha256": "7091c4b5c81876df39434f40ab078c38e3ae731079470618841d82592c4d308d"
+    },
+    {
+      "path": "equivalence/receipt.json",
+      "bytes": 9252,
+      "sha256": "89ba8db87c0ae2728678ccc343878f580be4955571d5db5eda794ec76b6b3044"
+    },
+    {
+      "path": "equivalence/tool-completed.json",
+      "bytes": 61,
+      "sha256": "b0910bf105bb8325bca8aa7d29212cbfeca49045ebaf4317349732b8cd6b3d21"
+    },
+    {
+      "path": "onnx392.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "onnx392.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "onnx392/logs/motion-studio.log",
+      "bytes": 23263,
+      "sha256": "25a9eb953a78ae13c7a51f463b55a73a34dea644a1868ced7c2400761f39a4f5"
+    },
+    {
+      "path": "onnx392/measurements.json",
+      "bytes": 124029,
+      "sha256": "f5d959fbfb4c8d5c0887474c69d032ad59ab0e87b694cb9c190122e67bbdb0e3"
+    },
+    {
+      "path": "onnx392/quality.json",
+      "bytes": 13292,
+      "sha256": "b058893a90e0e3e90d2b02868b35d6235e97a4107ceb67c8b501d6ff0875a9f7"
+    },
+    {
+      "path": "onnx518.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "onnx518.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "onnx518/logs/motion-studio.log",
+      "bytes": 23263,
+      "sha256": "3d1f4b7da7e8092105c57e68c2454e517f6ced2bfb00ce206032d357ad0f66a6"
+    },
+    {
+      "path": "onnx518/measurements.json",
+      "bytes": 124050,
+      "sha256": "93d55c6838a7ff28cfeec4c970dc1ac5edc1d74488dd96026abeabcf3bc9b413"
+    },
+    {
+      "path": "onnx518/quality.json",
+      "bytes": 13309,
+      "sha256": "6448d467ced920c9565180cf9d51b44769dc314a57847c286c0f1552e5502ecc"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 888249,
+      "sha256": "35bea0850672dd660f7663d93c2b89e8268b6dc2b7fb23bc00388dd156974a24"
+    },
+    {
+      "path": "session-consumed.json",
+      "bytes": 54,
+      "sha256": "e709a0df50dff982332a228891f3b00874f5f6282362eb36e54d56a2f0363436"
+    },
+    {
+      "path": "wgsl266.stderr.log",
+      "bytes": 497,
+      "sha256": "36af4ed885e203494e1a7e770fc427ef610a3c0c5c568056ce9fea6138ee0d4e"
+    },
+    {
+      "path": "wgsl266.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "wgsl266/logs/motion-studio.log",
+      "bytes": 1211,
+      "sha256": "94ac81a752d16df31f17801f92827a4c8674f29ff6a4e078805d19c730a09e84"
+    },
+    {
+      "path": "wgsl266/measurements.json",
+      "bytes": 341,
+      "sha256": "04755342a2656f37ee12611f5d26d307fefe6cc6d143265b079798b10ea56afc"
+    },
+    {
+      "path": "wgsl392.stderr.log",
+      "bytes": 497,
+      "sha256": "0acda033ebe05d72d9c1ced5ff98497681fa698e04b1574669d8262e4bc61aed"
+    },
+    {
+      "path": "wgsl392.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "wgsl392/logs/motion-studio.log",
+      "bytes": 1211,
+      "sha256": "bdb983fb05593b8ae42c4913f2df269f855a0a8e9ddd0f2dd88fb33ca0760b8d"
+    },
+    {
+      "path": "wgsl392/measurements.json",
+      "bytes": 341,
+      "sha256": "04755342a2656f37ee12611f5d26d307fefe6cc6d143265b079798b10ea56afc"
+    },
+    {
+      "path": "wgsl518.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "wgsl518.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "wgsl518/logs/motion-studio.log",
+      "bytes": 97520,
+      "sha256": "7f2969f737865a10c360a65614605da5814df4cc1c56a35492ec757e7b5bcc91"
+    },
+    {
+      "path": "wgsl518/measurements.json",
+      "bytes": 124610,
+      "sha256": "023ca717dcac10b33fb603c81457ccfffe7d9240b1fb3330868c799a66759fc2"
+    },
+    {
+      "path": "wgsl518/quality.json",
+      "bytes": 13329,
+      "sha256": "823c7cb37e297e21164a6766bd0d7be3c81b99449806b84a654bd0599caf2ce1"
+    }
+  ]
+}

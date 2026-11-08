@@ -1,6 +1,26 @@
 {
   "version": 1,
   "tools": {
+    "tools/depth_reference_inputs.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_depth_reference_inputs.py",
+      "reason": "Independent fixed sensor-reference analytic controls; no dataset, optional decoder or model inference required"
+    },
+    "tools/test_ci_depth_reference_inputs.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Run fixed sensor-reference controls through existing test_ci_*.py discovery without optional runtimes or downloaded data"
+    },
+    "tools/depth_reference_metrics.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_depth_reference_metrics.py",
+      "reason": "Independent fixed sensor-reference analytic controls; no dataset, optional decoder or model inference required"
+    },
+    "tools/test_ci_depth_reference_metrics.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Run fixed sensor-reference controls through existing test_ci_*.py discovery without optional runtimes or downloaded data"
+    },
     "tools/color-management/export_processor.py": {
       "mode": "manual",
       "command": "python tools/color-management/export_processor.py --config-directory <verified-bundle> --selection <explicit-selection.json> --phase <phase> --input-alpha <alpha> --output-alpha <alpha> --output <new-file.json>",

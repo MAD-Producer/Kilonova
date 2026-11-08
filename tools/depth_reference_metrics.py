@@ -95,31 +95,36 @@ def summarize(rows, calibration):
                 normalized_maximum=maximum / span)
 
 
+def _require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
 def controls():
     # Known independently constructed y=2*x+0.5 inverse metres. Zero remains
     # missing; its prediction never influences fit or score.
     sensor = [2000, 4000, 5000, 10000, 0]
     prediction = [(5000 / v - 0.5) / 2 if v else 999.0 for v in sensor]
     fitted = fit([(prediction, sensor)] * 8)
-    assert math.isclose(fitted.slope, 2, rel_tol=1e-14)
-    assert math.isclose(fitted.offset, 0.5, abs_tol=1e-14)
-    assert fitted.samples == 32 and fitted.missing == 8
+    _require(math.isclose(fitted.slope, 2, rel_tol=1e-14), 'analytic control failed: math.isclose(fitted.slope, 2, rel_tol=1e-14)')
+    _require(math.isclose(fitted.offset, 0.5, abs_tol=1e-14), 'analytic control failed: math.isclose(fitted.offset, 0.5, abs_tol=1e-14)')
+    _require(fitted.samples == 32 and fitted.missing == 8, 'analytic control failed: fitted.samples == 32 and fitted.missing == 8')
     perfect = score(fitted, prediction, sensor)
-    assert perfect['valid'] == 4 and perfect['missing'] == 1
-    assert perfect['normalized_maximum'] < 1e-14
+    _require(perfect['valid'] == 4 and perfect['missing'] == 1, "analytic control failed: perfect['valid'] == 4 and perfect['missing'] == 1")
+    _require(perfect['normalized_maximum'] < 1e-14, "analytic control failed: perfect['normalized_maximum'] < 1e-14")
     shifted = score(fitted, [v + 0.2 for v in prediction], sensor)
-    assert math.isclose(shifted['rms_inverse_metres'], 0.4, rel_tol=1e-13)
-    assert math.isclose(shifted['normalized_rms'], 0.4, rel_tol=1e-13)
-    assert shifted['normalized_maximum'] > 0.19  # No evaluation-frame fit.
+    _require(math.isclose(shifted['rms_inverse_metres'], 0.4, rel_tol=1e-13), "analytic control failed: math.isclose(shifted['rms_inverse_metres'], 0.4, rel_tol=1e-13)")
+    _require(math.isclose(shifted['normalized_rms'], 0.4, rel_tol=1e-13), "analytic control failed: math.isclose(shifted['normalized_rms'], 0.4, rel_tol=1e-13)")
+    _require(shifted['normalized_maximum'] > 0.19, "analytic control failed: shifted['normalized_maximum'] > 0.19")  # No evaluation-frame fit.
     # One large outlier is retained and dominates the maximum. No clipping.
     outlier = prediction.copy()
     outlier[0] += 20
     row = score(fitted, outlier, sensor)
-    assert math.isclose(row['maximum_inverse_metres'], 40, rel_tol=1e-13)
-    assert math.isclose(row['normalized_maximum'], 40, rel_tol=1e-13)
+    _require(math.isclose(row['maximum_inverse_metres'], 40, rel_tol=1e-13), "analytic control failed: math.isclose(row['maximum_inverse_metres'], 40, rel_tol=1e-13)")
+    _require(math.isclose(row['normalized_maximum'], 40, rel_tol=1e-13), "analytic control failed: math.isclose(row['normalized_maximum'], 40, rel_tol=1e-13)")
     total = summarize([perfect, shifted, row], fitted)
-    assert total['frames'] == 3 and total['valid'] == 12 and total['missing'] == 3
-    assert math.isclose(total['rms_inverse_metres'], math.sqrt((0.64 + 1600) / 12), rel_tol=1e-13)
+    _require(total['frames'] == 3 and total['valid'] == 12 and total['missing'] == 3, "analytic control failed: total['frames'] == 3 and total['valid'] == 12 and (total['missing'] == 3)")
+    _require(math.isclose(total['rms_inverse_metres'], math.sqrt((0.64 + 1600) / 12), rel_tol=1e-13), "analytic control failed: math.isclose(total['rms_inverse_metres'], math.sqrt((0.64 + 1600) / 12), rel_tol=1e-13)")
     rejected = 0
     for action in (
         lambda: fit([([1, 1], [2000, 4000])]),
@@ -136,7 +141,7 @@ def controls():
             rejected += 1
         else:
             raise AssertionError("invalid input accepted")
-    assert rejected == 7
+    _require(rejected == 7, 'analytic control failed: rejected == 7')
     return dict(status='analytic_controls_passed_no_dataset_or_model_predictions',
                 invalid_controls=rejected,
                 scope='Known affine, training-only fit, retained outlier, missing sensor and invalid-input controls')
