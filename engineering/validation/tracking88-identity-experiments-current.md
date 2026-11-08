@@ -135,3 +135,42 @@ script, aggregate results and input/output hashes. Both members were read back
 and verified. Third-party images, annotations, requests and per-frame outputs
 remain local. This adds evidence for the next algorithm decision and does not
 qualify photographed tracking, native integration or cross-platform CI.
+
+
+## Recovered prior dense-refinement counterexample
+
+A previously measured post-LK ECC homography candidate was also rejected. This
+follow-up independently recomputes its retained results with the Python standard
+library, against the SHA-256-pinned original annotation archive. It does not
+import OpenCV, decode footage, rerun tracking or change product code. Both
+outputs retain all 2,300 original source coordinates, the same original source,
+ROI and correction request, and all eleven manual plane corrections.
+
+| Retained output | Automatic visible | Automatic lost | Maximum corner error (px) | RMS (px) | Above 5 px | Above 15 px |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original | 915 | 1373 | 56.640030446 | 5.552521926 | 60 | 21 |
+| Post-LK ECC candidate | 938 | 1350 | 57.943703517 | 5.671123730 | 73 | 21 |
+
+The severe failures occur at exactly the same 21 source coordinates. Increased
+coverage did not repair those correspondences or improve the maximum/RMS error.
+The archived historical candidate passed eight analytic controls, but failed
+this photographed gate and was not adopted. Its unchanged independent residual
+and extrapolation gates remain part of the frozen source. A separate existing
+30-frame dense-fit diagnostic yielded only two refined results; neither passed
+both original gates, and its worst measured error increased to 78.695398 pixels.
+That selected-segment diagnostic is not complete-sequence acceptance.
+
+The [archive manifest](data/tracking88-dense-rejection-audit-v1.json) binds the
+independent recomputation, original authored candidate sources/controllers,
+actual execution/decision records, analytic logs and aggregate measurements.
+All archive members were read back and digest-verified. Third-party video,
+annotations, requests and complete per-frame outputs remain local. This record
+restores evidence for an already rejected method; it does not demonstrate a new
+algorithm, quality fix, native/Surface regression or CI pass.
+
+The next algorithm work must provide a distinct correspondence/model measurement
+and retain the complete accuracy/coverage gate. Repeating the same post-LK ECC
+candidate, changing confidence thresholds or dropping the failed observations
+cannot establish useful photographed tracking. Other dense approaches remain
+unproven; this result does not reject them without measurement. Issue 88 and the
+broader 3D route remain incomplete.
