@@ -54,3 +54,27 @@ Continuous-video transitions, motion-compensated temporal comparisons,
 complete process/weight/activation memory and longer thermal behavior need
 their own fixed protocols and real observations. This initial reference does
 not satisfy those remaining acceptance items.
+
+## Acquisition status
+
+The single original acquisition completed at source `2fea6a3e`, with unchanged
+authored sources, exact Content-Length 344,011,403 bytes and archive SHA-256
+`e983d6830916e66dc4a46a71368046b149b283de87769690e7aa4e0b9483530c`.
+All 1,215 entries passed bounded path/type/size metadata checks; no separately
+named sequence license/notice entries were present. The official benchmark's
+default license remains the recorded source. Timestamp-list identities are
+retained privately; no upstream lists, PNGs or sensor arrays are redistributed.
+The verified seven-member evidence archive is identified by
+`data/depth75-reference-acquisition-v1.json`.
+
+Four analytic unittest cases passed before acquisition, covering the known
+affine oracle, fixed physical normalization under an extreme sensor sample,
+pixel-weighted aggregation and nonfinite predictions at missing sensor pixels.
+No actual images have been decoded and no model predictions or learned-model
+quality measurements have been made in this acquisition stage.
+
+`tools/depth_reference_inputs.py` implements bounded exact-nanosecond timestamp
+parsing and the fixed nearest unique association order. Six analytic unittest
+cases passed for submicrosecond ordering, competing matches, tie ordering,
+the inclusive 20 ms boundary, first-32 selection and malformed inputs. Selection
+reads timestamp identities only; image content cannot alter the selected set.

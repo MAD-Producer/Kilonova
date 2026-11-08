@@ -439,7 +439,12 @@ download catalogue https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download.
 Revision: the 2012 benchmark release, sequence `freiburg1_desk`, archive
 `rgbd_dataset_freiburg1_desk.tgz`. Exact acquired archive SHA-256 and any
 sequence-specific notices must be retained before inference. This entry
-precedes acquisition and does not claim that a dataset or model was evaluated.
+preceded acquisition and does not claim that a model was evaluated.
+The subsequent single local acquisition retained 344,011,403 bytes, SHA-256
+`e983d6830916e66dc4a46a71368046b149b283de87769690e7aa4e0b9483530c`.
+The official URL redirected to `webshare.cvg.cit.tum.de`; the 1,215 archive
+entries contained no separately named license/notice files. The source-bound
+acquisition record is `engineering/validation/data/depth75-reference-acquisition-v1.json`.
 
 License: CC BY 4.0 unless a sequence-specific declaration states otherwise,
 as documented by the official benchmark page's License section. License link:
