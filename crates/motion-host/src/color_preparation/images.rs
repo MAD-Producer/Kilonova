@@ -32,6 +32,9 @@ impl PreparedSourceImage {
     pub fn working(&self) -> &ColorImageTarget {
         &self.working
     }
+    pub fn into_working(self) -> ColorImageTarget {
+        self.working
+    }
 }
 
 impl PreparedProjectColors {

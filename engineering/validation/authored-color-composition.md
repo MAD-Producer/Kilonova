@@ -96,3 +96,6 @@ CI 同时增加每个平台**本次实际生成程序**的 GPU 图片验证：20
 本批原始输出、CI 程序还原、草案、负对照及源码快照归档于
 `artifacts/issue-goal-current/color-authored-scene/authored-composition-evidence.zip`；
 独立收据记录归档字节数、SHA-256 和逐文件身份，不包含完整构建目录。
+
+后续二维原文件图片合成、来源绑定及其独立验收见
+[原始图片进入工作区合成](authored-image-composition.md)。

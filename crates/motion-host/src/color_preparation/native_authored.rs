@@ -8,6 +8,61 @@ pub struct PreparedNativeAuthoredProject {
     pub colors: PreparedProjectColors,
     pub authored: AuthoredSceneSampler,
 }
+impl PreparedNativeAuthoredProject {
+    /// Prepare each referenced original static image once, then retain immutable
+    /// working targets and sampling bindings. No partial set is published on
+    /// failure or cancellation. Replacing a source requires a new explicit call.
+    pub fn prepare_images(
+        &self,
+        renderer: &mut motion_render::Renderer,
+        project: &Project,
+        root: &Path,
+        cancel: &AtomicBool,
+        observation: &Observation,
+    ) -> Result<motion_render::AuthoredImageSet, Error> {
+        observed_operation(observation, "prepare_authored_images", || {
+            project.validate().map_err(Error::Project)?;
+            if project.color_management.as_ref() != self.colors.settings()
+                || project.assets.as_slice() != self.authored.source_declarations()
+            {
+                return Err(Error::Binding {
+                    target: Target::AuthoredInput,
+                    phase: ColorProcessorPhase::InputToWorking,
+                    reason: "source or color declarations changed; prepare a new authored project",
+                });
+            }
+            let mut sources = Vec::new();
+            for asset in &project.assets {
+                if !project.layers.iter().any(|layer| matches!(layer.content, motion_core::Content::Image { asset: id } if id == asset.id)) {
+                    continue;
+                }
+                // The parent remains visibly in flight while each per-source
+                // operation publishes its asset/phase with the same request ID.
+                let child = Observation::new(observation.request());
+                let image = self
+                    .colors
+                    .prepare_source_image(
+                        renderer,
+                        SourceImageRequest {
+                            project,
+                            root,
+                            asset: asset.id,
+                            cancel,
+                        },
+                        &child,
+                    )?
+                    .ok_or(Error::SourceBinding {
+                        asset: asset.id,
+                        reason: "numeric data cannot enter the color image compositor",
+                    })?;
+                sources.push((asset.clone(), Arc::new(image.into_working())));
+            }
+            renderer
+                .prepare_authored_images(self.authored.contract(), sources)
+                .map_err(|source| Error::WorkingImages(Box::new(source.into())))
+        })
+    }
+}
 
 /// Prepare on the owning render worker. The native sampler is thread-confined;
 /// it is not smuggled across threads with an unsafe Send implementation. The

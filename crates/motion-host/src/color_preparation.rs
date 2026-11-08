@@ -52,6 +52,8 @@ pub enum Error {
         #[source]
         source: Box<crate::Error>,
     },
+    #[error("color preparation phase=bind_working_images")]
+    WorkingImages(#[source] Box<crate::Error>),
     #[error("color preparation phase=project")]
     Project(#[source] motion_core::Error),
     #[error("color preparation phase=resources")]
@@ -475,6 +477,13 @@ fn observed_prepare<T>(
     observation: &Observation,
     prepare: impl FnOnce() -> Result<T, Error>,
 ) -> Result<T, Error> {
+    observed_operation(observation, "prepare_project_colors", prepare)
+}
+fn observed_operation<T>(
+    observation: &Observation,
+    operation: &'static str,
+    prepare: impl FnOnce() -> Result<T, Error>,
+) -> Result<T, Error> {
     if observation
         .running
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -484,18 +493,21 @@ fn observed_prepare<T>(
     }
     let mut flight = Flight {
         observation,
-        operation: "prepare_project_colors",
+        operation,
         started: Instant::now(),
         finished: false,
     };
     log::info!(
-        "color preparation request={} operation=prepare_project_colors phase=start",
-        observation.request
+        "color preparation request={} operation={operation} phase=start",
+        observation.request,
     );
     let result = prepare();
     match &result {
-        Ok(_) => log::debug!("color preparation request={} operation=prepare_project_colors phase=done elapsed_ms={}", observation.request, flight.started.elapsed().as_millis()),
-        Err(error) => log::error!("color preparation request={} operation=prepare_project_colors phase=failed elapsed_ms={} cause={}",
+        Ok(_) => log::debug!("color preparation request={} operation={operation} phase=done elapsed_ms={}", observation.request, flight.started.elapsed().as_millis()),
+        Err(Error::SourceImage { source, .. }) if matches!(source.as_ref(), crate::Error::ImageResource(motion_render::image_resources::Error::Cancelled)) => {
+            log::debug!("color preparation request={} operation={operation} phase=cancelled elapsed_ms={}", observation.request, flight.started.elapsed().as_millis());
+        }
+        Err(error) => log::error!("color preparation request={} operation={operation} phase=failed elapsed_ms={} cause={}",
             observation.request, flight.started.elapsed().as_millis(), brief(error)),
     }
     flight.finished = true;

@@ -6,6 +6,8 @@ use motion_effects::image_contract::ChannelPrecision;
 use motion_render::{
     AuthoredSceneError, ColorImageContract, ColorImageTarget, ColorProcessorOutput, Renderer,
 };
+#[path = "authored_images.rs"]
+mod image_composition;
 
 fn runtime() -> std::path::PathBuf {
     std::env::var_os("MOTION_TEST_OCIO_RUNTIME")

@@ -40,6 +40,12 @@ pub enum AuthoredSceneError {
         expected: ColorImageContract,
         actual: ColorImageContract,
     },
+    #[error("authored color phase=source_binding asset={asset:?} expected={expected:?} actual={actual:?}")]
+    SourceContract {
+        asset: Option<u64>,
+        expected: ColorImageContract,
+        actual: ColorImageContract,
+    },
     #[error("authored color phase=destination expected_size={expected:?} actual_size={actual:?}")]
     Extent {
         expected: [u32; 2],
@@ -66,6 +72,7 @@ fn refuse(phase: &'static str, object: Option<u64>, reason: &'static str) -> Aut
 pub struct AuthoredSceneFrame {
     pub(crate) scene: Scene,
     contract: ColorImageContract,
+    assets: Arc<[motion_model::Asset]>,
 }
 impl AuthoredSceneFrame {
     pub fn contract(&self) -> ColorImageContract {
@@ -76,6 +83,9 @@ impl AuthoredSceneFrame {
     }
     pub fn frame(&self) -> f64 {
         self.scene.frame
+    }
+    pub(crate) fn source(&self, id: u64) -> Option<&motion_model::Asset> {
+        self.assets.iter().find(|asset| asset.id == id)
     }
 }
 
@@ -178,6 +188,7 @@ impl AuthoredSceneSampler {
             current: AuthoredSceneFrame {
                 scene: empty(),
                 contract,
+                assets: project.assets.clone().into(),
             },
             spare: empty(),
             published: false,
@@ -231,6 +242,13 @@ impl AuthoredSceneSampler {
         // Validate evaluated routes before Scene can resolve cameras, nested
         // compositions or raster sources. Evaluate exactly once per sample.
         admit(&evaluated)?;
+        if evaluated.assets.as_slice() != self.current.assets.as_ref() {
+            return Err(refuse(
+                "source_binding",
+                None,
+                "source declarations changed; prepare new image bindings and sampler",
+            ));
+        }
         self.spare
             .sample_inner(
                 project,
@@ -260,6 +278,11 @@ impl AuthoredSceneSampler {
             self.spare.background,
         )?;
         for layer in &mut self.spare.layers {
+            // The working image is already transformed and premultiplied. Its
+            // neutral tint is an identity multiplier, not an authored color.
+            if layer.asset.is_some() {
+                continue;
+            }
             layer.color = transform(
                 &self.native,
                 self.input_range,
@@ -276,6 +299,14 @@ impl AuthoredSceneSampler {
     /// error channel. This is not an automatic last-good-frame fallback.
     pub fn current(&self) -> Option<&AuthoredSceneFrame> {
         self.published.then_some(&self.current)
+    }
+    pub fn contract(&self) -> ColorImageContract {
+        self.current.contract
+    }
+    /// Frozen declaration snapshot. External file changes require explicit
+    /// source preparation; no filesystem probing occurs during frame sampling.
+    pub fn source_declarations(&self) -> &[motion_model::Asset] {
+        &self.current.assets
     }
 }
 
@@ -312,7 +343,7 @@ fn admit(project: &Project) -> Result<()> {
     for layer in &project.layers {
         if !matches!(
             layer.content,
-            Content::Solid { .. } | Content::Null | Content::Audio { .. }
+            Content::Solid { .. } | Content::Image { .. } | Content::Null | Content::Audio { .. }
         ) || layer.three_d
             || !layer.effects.is_empty()
             || !layer.masks.is_empty()
@@ -325,6 +356,30 @@ fn admit(project: &Project) -> Result<()> {
                 Some(layer.id),
                 "this color consumer is not integrated with the authored composition path yet",
             ));
+        }
+        if let Content::Image { asset } = layer.content {
+            if !project.assets.iter().any(|source| source.id == asset) {
+                return Err(refuse(
+                    "source_binding",
+                    Some(asset),
+                    "static image declaration is missing",
+                ));
+            }
+            if let ProjectColorManagement::Ocio { settings } = project.color_management.as_ref() {
+                if settings.sources.iter().any(|source| {
+                    source.asset == asset
+                        && matches!(
+                            source.interpretation,
+                            motion_model::color_management::SourceInterpretation::Data { .. }
+                        )
+                }) {
+                    return Err(refuse(
+                        "source_binding",
+                        Some(asset),
+                        "numeric data cannot enter the color image compositor",
+                    ));
+                }
+            }
         }
     }
     Ok(())

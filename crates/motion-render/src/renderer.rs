@@ -12,6 +12,8 @@ mod phase_adjustment;
 mod exposure_frame;
 mod nested_exposure;
 mod working_precision;
+mod authored_images;
+pub use authored_images::AuthoredImageSet;
 mod model_layers;
 mod projected_mattes;
 mod depth_materials;
@@ -2161,6 +2163,22 @@ impl Renderer {
         frame: &crate::AuthoredSceneFrame,
         target: &crate::ColorImageTarget,
     ) -> Result<RenderStats> {
+        self.draw_authored_scene_images(frame, target, None)
+    }
+    pub fn draw_authored_scene_with_images(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+        images: &AuthoredImageSet,
+    ) -> Result<RenderStats> {
+        self.draw_authored_scene_images(frame, target, Some(images))
+    }
+    fn draw_authored_scene_images(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+        images: Option<&AuthoredImageSet>,
+    ) -> Result<RenderStats> {
         self.check_health()?;
         target.image().check_owner(self)?;
         if self.target_format != wgpu::TextureFormat::Rgba32Float {
@@ -2178,24 +2196,26 @@ impl Renderer {
             }.into());
         }
         self.check_resident_sources()?;
+        self.validate_authored_images(frame, target, images)?;
         self.allocation_budget.check()?;
         let mut encoder = self.allocation_command_encoder_for(
             crate::gpu_commands::CommandStage::Composition,
             &wgpu::CommandEncoderDescriptor { label: Some("authored OCIO composition") },
         )?;
         let stats = self.encode_local_colors(
-            &frame.scene, target.image().view(), size[0], size[1], &mut encoder, None, false, true,
+            &frame.scene, target.image().view(), size[0], size[1], &mut encoder, None, false, true, images,
         )?;
         self.submit_allocated(encoder.finish(), |ledger| {
-            ledger.merge(target.texture_resource_ledger())
+            ledger.merge(target.texture_resource_ledger());
+            if let Some(images) = images { ledger.merge(images.ledger.clone()); }
         })?;
         self.check_health()?;
         Ok(stats)
     }
     fn encode_local(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool)->Result<RenderStats> {
-        self.encode_local_colors(scene, view, width, height, encoder, timestamps, preview, false)
+        self.encode_local_colors(scene, view, width, height, encoder, timestamps, preview, false, None)
     }
-    fn encode_local_colors(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool,working_colors:bool)->Result<RenderStats> {
+    fn encode_local_colors(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool,working_colors:bool,authored_images:Option<&AuthoredImageSet>)->Result<RenderStats> {
         self.snapshot_encodes.clear();
         if width == 0 || height == 0 || scene.layers.len() > MAX_LAYERS {
             return Err(RenderError::Invalid(
@@ -2270,7 +2290,7 @@ impl Renderer {
         }
         for (index, layer) in scene.layers.iter().enumerate() {
             let asset = texture_key(scene, layer);
-            if !self.images.contains_key(&asset) {
+            if !(working_colors && layer.asset.is_some()) && !self.images.contains_key(&asset) {
                 return Err(RenderError::Invalid(format!("draw image is not uploaded")));
             }
             let mut color = layer.color;
@@ -2348,14 +2368,19 @@ impl Renderer {
                     &self.uniform_group,
                     &[(index * self.uniform_stride) as u32],
                 );
-                pass.set_bind_group(1, &self.images[&texture_key(scene, layer)].bind_group, &[]);
+                let image = if working_colors && layer.asset.is_some() {
+                    &layer.asset.and_then(|asset| authored_images.and_then(|images| images.entries.get(&asset)))
+                        .ok_or_else(|| RenderError::Invalid("validated authored image binding is missing".into()))?.bind_group
+                } else { &self.images[&texture_key(scene, layer)].bind_group };
+                pass.set_bind_group(1, image, &[]);
                 pass.draw(batch.vertices.clone(), 0..1);
             }
         }
         Ok(RenderStats {
             cpu_prepare_us: started.elapsed().as_micros() as u64,
             draw_calls: self.compositor.batches.len() as u32,
-            texture_bytes: self.texture_bytes + self.video_plane_bytes() + self.models.texture_bytes(),
+            texture_bytes: self.texture_bytes + self.video_plane_bytes() + self.models.texture_bytes()
+                + authored_images.map_or(0, |images| images.ledger.total_known_bytes()),
             parameter_upload_bytes: (upload_bytes
                 + self.geometry_upload.len() * std::mem::size_of::<GeometryVertex>())
                 as u64,
