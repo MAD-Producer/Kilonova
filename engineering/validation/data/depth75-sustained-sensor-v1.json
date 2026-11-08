@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "status": "complete_finite_eight_request_gpu_sensor_observation",
+  "head": "d68a9d659f617e1551b02b30e5bdcfbe49e9551c",
+  "attempts": 8,
+  "completed": 8,
+  "failed": 0,
+  "canceled": 0,
+  "workload_duration_ns": 151875000000,
+  "worker_totals_ns": [
+    21751102900,
+    19596411400,
+    18367747700,
+    17667707300,
+    18290912000,
+    19676185100,
+    16854063200,
+    18916152700
+  ],
+  "sampled_summary": {
+    "readings": 141,
+    "minimum_temperature_celsius": 70.0,
+    "maximum_temperature_celsius": 77.0,
+    "first_temperature_celsius": 70.0,
+    "last_temperature_celsius": 72.0,
+    "whole_device_memory_maximum_observed_mib": 3457,
+    "maximum_observation_gap_seconds": 1.047,
+    "thermal_slowdown_observed": false
+  },
+  "protocol_sha256": "ae2e0294dd4cf3fd0081eb9abb30260aeb579df996e22e789de1481ab5c5102f",
+  "environment_sha256": "b8d7de033ee4fabf65486aeb2523860cdce86cb04d14aaaffce82a58b8fba29c",
+  "limits": [
+    "Sampled whole-GPU memory is not a proven allocation peak or process attribution",
+    "Temperature sensor maximum is the sampled maximum, not a continuous sensor bound",
+    "No CPU temperature, host peak, independent domain quality or transition measurement",
+    "One finite workload duration, not long-run stability, power attribution or realtime inference",
+    "Actual finite eight-request workload, no dropped cold/warm/slow attempts; not long-run stability or a product qualification",
+    "GPU memory includes unrelated activity and is sampled; host/weight/activation peaks remain unmeasured",
+    "Physical-device sensor values do not attribute heat, power or memory to this process",
+    "No independent quality or continuous transition acceptance and no automatic tier enabled",
+    "No media, tensors, weights, executable binaries or model plans redistributed"
+  ],
+  "archive": "depth75-sustained-sensor-v1.zip",
+  "bytes": 309282,
+  "sha256": "b964040fbe7adc7972011e65e6420bc951c41352c8113c5ebd5edef551df50a5",
+  "members_readback_verified": 9
+}

@@ -290,3 +290,11 @@ unresolved. That parent workspace pass, the175-target pass at `26b9156d`, and
 current28-case/video qualification at `8fdb718b` retain distinct source scopes.
 None is a later complete-workspace, final CI, real thermal or #75 completion
 claim.
+
+## Later finite sustained observation
+
+The [eight-request sensor record](depth75-sustained-sensor-current.md) adds an
+actual 151.875-second desktop WGSL workload at `d68a9d65`, preserving all attempts
+and 141 sampled device readings. Its 70–77 degree Celsius range and absence of
+sampled thermal-slowdown flags are finite observations, not a long-run guarantee.
+Whole-host memory, independent quality and continuous transitions remain open.
