@@ -247,3 +247,74 @@ never reuse that evidence directory as a normal application cache. The
 identity control must never receive an installed application executable.
 No asset, dependency, UI or normal backend behavior changes accompany these
 explicit acceptance tools.
+
+
+## Current workspace product and complete maintained-workspace result
+
+These results supersede the earlier pending status for the workspace examples
+and local complete gate only. The qualified source is
+`4729ab6d1c7c0c535c9715a53bc79497a78970b4`, based on maintained main
+`ac65d279c57626d7aa7e28061a1a7fdf7889c68a`. Later capability-selection source
+is outside this evidence.
+
+The actual root-workspace product build and all three real-model cache drivers
+passed, with source hashes unchanged (original session 65121, consumed exit 0).
+The pinned Small 518 model ran on the RTX 4070 Laptop Vulkan adapter. A cold
+inference, a fresh-worker bit-exact restore of all 96 values, corrupt-cache
+refusal without inference, three boundary cache hits, fresh alignment with
+48 held-out pairs, resource mutation/refusal/recovery, and cancellation before
+lookup passed. The independent CPU comparison retained the original maximum
+`0.0002` and mean `0.00002` normalized limits; observed errors were
+`0.0000020520434330588136` and `0.0000007814865407565651`. Changing an exclusively
+owned worker copy after actual resolution refused execution before native
+inference; restoring its bytes allowed independent resolution again. Default
+Info start was visible before handler return, Error reached file and stderr,
+and stdout remained one JSON record. These are cache and execution-boundary
+proofs on one synthetic 12-by-8 input, not photographic/video quality evidence.
+
+The complete maintained-workspace command then passed on Windows (original
+session 27030, consumed exit 0): 5,240 passed, zero failed, 78 original ignored,
+zero filtered. All 447 expected invocations were independently derived from
+Cargo metadata and matched the actual executable dep-info or doctest owner;
+all 84 named depth controls passed exactly once. There were no missing or
+unexpected targets, no abnormal target exits, and all tracked sources remained
+unchanged. Android was excluded as requested. The command was:
+
+```text
+cargo test --workspace --exclude motion-android --locked --offline \
+  --features motion-desktop/ffmpeg,motion-host/ai-depth,motion-desktop-media/ai-depth,motion-host/gpu-tests,motion-render/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests,motion-graph/gpu-tests \
+  --no-fail-fast -- --test-threads=1
+```
+
+Public text-only evidence, including source binding, raw logs, controllers,
+terminal receipts and archive member digests:
+
+- [Actual workspace product proofs](data/depth75-wgsl-workspace-product-v1.json):
+  41 verified archive members, SHA-256
+  `0f25c398f44ba1e79c58fc56a492f390cb621b4cc8c09a7f8e5ec4be9e7dcf29`
+- [Complete workspace result](data/depth75-wgsl-maintained-workspace-v1.json):
+  11 verified archive members, SHA-256
+  `1c379960158bbde6442c7ef9560e14d9bc37e06c6782b83a0fd07c52384c2b3f`
+
+### Remote CI and remaining limits
+
+Exact-source workflow `42456771015` completed with failure. All three desktop
+native jobs and all three desktop builds passed; dependency audit also passed,
+and two jobs were skipped by existing policy. The Rust/GPU job failed the
+original `whole_vectors_separated_axes_and_opacity_use_evaluated_property_units`
+test: `bindings_and_module frame_deadline`, elapsed 105,751 microseconds versus
+99,962 microseconds remaining at entry. Its actual tested merge tree matched
+this source tree. The overrun's cause is unproven. No assertion, budget or ignore
+was changed and no CI retry was requested. The local complete pass does not
+turn that failed workflow into a remote pass or prove a timing fix.
+
+Historical standalone compiler and native access violations remain preserved
+with unresolved causes. The later workspace product pass is not a crash-fix
+claim. The archives contain no model weights, executable or library binaries,
+RGB inputs or depth tensors.
+
+Issue 75 still requires measured capability policy, broader actual source/video
+quality, full-path latency, memory and sustained-load/thermal qualification.
+Issue 88 retains its failed photographed tracking-quality gate. Neither issue
+is complete; this increment adds no panels, UI behavior, product dependencies
+or third-party assets.
