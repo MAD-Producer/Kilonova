@@ -25,6 +25,15 @@
       ],
       "reason": "Maintainer-only numerical reference generation uses a pinned external runtime; CI consumes committed fixtures without installing OCIO or regenerating acceptance values."
     },
+    "tools/color-management/generate_source_reference.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/generate_source_reference.py crates/motion-effects/tests/color_processor/reference.json <new-source-reference.json>",
+      "requires": [
+        "Separately installed official opencolorio==2.6.0 reference runtime",
+        "Committed content-identified color processor reference and a new output file"
+      ],
+      "reason": "Maintainer-only original-image CPU reference generation uses the pinned external runtime; CI validates committed samples without installing OCIO or regenerating acceptance values."
+    },
     "tools/depth_tensor.py": {
       "mode": "manual",
       "command": "python tools/depth_tensor.py <host-generated-transform-directory>",
