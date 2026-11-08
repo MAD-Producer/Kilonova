@@ -139,8 +139,42 @@ Both binaries used isolated manifests with exact root-lockfile dependency
 checksums; this proves the current-source execution, not a full product-package
 build.
 
-Acceptance still requires broader actual invalidation/cancellation/refusal
-controls, current alignment qualification, full regression, product-package
+## Actual cached admission and recovery controls
+
+A separate current-source probe reopened an owned copy of that cache and of the
+pinned model resources. It restored the original corrupted cache byte only in
+the new copy; the original corruption evidence remains unchanged. Actual GPU,
+resource and numerical-runtime resolution preceded every lookup. It passed:
+
+- Three raw-cache hits with zero WGSL backend inference calls, including the
+  reference, an aligned candidate and recovery after a refused request
+- Fresh worker-side alignment with 48 held-out validation pairs, original
+  provider/prepared-pixel identity and zero inference cost. Invalidating the
+  live controller rejected that retained proof despite identical public keys
+- A changed actual weight byte refused during `cache_resolve` before lookup.
+  The original resource name/digest cause reached the default file and Error
+  stderr. It did not become a cache hit or trigger inference. Restoring the
+  owned weight allowed a later request to hit again
+- Cancellation after real hardware/resource/runtime resolution, while a
+  controlled wrapper still held the backend return, published neither the
+  existing cached result nor a failure. Queue/in-flight state drained, no
+  inference ran and the owned temporary directories were empty. This control
+  proves cancellation before lookup; it is not live-child cancellation
+- An independent current CPU ONNX inference for the exact same 96-pixel input
+  agreed with the retained actual GPU output at maximum normalized error
+  `0.0000020520434330588136` and mean `0.0000007814865407565651`. Original
+  maximum `0.0002` and mean `0.00002` limits were unchanged. The normalization
+  is `max(max(abs(cpu_reference)), 1e-6)`; no fit or clamp is applied to this
+  numerical comparison
+
+Receipt: `artifacts/pr-queue/depth75-wgsl-cache-boundaries-v1`, actual session
+67097, exit 0. The probe used the existing qualified native binary and exact
+lockfile dependencies; source hashes remained unchanged. Its single stdout JSON
+record remained separate from actual Error stderr. It does not establish
+photographic/video quality, thermal stability or another GPU/backend.
+
+Acceptance still requires remaining actual execution-mutation controls and
+broader alignment/video qualification, full regression, product-package
 builds and exact-head cross-platform CI. Broader #75 video
 quality, backend comparison, full-path latency, memory and sustained-load
 qualification remain separate obligations. No panels or UI behavior is changed;
