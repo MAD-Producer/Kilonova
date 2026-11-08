@@ -124,3 +124,13 @@ Its output remains an explicit external preparation artifact, not a bundled
 configuration or automatic project default. Content verification and catalogue
 selection are independently authored. They do not parse OCIO syntax, compile
 processors or qualify the application's complete display/output chain.
+
+The subsequent explicit GPU preparer exports official OCIO 2.6 GLSL and numeric
+tables. Three versioned configuration serializations and their generated GPU/CPU
+references are retained in the attributed test fixture only; none is an implicit
+application configuration. The separately authored adapter flattens equivalent
+RGB component expressions, translates declared 2D table reads into explicit
+buffer interpolation, and uses the official Naga public IR to guard dispatch
+bounds before normal validation/WGSL output. No upstream library source patch,
+arbitrary 3D LUT approximation, or commercial binary content is used. This layer
+does not establish the final image, decode or OS display workflow.
