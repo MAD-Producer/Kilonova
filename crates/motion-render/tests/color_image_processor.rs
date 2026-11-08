@@ -17,6 +17,8 @@ mod ranges;
 mod uploads;
 #[path = "color_image_processor/native_runtime.rs"]
 mod native_runtime;
+#[path = "color_image_processor/managed_display.rs"]
+mod managed_display;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,

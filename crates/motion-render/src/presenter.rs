@@ -1,5 +1,7 @@
 use crate::Renderer;
 mod memory;
+mod managed;
+pub use managed::{ManagedDisplayPresenter, ManagedDisplayTarget};
 #[cfg(test)]
 mod admission_tests;
 #[cfg(test)]
@@ -62,6 +64,10 @@ impl Presenter {
     }
     fn with_buffers(renderer: &Renderer, source: &wgpu::TextureView,
         format: wgpu::TextureFormat, buffers: memory::Buffers) -> Self {
+        Self::with_encoding(renderer, source, format, buffers, false)
+    }
+    fn with_encoding(renderer: &Renderer, source: &wgpu::TextureView,
+        format: wgpu::TextureFormat, buffers: memory::Buffers, display_codes: bool) -> Self {
         let device = &renderer.device;
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Motion Studio surface presentation"),
@@ -70,7 +76,7 @@ impl Presenter {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: !display_codes },
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false,
                     },
@@ -79,7 +85,9 @@ impl Presenter {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Sampler(if display_codes {
+                        wgpu::SamplerBindingType::NonFiltering
+                    } else { wgpu::SamplerBindingType::Filtering }),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
@@ -95,8 +103,8 @@ impl Presenter {
             ],
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
+            mag_filter: if display_codes { wgpu::FilterMode::Nearest } else { wgpu::FilterMode::Linear },
+            min_filter: if display_codes { wgpu::FilterMode::Nearest } else { wgpu::FilterMode::Linear },
             ..Default::default()
         });
         let memory::Buffers { color: buffer, view: view_buffer } = buffers;
