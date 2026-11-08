@@ -24,6 +24,10 @@ required-features = ["ai-depth"]
 name = "wgsl_depth_cache_identity"
 required-features = ["ai-depth"]
 
+[[example]]
+name = "depth_capability"
+required-features = ["ai-depth"]
+
 [features]
 default = ["gpu-tests"]
 # Test selection only; product rendering is always compiled.

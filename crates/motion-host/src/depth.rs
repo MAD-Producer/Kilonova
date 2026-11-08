@@ -11,6 +11,7 @@ use motion_model::depth::{
 use sha2::{Digest, Sha256};
 pub(crate) mod image;
 pub mod cache;
+pub mod capability;
 pub mod alignment;
 pub mod transition;
 pub mod routing;
@@ -218,6 +219,7 @@ pub struct PreparedEstimate {
     input: PreparedDepthInput,
     image: Option<motion_render::DepthImage>,
     video_end_us: Option<u64>,
+    measurement: Option<capability::Measurement>,
 }
 impl PreparedEstimate {
     pub fn estimate(&self) -> &Estimate {
@@ -225,6 +227,11 @@ impl PreparedEstimate {
     }
     pub fn input(&self) -> PreparedDepthInput {
         self.input
+    }
+    /// Present only for a successful, uncached `Jobs::start_measured` request.
+    /// Ordinary inference and cached/restored results do not qualify a device.
+    pub fn measurement(&self) -> Option<&capability::Measurement> {
+        self.measurement.as_ref()
     }
     pub(crate) fn into_owned_parts(
         self,
@@ -505,22 +512,31 @@ pub struct Jobs {
 
 impl Jobs {
     pub fn start(backend: impl Backend) -> Result<Self> {
-        Self::start_configured(backend, None)
+        Self::start_configured(backend, None, false)
+    }
+
+    /// Explicit capability probe on the same bounded serial worker. Resolve the
+    /// actual runtime before every inference, validate its returned provider,
+    /// and retain worker-owned timing. Never restore or write reusable results.
+    /// Source preparation is included; queueing and caller-side IO are not.
+    /// This does not certify quality, peak memory, or sustained performance.
+    pub fn start_measured(backend: impl Backend) -> Result<Self> {
+        Self::start_configured(backend, None, true)
     }
 
     /// Explicit, strict persistent cache. Unsupported execution identities and
     /// corrupt entries are failures; neither silently launches inference.
     pub fn start_cached(backend: impl Backend, cache: cache::Config) -> Result<Self> {
         cache.validate()?;
-        Self::start_configured(backend, Some(cache))
+        Self::start_configured(backend, Some(cache), false)
     }
 
-    fn start_configured(backend: impl Backend, cache: Option<cache::Config>) -> Result<Self> {
+    fn start_configured(backend: impl Backend, cache: Option<cache::Config>, measured: bool) -> Result<Self> {
         let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
         let worker_shared = shared.clone();
         let worker = thread::Builder::new()
             .name("motion-depth".into())
-            .spawn(move || run(backend, worker_shared, cache))?;
+            .spawn(move || run(backend, worker_shared, cache, measured))?;
         Ok(Self {
             shared,
             worker: Some(worker),
@@ -709,7 +725,10 @@ fn panic_cause(payload: &(dyn Any + Send)) -> String {
     message.chars().take(512).collect()
 }
 
-fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) {
+fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, measured: bool) {
+    // Measurements retain this private identity, so a future profile consumer
+    // can distinguish equal request numbers from different worker instances.
+    let measurement_scope = Arc::new(());
     loop {
         let job = {
             let Ok(mut state) = lock_state(&shared) else {
@@ -778,16 +797,22 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) 
             }
             // Resolve before *either* reusable result path. Session-local spill
             // must not bypass a changed actual runtime/provider/plan identity.
-            let execution = if cache.is_some() {
-                stage = "cache_resolve";
-                cache_phase(&shared, job.request, asset, stage)?;
+            let resolve_began = Instant::now();
+            let execution = if cache.is_some() || measured {
+                stage = if measured { "capability_resolve" } else { "cache_resolve" };
+                if measured { capability_phase(&shared, job.request, asset, stage)?; }
+                else { cache_phase(&shared, job.request, asset, stage)?; }
                 let execution = backend.execution_identity(&input, &job.cancellation)?
-                    .ok_or(Error::Invalid("persistent cache requires an attested execution identity"))?;
+                    .ok_or(Error::Invalid(if measured {
+                        "capability measurement requires an attested execution identity"
+                    } else { "persistent cache requires an attested execution identity" }))?;
                 execution.validate()?;
                 Some(execution)
             } else { None };
+            let resolve_elapsed = resolve_began.elapsed();
+            job.cancellation.check()?;
             let cached = match (&store, &identity) {
-                (Some(store), Identity::Video(key)) => store.lookup(key)?
+                (Some(store), Identity::Video(key)) if !measured => store.lookup(key)?
                     .filter(|sample| execution.is_none() || sample.execution == execution),
                 _ => None,
             };
@@ -822,13 +847,22 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) 
                     cache.write(&input, prepared_input, &execution, &estimate, &job.cancellation)?;
                     estimate
                 }
-            } else { backend.infer(&input, &job.cancellation)? };
+            } else {
+                if measured {
+                    stage = "backend";
+                    capability_phase(&shared, job.request, asset, stage)?;
+                }
+                backend.infer(&input, &job.cancellation)?
+            };
             job.cancellation.check()?;
             estimate.validate(input.key())?;
+            if measured {
+                execution.as_ref().ok_or(Error::State)?.validate_result(&estimate)?;
+            }
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
             estimate.costs.total = began.elapsed();
-            if !restored {
+            if !restored && !measured {
                 if let (Some(store), Identity::Video(key)) = (&store, &identity) {
                     stage = "archive_write";
                     set_phase(&shared, stage)?;
@@ -848,7 +882,12 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>) 
                 }
             }
             estimate.costs.total = began.elapsed();
-            let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image, video_end_us: input.video_end_us };
+            let measurement = if measured {
+                Some(capability::Measurement::new(measurement_scope.clone(), job.request,
+                    execution.ok_or(Error::State)?, resolve_elapsed, estimate.costs.total))
+            } else { None };
+            let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image,
+                video_end_us: input.video_end_us, measurement };
             if let Some(alignment) = job.alignment {
                 stage = "alignment";
                 set_phase(&shared, stage)?;
@@ -938,6 +977,13 @@ fn set_phase(shared: &Shared, phase: &'static str) -> Result<()> {
 fn cache_phase(shared: &Shared, request: u64, asset: u64, phase: &'static str) -> Result<()> {
     set_phase(shared, phase)?;
     log::info!("start #{} depth_cache asset={} phase={}", request, asset, phase);
+    log::logger().flush();
+    Ok(())
+}
+
+fn capability_phase(shared: &Shared, request: u64, asset: u64, phase: &'static str) -> Result<()> {
+    set_phase(shared, phase)?;
+    log::info!("start #{} depth_capability asset={} phase={}", request, asset, phase);
     log::logger().flush();
     Ok(())
 }
