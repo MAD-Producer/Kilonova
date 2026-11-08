@@ -572,6 +572,20 @@ impl Session {
     /// destinations. The directory is trusted application cache configuration;
     /// creating files is deferred to the worker and obeys the existing quota.
     pub fn configure_depth_in(&mut self, backend: impl Backend, directory: PathBuf) -> Result<()> {
+        self.configure_depth_worker(backend, directory, None)
+    }
+
+    /// Opt in to strict cross-session inference reuse in a separate, dedicated
+    /// cache directory. Unsupported attestation is a request failure, not a
+    /// silent uncached run. Existing Session spill and export quotas stay intact.
+    pub fn configure_depth_cached_in(&mut self, backend: impl Backend, directory: PathBuf,
+        cache: depth::cache::Config) -> Result<()> {
+        cache.validate()?;
+        self.configure_depth_worker(backend, directory, Some(cache))
+    }
+
+    fn configure_depth_worker(&mut self, backend: impl Backend, directory: PathBuf,
+        cache: Option<depth::cache::Config>) -> Result<()> {
         self.check_thread()?;
         if self.depth.is_some() {
             return Err(
@@ -579,7 +593,7 @@ impl Session {
             );
         }
         self.depth = Some(State {
-            jobs: Jobs::start(backend)?,
+            jobs: match cache { Some(cache) => Jobs::start_cached(backend, cache)?, None => Jobs::start(backend)? },
             binding: None,
             installed: None,
             prepared: None,

@@ -71,7 +71,77 @@ def resize_align_corners(values, width, height, np):
     return output
 
 
-def infer(directory):
+def execution_environment(ort, np, cv2):
+    """CPU-only attestation, before lookup and again in the executing child.
+
+    Available accelerator providers do not identify actual node assignment.
+    Refuse to attest those until a dedicated execution contract exists.
+    """
+    import platform
+    digest = hashlib.sha256(b"MotionStudio/depth/cpu-runtime/v1\0")
+    total = 0
+    count = 0
+    visited = 0
+    roots = [(name, Path(module.__file__).resolve().parent)
+             for name, module in (("onnxruntime", ort), ("numpy", np), ("cv2", cv2))]
+    site = roots[0][1].parent
+    # Wheels keep BLAS/OpenCV dependencies in sibling .libs directories on
+    # Unix. Those bytes affect numerical execution just as the extension does.
+    for root in site.iterdir():
+        if root.name.endswith(".libs") and root.name.startswith(("numpy", "opencv", "onnxruntime")):
+            if root.is_symlink():
+                raise ValueError("linked runtime dependency directory rejected")
+            roots.append((root.name, root))
+    for name, root in roots:
+        # Sort only a bounded list and do not admit links as executable identity.
+        paths = []
+        for parent, dirs, files in os.walk(root, followlinks=False):
+            visited += 1 + len(files)
+            if visited > 8192:
+                raise ValueError("runtime package traversal exceeds entry bound")
+            if len(dirs) > 4096 or any((Path(parent) / d).is_symlink() for d in dirs):
+                raise ValueError("runtime package directory bound or link rejected")
+            dirs[:] = [d for d in dirs if d != "__pycache__"]
+            for file in files:
+                path = Path(parent) / file
+                if path.suffix.lower() not in {".py", ".pyd", ".dll", ".so", ".dylib"} and ".so." not in file:
+                    continue
+                count += 1
+                if count > 4096 or path.is_symlink():
+                    raise ValueError("runtime package file bound or link rejected")
+                paths.append(path)
+        for path in sorted(paths):
+            digest.update((name + "/" + path.relative_to(root).as_posix()).encode("utf-8") + b"\0")
+            size = path.stat().st_size
+            total += size
+            if total > 512 << 20:
+                raise ValueError("runtime attestation exceeds 512 MiB")
+            digest.update(size.to_bytes(8, "little"))
+            with path.open("rb") as stream:
+                remaining = size
+                while remaining:
+                    chunk = stream.read(min(65536, remaining))
+                    if not chunk:
+                        raise ValueError("runtime package changed during attestation")
+                    digest.update(chunk)
+                    remaining -= len(chunk)
+                if stream.read(1):
+                    raise ValueError("runtime package grew during attestation")
+    environment = {k: v for k, v in os.environ.items()
+                   if k.startswith(("OMP_", "MKL_", "OPENBLAS_", "NPY_", "ORT_"))}
+    if len(environment) > 64 or any(len(k) > 128 or len(v) > 1024 for k, v in environment.items()):
+        raise ValueError("unbounded numerical environment")
+    features = getattr(np._core._multiarray_umath, "__cpu_features__", {})
+    context = {"python": sys.version, "machine": platform.machine(), "system": platform.system(),
+               "release": platform.release(), "cpu_features": features, "environment": environment,
+               "ort_build": ort.get_build_info(), "cv_build": cv2.getBuildInformation()}
+    digest.update(json.dumps(context, sort_keys=True, allow_nan=False).encode("utf-8"))
+    return {"backend": "onnx", "provider": "CPUExecutionProvider", "precision": "float32",
+            "runtime_sha256": list(digest.digest()),
+            "plan_sha256": list(hashlib.sha256(Path(__file__).read_bytes()).digest())}
+
+
+def infer(directory, resolve_only=False, attest=False):
     phase = "manifest"
     began = time.perf_counter_ns()
     try:
@@ -89,7 +159,7 @@ def infer(directory):
         if type(width) is not int or type(height) is not int or not (0 < width <= 4096 and 0 < height <= 4096):
             raise ValueError("dimensions exceed depth input budget")
         source = directory / "input.rgb"
-        if source.stat().st_size != width * height * 3:
+        if not resolve_only and source.stat().st_size != width * height * 3:
             raise ValueError("RGB input byte count differs from dimensions")
         expected = request["sha256"]
         if not isinstance(expected, str) or len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
@@ -137,6 +207,14 @@ def infer(directory):
             raise ValueError(f"model input differs from requested 1x3x{side}x{side} float32 contract")
         if output_meta.shape != [1, side, side] or output_meta.type != "tensor(float)":
             raise ValueError(f"model output differs from requested 1x{side}x{side} float32 contract")
+        execution = None
+        if resolve_only or attest:
+            phase = "execution_attestation"
+            if requested != "CPUExecutionProvider" or session.get_providers() != ["CPUExecutionProvider"]:
+                raise ValueError("persistent caching requires an exclusive actual CPU session")
+            execution = execution_environment(ort, np, cv2)
+            if resolve_only:
+                return {"schema": SCHEMA, "execution": execution}
         load_ns = elapsed(began)
         phase = "preprocess"
         started = time.perf_counter_ns()
@@ -172,7 +250,7 @@ def infer(directory):
             raise ValueError("postprocessing returned nonfinite depth")
         output.astype("<f4", copy=False).tofile(directory / "output.f32")
         postprocess_ns = elapsed(started)
-        return {"schema": SCHEMA, "sha256": expected, "processing": processing,
+        return {"schema": SCHEMA, "sha256": expected, "processing": processing, "execution": execution,
                 "width": width, "height": height, "providers": actual,
                 "requested_provider": requested, "available_providers": available,
                 "cpu_fallback": requested != "CPUExecutionProvider" and requested not in actual,
@@ -193,7 +271,10 @@ if __name__ == "__main__":
     protocol = os.dup(sys.stdout.fileno())
     os.dup2(sys.stderr.fileno(), sys.stdout.fileno())
     try:
-        os.write(protocol, (json.dumps(infer(Path(sys.argv[1]).resolve()), allow_nan=False)+"\n").encode("utf-8"))
+        if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] not in {"--resolve", "--attest"}):
+            raise ValueError("unsupported depth worker invocation")
+        mode = sys.argv[2] if len(sys.argv) == 3 else ""
+        os.write(protocol, (json.dumps(infer(Path(sys.argv[1]).resolve(), mode == "--resolve", mode == "--attest"), allow_nan=False)+"\n").encode("utf-8"))
     except Exception as error:
         os.write(protocol, (json.dumps({"schema": SCHEMA, "error": str(error)[:2048]}, allow_nan=False)+"\n").encode("utf-8"))
         sys.exit(1)
