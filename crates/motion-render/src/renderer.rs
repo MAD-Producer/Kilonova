@@ -103,6 +103,8 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
     #[error("{0}")]
+    ColorImageRenderSource(#[from] #[source] crate::ColorImageRenderSourceError),
+    #[error("{0}")]
     ColorImageUpload(#[from] #[source] crate::ColorImageUploadError),
     #[error("GPU validation: {0}")]
     ScratchGraph(#[from] crate::effect_plan::ScratchGraphError),
@@ -3080,6 +3082,9 @@ pub struct RenderTarget {
 }
 impl RenderTarget {
     pub(crate) fn texture(&self) -> &OwnedTexture { &self.texture }
+    pub(crate) fn into_image_parts(self) -> (OwnedTexture, crate::AdmittedTextureView, Arc<()>) {
+        (self.texture, self.view, self.owner)
+    }
     pub(crate) fn check_owner(&self, renderer: &Renderer) -> Result<()> {
         if Arc::ptr_eq(&renderer.allocation_owner, &self.owner) { Ok(()) }
         else { Err(RenderError::Invalid("render target belongs to another renderer".into())) }

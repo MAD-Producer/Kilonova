@@ -2,7 +2,7 @@
 //! implicit precision reduction. Producers must honor the declared meaning.
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::{image_formats, RenderError, Renderer, TextureResourceLedger};
-use motion_effects::image_contract::{ImageContract, ImageStorage, ImageUsage};
+use motion_effects::image_contract::{ImageContract, ImageMeaning, ImageStorage, ImageUsage};
 
 pub struct ImageCaptureTarget {
     texture: OwnedTexture,
@@ -91,6 +91,48 @@ impl ImageCaptureTarget {
 }
 
 impl Renderer {
+    /// Move an existing native compositor result into raw image transport.
+    /// The actual storage fixes precision; native compositor alpha is premultiplied.
+    /// This transfers the same texture/view reservation, without copying pixels.
+    pub(crate) fn image_from_render_target(
+        &self,
+        source: crate::RenderTarget,
+    ) -> Result<ImageCaptureTarget, RenderError> {
+        self.check_health()?;
+        source.check_owner(self)?;
+        if source.view.texture() != &**source.texture() {
+            return Err(RenderError::Invalid(
+                "OCIO native render source view belongs to another texture".into(),
+            ));
+        }
+        let format = source.texture().format();
+        if format != wgpu::TextureFormat::Rgba32Float {
+            return Err(crate::ColorImageRenderSourceError { format }.into());
+        }
+        let storage = ImageStorage::Rgba32Float;
+        let (width, height) = (source.texture().width(), source.texture().height());
+        let layout = image_layout(width, height, storage, &self.device.limits(), false)?;
+        let (texture, view, owner) = source.into_image_parts();
+        Ok(ImageCaptureTarget {
+            texture,
+            view,
+            buffer: None,
+            owner,
+            contract: ImageContract::new(
+                ImageMeaning::Color {
+                    space: motion_effects::WorkingSpace::Linear,
+                    alpha: motion_effects::AlphaMode::Premultiplied,
+                },
+                motion_effects::image_contract::ChannelPrecision::Float32,
+            ),
+            storage,
+            width,
+            height,
+            row_bytes: layout.row_bytes,
+            row_stride: layout.row_stride,
+        })
+    }
+
     /// Allocate a format-preserving capture target after capability/size checks.
     /// The producer pipeline must target `image_formats::native_format(storage)`.
     /// This does not change the renderer's scene-working precision or pipelines.

@@ -189,3 +189,16 @@ pending-upload 预算保留，未提交时销毁包装也不会提前释放准�
 缓冲并在完成后释放。原 `image_capture_target` 的可复用读回缓冲行为保持。
 这还不是普通素材解码或 Session 接线，不据此宣称高位深导入或 HDR 显示完成。
 见[上传与资源验收](../../engineering/validation/color-upload-preparation.md)。
+
+## 原生合成目标交接
+
+`Renderer::color_image_from_render_target` 消费已有 Float32 `RenderTarget`，
+把同一个纹理、view 与准入移交给 `ColorImageTarget`，不复制或读回像素。
+实际存储必须为 Rgba32Float，alpha 来自原生合成的 premultiplied 契约。
+宽高读取真实纹理描述符；公开 view 被替换成其他纹理时明确拒绝。
+准备一次后，原生 Scene 可复用 `image().view()` 写帧，接着在同一编码器内
+调用 `ColorProcessorOutput::encode` 执行明确 display/output 变换。
+
+空间身份仍须由生产者正确声明，不会把普通 Scene 的线性 sRGB 自动变成
+ACES。该接口没有解除 managed Session 拒绝边界，也没有安装 OS 显示链。
+见[原生 Scene 像素与错误验收](../../engineering/validation/color-native-scene.md)。

@@ -80,6 +80,18 @@ impl ColorImageTarget {
     }
 }
 impl Renderer {
+    /// Adopt an existing native Float32 target, preserving its allocation and pixels.
+    /// The producer must ensure its pixels belong to `space`. This declaration
+    /// neither transforms values nor makes the legacy Scene path color managed.
+    /// Prepare once, then reuse image().view() for subsequent native renders.
+    pub fn color_image_from_render_target(
+        &self,
+        source: crate::RenderTarget,
+        space: ColorSpaceIdentity,
+    ) -> Result<ColorImageTarget, RenderError> {
+        ColorImageTarget::from_image(self.image_from_render_target(source)?, space)
+    }
+
     /// Explicit export/qualification readback, never a preview polling path.
     /// Preserve the full endpoint identity without applying a display transfer.
     pub fn read_color_image_target(
@@ -166,6 +178,14 @@ impl Renderer {
         self.check_health()?;
         Ok(target)
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "OCIO native render source requires Float32 storage without automatic transfer, got {format:?}"
+)]
+pub struct ColorImageRenderSourceError {
+    pub format: wgpu::TextureFormat,
 }
 
 #[derive(Debug, thiserror::Error)]

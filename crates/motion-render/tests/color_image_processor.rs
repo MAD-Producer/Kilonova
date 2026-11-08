@@ -11,6 +11,8 @@ use std::{collections::BTreeMap, sync::Arc};
 mod chain;
 #[path = "color_image_processor/uploads.rs"]
 mod uploads;
+#[path = "color_image_processor/native_scene.rs"]
+mod native_scene;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,
