@@ -2198,6 +2198,7 @@ impl Renderer {
         self.check_resident_sources()?;
         self.validate_authored_images(frame, target, images)?;
         self.allocation_budget.check()?;
+        let rasters = self.layer_gpu.authored_raster_guard();
         let mut encoder = self.allocation_command_encoder_for(
             crate::gpu_commands::CommandStage::Composition,
             &wgpu::CommandEncoderDescriptor { label: Some("authored OCIO composition") },
@@ -2209,6 +2210,7 @@ impl Renderer {
             ledger.merge(target.texture_resource_ledger());
             if let Some(images) = images { ledger.merge(images.ledger.clone()); }
         })?;
+        rasters.commit();
         self.check_health()?;
         Ok(stats)
     }
@@ -2229,7 +2231,7 @@ impl Renderer {
             || scene
                 .layers
                 .iter()
-                .any(|l| l.vector.is_some() || l.adjustment || l.track_matte.is_some()
+                .any(|l| (l.vector.is_some() && !working_colors) || l.adjustment || l.track_matte.is_some()
                     || l.blend != motion_model::compositing::LayerBlend::default() || !l.composite_visible)
         {
             if working_colors {
@@ -2242,14 +2244,19 @@ impl Renderer {
         self.release_effect_input_images();
         self.effect_diagnostics.clear();
         if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
-        let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes();
+        if working_colors {
+            self.effect_gpu.builder.prepare_authored_vectors(scene, [width, height])?;
+        }
+        let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes()
+            + authored_images.map_or(0, |images| images.ledger.total_known_bytes());
+        let vectors = if working_colors { self.effect_gpu.builder.frame.vectors.as_slice() } else { &[] };
         if self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
             &self.image_layout,
             &self.sampler,
             scene,
-            &[],
+            vectors,
             &mut self.images,
             &mut self.texture_bytes,
             vector_other,

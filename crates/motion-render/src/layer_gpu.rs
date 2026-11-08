@@ -6,6 +6,7 @@ use crate::{
 };
 use std::collections::HashMap;
 mod groups;
+mod raster_guard;
 const CLEAR_VERTICES: [[f32; 6]; 3] = [
     [-1., -1., 0., 0., 0., 0.],
     [3., -1., 0., 0., 0., 0.],
@@ -22,6 +23,7 @@ pub(crate) struct LayerGpu {
     pub accumulators: Vec<FxTexture>,
     size: [u32; 2],
     fingerprints: HashMap<u64, u64>,
+    raster_invalidated: std::sync::Arc<std::sync::atomic::AtomicBool>,
     dirty_vectors: Vec<usize>,
     raster_scratch: HashMap<(u32, u32), OwnedTexture>,
     raster_resolve: HashMap<(u32, u32), FxTexture>,
@@ -36,6 +38,9 @@ pub(crate) struct LayerGpu {
     raster_pixel_bytes: u64,
 }
 impl LayerGpu {
+    pub(crate) fn authored_raster_guard(&self) -> raster_guard::RasterGuard {
+        raster_guard::RasterGuard::new(self.raster_invalidated.clone())
+    }
     pub fn upload_info(&self) -> Result<crate::VectorUploadInfo, RenderError> {
         let mut info = self.uploads.info()?;
         let (opacity_bytes, opacity_created) = self.groups.upload_info();
@@ -184,6 +189,7 @@ impl LayerGpu {
             accumulators: Vec::new(),
             size: [0; 2],
             fingerprints: HashMap::new(),
+            raster_invalidated: Default::default(),
             dirty_vectors: Vec::new(),
             raster_scratch: HashMap::new(),
             raster_resolve: HashMap::new(),
@@ -381,6 +387,9 @@ impl LayerGpu {
     ) -> Result<bool, RenderError> {
         // Preserve the pre-replacement decision: an unchanged fingerprint can
         // still require drawing into a newly resized source.
+        if self.raster_invalidated.swap(false, std::sync::atomic::Ordering::AcqRel) {
+            self.fingerprints.clear();
+        }
         let mut dirty = std::mem::take(&mut self.dirty_vectors);
         dirty.extend(meshes.iter().enumerate().filter(|(_, mesh)| {
             let id = scene.layers[mesh.layer].id;

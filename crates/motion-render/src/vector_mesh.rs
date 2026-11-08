@@ -8,6 +8,13 @@ mod budget;
 mod error;
 pub use error::VectorGeometryError;
 pub const MAX_TRIANGLE_VERTICES: usize = 262144;
+/// Authored frames already carry straight RGB in their explicit working space.
+/// Ordinary scenes keep the existing sRGB interpretation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum PaintSpace {
+    Srgb,
+    Working,
+}
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct VectorVertex {
@@ -38,33 +45,73 @@ impl VectorMesh {
     pub fn scope_depth(&self) -> usize {
         let (mut depth, mut maximum) = (0usize, 0usize);
         for command in self.commands.iter() {
-            if command.kind == 1 { depth += 1; maximum = maximum.max(depth); }
-            else if command.kind == 2 { depth -= 1; }
+            if command.kind == 1 {
+                depth += 1;
+                maximum = maximum.max(depth);
+            } else if command.kind == 2 {
+                depth -= 1;
+            }
         }
         maximum
     }
 }
-pub struct RasterGeometry { pub vertices: Vec<VectorVertex>, pub commands: Vec<RasterCommand>, pub root_opacity: f32 }
+pub struct RasterGeometry {
+    pub vertices: Vec<VectorVertex>,
+    pub commands: Vec<RasterCommand>,
+    pub root_opacity: f32,
+}
 pub fn group_bounds(v: &SampledVector) -> Option<[f32; 4]> {
     let batches = v.batches.as_ref()?;
     let mut min = glam::Vec2::splat(f32::INFINITY);
     let mut max = glam::Vec2::splat(f32::NEG_INFINITY);
     for batch in batches {
         let matrix = glam::Mat3::from_cols_array(&batch.transform);
-        let radius = batch.vector.stroke.map_or(0., |s| s.1*0.5*if s.3==LineJoin::Miter{s.4}else{1.});
-        let pad = (matrix.x_axis.truncate().abs()+matrix.y_axis.truncate().abs())*radius+glam::Vec2::ONE;
-        for n in batch.vector.paths.iter().flat_map(|p|&p.nodes) {
-            for p in [glam::Vec2::new(n[0],n[1]),glam::Vec2::new(n[0]+n[2],n[1]+n[3]),glam::Vec2::new(n[0]+n[4],n[1]+n[5])] {
-                let p=matrix.transform_point2(p);min=min.min(p-pad);max=max.max(p+pad);
+        let radius = batch.vector.stroke.map_or(0., |s| {
+            s.1 * 0.5 * if s.3 == LineJoin::Miter { s.4 } else { 1. }
+        });
+        let pad = (matrix.x_axis.truncate().abs() + matrix.y_axis.truncate().abs()) * radius
+            + glam::Vec2::ONE;
+        for n in batch.vector.paths.iter().flat_map(|p| &p.nodes) {
+            for p in [
+                glam::Vec2::new(n[0], n[1]),
+                glam::Vec2::new(n[0] + n[2], n[1] + n[3]),
+                glam::Vec2::new(n[0] + n[4], n[1] + n[5]),
+            ] {
+                let p = matrix.transform_point2(p);
+                min = min.min(p - pad);
+                max = max.max(p + pad);
             }
         }
     }
-    if !min.is_finite() { return Some([-0.5,-0.5,1.,1.]); }
-    Some([min.x,min.y,max.x-min.x,max.y-min.y])
+    if !min.is_finite() {
+        return Some([-0.5, -0.5, 1., 1.]);
+    }
+    Some([min.x, min.y, max.x - min.x, max.y - min.y])
 }
-pub(crate) fn rasterize_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, origin: [f32; 2], limit: usize) -> Result<RasterGeometry, VectorGeometryError> {
+#[cfg(test)]
+pub(crate) fn rasterize_with_limit(
+    v: &SampledVector,
+    size: [f32; 2],
+    scale: f32,
+    origin: [f32; 2],
+    limit: usize,
+) -> Result<RasterGeometry, VectorGeometryError> {
+    rasterize_in_space(v, size, scale, origin, limit, PaintSpace::Srgb)
+}
+pub(crate) fn rasterize_in_space(
+    v: &SampledVector,
+    size: [f32; 2],
+    scale: f32,
+    origin: [f32; 2],
+    limit: usize,
+    space: PaintSpace,
+) -> Result<RasterGeometry, VectorGeometryError> {
     let Some(batches) = &v.batches else {
-        return Ok(RasterGeometry { vertices: tessellate_with_limit(v, size, scale, limit)?, commands: vec![], root_opacity: 1. });
+        return Ok(RasterGeometry {
+            vertices: tessellate_in_space(v, size, scale, limit, space)?,
+            commands: vec![],
+            root_opacity: 1.,
+        });
     };
     let mut vertices = Vec::new();
     let mut commands = Vec::new();
@@ -72,26 +119,66 @@ pub(crate) fn rasterize_with_limit(v: &SampledVector, size: [f32; 2], scale: f32
     for batch in batches {
         let matrix = glam::Mat3::from_cols_array(&batch.transform);
         let start = vertices.len() as u32;
-        let mut builder = budget::BoundedGeometry::new(vertices, size, limit.min(MAX_TRIANGLE_VERTICES), Some((matrix, glam::Vec2::from_array(origin))));
-        tessellate_into(&batch.vector, scale, &mut builder)?;
+        let mut builder = budget::BoundedGeometry::new(
+            vertices,
+            size,
+            limit.min(MAX_TRIANGLE_VERTICES),
+            Some((matrix, glam::Vec2::from_array(origin))),
+        );
+        tessellate_into_space(&batch.vector, scale, &mut builder, space)?;
         vertices = builder.output;
-        if vertices.len() == start as usize {continue;}
-        let common = scopes.iter().zip(&batch.scopes).take_while(|(a,b)| a == b).count();
+        if vertices.len() == start as usize {
+            continue;
+        }
+        let common = scopes
+            .iter()
+            .zip(&batch.scopes)
+            .take_while(|(a, b)| a == b)
+            .count();
         for scope in scopes.drain(common..).rev() {
-            commands.push(RasterCommand { kind: 2, start: 0, end: 0, opacity: scope.opacity });
+            commands.push(RasterCommand {
+                kind: 2,
+                start: 0,
+                end: 0,
+                opacity: scope.opacity,
+            });
         }
         for scope in batch.scopes.iter().skip(common) {
-            commands.push(RasterCommand { kind: 1, start: 0, end: 0, opacity: scope.opacity });
+            commands.push(RasterCommand {
+                kind: 1,
+                start: 0,
+                end: 0,
+                opacity: scope.opacity,
+            });
             scopes.push(scope.clone());
         }
-        commands.push(RasterCommand { kind: 0, start, end: vertices.len() as u32, opacity: 1. });
+        commands.push(RasterCommand {
+            kind: 0,
+            start,
+            end: vertices.len() as u32,
+            opacity: 1.,
+        });
     }
-    for scope in scopes.into_iter().rev() { commands.push(RasterCommand {kind:2,start:0,end:0,opacity:scope.opacity}); }
-    Ok(RasterGeometry { vertices, commands, root_opacity: v.root_opacity })
+    for scope in scopes.into_iter().rev() {
+        commands.push(RasterCommand {
+            kind: 2,
+            start: 0,
+            end: 0,
+            opacity: scope.opacity,
+        });
+    }
+    Ok(RasterGeometry {
+        vertices,
+        commands,
+        root_opacity: v.root_opacity,
+    })
 }
-fn paint(mut c: [f32; 4]) -> [f32; 4] {
+fn paint(mut c: [f32; 4], space: PaintSpace) -> [f32; 4] {
     for i in 0..3 {
-        c[i] = crate::renderer::srgb_to_linear(c[i]) * c[3];
+        if space == PaintSpace::Srgb {
+            c[i] = crate::renderer::srgb_to_linear(c[i]);
+        }
+        c[i] *= c[3];
     }
     c
 }
@@ -109,12 +196,40 @@ pub fn tessellate(
 ) -> Result<Vec<VectorVertex>, String> {
     tessellate_with_limit(v, size, scale, MAX_TRIANGLE_VERTICES).map_err(|cause| cause.to_string())
 }
-pub(crate) fn tessellate_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, limit: usize) -> Result<Vec<VectorVertex>, VectorGeometryError> {
-    let mut builder = budget::BoundedGeometry::new(Vec::new(), size, limit.min(MAX_TRIANGLE_VERTICES), None);
-    tessellate_into(v, scale, &mut builder)?;
+pub(crate) fn tessellate_with_limit(
+    v: &SampledVector,
+    size: [f32; 2],
+    scale: f32,
+    limit: usize,
+) -> Result<Vec<VectorVertex>, VectorGeometryError> {
+    tessellate_in_space(v, size, scale, limit, PaintSpace::Srgb)
+}
+fn tessellate_in_space(
+    v: &SampledVector,
+    size: [f32; 2],
+    scale: f32,
+    limit: usize,
+    space: PaintSpace,
+) -> Result<Vec<VectorVertex>, VectorGeometryError> {
+    let mut builder =
+        budget::BoundedGeometry::new(Vec::new(), size, limit.min(MAX_TRIANGLE_VERTICES), None);
+    tessellate_into_space(v, scale, &mut builder, space)?;
     Ok(builder.output)
 }
-fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedGeometry) -> Result<(), VectorGeometryError> {
+#[cfg(test)]
+fn tessellate_into(
+    v: &SampledVector,
+    scale: f32,
+    builder: &mut budget::BoundedGeometry,
+) -> Result<(), VectorGeometryError> {
+    tessellate_into_space(v, scale, builder, PaintSpace::Srgb)
+}
+fn tessellate_into_space(
+    v: &SampledVector,
+    scale: f32,
+    builder: &mut budget::BoundedGeometry,
+    space: PaintSpace,
+) -> Result<(), VectorGeometryError> {
     if v.batches.is_some() {
         return Err("grouped vector raster execution is not available yet".into());
     }
@@ -164,7 +279,7 @@ fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedG
     };
     let tolerance = (0.2 / scale).max(0.05);
     if let Some(color) = v.fill {
-        let color = paint(color);
+        let color = paint(color, space);
         builder.color = color;
         let options = FillOptions::default()
             .with_tolerance(tolerance)
@@ -172,17 +287,15 @@ fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedG
                 FillRule::EvenOdd => lyon_tessellation::FillRule::EvenOdd,
                 FillRule::NonZero => lyon_tessellation::FillRule::NonZero,
             });
-        let result = FillTessellator::new()
-            .tessellate_path(
-                &make_path(true)?,
-                &options,
-                builder,
-            );
+        let result = FillTessellator::new().tessellate_path(&make_path(true)?, &options, builder);
         builder.check()?;
-        result.map_err(|cause| VectorGeometryError::Tessellation { phase: "fill", cause })?;
+        result.map_err(|cause| VectorGeometryError::Tessellation {
+            phase: "fill",
+            cause,
+        })?;
     }
     if let Some((color, width, cap, join, miter)) = v.stroke.filter(|s| s.1 > 0.) {
-        let color = paint(color);
+        let color = paint(color, space);
         builder.color = color;
         let cap = match cap {
             LineCap::Butt => lyon_tessellation::LineCap::Butt,
@@ -200,14 +313,13 @@ fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedG
             .with_line_cap(cap)
             .with_line_join(join)
             .with_miter_limit(miter);
-        let result = StrokeTessellator::new()
-            .tessellate_path(
-                &make_path(false)?,
-                &options,
-                builder,
-            );
+        let result =
+            StrokeTessellator::new().tessellate_path(&make_path(false)?, &options, builder);
         builder.check()?;
-        result.map_err(|cause| VectorGeometryError::Tessellation { phase: "stroke", cause })?;
+        result.map_err(|cause| VectorGeometryError::Tessellation {
+            phase: "stroke",
+            cause,
+        })?;
     }
     builder.check().map_err(VectorGeometryError::from)
 }

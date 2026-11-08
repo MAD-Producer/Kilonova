@@ -11,6 +11,7 @@ use motion_effects::{
 };
 use motion_model::color_management::{ProjectColorManagement, SignalRange};
 use std::sync::Arc;
+mod vectors;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthoredSceneError {
@@ -93,6 +94,7 @@ impl AuthoredSceneFrame {
 /// retain the last published frame while a new sample is being prepared. No
 /// native runtime load, program preparation or file IO occurs during sampling.
 pub struct AuthoredSceneSampler {
+    vectors: vectors::WorkingVectors,
     settings: Arc<ProjectColorManagement>,
     native: NativeColorProgram,
     input_range: CodeValueRange,
@@ -181,6 +183,7 @@ impl AuthoredSceneSampler {
             precision: ChannelPrecision::Float32,
         };
         Ok(Self {
+            vectors: Default::default(),
             settings: project.color_management.clone(),
             native,
             input_range,
@@ -280,7 +283,7 @@ impl AuthoredSceneSampler {
         for layer in &mut self.spare.layers {
             // The working image is already transformed and premultiplied. Its
             // neutral tint is an identity multiplier, not an authored color.
-            if layer.asset.is_some() {
+            if layer.asset.is_some() || layer.vector.is_some() {
                 continue;
             }
             layer.color = transform(
@@ -291,6 +294,12 @@ impl AuthoredSceneSampler {
                 layer.color,
             )?;
         }
+        self.vectors.apply(
+            &mut self.spare,
+            &self.native,
+            self.input_range,
+            self.input_alpha,
+        )?;
         std::mem::swap(&mut self.current.scene, &mut self.spare);
         self.published = true;
         Ok(&self.current)
@@ -343,7 +352,11 @@ fn admit(project: &Project) -> Result<()> {
     for layer in &project.layers {
         if !matches!(
             layer.content,
-            Content::Solid { .. } | Content::Image { .. } | Content::Null | Content::Audio { .. }
+            Content::Solid { .. }
+                | Content::Image { .. }
+                | Content::Vector { .. }
+                | Content::Null
+                | Content::Audio { .. }
         ) || layer.three_d
             || !layer.effects.is_empty()
             || !layer.masks.is_empty()

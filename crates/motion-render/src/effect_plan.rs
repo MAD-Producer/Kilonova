@@ -517,6 +517,7 @@ pub struct PlanBuilder {
             [f32; 2],
             f32,
             crate::vector_mesh::VectorMesh,
+            crate::vector_mesh::PaintSpace,
         ),
     >,
     mask_cache: crate::mask_plan::MaskCache,

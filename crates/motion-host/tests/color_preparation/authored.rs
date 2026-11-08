@@ -8,6 +8,8 @@ use motion_render::{
 };
 #[path = "authored_images.rs"]
 mod image_composition;
+#[path = "authored_vectors.rs"]
+mod vector_composition;
 
 fn runtime() -> std::path::PathBuf {
     std::env::var_os("MOTION_TEST_OCIO_RUNTIME")
