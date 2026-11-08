@@ -266,6 +266,7 @@ fn matches(
 pub struct ColorProcessorOutput {
     raw: RawColorProcessorOutput,
     phase: ColorProcessorPhase,
+    input: ColorImageContract,
     output: ColorImageContract,
 }
 impl ColorProcessorOutput {
@@ -304,7 +305,24 @@ impl ColorProcessorOutput {
         Ok(Self {
             raw,
             phase: processor.phase(),
+            input: source.contract,
             output,
+        })
+    }
+    /// Reuse a prepared device pipeline and numeric tables with another exact
+    /// input contract. This creates a source binding, never a shader or table.
+    /// Source dimensions may change; the eventual destination must match them.
+    pub fn rebind(&self, renderer: &Renderer, source: &ColorImageTarget) -> Result<Self, RenderError> {
+        range_matches(self.phase, "source", self.input.range, source.contract.range)?;
+        matches(self.phase, "source", self.input.space, source.contract.space)?;
+        if source.contract.alpha != self.input.alpha || source.contract.precision != self.input.precision {
+            return Err(RenderError::Invalid("OCIO rebound source alpha or precision differs from prepared input".into()));
+        }
+        Ok(Self {
+            raw: self.raw.rebind(renderer, &source.image)?,
+            phase: self.phase,
+            input: self.input,
+            output: self.output,
         })
     }
     pub fn key(&self) -> [u8; 32] {

@@ -2166,7 +2166,7 @@ impl Renderer {
         frame: &crate::AuthoredSceneFrame,
         target: &crate::ColorImageTarget,
     ) -> Result<RenderStats> {
-        self.draw_authored_scene_images(frame, target, None)
+        self.draw_authored_scene_images(frame, target, None, false)
     }
     pub fn draw_authored_scene_with_images(
         &mut self,
@@ -2174,13 +2174,25 @@ impl Renderer {
         target: &crate::ColorImageTarget,
         images: &AuthoredImageSet,
     ) -> Result<RenderStats> {
-        self.draw_authored_scene_images(frame, target, Some(images))
+        self.draw_authored_scene_images(frame, target, Some(images), false)
+    }
+    /// Explicit bounded preview consumer. Fits the sampled composition into a
+    /// smaller target without changing its geometry, camera or color contract.
+    /// Formal frame consumers above retain their exact-extent requirement.
+    pub fn draw_authored_preview(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+        images: Option<&AuthoredImageSet>,
+    ) -> Result<RenderStats> {
+        self.draw_authored_scene_images(frame, target, images, true)
     }
     fn draw_authored_scene_images(
         &mut self,
         frame: &crate::AuthoredSceneFrame,
         target: &crate::ColorImageTarget,
         images: Option<&AuthoredImageSet>,
+        preview: bool,
     ) -> Result<RenderStats> {
         self.check_health()?;
         target.image().check_owner(self)?;
@@ -2193,7 +2205,8 @@ impl Renderer {
             }.into());
         }
         let size = [target.image().width(), target.image().height()];
-        if size != frame.size() {
+        if (!preview && size != frame.size())
+            || (preview && (size[0] > frame.size()[0] || size[1] > frame.size()[1])) {
             return Err(crate::AuthoredSceneError::Extent {
                 expected: frame.size(), actual: size,
             }.into());

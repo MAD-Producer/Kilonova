@@ -72,10 +72,12 @@ impl Error for NativeColorProcessorError {
 
 /// Private raw transport. The public wrapper checks complete endpoint identity;
 /// ImageContract's legacy Linear tag only selects non-transferring float storage.
+#[derive(Clone)]
 struct RawColorProcessorOutput {
     pipeline: wgpu::RenderPipeline,
     tables_group: wgpu::BindGroup,
     source_group: wgpu::BindGroup,
+    source_layout: wgpu::BindGroupLayout,
     source: OwnedTexture,
     output: ImageContract,
     key: [u8; 32],
@@ -250,7 +252,7 @@ impl RawColorProcessorOutput {
                 multiview_mask: None,
                 cache: None,
             });
-            Ok::<_, RenderError>((pipeline, tables_group, source_group, tables))
+            Ok::<_, RenderError>((pipeline, tables_group, source_group, source_layout, tables))
         })();
         let validation = validation.pop();
         let internal = internal.pop();
@@ -271,7 +273,7 @@ impl RawColorProcessorOutput {
             }
             .into());
         }
-        let (pipeline, tables_group, source_group, tables) = result.map_err(|primary| {
+        let (pipeline, tables_group, source_group, source_layout, tables) = result.map_err(|primary| {
             if let Err(secondary) = &polled {
                 let text = format!("{primary}; OCIO image creation poll also failed: {secondary}");
                 primary.with_diagnostic(text)
@@ -285,6 +287,7 @@ impl RawColorProcessorOutput {
             pipeline,
             tables_group,
             source_group,
+            source_layout,
             source: source.texture().clone(),
             output,
             key: processor.key(),
@@ -294,6 +297,26 @@ impl RawColorProcessorOutput {
     }
     pub fn key(&self) -> [u8; 32] {
         self.key
+    }
+    fn rebind(&self, renderer: &Renderer, source: &ImageCaptureTarget) -> Result<Self, RenderError> {
+        renderer.check_health()?;
+        if !Arc::ptr_eq(&self.owner, &renderer.allocation_owner) {
+            return Err(RenderError::Invalid("OCIO prepared pipeline belongs to another renderer".into()));
+        }
+        source.check_owner(renderer)?;
+        let source_group = renderer.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("rebound prepared OCIO source image"),
+            layout: &self.source_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(source.view()),
+            }],
+        });
+        renderer.check_health()?;
+        let mut rebound = self.clone();
+        rebound.source_group = source_group;
+        rebound.source = source.texture().clone();
+        Ok(rebound)
     }
     /// Exact image extents, one fragment per pixel. No resampling or implicit
     /// display transfer; AllocationEncoder retains admission through completion.

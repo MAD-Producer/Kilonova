@@ -51,7 +51,7 @@ pub(super) fn pixels(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
 pub(super) fn surface(renderer: &Renderer, format: wgpu::TextureFormat) -> wgpu::Texture {
     sized_surface(renderer, format, 3, 4)
 }
-fn sized_surface(
+pub(super) fn sized_surface(
     renderer: &Renderer,
     format: wgpu::TextureFormat,
     width: u32,

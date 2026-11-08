@@ -66,6 +66,19 @@ impl Presenter {
         format: wgpu::TextureFormat, buffers: memory::Buffers) -> Self {
         Self::with_encoding(renderer, source, format, buffers, false)
     }
+    fn with_prepared_pipeline(&self, renderer: &Renderer, source: &wgpu::TextureView,
+        buffers: memory::Buffers) -> Self {
+        let memory::Buffers { color: buffer, view: view_buffer } = buffers;
+        let group = Self::source_group(&renderer.device, &self.layout, &self.sampler, &buffer, source);
+        let view_group = Self::source_group(&renderer.device, &self.layout, &self.sampler, &view_buffer, source);
+        Self {
+            pipeline: self.pipeline.clone(), group, view_group, source: source.clone(),
+            format: self.format, layout: self.layout.clone(), sampler: self.sampler.clone(),
+            buffer, view_buffer, view_channel: ViewChannel::Color,
+            inspection_region: None, comparison_split: None, comparison_group: None,
+            comparison_ledger: None, comparison_allocation: None, source_allocation: None,
+        }
+    }
     fn with_encoding(renderer: &Renderer, source: &wgpu::TextureView,
         format: wgpu::TextureFormat, buffers: memory::Buffers, display_codes: bool) -> Self {
         let device = &renderer.device;

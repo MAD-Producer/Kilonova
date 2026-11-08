@@ -90,6 +90,29 @@ impl AuthoredSceneFrame {
     pub fn frame(&self) -> f64 {
         self.scene.frame
     }
+    /// Select a root camera from this successfully sampled working frame.
+    /// The complete color and source contracts remain attached; no expression,
+    /// native color processor, decoder or file provider is run again.
+    pub fn fork_view(&self, view: ViewCamera<'_>) -> Result<Self> {
+        Ok(Self {
+            scene: self.scene.fork_view(view).map_err(|source| {
+                AuthoredSceneError::Model { phase: "view", source }
+            })?,
+            contract: self.contract,
+            assets: self.assets.clone(),
+        })
+    }
+    /// A complete one-, two- or four-cell group. Invalid cameras reject the
+    /// group rather than exposing partially prepared or unmanaged contexts.
+    pub fn fork_views(&self, views: &[ViewCamera<'_>]) -> Result<Vec<Self>> {
+        self.scene.fork_views(views)
+            .map(|scenes| scenes.into_iter().map(|scene| Self {
+                scene,
+                contract: self.contract,
+                assets: self.assets.clone(),
+            }).collect())
+            .map_err(|source| AuthoredSceneError::Model { phase: "view_group", source })
+    }
     pub(crate) fn source(&self, id: u64) -> Option<&motion_model::Asset> {
         self.assets.iter().find(|asset| asset.id == id)
     }

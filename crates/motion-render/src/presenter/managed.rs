@@ -45,6 +45,15 @@ impl ManagedDisplayTarget {
     pub fn contract(&self) -> ColorImageContract {
         self.image.contract()
     }
+    /// Another target for the same prepared transform, including resized views.
+    /// No native shader, pipeline or numeric table is created here.
+    pub fn rebind(&self, renderer: &Renderer, working: &ColorImageTarget) -> Result<Self, RenderError> {
+        let conversion = self.conversion.rebind(renderer, working)?;
+        let image = renderer.color_image_target(
+            working.image().width(), working.image().height(), self.contract(),
+        )?;
+        Ok(Self { image, conversion })
+    }
     pub fn dimensions(&self) -> [u32; 2] {
         [self.image.image().width(), self.image.image().height()]
     }
@@ -68,6 +77,8 @@ pub struct ManagedDisplayPresenter {
     presenter: Presenter,
     resources: TextureResourceLedger,
     owner: std::sync::Arc<()>,
+    contract: ColorImageContract,
+    processor: [u8; 32],
 }
 impl ManagedDisplayPresenter {
     pub fn new(
@@ -102,6 +113,30 @@ impl ManagedDisplayPresenter {
             presenter,
             resources,
             owner: renderer.allocation_owner.clone(),
+            contract: source.contract(),
+            processor: source.conversion.key(),
+        })
+    }
+    /// Reuse the qualified transport pipeline with independent per-view
+    /// uniforms. Sharing the prototype's writable uniform would make cells
+    /// overwrite each other's geometry before queue submission.
+    pub fn rebind(&self, renderer: &Renderer, source: &ManagedDisplayTarget) -> Result<Self, RenderError> {
+        if !std::sync::Arc::ptr_eq(&self.owner, &renderer.allocation_owner) {
+            return Err(RenderError::Invalid("managed display pipeline belongs to another renderer".into()));
+        }
+        source.image.image().check_owner(renderer)?;
+        if source.contract() != self.contract || source.conversion.key() != self.processor {
+            return Err(RenderError::Invalid("managed display source differs from the prepared display contract or program".into()));
+        }
+        let view = source.image.image().texture().admitted_view()?;
+        let buffers = memory::Buffers::admitted_display_codes(renderer, self.presenter.format)?;
+        let mut presenter = self.presenter.with_prepared_pipeline(renderer, &view, buffers);
+        presenter.source_allocation = Some(view.lease.clone());
+        let mut resources = TextureResourceLedger::default();
+        source.collect_texture_resources(&mut resources);
+        Ok(Self {
+            presenter, resources, owner: self.owner.clone(),
+            contract: self.contract, processor: self.processor,
         })
     }
     pub fn encode(
@@ -124,6 +159,20 @@ impl ManagedDisplayPresenter {
         image: Option<[f32; 4]>,
         background: [f32; 4],
     ) -> Result<(), RenderError> {
+        self.encode_view_load(renderer, encoder, output, viewport, image, background, false)
+    }
+    /// Encode another independently bound cell, retaining earlier cells when
+    /// `load` is true. The host clears once and owns the complete group commit.
+    pub fn encode_view_load(
+        &self,
+        renderer: &Renderer,
+        encoder: &mut AllocationEncoder,
+        output: &wgpu::Texture,
+        viewport: [f32; 4],
+        image: Option<[f32; 4]>,
+        background: [f32; 4],
+        load: bool,
+    ) -> Result<(), RenderError> {
         self.check_output(renderer, encoder, output)?;
         let [x, y, w, h] = viewport;
         if !viewport.iter().all(|v| v.is_finite())
@@ -141,7 +190,7 @@ impl ManagedDisplayPresenter {
             ));
         }
         let view = output.create_view(&Default::default());
-        self.presenter.encode_view(
+        self.presenter.encode_view_load(
             &renderer.queue,
             encoder,
             &view,
@@ -149,6 +198,7 @@ impl ManagedDisplayPresenter {
             viewport,
             image,
             background,
+            load,
         )
     }
     fn check_output(

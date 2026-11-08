@@ -3,6 +3,67 @@ use motion_core::{Asset, Content};
 use motion_render::AuthoredImageSet;
 use std::sync::atomic::AtomicBool;
 
+#[test]
+#[ignore = "requires the pinned native OCIO runtime and an actual GPU"]
+fn frozen_image_bindings_survive_typed_view_forks_and_scaled_previews() {
+    let reference = reference();
+    let original = original();
+    let mut renderer = renderer();
+    let mut stages = std::collections::BTreeSet::new();
+    let mut checked = 0;
+    for case in &original.cases {
+        if !stages.insert(case.stages[0]) { continue; }
+        let root = tempfile::tempdir().unwrap();
+        let alpha = reference.cases[case.stages[0]].processor.input_alpha;
+        let mut project = image_document(&reference, root.path(), case.config, alpha);
+        // A 3x4 source fills a 6x8 composition. Its explicit half-size preview
+        // has one output pixel per original sample, preserving the old oracle.
+        project.width = 6;
+        project.height = 8;
+        project.layers[0].size = [6., 8.];
+        project.layers[0].transform.position.value = [3., 4., 0.];
+        project.validate().unwrap();
+        write_image(root.path(), &original.samples);
+        let (mut prepared, images) = prepare(&project, root.path(), &mut renderer);
+        let snapshot = serde_json::to_vec(&project).unwrap();
+        let observer = motion_core::Observer::new(6, 8);
+        let frame = prepared.authored.sample(&project, 0.25, &ExpressionEvaluator).unwrap();
+        let views = frame.fork_views(&[motion_render::ViewCamera::Composition,
+            motion_render::ViewCamera::Observer(&observer)]).unwrap();
+        std::fs::remove_file(root.path().join("assets/1.png")).unwrap();
+        for resource in project.color_management.resources().unwrap() {
+            std::fs::remove_file(root.path().join(resource.path)).unwrap();
+        }
+        prepared.authored.sample(&project, 1.75, &ExpressionEvaluator).unwrap();
+        let expected: Vec<_> = case.intermediate.iter().map(|p| premult(*p, alpha)).collect();
+        for view in views {
+            assert_eq!(view.size(), [6, 8]);
+            assert_eq!(view.frame(), 0.25);
+            let output = renderer.color_image_target(3, 4, view.contract()).unwrap();
+            let reads = renderer.image_readback_info();
+            renderer.draw_authored_preview(&view, &output, Some(&images)).unwrap();
+            assert_eq!(renderer.image_readback_info(), reads);
+            let pixels = read(&renderer, &output);
+            compare(&pixels, &expected, "frozen input through typed half-size view");
+            let before = renderer.allocation_budget().info().unwrap();
+            assert!(renderer.draw_authored_preview(&view, &output, None).is_err(),
+                "preview must not fall back to the legacy image cache");
+            assert_eq!(renderer.allocation_budget().info().unwrap().admitted_bytes, before.admitted_bytes);
+            assert_eq!(renderer.allocation_budget().info().unwrap().live_allocations, before.live_allocations);
+            assert_eq!(read(&renderer, &output), pixels);
+            renderer.draw_authored_preview(&view, &output, Some(&images)).unwrap();
+            assert_eq!(read(&renderer, &output), pixels);
+            checked += expected.len();
+        }
+        assert_eq!(serde_json::to_vec(&project).unwrap(), snapshot);
+        assert_eq!(prepared.authored.current().unwrap().frame(), 1.75);
+    }
+    assert_eq!(stages.len(), 6);
+    assert_eq!(checked, 144);
+    renderer.check_health().unwrap();
+    println!("frozen image scaled-view CPU pixels={checked}; config/image files absent; missing binding refusal leaves destination unchanged");
+}
+
 #[derive(Deserialize)]
 struct Original {
     samples: Vec<[u16; 4]>,
