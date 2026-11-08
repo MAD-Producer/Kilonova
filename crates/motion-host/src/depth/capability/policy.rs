@@ -28,6 +28,9 @@ pub struct Request {
     pub domain: String,
     /// Exact hardware/environment record, including relevant runtime settings.
     pub environment_sha256: [u8; 32],
+    /// Audited measurement definitions: quality normalization and reference,
+    /// host/device memory counters, sustained load and sensor sampling method.
+    pub measurement_protocol_sha256: [u8; 32],
     pub geometry: DepthGeometry,
     pub model: Option<DepthModel>,
     pub backend: Option<String>,
@@ -88,6 +91,7 @@ pub struct Qualification {
     pub execution: Execution,
     pub cohort_sha256: [u8; 32],
     pub environment_sha256: [u8; 32],
+    pub measurement_protocol_sha256: [u8; 32],
     pub domain: String,
     pub quality: Option<Quality>,
     pub memory: Option<Memory>,
@@ -106,6 +110,7 @@ pub enum Refusal {
     DifferentGeometry,
     DifferentBackend,
     DifferentEnvironment,
+    DifferentMeasurementProtocol,
     DifferentDomain,
     InsufficientSamples,
     OverLatencyBudget,
@@ -192,6 +197,7 @@ impl Request {
         }
         if !label(&self.domain)
             || !nonzero(self.environment_sha256)
+            || !nonzero(self.measurement_protocol_sha256)
             || self.backend.as_ref().is_some_and(|s| !label(s))
             || !(1..=64).contains(&self.minimum_samples)
             || self.maximum_worker_latency.is_zero()
@@ -248,6 +254,7 @@ impl Qualification {
             || self.execution != *summary.execution()
             || self.cohort_sha256 != cohort_sha256(profile)?
             || !nonzero(self.environment_sha256)
+            || !nonzero(self.measurement_protocol_sha256)
             || !label(&self.domain)
         {
             return Err(Error::Invalid(
@@ -371,6 +378,10 @@ pub fn select(requested: Request, inputs: &[Input<'_>]) -> Result<Decision> {
             reject(
                 q.environment_sha256 != requested.environment_sha256,
                 Refusal::DifferentEnvironment,
+            );
+            reject(
+                q.measurement_protocol_sha256 != requested.measurement_protocol_sha256,
+                Refusal::DifferentMeasurementProtocol,
             );
             reject(q.domain != requested.domain, Refusal::DifferentDomain);
             if let Some(v) = &q.quality {

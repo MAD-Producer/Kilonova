@@ -718,6 +718,7 @@ fn policy_request() -> motion_host::depth::capability::policy::Request {
         tier: Tier::Standard,
         domain: "authored-control-domain".into(),
         environment_sha256: [80; 32],
+        measurement_protocol_sha256: [85; 32],
         geometry: key().geometry,
         model: None,
         backend: None,
@@ -746,6 +747,7 @@ fn policy_qualification(
         execution: summary.execution().clone(),
         cohort_sha256: policy::cohort_sha256(profile).unwrap(),
         environment_sha256: [80; 32],
+        measurement_protocol_sha256: [85; 32],
         domain: "authored-control-domain".into(),
         quality: Some(Quality {
             record_sha256: [81; 32],
@@ -1256,4 +1258,45 @@ fn capability_policy_ranks_only_fully_admitted_candidates_by_all_observations() 
     assert_eq!(decision.resolved().unwrap().samples(), 2);
     assert_eq!(a.observations().len(), 2);
     assert_eq!(b.observations().len(), 2);
+}
+
+#[test]
+fn capability_policy_refuses_a_different_measurement_protocol_and_retains_report_identity() {
+    use motion_host::depth::capability::policy::{self, Input, Refusal};
+    let profile = sampled_profile(key(), execution(), [1, 2, 3, 4, 5, 6], 2);
+    let mut qualification = policy_qualification(&profile);
+    qualification.measurement_protocol_sha256 = [86; 32];
+    let decision = policy::select(
+        policy_request(),
+        &[Input {
+            profile: &profile,
+            qualification: Some(&qualification),
+        }],
+    )
+    .unwrap();
+    assert_eq!(
+        decision.candidates()[0].refusals(),
+        &[Refusal::DifferentMeasurementProtocol]
+    );
+    assert!(decision.resolved().is_none());
+    assert_eq!(decision.requested().measurement_protocol_sha256, [85; 32]);
+    assert_eq!(
+        decision.candidates()[0]
+            .qualification()
+            .unwrap()
+            .measurement_protocol_sha256,
+        [86; 32]
+    );
+    let mut request = policy_request();
+    request.measurement_protocol_sha256 = [0; 32];
+    assert!(policy::select(request, &[]).is_err());
+    qualification.measurement_protocol_sha256 = [0; 32];
+    assert!(policy::select(
+        policy_request(),
+        &[Input {
+            profile: &profile,
+            qualification: Some(&qualification),
+        }]
+    )
+    .is_err());
 }

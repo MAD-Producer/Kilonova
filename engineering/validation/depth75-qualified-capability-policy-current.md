@@ -1,6 +1,6 @@
 # Explicit multi-criterion depth admission (#75)
 
-Status: prepared implementation and twelve appended integration controls;
+Status: prepared implementation and thirteen appended integration controls;
 native execution and real qualification remain pending. Parent source
 `26b9156d` is undergoing its independent original regression/model/video gate.
 Its frozen worktree has not been edited to add this stage. No Android, panels,
@@ -34,7 +34,13 @@ reports in the tests establish admission behavior only; they do not qualify
 any real model, domain, hardware, memory peak or temperature.
 
 Every report binds the exact model/hash/processing, geometry, actual execution
-provider/runtime/plan/precision, ordered cohort, environment and domain. Quality
+provider/runtime/plan/precision, ordered cohort, environment, domain and explicit
+measurement-protocol digest. The request must name the same protocol; different
+normalization, memory-counter definitions, sustained-load protocols or sensor
+sampling methods are not numerically comparable just because their field names
+match. The caller must verify the actual hardware/environment association;
+the generic worker does not independently attest CPU hardware from a report.
+Quality
 reports must cover the entire measured cohort, without a smaller cherry-picked
 sample count or an invented larger count. Quality residuals refer to an
 independent reference under the identified protocol, not same-model ONNX/WGSL
@@ -70,17 +76,18 @@ configuration change.
 
 ## Prepared verification and remaining work
 
-The twelve appended `capability_policy_*` controls use actual measured Jobs
+The thirteen appended `capability_policy_*` controls use actual measured Jobs
 profiles with controlled backends. They cover exact boundaries, all three
 requested labels, unknown sections, requested/actual identity, every reported
 limit, source/model/execution/report mismatch, complete quality sample counts,
 failed/canceled sustained attempts, invalid or nonfinite reports, cross-model
 comparison, rationally canonical cohorts, bounded requests/candidate counts,
 the actual managed-buffer lower bound, and worst-case selection without
-discarding samples. The original fifteen integration controls remain unchanged.
+discarding samples, and explicit measurement-protocol matching and retained
+report identity. The original fifteen integration controls remain unchanged.
 
 Formatting, syntax parsing and diff checks are preparatory evidence only. Do not
-claim these twelve controls passed until their original native command reaches
+claim these thirteen controls passed until their original native command reaches
 a verified terminal result. Continue using one own heavy workload at a time.
 
 Real independent domain quality, conservative whole-memory observations,
