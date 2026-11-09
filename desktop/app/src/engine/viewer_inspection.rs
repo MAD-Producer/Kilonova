@@ -4,10 +4,30 @@ use motion_host::session::Session;
 use motion_render::{Presenter, Renderer, ViewChannel, ViewerSnapshot};
 use serde_json::Value;
 use std::{collections::HashMap, path::Path};
+mod managed;
+
+enum SnapshotImage {
+    Legacy(ViewerSnapshot),
+    Managed(motion_render::ManagedDisplaySnapshot),
+}
+impl SnapshotImage {
+    fn dimensions(&self)->[u32;2] {
+        match self {
+            Self::Legacy(image)=>[image.native().width,image.native().height],
+            Self::Managed(image)=>image.dimensions(),
+        }
+    }
+    fn legacy(&self)->Result<&ViewerSnapshot,String> {
+        match self {
+            Self::Legacy(image)=>Ok(image),
+            Self::Managed(_)=>Err("managed snapshot requires its typed consumer".into()),
+        }
+    }
+}
 
 struct Snapshot {
     generation: u64,
-    image: ViewerSnapshot,
+    image: SnapshotImage,
 }
 
 #[derive(Default)]
@@ -61,8 +81,10 @@ impl State {
             .next_generation
             .checked_add(1)
             .ok_or("viewer snapshot generation exhausted")?;
-        let image = if let Some(index) = cell {
-            session.capture_view_cell(window, index)?
+        let image = if session.color_programs().is_some() {
+            SnapshotImage::Managed(session.capture_managed_view_cell(window,cell.unwrap_or(0))?)
+        } else if let Some(index) = cell {
+            SnapshotImage::Legacy(session.capture_view_cell(window, index)?)
         } else {
             let stamp = stamp.ok_or("no completed viewer frame is available")?;
             if stamp.revision != session.engine.revision()
@@ -88,10 +110,9 @@ impl State {
                 .scratch
                 .working_front()
                 .ok_or("the working viewer frame is unavailable")?;
-            ViewerSnapshot::capture(&graphics.renderer, source)?
+            SnapshotImage::Legacy(ViewerSnapshot::capture(&graphics.renderer, source)?)
         };
-        let width = image.native().width;
-        let height = image.native().height;
+        let [width,height] = image.dimensions();
         if self.bound.is_some_and(|bound| bound.0 == window) {
             if let Some(graphics) = session.graphics.as_mut() {
                 graphics.presenter.clear_comparison_source();
@@ -118,22 +139,16 @@ impl State {
             .get(&(ui.window, None))
             .ok_or("viewer comparison snapshot is unavailable")?;
         let target = if ui.inspection.channel == ViewChannel::Color {
-            snapshot.image.display()
+            snapshot.image.legacy()?.display()
         } else {
-            snapshot.image.native()
+            snapshot.image.legacy()?.native()
         };
         Ok(Some((snapshot, target)))
     }
 
     pub(super) fn configure(&mut self, session: &mut Session, ui: &UiFrame) -> Result<(), String> {
-        if session.color_programs().is_some()
-            && ui.composition.is_some()
-            && ui.views.is_none()
-            && ui.inspection.comparison_split.is_some()
-        {
-            return Err("managed viewer phase=surface_inspection: comparison requires its explicit managed consumer".into());
-        }
         self.reconcile(session);
+        if session.color_programs().is_some() { return Ok(()); }
         let selection = if ui.composition.is_some() && ui.views.is_none() {
             self.source(ui)?
         } else {
@@ -200,37 +215,8 @@ impl State {
         let Some(plan) = &ui.views else {
             return Ok(vec![]);
         };
-        plan.cells
-            .iter()
-            .enumerate()
-            .map(|(index, cell)| {
-                let settings = cell.inspection;
-                let comparison = if let Some(split) = settings.comparison_split {
-                    let snapshot =
-                        self.snapshots
-                            .get(&(ui.window, Some(index)))
-                            .ok_or_else(|| {
-                                format!(
-                                "viewer comparison window={} cell={index}: snapshot is unavailable",
-                                ui.window
-                            )
-                            })?;
-                    let source = if settings.channel == ViewChannel::Color {
-                        snapshot.image.display()
-                    } else {
-                        snapshot.image.native()
-                    };
-                    Some((source, split))
-                } else {
-                    None
-                };
-                Ok(motion_render::multiview::ViewInspection {
-                    channel: settings.channel,
-                    region: settings.region,
-                    comparison,
-                })
-            })
-            .collect()
+        plan.cells.iter().enumerate().map(|(index,cell)|
+            self.inspected(ui.window,Some(index),cell.inspection,"surface_inspection")).collect()
     }
 
     pub(super) fn save(
@@ -258,7 +244,11 @@ impl State {
             .snapshots
             .get(&(window, cell))
             .ok_or("phase=source: viewer snapshot is unavailable")?;
-        let source = snapshot.image.native();
+        if let SnapshotImage::Managed(image)=&snapshot.image {
+            return managed::save(session,window,snapshot.generation,image,path,channel);
+        }
+        let image = snapshot.image.legacy()?;
+        let source = image.native();
         let graphics = session
             .graphics
             .as_ref()
@@ -297,7 +287,7 @@ impl State {
                 .map_err(|error| motion_host::Error::with_context("phase=encode", error))?;
             renderer
                 .submit_allocated(encoder.finish(), |ledger| {
-                    snapshot.image.collect_texture_resources(ledger);
+                    image.collect_texture_resources(ledger);
                     ledger.merge(target.texture_resource_ledger());
                 })
                 .map_err(|error| motion_host::Error::with_context("phase=submit", error))?;
@@ -323,7 +313,7 @@ impl State {
                 .map_err(|error| motion_host::Error::with_context("phase=encode", error))?;
             renderer
                 .submit_allocated(encoder.finish(), |ledger| {
-                    snapshot.image.collect_texture_resources(ledger);
+                    image.collect_texture_resources(ledger);
                     ledger.merge(target.texture_resource_ledger());
                 })
                 .map_err(|error| motion_host::Error::with_context("phase=submit", error))?;

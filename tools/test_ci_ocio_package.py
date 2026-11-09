@@ -187,6 +187,17 @@ class OcioPackageTest(unittest.TestCase):
         self.assertEqual(window["env"]["MOTION_TEST_OCIO_RUNTIME"], native["env"]["MOTION_TEST_OCIO_RUNTIME"])
         self.assertEqual(window["env"]["MOTION_COLOR_TEST_EVIDENCE"], native["env"]["MOTION_COLOR_TEST_EVIDENCE"])
 
+    def test_managed_snapshot_pixels_gate_native_packaging(self):
+        workflow = release_tests.yaml.load((desktop.ROOT / ".github/workflows/ci.yml").read_text(),
+                                          Loader=release_tests.yaml.BaseLoader)
+        steps = workflow["jobs"]["desktop"]["steps"]
+        qualify = next(s for s in steps if s.get("name") == "Qualify native OCIO against independent references")
+        package = next(s for s in steps if s.get("name") == "Package desktop release archive")
+        self.assertNotIn("if", qualify)
+        self.assertNotIn("continue-on-error", qualify)
+        self.assertLess(steps.index(qualify), steps.index(package))
+        self.assertIn("cargo test -p motion-render --test color_image_processor managed_snapshots::managed_snapshots_freeze_both_endpoints_and_compare_independent_cells --locked -- --ignored --exact --nocapture --test-threads=1", qualify["run"].splitlines())
+
     def test_native_file_resources_gate_packaging_with_fresh_cpu_oracle(self):
         workflow = release_tests.yaml.load((desktop.ROOT / ".github/workflows/ci.yml").read_text(), Loader=release_tests.yaml.BaseLoader)
         steps = workflow["jobs"]["desktop"]["steps"]

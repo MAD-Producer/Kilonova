@@ -20,6 +20,8 @@ mod display_capture;
 mod roi;
 #[path = "authored_window_components.rs"]
 mod components;
+#[path = "authored_window_snapshots.rs"]
+mod snapshots;
 
 fn attach(session: &mut Session, events: &winit::event_loop::EventLoop<()>) {
     #[allow(deprecated)]

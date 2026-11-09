@@ -25,6 +25,8 @@ mod opaque_display;
 mod prepared_display;
 #[path = "color_image_processor/managed_components.rs"]
 mod managed_components;
+#[path = "color_image_processor/managed_snapshots.rs"]
+mod managed_snapshots;
 #[derive(Deserialize)]
 struct Reference {
     absolute_tolerance: f32,

@@ -6,6 +6,8 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 mod roi;
 #[path = "native_window_components.rs"]
 mod components;
+#[path = "native_window_snapshots.rs"]
+mod snapshots;
 
 #[test]
 #[ignore = "requires an actual Windows surface, GPU and pinned native OCIO runtime"]
@@ -267,7 +269,23 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
             "floating capture used another surface: actual={pixel:?} CPU={expected:?}"
         );
         assert_eq!(pixel[3], 255);
+        let floating_snapshot=engine.capture_viewer_snapshot_async(8).unwrap()
+            .recv_timeout(Duration::from_secs(30)).unwrap().unwrap();
+        assert_eq!(floating_snapshot["window"],8);
+        let floating_saved=root.join("managed-snapshot-floating.png");
+        let saved=engine.save_viewer_snapshot_async(8,floating_saved.clone(),motion_render::ViewChannel::Color).unwrap()
+            .recv_timeout(Duration::from_secs(30)).unwrap().unwrap();
+        assert_eq!(saved["generation"],floating_snapshot["generation"]);
+        let frozen=image::open(floating_saved).unwrap().to_rgba8();
+        assert_eq!([frozen.width()as u64,frozen.height()as u64],
+            [saved["width"].as_u64().unwrap(),saved["height"].as_u64().unwrap()]);
+        assert!((0..3).all(|c|frozen.get_pixel(frozen.width()/2,frozen.height()/2).0[c].abs_diff(expected[c])<=1));
         engine.close_window(8).unwrap();
+        let closed=root.join("managed-snapshot-closed-owner.png");
+        let error=engine.save_viewer_snapshot_async(8,closed.clone(),motion_render::ViewChannel::Color).unwrap()
+            .recv_timeout(Duration::from_secs(30)).unwrap().unwrap_err();
+        assert!(error.to_string().contains("floating viewer window is closed"),"{error}");
+        assert!(!closed.exists());
         present();
         let before = engine.state().unwrap();
         fs::remove_file(&image).unwrap();
@@ -434,6 +452,25 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
             error.to_string().contains("phase=surface_inspection"),
             "{error}"
         );
+        let background=native.prepare(&config,&declared.selection,
+            motion_effects::color_processor::ColorProcessorPhase::InputToWorking,
+            declared.authored_input.signal.alpha,declared.working.alpha).unwrap()
+            .apply_rgb([managed.background[0],managed.background[1],managed.background[2]]).unwrap();
+        let new_working=std::array::from_fn::<_,4,_>(|i|if i==3 {0.25+managed.background[3]*0.75}
+            else {working[i]*0.25+background[i]*managed.background[3]*0.75});
+        let new_display=native.prepare(&config,&declared.selection,
+            motion_effects::color_processor::ColorProcessorPhase::WorkingToDisplay,
+            declared.working.alpha,declared.working.alpha).unwrap()
+            .apply_rgb([new_working[0],new_working[1],new_working[2]]).unwrap();
+        // The earlier missing-source cases deliberately removed this file.
+        // A real opacity edit reparses source resources; restore the source
+        // before qualifying successful edits and their history round-trip.
+        write_image();
+        for count in [1,2,4] {
+            snapshots::qualify(&engine,||layout(count),count,
+                [working[0],working[1],working[2],1.],new_working,expected,
+                new_display.map(|v|(v.clamp(0.,1.)*255.).round()as u8),&root);
+        }
         present();
         write_image();
         engine.edit(command).unwrap();
@@ -484,12 +521,14 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         fs::write(evidence.join("motion-studio.log"), &file).unwrap();
         fs::write(evidence.join("child.stdout"), &stdout).unwrap();
         fs::write(evidence.join("child.stderr"), &stderr).unwrap();
+        assert!(status.success(), "{status}\n{stdout}\n{stderr}\n{file}");
         for name in [
             "capture-reference.json",
             "managed-display-1.png",
             "managed-display-2.png",
             "managed-display-4.png",
             "managed-display-floating.png",
+            "managed-snapshot-floating.png",
             "managed-roi-1.png",
             "managed-roi-2.png",
             "managed-roi-4.png",
@@ -506,6 +545,14 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
             for phase in 0..5 {
                 let name = format!("managed-components-{count}-{phase}.png");
                 fs::copy(root.path().join(&name), evidence.join(name)).unwrap();
+            }
+            for phase in 0..5 {
+                let name=format!("managed-snapshot-comparison-{count}-{phase}.png");
+                fs::copy(root.path().join(&name),evidence.join(name)).unwrap();
+            }
+            for name in ["color","red","green","alpha"] {
+                let name=format!("managed-snapshot-saved-{count}-{name}.png");
+                fs::copy(root.path().join(&name),evidence.join(name)).unwrap();
             }
         }
     }
@@ -575,13 +622,37 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
     assert!(!stdout.contains("phase=surface_capture"));
     for reason in [
         "completed group is no longer current",
-        "managed capture comparison requires explicit integration",
+        "viewer comparison phase=surface_capture",
         "invalid viewer inspection viewport, image or region",
+        "phase=save managed display snapshot",
+        "managed snapshot phase=surface_snapshot",
+        "snapshot is unavailable",
+        "floating viewer window is closed",
     ] {
         let record = file
             .lines()
             .find(|line| line.contains(" ERROR ") && line.contains(reason))
             .unwrap();
         assert!(stderr.contains(record.split_once(": ").unwrap().1));
+    }
+    let snapshot_failures:Vec<_>=file.lines().filter(|line|
+        line.contains("motion_studio::engine: error #") &&
+        (line.contains(" capture_viewer_snapshot ") || line.contains(" save_viewer_snapshot "))).collect();
+    assert_eq!(snapshot_failures.len(),5,"{file}");
+    for line in snapshot_failures {
+        let record=line.split_once("motion_studio::engine: ").unwrap().1;
+        assert!(stderr.contains(record),"Error absent from stderr: {record}");
+        assert!(!stdout.contains(record),"Error leaked to stdout: {record}");
+        let (request,operation)=record.strip_prefix("error #").unwrap().split_once(' ').unwrap();
+        let operation=operation.split_whitespace().next().unwrap();
+        let start=format!("start #{request} {operation}");
+        assert!(file.find(&start).unwrap()<file.find(record).unwrap());
+        assert!(!stderr.contains(&start));
+        assert!(!stdout.contains(&start));
+    }
+    for marker in ["configured combined budget","managed snapshot save"] {
+        assert!(file.contains(marker),"file missing {marker}");
+        assert!(stderr.contains(marker),"stderr missing {marker}");
+        assert!(!stdout.contains(marker),"stdout leaked {marker}");
     }
 }

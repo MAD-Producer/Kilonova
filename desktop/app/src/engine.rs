@@ -2031,21 +2031,14 @@ fn handle(
             let result=motion_host::session::with_session(id, |s| {
             viewer_frame::validate(&ui)?;
             let managed_color=s.color_programs().is_some();
-            if managed_color && ui.composition.is_some() && ui.views.is_none()
-                && ui.inspection.comparison_split.is_some() {
-                return Err(motion_render::RenderError::from(motion_render::AuthoredSceneError::Admission {
-                    phase:"surface_capture",object:None,
-                    reason:"managed capture comparison requires explicit integration",
-                }).into());
-            }
             presentation.inspection.reconcile(s);
             let mut view_inspections = presentation.inspection.views(&ui)?;
+            if managed_color && ui.composition.is_some() && ui.views.is_none() {
+                view_inspections.push(presentation.inspection.single(&ui,"surface_capture")?);
+            }
             let observer=(managed_color && s.observing).then(||s.observer.clone());
             let managed_views=if managed_color {
                 ui.views.as_ref().map(viewer_frame::Plan::borrow).or_else(||ui.composition.map(|viewport| {
-                    view_inspections.push(motion_render::multiview::ViewInspection {
-                        channel:ui.inspection.channel,region:ui.inspection.region,..Default::default()
-                    });
                     vec![motion_host::session::viewer::View {
                         camera:motion_render::ViewCamera::from(observer.as_ref()),
                         placement:motion_render::multiview::ViewPlacement {viewport,image:ui.composition_image},
@@ -2248,9 +2241,7 @@ fn handle(
                 }
                 let mut view_inspections=presentation.inspection.views(&ui)?;
                 if managed_color && ui.views.is_none() {
-                    view_inspections.push(motion_render::multiview::ViewInspection {
-                        channel:ui.inspection.channel,region:ui.inspection.region,..Default::default()
-                    });
+                    view_inspections.push(presentation.inspection.single(&ui,"surface_inspection")?);
                 }
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 #[cfg(test)]

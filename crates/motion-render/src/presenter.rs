@@ -1,7 +1,7 @@
 use crate::Renderer;
 mod memory;
 mod managed;
-pub use managed::{ManagedDisplayPresenter, ManagedDisplayTarget};
+pub use managed::{ManagedDisplayPresenter, ManagedDisplayTarget, ManagedDisplaySnapshot};
 #[cfg(test)]
 mod admission_tests;
 #[cfg(test)]
@@ -279,7 +279,7 @@ impl Presenter {
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4],
         region: Option<[f32; 4]>, load: bool) -> Result<(), crate::RenderError> {
         self.encode_view_region_group_load(queue, encoder, output, timestamps,
-            viewport, image, background, region, load, &self.view_group, None)
+            viewport, image, background, region, load, &self.view_group, None, None)
     }
     /// Typed managed presentation selects either the display-code group or the
     /// original numeric working group. Both retain this cell's own uniform.
@@ -287,17 +287,18 @@ impl Presenter {
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4],
         region: Option<[f32; 4]>, load: bool, group: &wgpu::BindGroup,
-        channel: Option<ViewChannel>) -> Result<(), crate::RenderError> {
+        channel: Option<ViewChannel>, comparison: Option<(&wgpu::BindGroup, f32)>) -> Result<(), crate::RenderError> {
         if let Some(channel) = channel {
             self.view_buffer.write(queue, 4, bytemuck::bytes_of(&(channel as u32)))?;
         }
-        if region.is_some() || self.comparison_split.is_some() {
-            let comparison = match self.comparison_split {
-                Some(split) => Some((self.comparison_group.as_ref().ok_or_else(||
-                    crate::RenderError::Invalid("viewer comparison snapshot is unavailable".into()))?, split)),
-                None => None,
-            };
-            let (live, captured) = Self::inspection_scissors(viewport, image, region, self.comparison_split)?;
+        let comparison = match (comparison, self.comparison_split) {
+            (Some(explicit), _) => Some(explicit),
+            (None, Some(split)) => Some((self.comparison_group.as_ref().ok_or_else(||
+                crate::RenderError::Invalid("viewer comparison snapshot is unavailable".into()))?, split)),
+            (None, None) => None,
+        };
+        if region.is_some() || comparison.is_some() {
+            let (live, captured) = Self::inspection_scissors(viewport, image, region, comparison.map(|(_, split)| split))?;
             let [x, y, w, h] = viewport;
             self.write_view_geometry(queue, viewport, image)?;
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

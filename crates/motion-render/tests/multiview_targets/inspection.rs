@@ -83,21 +83,25 @@ fn channels_regions_and_comparisons_match_independent_working_image_oracles_in_f
                 channel: ViewChannel::Red,
                 region: None,
                 comparison: Some((snapshots[0].native(), 0.5)),
+                managed_comparison: None,
             },
             ViewInspection {
                 channel: ViewChannel::Green,
                 region: Some([0., 0., 0.5, 1.]),
                 comparison: Some((snapshots[1].native(), 0.)),
+                managed_comparison: None,
             },
             ViewInspection {
                 channel: ViewChannel::Blue,
                 region: Some([0.25, 0.25, 0.5, 0.5]),
                 comparison: None,
+                managed_comparison: None,
             },
             ViewInspection {
                 channel: ViewChannel::Alpha,
                 region: None,
                 comparison: Some((snapshots[3].native(), 0.75)),
+                managed_comparison: None,
             },
         ];
         let output = renderer

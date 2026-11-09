@@ -3,6 +3,7 @@
 use super::*;
 use crate::session::color::surface::refuse;
 mod capture;
+mod snapshot;
 pub use capture::ManagedViewCapture;
 
 fn inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result<()> {
@@ -16,6 +17,11 @@ fn inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result
     }
     Ok(())
 }
+fn comparison_resources(inspection:&[ViewInspection<'_>],ledger:&mut TextureResourceLedger) {
+    for cell in inspection {
+        if let Some((snapshot,_))=cell.managed_comparison { snapshot.collect_texture_resources(ledger); }
+    }
+}
 
 impl Session {
     pub(super) fn present_color_views(
@@ -28,6 +34,9 @@ impl Session {
     ) -> Result<bool> {
         self.check_thread()?;
         inspections(views, inspection)?;
+        if let Some(g)=&self.graphics {
+            if let Some(state)=&g.views.colors { state.validate_comparisons(&g.renderer,inspection)?; }
+        }
         self.observe_preview_pressure()?;
         if !self.view_group_current(owner, views, frozen)? {
             return Ok(false);
@@ -61,7 +70,9 @@ impl Session {
             )?;
         overlay(&g.renderer, &mut encoder, &target);
         g.renderer
-            .submit_allocated(encoder.finish(), |ledger| g.views.collect(ledger))?;
+            .submit_allocated(encoder.finish(), |ledger| {
+                g.views.collect(ledger); comparison_resources(inspection,ledger);
+            })?;
         g.renderer.check_health()?;
         g.renderer.queue.present(output);
         self.presented = self.presented.saturating_add(1);
@@ -84,6 +95,7 @@ impl Session {
         let Some(g) = &self.graphics else {
             return Ok(false);
         };
+        if let Some(state)=&g.views.colors { state.validate_comparisons(&g.renderer,inspection)?; }
         validate_surface(views, [g.config.width, g.config.height])?;
         if self.recorder.is_some() {
             return Err(refuse(
@@ -172,7 +184,9 @@ impl Session {
             )?;
         overlay(&g.renderer, &mut encoder, &target);
         g.renderer
-            .submit_allocated(encoder.finish(), |ledger| g.views.collect(ledger))?;
+            .submit_allocated(encoder.finish(), |ledger| {
+                g.views.collect(ledger); comparison_resources(inspection,ledger);
+            })?;
         g.renderer.check_health()?;
         g.views
             .colors

@@ -11,12 +11,14 @@ use motion_render::ManagedDisplayPresenter;
 /// submitted command ledger. No captured image is published as a viewer frame.
 pub struct ManagedViewCapture {
     presenters: Vec<ManagedDisplayPresenter>,
+    comparisons: Vec<Option<motion_render::ManagedDisplaySnapshot>>,
 }
 impl ManagedViewCapture {
     pub fn collect_texture_resources(&self, ledger: &mut TextureResourceLedger) {
         for presenter in &self.presenters {
             presenter.collect_texture_resources(ledger);
         }
+        for snapshot in self.comparisons.iter().flatten() { snapshot.collect_texture_resources(ledger); }
     }
 }
 
@@ -76,6 +78,7 @@ impl Session {
                     refuse("surface_capture", "completed group is no longer current").into(),
                 );
             }
+            state.validate_comparisons(&g.renderer,inspection)?;
             let presenters =
                 state.capture_presenters(&g.renderer, output.view().texture().format())?;
             let placements = placements(&self.scene, views);
@@ -84,8 +87,11 @@ impl Session {
                     refuse("surface_capture", "layout and display group counts differ").into(),
                 );
             }
+            let comparisons:Vec<_>=inspection.iter().map(|cell|cell.managed_comparison
+                .map(|(snapshot,_)|snapshot.for_format(&g.renderer,output.view().texture().format())).transpose())
+                .collect::<std::result::Result<_,_>>()?;
             for (index, ((presenter, placement), inspection)) in presenters.iter().zip(placements).zip(inspection).enumerate() {
-                presenter.encode_inspected_region_view_load(
+                presenter.encode_compared_region_view_load(
                     &g.renderer,
                     encoder,
                     output.view().texture(),
@@ -94,10 +100,12 @@ impl Session {
                     [0., 0., 0., 1.],
                     inspection.channel,
                     inspection.region,
+                    comparisons[index].as_ref().zip(inspection.managed_comparison)
+                        .map(|(source,(_,split))|(source,index,split)),
                     index != 0,
                 )?;
             }
-            Ok(ManagedViewCapture { presenters })
+            Ok(ManagedViewCapture { presenters, comparisons })
         })();
         result.map_err(|cause| {
             let published=self.graphics.as_ref().and_then(|g|g.views.colors.as_ref())
