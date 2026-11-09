@@ -1,5 +1,7 @@
 #![cfg(feature = "ai-depth")]
 //! Explicit real-hardware control, never an implicit model/runtime download.
+#[path = "depth_wgsl_retained/session.rs"]
+mod session;
 use motion_host::depth::{
     Backend, Cancellation, Estimate, Input, Jobs, Key,
     wgsl::{Config, Hardware, Wgsl},
