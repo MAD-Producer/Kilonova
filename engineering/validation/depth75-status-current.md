@@ -56,14 +56,22 @@ no production qualification is constructed from these observations.
 
 ## Regression and publication
 
-Publication `dc17b0071e79e5485882c8cce5f0be2fe8e50757` is draft PR #651.
+Publication `d197552823bef0fe3bc192f01649753e059dbd8c` is draft PR #651.
 The exact prior published source `53c3280d` completed CI run42573859294 with
 eight applicable jobs successful and two policy skips. It does not cover the
 later three retained-cohort/Rust-remap/cache-Session commits. Current-source
-CI [run42582989141](depth75-ci-dc17b007-current.md) is terminal success: eight
+CI [run42582989141](depth75-ci-dc17b007-current.md) was terminal success: eight
 applicable jobs passed and two policy skips. All seven new remap/memory controls
 appear exactly once in each native desktop test log. This precedes the later
 one-service example at27906e82 and does not replace the local full-command failure.
+
+The later exact published source `d1975528` completed
+[run42595433015](depth75-ci-d1975528-current.md): eight applicable jobs passed
+and two policy skips. All eight named remap, process-memory and sustained-schedule
+controls appear exactly once in each of the three native desktop test logs.
+This source includes the one-service scheduler and the recorded 800-request
+outcome. The CI jobs do not execute that external-model run and do not resolve
+the original local failures or grant production qualification.
 
 The original complete workspace command at `dc17b007` was session82855. It
 finished with Cargo101 and consumed controller exit1. All452 expected invocations
