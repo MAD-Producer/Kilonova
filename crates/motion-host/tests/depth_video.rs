@@ -1,6 +1,8 @@
 #![cfg(feature = "ai-depth")]
 #[path = "depth_video/timeline.rs"]
 mod timeline;
+#[path = "depth_video/physical.rs"]
+mod physical;
 use motion_core::{Content, Layer, Project, VideoAsset, VideoClip};
 use motion_host::{
     depth::{Backend, Cancellation, Costs, Estimate, Input, Key},

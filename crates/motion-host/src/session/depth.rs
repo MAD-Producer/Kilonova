@@ -380,15 +380,35 @@ impl Session {
         &mut self, object: u64, pixels_per_metre: f32,
     ) -> Result<motion_core::Command> {
         self.sample()?;
-        let sample = self.depth_calibration_sample()?
-            .ok_or("physical depth placement requires an installed current result")?;
-        let calibration = motion_model::depth::SavedDepthCalibration::physical(
-            &sample.estimate.resource, sample.input, pixels_per_metre)?;
-        let (calibration, end) = self.finish_depth_placement(object, sample, calibration)?;
+        let (calibration, end) = self.prepare_physical_depth_placement(object, pixels_per_metre)?;
         if end.is_some() {
             return Err("physical image depth placement requires an image source".into());
         }
         Ok(motion_core::Command::DepthCalibration { object, calibration: Some(calibration) })
+    }
+
+    /// Author physical camera-Z placement for exactly the staged video interval.
+    /// The decoder owns its PTS/end and prepared RGB identity. Other indexed
+    /// samples remain unchanged; no relative anchors or temporal interpolation
+    /// are fabricated. As with relative video authoring, an uncovered interval
+    /// must remain authorable before the next render sample can succeed.
+    pub fn physical_video_depth_placement_command(
+        &mut self, object: u64, pixels_per_metre: f32,
+    ) -> Result<motion_core::Command> {
+        let (calibration, end) = self.prepare_physical_depth_placement(object, pixels_per_metre)?;
+        let end = end.ok_or("physical video depth placement requires a staged video result")?;
+        let sample = motion_model::depth::VideoDepthSample::new(calibration, end)?;
+        Ok(motion_core::Command::VideoDepthCalibration { object, sample })
+    }
+
+    fn prepare_physical_depth_placement(
+        &mut self, object: u64, pixels_per_metre: f32,
+    ) -> Result<(motion_model::depth::SavedDepthCalibration, Option<u64>)> {
+        let sample = self.depth_calibration_sample()?
+            .ok_or("physical depth placement requires an installed current result")?;
+        let calibration = motion_model::depth::SavedDepthCalibration::physical(
+            &sample.estimate.resource, sample.input, pixels_per_metre)?;
+        self.finish_depth_placement(object, sample, calibration)
     }
 
     fn finish_depth_placement(&mut self, object: u64, sample: CalibrationSample,

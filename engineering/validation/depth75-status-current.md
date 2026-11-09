@@ -35,6 +35,14 @@ controls. The five complete render/host targets establish 461 passes for unchang
 product source; the failed checksum fixture and prior full-model memory failure
 remain recorded. Actual learned-model and cross-resolution qualification remain pending.
 
+The subsequent [physical indexed video authoring](depth75-physical-video-current.md)
+extends declared camera-Z placement to decoder-owned PTS intervals. Authored
+metric/inverse-metric controls verify history, independent frozen GPU rendering,
+original colors and physical occlusion after Session/source closure. Three
+applicable complete host targets establish359 distinct passes and one original
+ignore; two new fixture failures remain recorded. Actual learned-model video
+and continuous cross-quality qualification are still pending.
+
 ## Requirement-by-requirement state
 
 | Issue requirement | Current evidence | Remaining acceptance |
