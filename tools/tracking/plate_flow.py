@@ -98,6 +98,23 @@ def check_plane_extrapolation(matrix, reference, points, roi):
             'plane independent extrapolation disagreement exceeds limit')
 
 
+def check_plane_residuals(inliers, errors):
+    """Keep the original gates, publishing bounded numeric causes on failure."""
+    ratio = float(np.mean(inliers))
+    rms = float(np.sqrt(np.mean(errors**2)))
+    count = int(np.sum(inliers))
+    if not (count >= LIMITS['minimumFitInliers'] and ratio >= LIMITS['minimumInlierRatio']):
+        raise ValueError('plane fit has too few inliers: '
+            f"inliers={count} fit={inliers.size} ratio={ratio:.6g} "
+            f"minimum_count={LIMITS['minimumFitInliers']} minimum_ratio={LIMITS['minimumInlierRatio']:g}")
+    maximum = float(errors.max())
+    if not (rms <= LIMITS['heldOutRmsPixels'] and maximum <= LIMITS['heldOutMaxPixels']):
+        raise ValueError('plane held-out residual exceeds limit: '
+            f"heldout={errors.size} rms_px={rms:.6g} maximum_px={maximum:.6g} "
+            f"rms_limit_px={LIMITS['heldOutRmsPixels']:g} maximum_limit_px={LIMITS['heldOutMaxPixels']:g}")
+    return ratio, rms
+
+
 class Tracker:
     def __init__(self, seed, gray):
         self.seed = seed
@@ -201,10 +218,7 @@ class Tracker:
         try:
             matrix = plane_matrix(matrix, self.seed['roi'])
             errors = np.linalg.norm(transform(matrix, self.reference[self.holdout])-self.points[self.holdout], axis=1)
-            ratio = float(np.mean(inliers))
-            rms = float(np.sqrt(np.mean(errors**2)))
-            require(int(np.sum(inliers)) >= LIMITS['minimumFitInliers'] and ratio >= LIMITS['minimumInlierRatio'], 'plane fit has too few inliers')
-            require(rms <= LIMITS['heldOutRmsPixels'] and float(errors.max()) <= LIMITS['heldOutMaxPixels'], 'plane held-out residual exceeds limit')
+            ratio, rms = check_plane_residuals(inliers, errors)
             check_plane_extrapolation(matrix,self.reference[self.holdout],self.points[self.holdout],self.seed['roi'])
         except ValueError as cause:
             self.active, self.reason = False, str(cause)

@@ -67,6 +67,9 @@ IO. `tracking.log` has Info starts at the default `MOTION_LOG=info` level; Error
 also goes to stderr and stdout stays empty. Per-track consecutive automatic loss
 logs Debug at occurrence 1 and Error once at 60, resets on recovery/manual
 states, and retains bounded causes. Sixty occurrences is not a duration.
+Plane consensus and held-out rejections include measured counts, ratio, RMS,
+maximum and their original thresholds. These diagnostics do not relax a gate
+or substitute a prediction when the final estimate fails.
 An authored lost/occluded state suppresses automatic-failure observation until
 an explicit visible correction resumes the track. Subsequent samples keep the
 existing lost visibility; no geometry or recovery is invented. Genuine failures
@@ -96,7 +99,7 @@ Ordinary CI admission tests need neither OpenCV nor FFmpeg.
 Run optional real-CV reference-cycle controls in the same credited environment:
 
 ```text
-python tools/tracking/test_flow.py -v
+python -m unittest discover -s tools/tracking -p "test*.py" -v
 ```
 
 Verify authored absence and resumed failure thresholds through the actual CLI:

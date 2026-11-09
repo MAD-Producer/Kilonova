@@ -430,6 +430,12 @@
       "requires": ["External opencv-python-headless 5.0.0.93 and NumPy 2.4.6"],
       "reason": "Actual optical-flow translation, explicit-reference contradiction, loss/manual recovery and preservation of adjacent-frame appearance rejection; CV remains an optional developer dependency"
     },
+    "tools/tracking/test_plane_diagnostics.py": {
+      "mode": "manual",
+      "command": "python tools/tracking/test_plane_diagnostics.py -v",
+      "requires": ["External opencv-python-headless 5.0.0.93 and NumPy 2.4.6"],
+      "reason": "Actual numeric RANSAC consensus and held-out residual rejection, inclusive limits and bounded failure context; CV remains an optional developer dependency"
+    },
     "tools/tracking/track_plate.py": {
       "mode": "manual",
       "command": "python tools/tracking/track_plate.py --source <original-video> --request <bounded-request.json> --output <new-directory> --ffmpeg <local-ffmpeg> --ffprobe <local-ffprobe>",

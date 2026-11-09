@@ -86,3 +86,9 @@ needs an independently justified correspondence/model improvement, then both
 complete original sequences. No tracker, Android, panels, dependency or default
 application behavior changed. Native/full-regression/current-head CI acceptance
 remains separate.
+
+The subsequent [rejection-context follow-up](tracking88-residual-context-current.md)
+shows that better fit support alone still fails the original held-out maximum.
+The fit-only polishing candidate was rejected. Numeric failure causes now expose
+the measured gates; both full core modes preserve every original observation
+apart from the explicitly extended cause text.
