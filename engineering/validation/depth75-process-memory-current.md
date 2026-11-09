@@ -29,7 +29,7 @@ capability/reference/video probes expose the observation. It is not part of the
 execution identity: measurements varying between runs cannot invalidate an
 otherwise identical runtime. The embedded worker remains part of the existing
 execution-plan hash, so changing this procedure changes that attested identity.
-WGSL currently reports no inference-child observation; this is unknown, not zero.
+Earlier WGSL builds report no inference-child observation; this is unknown, not zero.
 
 Validation must include the real owned child on each maintained desktop OS,
 normal and optimized Python, touched/released allocations, bounded unavailable
@@ -89,3 +89,21 @@ Parent `32b18c27` CI run 42488635271 passed all applicable jobs, with original
 logs retained separately in the same archive. Neither that older green run nor
 the supplementary 71 passes relabel the current complete host-library failure.
 The new-head CI run 42547547754 is a distinct pending validation.
+
+## Native WGSL extension (validation pending)
+
+The shared Rust `process_memory` module exposes the same typed self-process
+query independently of the optional AI-depth feature. Existing depth APIs
+re-export its types. Windows uses the already locked windows-sys 0.61.2 APIs;
+Linux/macOS use the already locked libc 0.2.190 `getrusage` binding. Their direct
+host dependencies and unmodified MIT notices are recorded in ATTRIBUTION/NOTICE.
+No new package version or download is required.
+
+The completed native WGSL worker adds its own observation immediately before
+the existing final receipt write. The backend validates and retains it through
+Costs and measured Jobs. It does not query other processes or add a per-node
+sampler. The real native-child control touches and releases 64 MiB and checks
+that OS high-water marks remain monotonic. Actual rebuilt GPU inference and
+cross-platform control execution remain to be verified; the earlier ONNX
+measurements do not prove this extension. Parent/resolution/transform processes,
+physical device allocation and complete memory admission remain open.

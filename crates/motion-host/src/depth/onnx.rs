@@ -425,7 +425,7 @@ struct Report {
 
 impl Report {
     fn validate_identity(&self, processing: &str, digest: &str, size: [u32; 2]) -> Result<()> {
-        if let Some(memory) = &self.inference_process_memory { memory.validate()?; }
+        if let Some(memory) = &self.inference_process_memory { memory.validate().map_err(Error::Invalid)?; }
         let side = processing_side(processing).map(u64::from);
         if self.schema != 1
             || self.sha256 != digest

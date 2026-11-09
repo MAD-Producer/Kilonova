@@ -1,5 +1,19 @@
 # 第三方归属说明 / Third-party attribution
 
+## Native self-process memory counters
+
+- Authors: The Rust Project Developers and libc contributors; Microsoft and
+  windows-rs contributors
+- Sources/revision: unmodified `libc` 0.2.190, upstream revision
+  `7b0ab5528dc7f361f3a0b4c06c2cad9971617f75`, crates.io checksum
+  `ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78`;
+  `windows-sys` 0.61.2 as pinned in the existing Windows API attribution below
+- License: MIT OR Apache-2.0; MIT selected, full notices retained in NOTICE
+- Modification scope: both crates already exist in Cargo.lock and remain
+  unmodified. Direct host dependencies supply typed desktop OS bindings for
+  self-process high-water marks. No process enumeration, device API, upstream
+  sample, new asset or default inference-runtime distribution is introduced
+
 ## Owned inference-process memory API references
 
 - Authors: Microsoft Corporation; Python Software Foundation and contributors;

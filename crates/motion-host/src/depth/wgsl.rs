@@ -338,6 +338,7 @@ impl Wgsl {
                 postprocess: post,
                 input_bytes: TENSOR_BYTES,
                 output_bytes: DEPTH_BYTES,
+                inference_process_memory: report.inference_process_memory,
                 ..Costs::default()
             },
         }, report.actual_retained_buffer_capacity_bytes))
@@ -617,6 +618,7 @@ impl Transform {
 }
 #[derive(Deserialize)]
 struct Native {
+    inference_process_memory: Option<super::capability::memory::ProcessPeak>,
     status: String,
     phase: String,
     model_sha256: String,
@@ -639,6 +641,7 @@ struct Adapter {
 }
 impl Native {
     fn validate(&self, hardware: Hardware, request: &str) -> Result<()> {
+        if let Some(memory) = &self.inference_process_memory { memory.validate().map_err(Error::Invalid)?; }
         if self.status != "actual_complete_gpu_output_written_independent_comparison_pending"
             || self.phase != "completed"
             || self.model_sha256 != MODEL_SHA256

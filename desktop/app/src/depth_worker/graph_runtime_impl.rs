@@ -552,6 +552,7 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
             &format!("whole graph validation={validation_cause:?}; allocation={oom_cause:?}"),
         )?,
     }
+    report["inference_process_memory"] = json!(motion_host::process_memory::ProcessPeak::current());
     report["status"] = "actual_complete_gpu_output_written_independent_comparison_pending".into();
     report["phase"] = "completed".into();
     report["in_flight"] = Value::Null;
