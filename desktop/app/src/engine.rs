@@ -25,10 +25,14 @@ use std::{
 mod diagnostic_names;
 mod effect_pick;
 mod failure;
+mod error;
+pub(crate) use error::Error;
 mod ui_paint;
 mod frame_capture;
 mod movie_freeze;
 mod frame_allocation;
+mod frame_completion;
+mod preparation_progress;
 mod viewer_inspection;
 pub(crate) mod viewer_input;
 pub(crate) mod viewer_frame;
@@ -69,6 +73,8 @@ mod bound_numeric_tests;
 mod precision_capture_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod capture_context_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod viewer_capture_error_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
@@ -176,217 +182,225 @@ fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>,
 /// compile-time change on both platforms.
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
-    CurveClipboardRead { source: crate::layer_clipboard::KeyframeSource, selection: Option<motion_core::KeyframeSelection>, local_selection: Option<motion_core::LocalKeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::curves::Read, String>> },
-    ClipboardRead { objects: Vec<u64>, reply: Sender<Result<crate::layer_clipboard::Read, String>> },
-    KeyframeClipboardRead { source: crate::layer_clipboard::KeyframeSource, selections: Vec<motion_core::KeyframeSelection>, local_selections: Vec<motion_core::LocalKeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::KeyframeRead, String>> },
-    PathClipboardRead { source: crate::layer_clipboard::PathSource, selections: Vec<motion_core::PathSelection>, reply: Sender<Result<crate::layer_clipboard::PathRead, String>> },
-    ClipboardCommit { edit: crate::layer_clipboard::Edit, reply: Sender<Result<Value, String>> },
+    CurveClipboardRead { source: crate::layer_clipboard::KeyframeSource, selection: Option<motion_core::KeyframeSelection>, local_selection: Option<motion_core::LocalKeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::curves::Read, Error>> },
+    ClipboardRead { objects: Vec<u64>, reply: Sender<Result<crate::layer_clipboard::Read, Error>> },
+    KeyframeClipboardRead { source: crate::layer_clipboard::KeyframeSource, selections: Vec<motion_core::KeyframeSelection>, local_selections: Vec<motion_core::LocalKeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::KeyframeRead, Error>> },
+    PathClipboardRead { source: crate::layer_clipboard::PathSource, selections: Vec<motion_core::PathSelection>, reply: Sender<Result<crate::layer_clipboard::PathRead, Error>> },
+    ClipboardCommit { edit: crate::layer_clipboard::Edit, reply: Sender<Result<Value, Error>> },
     #[cfg(test)]
     TestPanic {
         during_prepare: bool,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     #[cfg(test)]
     TestRecoveryPanic {
         root: PathBuf,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     #[cfg(test)]
     TestDelay {
         delay: std::time::Duration,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     #[cfg(test)]
-    TestWait {entered:Sender<()>,release:std::sync::mpsc::Receiver<()>,reply:Sender<Result<Value,String>>},
+    TestWait {entered:Sender<()>,release:std::sync::mpsc::Receiver<()>,reply:Sender<Result<Value, Error>>},
     /// Explicit acceptance drivers use the actual owning worker and host guard.
     /// This gateway does not exist in the application binary.
     #[cfg(test)]
     TestStudy {
         operation: fn(i64) -> motion_host::Result<Value>,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    ProjectTicket(Sender<Result<crate::project_lifecycle::Ticket, String>>),
+    ProjectTicket(Sender<Result<crate::project_lifecycle::Ticket, Error>>),
     ChangeProject {
         target: crate::project_lifecycle::Target,
         ticket: crate::project_lifecycle::Ticket,
         save: bool,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    NodeSource {snapshot:crate::node_editor::EditorSnapshot,reply:Sender<Result<Value,String>>},
+    NodeSource {snapshot:crate::node_editor::EditorSnapshot,reply:Sender<Result<Value, Error>>},
     NodeInstall {
         snapshot: crate::node_editor::EditorSnapshot,
         compiled: crate::node_preview::InstallGraph,
         canonical: Option<crate::node_preview::PreparedGraph>,
-        reply: Sender<Result<bool, String>>,
+        reply: Sender<Result<bool, Error>>,
     },
     NodeCapture {
         seconds: f64,
         path: PathBuf,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    PluginInstall { stamp:(u64,u64), prepared:crate::node_preview::PreparedPlugin, reply:Sender<Result<bool,String>> },
-    PluginValues { stamp:(u64,u64), values:Vec<[f32;4]>, reply:Sender<Result<bool,String>> },
+    PluginInstall { stamp:(u64,u64), prepared:crate::node_preview::PreparedPlugin, reply:Sender<Result<bool, Error>> },
+    PluginValues { stamp:(u64,u64), values:Vec<[f32;4]>, reply:Sender<Result<bool, Error>> },
     EditChecked {
         text: String,
         revision: u64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     EffectPick {
         ticket: crate::panels::effect_pick::Ticket,
         point: [f64; 2],
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     EditorAction {
         source: crate::layer_clipboard::KeyframeSource,
         commands: Vec<motion_core::Command>,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ProjectOpen {
         source: crate::layer_clipboard::KeyframeSource,
         composition: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ProjectAsset {
         source: crate::layer_clipboard::KeyframeSource,
         operation: crate::workflow::library_media::Request,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ExpressionCheck {
         target: motion_core::ExpressionTarget,
         source: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     PathOperation {
         source: crate::layer_clipboard::PathSource,
         operation: crate::layer_clipboard::PathOperation,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     CaptureUi {
         ui: UiFrame,
         path: PathBuf,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     CaptureViewerSnapshot {
         window: u64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     SaveViewerSnapshot {
         window: u64,
         path: PathBuf,
         channel: motion_render::ViewChannel,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Attach {
         target: motion_host::SurfaceTarget,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Resize {
         window: u64,
         width: u32,
         height: u32,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
+    /// Complete when the requested composition has actually been presented.
     Present {
         ui: UiFrame,
-        reply: Sender<Result<bool, String>>,
+        reply: Sender<Result<bool, Error>>,
     },
     PresentFrozen {
         ui: UiFrame,
-        reply: Sender<Result<bool, String>>,
+        reply: Sender<Result<bool, Error>>,
+    },
+    /// One nonblocking Shell presentation step. A pending composition replies
+    /// false so the native event loop can redraw chrome and poll again.
+    PresentPoll {
+        ui: UiFrame,
+        frozen: bool,
+        reply: Sender<Result<bool, Error>>,
     },
     SeekAudioPreview {
         frame: f64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     OpenDirectory {
         directory: PathBuf,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     FloatWindow {
         key: u64,
         target: FloatingSurface,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     CloseWindow {
         key: u64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    State(Sender<Result<Value, String>>),
-    Save(Sender<Result<Value, String>>),
+    State(Sender<Result<Value, Error>>),
+    Save(Sender<Result<Value, Error>>),
     NewProject {
         text: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     OpenProject {
         name: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ImportProject {
         file: PathBuf,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ImportImage {
         file: PathBuf,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ImportModel {
         file: PathBuf,
         expected_revision: Option<u64>,
         source: Option<crate::layer_clipboard::KeyframeSource>,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ImportTracking {
         file: PathBuf,
         source: motion_core::media_assets::AssetRef,
         revision: u64,
         generation: u64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ReplaceImage {
         file: PathBuf,
         asset: u64,
         revision: u64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     CreateText {
         text: String,
         size: f32,
         width: u32,
         font: Option<(PathBuf, u32)>,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     TextLayout {
         source: crate::layer_clipboard::KeyframeSource,
         request: Value,
-        reply: Sender<Result<Value,String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     FreezeMovie {
         source: Option<crate::layer_clipboard::KeyframeSource>,
         control: motion_desktop_media::movie::ExportControl,
-        reply: Sender<Result<motion_desktop_media::movie::FrozenMovie, String>>,
+        reply: Sender<Result<motion_desktop_media::movie::FrozenMovie, Error>>,
     },
     RenderPreview {
         frame: Option<f64>,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Edit {
         text: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     AlignLayers {
         objects: Vec<u64>,
         edge: motion_host::ops::alignment::Edge,
         target: motion_host::ops::alignment::Target,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     DistributeLayers {
         objects: Vec<u64>,
         distribution: motion_host::ops::alignment::Distribution,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     History {
         op: i32,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Drag {
         object: i64,
@@ -395,23 +409,23 @@ pub enum Command {
         dy: f64,
         width: i32,
         height: i32,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Seek {
         frame: f64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     View {
         kind: i32,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Observe {
         enabled: bool,
         azimuth: f64,
         elevation: f64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    CameraGesture { action: motion_host::ops::preview::CameraGesture, reply: Sender<Result<Value, String>> },
+    CameraGesture { action: motion_host::ops::preview::CameraGesture, reply: Sender<Result<Value, Error>> },
     Navigate {
         dx: f64,
         dy: f64,
@@ -419,87 +433,87 @@ pub enum Command {
         multi: bool,
         width: i32,
         height: i32,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Render {
         frame: f64,
-        reply: Sender<Result<bool, String>>,
+        reply: Sender<Result<bool, Error>>,
     },
     ConfigureMemory {
         total: i64,
         guarded: bool,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     PreviewMode {
         mode: i32,
         thermal: i32,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    PreviewInfo(Sender<Result<Value, String>>),
+    PreviewInfo(Sender<Result<Value, Error>>),
     CurveGraph {
         text: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     HitCandidates {
         x: f64,
         y: f64,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    ViewerDrag { request: viewer_input::Drag, reply: Sender<Result<Value,String>> },
+    ViewerDrag { request: viewer_input::Drag, reply: Sender<Result<Value, Error>> },
     ViewerInput {
         request: viewer_input::Request,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Plugin {
         request: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ColorCurveGraph {
         text: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Composition {
         text: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     Media {
         text: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     TrackedVideoReplacement {
         request: crate::workflow::tracked_video::Request,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    MediaPackageLimits(Sender<Result<Value, String>>),
+    MediaPackageLimits(Sender<Result<Value, Error>>),
     Capture {
         output: Option<PathBuf>,
         control: motion_desktop_media::movie::ExportControl,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
-    Pack(Sender<Result<Value, String>>),
+    Pack(Sender<Result<Value, Error>>),
     ImageInfo {
         path: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     PrepareImage {
         root: PathBuf,
         path: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     /// Media capabilities do not need a session, so they answer immediately.
     MediaCapabilities {
         text: String,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     ResourceInfo {
         directory: PathBuf,
-        reply: Sender<Result<Value, String>>,
+        reply: Sender<Result<Value, Error>>,
     },
     /// A decoded video frame requested through the media request pipeline.
     VideoFrame {
         object: u64,
         sequence: u64,
-        reply: Sender<Result<ArcFrame, String>>,
+        reply: Sender<Result<ArcFrame, Error>>,
     },
     Shutdown,
 }
@@ -513,7 +527,7 @@ impl Command {
             KeyframeClipboardRead { reply, .. } => ErrorReply::KeyframeClipboard(reply.clone()),
             PathClipboardRead { reply, .. } => ErrorReply::PathClipboard(reply.clone()),
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
-            NodeInstall { reply, .. } | PluginInstall {reply,..} | PluginValues {reply,..} | Present { reply, .. } | PresentFrozen { reply, .. } | Render { reply, .. } => {
+            NodeInstall { reply, .. } | PluginInstall {reply,..} | PluginValues {reply,..} | Present { reply, .. } | PresentFrozen { reply, .. } | PresentPoll { reply, .. } | Render { reply, .. } => {
                 ErrorReply::Bool(reply.clone())
             }
             FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
@@ -570,6 +584,7 @@ pub struct Engine {
     failure: Failure,
     paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: Arc<crate::diagnostics::Diagnostics>,
+    preparation: motion_host::session::PipelinePreparationObservation,
     in_flight: Arc<Mutex<Option<Flight>>>,
     frame_flight: Arc<Mutex<Option<Flight>>>,
     movie_freeze_flight: Arc<Mutex<Option<Flight>>>,
@@ -621,11 +636,14 @@ impl Engine {
         self.queue_depth.load(Ordering::Acquire)
     }
     /// Remains readable while the serial handler or an enrolled GPU queue waits.
-    pub fn allocation_frame_peaks(&self) -> Result<motion_render::AllocationFramePeaks, String> {
-        self.allocation_budget.frame_peaks().map_err(|error| error.to_string())
+    pub fn allocation_frame_peaks(&self) -> Result<motion_render::AllocationFramePeaks, Error> {
+        self.allocation_budget.frame_peaks().map_err(motion_host::Error::from).map_err(Error::from)
     }
     pub fn diagnostics(&self) -> &Arc<crate::diagnostics::Diagnostics> {
         &self.diagnostics
+    }
+    pub fn preview_preparing(&self) -> bool {
+        self.preparation.preparing()
     }
     pub fn take_paint(&self) -> motion_ui::paint::PaintList {
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
@@ -640,7 +658,7 @@ impl Engine {
         paint.clear();
         recycle_paint_pool(&self.paint_pool, paint, false);
     }
-    pub fn node_preview_available(&self) -> Result<(), String> {
+    pub fn node_preview_available(&self) -> Result<(), Error> {
         self.check_running()?;
         let factory = self
             .factory
@@ -649,20 +667,20 @@ impl Engine {
         factory.as_ref().ok_or("node preview GPU is not attached")?;
         Ok(())
     }
-    pub fn node_expect(&self, stamp: (u64, u64)) -> Result<(), String> {
+    pub fn node_expect(&self, stamp: (u64, u64)) -> Result<(), Error> {
         self.check_running()?;
         *self.pending_node_expect.lock().map_err(|_| "node expectation lock poisoned")? = Some(stamp);
         Ok(())
     }
-    pub fn plugin_install(&self, stamp:(u64,u64), prepared:crate::node_preview::PreparedPlugin)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String> {
+    pub fn plugin_install(&self, stamp:(u64,u64), prepared:crate::node_preview::PreparedPlugin)->Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
         self.request(|reply|Command::PluginInstall{stamp,prepared,reply})
     }
-    pub fn plugin_values(&self,stamp:(u64,u64),values:Vec<[f32;4]>)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String> {
+    pub fn plugin_values(&self,stamp:(u64,u64),values:Vec<[f32;4]>)->Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
         self.request(|reply|Command::PluginValues{stamp,values,reply})
     }
     /// Stop accepting work and drain accepted commands. This also works while
     /// an MCP reader still owns an Arc; it does not interrupt a native GPU call.
-    pub fn request_shutdown(&self) -> Result<(), String> {
+    pub fn request_shutdown(&self) -> Result<(), Error> {
         let context = self.diagnostics.context();
         let mut gate_error = None;
         let queued = {
@@ -671,7 +689,7 @@ impl Engine {
                 e.into_inner()
             });
             if self.shutdown.swap(true, Ordering::AcqRel) {
-                return gate_error.map_or(Ok(()), Err);
+                return gate_error.map_or(Ok(()), |error| Err(error.into()));
             }
             // Wake an idle worker. A full queue already wakes it; after draining
             // it observes the flag without requiring another free queue slot.
@@ -691,24 +709,24 @@ impl Engine {
             },
             Err(TrySendError::Disconnected(_)) => return Err(self.stopped_error()),
         }
-        gate_error.map_or(Ok(()), Err)
+        gate_error.map_or(Ok(()), |error| Err(error.into()))
     }
     pub fn node_install(
         &self,
         snapshot: crate::node_editor::EditorSnapshot,
         compiled: impl Into<crate::node_preview::InstallGraph>,
-    ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
         let compiled = compiled.into();
         self.request(|reply| Command::NodeInstall { snapshot, compiled, canonical:None,reply })
     }
-    pub fn node_install_bound(&self,snapshot:crate::node_editor::EditorSnapshot,compiled:crate::node_preview::PreparedGraph,canonical:Option<crate::node_preview::PreparedGraph>)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String>{
+    pub fn node_install_bound(&self,snapshot:crate::node_editor::EditorSnapshot,compiled:crate::node_preview::PreparedGraph,canonical:Option<crate::node_preview::PreparedGraph>)->Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error>{
         self.request(|reply|Command::NodeInstall{snapshot,compiled:compiled.into(),canonical,reply})
     }
-    pub fn node_source(&self,snapshot:crate::node_editor::EditorSnapshot)->Result<std::sync::mpsc::Receiver<Result<Value,String>>,String>{
+    pub fn node_source(&self,snapshot:crate::node_editor::EditorSnapshot)->Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error>{
         self.request(|reply|Command::NodeSource{snapshot,reply})
     }
 
-    pub fn node_capture(&self, seconds: f64, path: PathBuf) -> Result<Value, String> {
+    pub fn node_capture(&self, seconds: f64, path: PathBuf) -> Result<Value, Error> {
         self.call(|reply| Command::NodeCapture {
             seconds,
             path,
@@ -720,7 +738,18 @@ impl Engine {
         root: PathBuf,
         platform: std::sync::Arc<dyn Platform>,
         total_memory: u64,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, Error> {
+        // Unit tests must never read/write the developer's account cache. Native
+        // cache acceptance supplies its own private fixture through this seam.
+        let storage = if cfg!(test) { None } else { crate::pipeline_cache::storage() };
+        Self::start_with_pipeline_cache(root, platform, total_memory, storage)
+    }
+    fn start_with_pipeline_cache(
+        root: PathBuf,
+        platform: std::sync::Arc<dyn Platform>,
+        total_memory: u64,
+        storage: Option<motion_host::session::DriverPipelineCacheStorage>,
+    ) -> Result<Self, Error> {
         let total_memory = i64::try_from(total_memory).map_err(|_| {
             let error = "physical memory exceeds the signed 64-bit preview budget".to_string();
             log::error!("worker startup rejected: root={} reason={error}", root.display());
@@ -771,17 +800,21 @@ impl Engine {
         let pending_node_expect = Arc::new(Mutex::new(None));
         let worker_node_expect = pending_node_expect.clone();
         let (sender, receiver) = sync_channel::<QueuedCommand>(COMMAND_QUEUE_CAPACITY);
-        let (ready, opened) = channel::<Result<(i64, motion_render::AllocationBudget), String>>();
+        let (ready, opened) = channel::<Result<(i64, motion_render::AllocationBudget,
+            motion_host::session::PipelinePreparationObservation), Error>>();
         let worker = std::thread::Builder::new()
             .name("motion-engine".into())
             .spawn(move || {
+                log::info!("worker startup phase=project_lock root={}",
+                    crate::fallback_observation::short(root.display()));
+                crate::logging::flush();
                 let mut guard = match ProjectGuard::acquire(&root) {
                     Ok(guard) => guard,
                     Err(e) => {
                         log::error!("worker startup lock failed: root={} reason={}",
                             crate::fallback_observation::short(root.display()),
                             crate::fallback_observation::error_cause(&e));
-                        let _ = ready.send(Err(e));
+                        let _ = ready.send(Err(e.into()));
                         return;
                     }
                 };
@@ -800,18 +833,25 @@ impl Engine {
                     Err(error) => {
                         log::error!("worker startup session failed: {}",
                             crate::fallback_observation::error_cause(&error));
-                        let _ = ready.send(Err(error.to_string()));
+                        let _ = ready.send(Err(error.into()));
                         return;
                     }
                 };
                 let lease = SessionLease(id);
-                let (initial_snapshot, allocation_budget) = match motion_host::session::with_session(id,
-                    |s| Ok((s.engine.snapshot(), s.allocation_budget().clone()))) {
+                if let Some(storage) = storage {
+                    if let Err(error) = motion_host::session::with_session(id, |session| session.set_driver_pipeline_cache_storage(storage)) {
+                        log::error!("worker cache configuration failed: session={id} cause={}", crate::fallback_observation::error_cause(&error));
+                        let _ = ready.send(Err(error.into()));
+                        return;
+                    }
+                }
+                let (initial_snapshot, allocation_budget, preparation) = match motion_host::session::with_session(id,
+                    |s| Ok((s.engine.snapshot(), s.allocation_budget().clone(), s.pipeline_preparation_observation()))) {
                     Ok(snapshot) => snapshot,
                     Err(error) => {
                         log::error!("worker initial snapshot failed: {}",
                             crate::fallback_observation::error_cause(&error));
-                        let _ = ready.send(Err(error.to_string()));
+                        let _ = ready.send(Err(error.into()));
                         return;
                     }
                 };
@@ -823,10 +863,11 @@ impl Engine {
                 if let Err(error) = preview::configure_memory(id, total_memory, false) {
                     log::error!("worker startup memory failed: session={id} reason={}",
                         crate::fallback_observation::error_cause(&error));
-                    let _ = ready.send(Err(error.to_string()));
+                    let _ = ready.send(Err(error.into()));
                     return;
                 }
-                if ready.send(Ok((id, allocation_budget.clone()))).is_err() {
+                let worker_preparation = preparation.clone();
+                if ready.send(Ok((id, allocation_budget.clone(), preparation))).is_err() {
                     log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
                 }
@@ -835,8 +876,10 @@ impl Engine {
                 let mut presentation = PresentationState::default();
                 let mut frame_capture = frame_capture::Worker::new(worker_frame_flight);
                 let mut movie_freeze = movie_freeze::Worker::new(worker_movie_freeze_flight);
+                let mut frame_completions = frame_completion::Queue::default();
                 let mut windows = std::collections::HashMap::new();
-                let mut failed_reply = None;
+                let mut failed_reply: Option<(ErrorReply, Error)> = None;
+                let mut completion_failure = None;
                 let mut channel_closed = true;
                 loop {
                     let drained = {
@@ -845,6 +888,7 @@ impl Engine {
                             Err(poisoned) => {
                                 drop(poisoned);
                                 let error = "engine dispatch lock poisoned while checking shutdown";
+                                completion_failure = Some(error.into());
                                 log::error!("{error}");
                                 static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
                                 crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.shutdown", |value| *value = Some(error.into()));
@@ -858,32 +902,90 @@ impl Engine {
                         channel_closed = false;
                         break;
                     }
-                    let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() else { break; };
+                    // A failed capture or a chrome-only frame need not retain a
+                    // frame continuation. Still collect the already running task
+                    // on its owner; otherwise its UI observation can stay busy.
+                    if frame_completions.is_empty() && worker_preparation.preparing() {
+                        if let Err(primary) = motion_host::ops::catch_panic(|| preparation_progress::advance(id))
+                            .map_err(Error::from).and_then(|result| result) {
+                            channel_closed = false;
+                            log::error!("pipeline preparation owner stopped session={id} cause={}",
+                                crate::fallback_observation::error_cause(&primary));
+                            static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                            crate::fallback_observation::recovered(&worker_failure, &FAILURES,
+                                "engine.preparation.failure", |value| *value = Some(primary.clone()));
+                            completion_failure = Some(primary);
+                            break;
+                        }
+                    }
+                    let (QueuedCommand {command,queued,request,context}, resumed) =
+                        if let Some(pending) = frame_completions.take_due() {
+                            let frame_completion::Pending { command, meta, stamp, waiting } = pending;
+                            (QueuedCommand { command, queued: meta.queued, request: meta.flight.request,
+                                context: meta.context }, Some((stamp, waiting, meta.flight)))
+                        } else {
+                            let delay = frame_completions.delay().or_else(||
+                                worker_preparation.preparing().then_some(preparation_progress::POLL_INTERVAL));
+                            let received = if let Some(delay) = delay {
+                                match receiver.recv_timeout(delay) {
+                                    Ok(command) => Some(command),
+                                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => None,
+                                }
+                            } else { receiver.recv().ok() };
+                            let Some(command) = received else { break; };
+                            (command, None)
+                        };
                     let began=std::time::Instant::now();
                     let operation=command.diagnostic_name();
-                    let flight = Flight { request, operation, started: began };
+                    let flight = resumed.as_ref().map_or(Flight { request, operation, started: began }, |(_,_,flight)| *flight);
                     {
                         // dispatch holds this same short gate across send + increment.
                         // recv can wake before send returns; never decrement first.
                         let mut current = worker_flight.lock().unwrap_or_else(|e| e.into_inner());
-                        worker_depth.fetch_sub(1, Ordering::AcqRel);
+                        if resumed.is_none() { worker_depth.fetch_sub(1, Ordering::AcqRel); }
                         *current = Some(flight);
                     }
                     CURRENT_COMMAND.set(Some(flight));
                     #[cfg(test)]
                     worker_diagnostics.native_test_phase("dispatch");
-                    if operation != "present" {
+                    if operation != "present" && resumed.is_none() {
                         log::info!("start #{} {}", request, operation);
                         crate::logging::flush();
                     }
                     let on_panic = command.panic_reply();
+                    let meta = frame_completion::Meta { queued, flight, context: context.clone() };
+                    let mut deferred = false;
                     let handled=motion_host::ops::catch_panic(|| {
                         // Keep this inside the existing panic/reply boundary.
                         let pending = worker_node_expect.lock().map_err(|_| "node expectation lock poisoned")?;
                         let mut pending = pending;
                         if let Some(stamp) = pending.take() { node_preview.desired = stamp; }
                         drop(pending);
-                        Ok(handle(
+                        if resumed.is_none() && frame_completion::window(&command).is_some() && !frame_completions.is_empty() {
+                            deferred = frame_completions.insert(command, meta, false, id, &windows, &worker_paints);
+                            return Ok(false);
+                        }
+                        if let Some((stamp, waiting, _)) = resumed {
+                            match stamp.progress(waiting, id, &windows) {
+                                Ok(frame_completion::Progress::Waiting) => {
+                                    frame_completions.put_back(frame_completion::Pending { command, meta, stamp, waiting });
+                                    deferred = true;
+                                    return Ok(false);
+                                }
+                                Ok(frame_completion::Progress::Superseded) => {
+                                    frame_completion::finish(command, Ok(false), &worker_paints);
+                                    return Ok(false);
+                                }
+                                Err(error) => {
+                                    frame_completion::finish(command, Err(error), &worker_paints);
+                                    return Ok(false);
+                                }
+                                Ok(frame_completion::Progress::Ready) => {}
+                            }
+                        }
+                        let mut continuation = None;
+                        let stop = handle(
                         id,
                         &platform,
                         &mut painter,
@@ -897,15 +999,24 @@ impl Engine {
                         &worker_diagnostics,
                         &allocation_budget,
                         &worker_factory,
+                        &mut frame_completions,
+                        &mut continuation,
                         command,
-                    ))}).and_then(|result| result);
-                    worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
+                    );
+                        if let Some(command) = continuation {
+                            deferred = frame_completions.insert(command, meta, true, id, &windows, &worker_paints);
+                        }
+                        Ok(stop)
+                    }).and_then(|result| result);
+                    if !deferred {
+                        worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(flight.started.duration_since(queued)),Some(flight.started.elapsed()),context);
+                    }
                     *worker_flight.lock().unwrap_or_else(|e| e.into_inner()) = None;
                     CURRENT_COMMAND.set(None);
                     #[cfg(test)]
                     worker_diagnostics.native_test_phase("idle");
-                    if operation != "present" || began.elapsed() >= Duration::from_millis(100) {
-                        log::debug!("done #{} {} {}ms", request, operation, began.elapsed().as_millis());
+                    if !deferred && (operation != "present" || flight.started.elapsed() >= Duration::from_millis(100)) {
+                        log::debug!("done #{} {} {}ms", request, operation, flight.started.elapsed().as_millis());
                     }
                     match handled {
                         Ok(true) => {
@@ -916,25 +1027,31 @@ impl Engine {
                         Ok(false) => {},
                         Err(reason) => {
                             channel_closed = false;
-                            log::error!("panic #{} {} {}ms: {}", request, operation, began.elapsed().as_millis(), reason);
+                            log::error!("panic #{} {} {}ms: {}", request, operation, flight.started.elapsed().as_millis(), reason);
                             let recovery = match motion_host::ops::catch_panic(|| failure::recovery(id)) {
                                 Ok(Ok(path)) => format!("recovery JSON: {}", path.display()),
-                                Ok(Err(error)) | Err(error) => format!("recovery unavailable: {error}"),
+                                Ok(Err(error)) => format!("recovery unavailable: {error}"),
+                                Err(error) => format!("recovery unavailable: {error}"),
                             };
                             let message = format!("engine session closed after native panic: {reason}; {recovery}; reopen the project");
                             log::error!("[motion-engine] {message}");
                             {
                                 static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
-                                crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.publish", |value| *value = Some(message.clone()));
+                                crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.publish", |value| *value = Some(message.clone().into()));
                             }
-                            failed_reply = on_panic.map(|reply| (reply, message));
+                            failed_reply = on_panic.map(|reply| (reply, message.into()));
+                            completion_failure = failed_reply.as_ref().map(|(_, error)| error.clone());
                             break;
                         }
                     }
                 }
-                if channel_closed { log::error!("worker channel closed"); }
+                if channel_closed {
+                    log::error!("worker channel closed");
+                    completion_failure = Some(Error::Stopped);
+                }
                 worker_depth.store(0, Ordering::Release);
                 let _cleanup = shutdown::Cleanup::begin(worker_flight.clone(), worker_diagnostics.clone(), id);
+                if completion_failure.is_none() { frame_completions.finish_all(None, &worker_paints); }
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
@@ -947,13 +1064,14 @@ impl Engine {
                 drop(lease);
                 drop(guard);
                 log::info!("worker resources released: session={id}");
+                frame_completions.finish_all(completion_failure.as_ref(), &worker_paints);
                 if let Some((reply, error)) = failed_reply { reply.send(error); }
             })
             .map_err(|error| {
                 log::error!("worker spawn failed: root={} reason={error}", startup_root.display());
-                error.to_string()
+                motion_host::Error::from(error)
             })?;
-        let (_id, allocation_budget) = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
+        let (_id, allocation_budget, preparation) = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
             Ok(Ok(id)) => id,
             result => {
                 let error = match result {
@@ -981,6 +1099,7 @@ impl Engine {
             failure,
             paint_pool,
             diagnostics,
+            preparation,
             in_flight,
             frame_flight,
             movie_freeze_flight,
@@ -990,16 +1109,16 @@ impl Engine {
         })
     }
 
-    fn send(&self, command: Command) -> Result<(), String> {
+    fn send(&self, command: Command) -> Result<(), Error> {
         self.dispatch(command).map(|_| ())
     }
-    fn dispatch(&self, command: Command) -> Result<u64, String> {
+    fn dispatch(&self, command: Command) -> Result<u64, Error> {
         self.check_running()?;
         let request = self.diagnostics.next_request();
         let operation = command.diagnostic_name();
         let context = self.diagnostics.context();
         enum Rejected {
-            Stopped(String),
+            Stopped(Error),
             Finished,
             Send(TrySendError<QueuedCommand>),
         }
@@ -1014,7 +1133,7 @@ impl Engine {
             }).clone();
             if let Some(error) = failure { return Err(Rejected::Stopped(error)); }
             if self.shutdown.load(Ordering::Acquire) {
-                return Err(Rejected::Stopped("engine shutdown requested; new commands are not accepted".into()));
+                return Err(Rejected::Stopped(Error::ShuttingDown));
             }
             if self.worker.as_ref().is_some_and(|worker| worker.is_finished()) {
                 return Err(Rejected::Finished);
@@ -1030,7 +1149,7 @@ impl Engine {
         let depth = queued.map_err(|error| match error {
             Rejected::Stopped(error) => error,
             Rejected::Finished | Rejected::Send(TrySendError::Disconnected(_)) => self.stopped_error(),
-            Rejected::Send(TrySendError::Full(_)) => format!("engine command queue is full (capacity {COMMAND_QUEUE_CAPACITY}); command was not queued"),
+            Rejected::Send(TrySendError::Full(_)) => Error::QueueFull { capacity: COMMAND_QUEUE_CAPACITY },
         })?;
         // Present shares this queue; keep its healthy per-frame path silent.
         if operation != "present" {
@@ -1042,23 +1161,23 @@ impl Engine {
     /// Queue work without blocking the caller.
     pub fn request<T>(
         &self,
-        make: impl FnOnce(Sender<Result<T, String>>) -> Command,
-    ) -> Result<std::sync::mpsc::Receiver<Result<T, String>>, String> {
+        make: impl FnOnce(Sender<Result<T, Error>>) -> Command,
+    ) -> Result<std::sync::mpsc::Receiver<Result<T, Error>>, Error> {
         let (reply, receive) = channel();
         self.send(make(reply))?;
         Ok(receive)
     }
     pub fn call<T>(
         &self,
-        make: impl FnOnce(Sender<Result<T, String>>) -> Command,
-    ) -> Result<T, String> {
+        make: impl FnOnce(Sender<Result<T, Error>>) -> Command,
+    ) -> Result<T, Error> {
         self.call_with_timeout(make, std::time::Duration::from_secs(60))
     }
     fn call_with_timeout<T>(
         &self,
-        make: impl FnOnce(Sender<Result<T, String>>) -> Command,
+        make: impl FnOnce(Sender<Result<T, Error>>) -> Command,
         timeout: std::time::Duration,
-    ) -> Result<T, String> {
+    ) -> Result<T, Error> {
         let (reply, receive) = channel();
         let began = std::time::Instant::now();
         let command = make(reply);
@@ -1079,7 +1198,7 @@ impl Engine {
                 std::sync::mpsc::RecvTimeoutError::Disconnected => self.stopped_error(),
                 std::sync::mpsc::RecvTimeoutError::Timeout => {
                     log::warn!("timeout #{} {} waited={}ms", request, operation, began.elapsed().as_millis());
-                    format!("{operation} timed out; its result is still pending; check project state before retrying")
+                    Error::Timeout { request, operation, waited: began.elapsed() }
                 },
             })?;
         #[cfg(debug_assertions)]
@@ -1092,47 +1211,47 @@ impl Engine {
         result
     }
 
-    pub fn state(&self) -> Result<Value, String> {
+    pub fn state(&self) -> Result<Value, Error> {
         self.call(Command::State)
     }
-    pub fn save(&self) -> Result<Value, String> {
+    pub fn save(&self) -> Result<Value, Error> {
         self.call(Command::Save)
     }
-    pub fn new_project(&self, text: String) -> Result<Value, String> {
+    pub fn new_project(&self, text: String) -> Result<Value, Error> {
         self.call(|reply| Command::NewProject { text, reply })
     }
-    pub fn open_project(&self, name: String) -> Result<Value, String> {
+    pub fn open_project(&self, name: String) -> Result<Value, Error> {
         self.call(|reply| Command::OpenProject { name, reply })
     }
-    pub fn import_project(&self, file: PathBuf) -> Result<Value, String> {
+    pub fn import_project(&self, file: PathBuf) -> Result<Value, Error> {
         self.call(|reply| Command::ImportProject { file, reply })
     }
-    pub fn edit(&self, text: String) -> Result<Value, String> {
+    pub fn edit(&self, text: String) -> Result<Value, Error> {
         if text.len() > REQUEST_LIMIT {
             return Err("edit request exceeds 256 KiB".into());
         }
         self.call(|reply| Command::Edit { text, reply })
     }
     pub fn align_layers_async(&self, objects:Vec<u64>, edge:motion_host::ops::alignment::Edge,
-        target:motion_host::ops::alignment::Target) -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
+        target:motion_host::ops::alignment::Target) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         if objects.len()>motion_core::MAX_LAYERS {return Err("alignment selection exceeds layer limit".into());}
         self.request(|reply|Command::AlignLayers{objects,edge,target,reply})
     }
     pub fn distribute_layers_async(&self,objects:Vec<u64>,distribution:motion_host::ops::alignment::Distribution)
-        -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
+        -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         if objects.len()>motion_core::MAX_LAYERS {return Err("distribution selection exceeds layer limit".into());}
         self.request(|reply|Command::DistributeLayers{objects,distribution,reply})
     }
     pub fn edit_async(
         &self,
         text: String,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         if text.len() > REQUEST_LIMIT {
             return Err("edit request exceeds 256 KiB".into());
         }
         self.request(|reply| Command::Edit { text, reply })
     }
-    pub fn edit_at_revision(&self, text: String, revision: u64) -> Result<Value, String> {
+    pub fn edit_at_revision(&self, text: String, revision: u64) -> Result<Value, Error> {
         if text.len() > REQUEST_LIMIT {
             return Err("edit request exceeds 256 KiB".into());
         }
@@ -1143,20 +1262,20 @@ impl Engine {
         })
     }
     pub fn edit_async_at_revision(&self, text: String, revision: u64)
-        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         if text.len() > REQUEST_LIMIT { return Err("edit request exceeds 256 KiB".into()); }
         self.request(|reply| Command::EditChecked { text, revision, reply })
     }
-    pub fn capture_ui(&self, ui: UiFrame, path: PathBuf) -> Result<Value, String> {
+    pub fn capture_ui(&self, ui: UiFrame, path: PathBuf) -> Result<Value, Error> {
         self.call(|reply| Command::CaptureUi { ui, path, reply })
     }
-    pub fn history(&self, op: i32) -> Result<Value, String> {
+    pub fn history(&self, op: i32) -> Result<Value, Error> {
         self.call(|reply| Command::History { op, reply })
     }
     pub fn history_async(
         &self,
         op: i32,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::History { op, reply })
     }
     pub fn drag(
@@ -1166,7 +1285,7 @@ impl Engine {
         dy: f64,
         width: i32,
         height: i32,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, Error> {
         self.call(|reply| Command::Drag {
             object,
             spatial_key: None,
@@ -1177,7 +1296,7 @@ impl Engine {
             reply,
         })
     }
-    pub fn seek(&self, frame: f64) -> Result<Value, String> {
+    pub fn seek(&self, frame: f64) -> Result<Value, Error> {
         self.call(|reply| Command::Seek { frame, reply })
     }
     pub fn drag_async(
@@ -1185,12 +1304,12 @@ impl Engine {
         object: i64,
         delta: [f32; 2],
         size: [i32; 2],
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.drag_at_key_async(object,delta,size,None)
     }
     pub(crate) fn drag_at_key_async(
         &self, object:i64, delta:[f32;2], size:[i32;2], spatial_key:Option<u64>,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::Drag {
             object,
             spatial_key,
@@ -1204,17 +1323,17 @@ impl Engine {
     pub fn seek_async(
         &self,
         frame: f64,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::Seek { frame, reply })
     }
     pub(crate) fn seek_audio_preview_async(&self, frame: f64)
-        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::SeekAudioPreview { frame, reply })
     }
-    pub fn view(&self, kind: i32) -> Result<Value, String> {
+    pub fn view(&self, kind: i32) -> Result<Value, Error> {
         self.call(|reply| Command::View { kind, reply })
     }
-    pub fn observe(&self, enabled: bool, azimuth: f64, elevation: f64) -> Result<Value, String> {
+    pub fn observe(&self, enabled: bool, azimuth: f64, elevation: f64) -> Result<Value, Error> {
         self.call(|reply| Command::Observe {
             enabled,
             azimuth,
@@ -1223,10 +1342,10 @@ impl Engine {
         })
     }
     #[cfg(test)]
-    pub fn camera_gesture(&self, action: motion_host::ops::preview::CameraGesture) -> Result<Value, String> {
+    pub fn camera_gesture(&self, action: motion_host::ops::preview::CameraGesture) -> Result<Value, Error> {
         self.call(|reply| Command::CameraGesture { action, reply })
     }
-    pub fn camera_gesture_async(&self, action: motion_host::ops::preview::CameraGesture) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    pub fn camera_gesture_async(&self, action: motion_host::ops::preview::CameraGesture) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::CameraGesture { action, reply })
     }
     pub fn navigate(
@@ -1237,7 +1356,7 @@ impl Engine {
         multi: bool,
         width: i32,
         height: i32,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, Error> {
         self.call(|reply| Command::Navigate {
             dx,
             dy,
@@ -1251,7 +1370,7 @@ impl Engine {
     pub fn view_async(
         &self,
         kind: i32,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::View { kind, reply })
     }
     pub fn navigate_async(
@@ -1262,7 +1381,7 @@ impl Engine {
         multi: bool,
         width: i32,
         height: i32,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::Navigate {
             dx,
             dy,
@@ -1273,101 +1392,101 @@ impl Engine {
             reply,
         })
     }
-    pub fn render(&self, frame: f64) -> Result<bool, String> {
+    pub fn render(&self, frame: f64) -> Result<bool, Error> {
         self.call(|reply| Command::Render { frame, reply })
     }
-    pub fn configure_memory(&self, total: i64, guarded: bool) -> Result<Value, String> {
+    pub fn configure_memory(&self, total: i64, guarded: bool) -> Result<Value, Error> {
         self.call(|reply| Command::ConfigureMemory {
             total,
             guarded,
             reply,
         })
     }
-    pub fn preview_mode(&self, mode: i32, thermal: i32) -> Result<Value, String> {
+    pub fn preview_mode(&self, mode: i32, thermal: i32) -> Result<Value, Error> {
         self.call(|reply| Command::PreviewMode {
             mode,
             thermal,
             reply,
         })
     }
-    pub fn preview_info(&self) -> Result<Value, String> {
+    pub fn preview_info(&self) -> Result<Value, Error> {
         self.call(Command::PreviewInfo)
     }
-    pub fn curve_graph(&self, text: String) -> Result<Value, String> {
+    pub fn curve_graph(&self, text: String) -> Result<Value, Error> {
         self.call(|reply| Command::CurveGraph { text, reply })
     }
-    pub fn hit_candidates(&self, x: f64, y: f64) -> Result<Value, String> {
+    pub fn hit_candidates(&self, x: f64, y: f64) -> Result<Value, Error> {
         self.call(|reply| Command::HitCandidates { x, y, reply })
     }
-    pub(crate) fn viewer_drag_async(&self,request:viewer_input::Drag)->Result<std::sync::mpsc::Receiver<Result<Value,String>>,String>{
+    pub(crate) fn viewer_drag_async(&self,request:viewer_input::Drag)->Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error>{
         self.request(|reply|Command::ViewerDrag{request,reply})
     }
     pub(crate) fn viewer_input_async(&self, request: viewer_input::Request)
-        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::ViewerInput { request, reply })
     }
-    pub fn plugin_async(&self, request: String) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    pub fn plugin_async(&self, request: String) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         if request.len() > REQUEST_LIMIT { return Err("plugin request exceeds 256 KiB".into()); }
         self.request(|reply| Command::Plugin { request, reply })
     }
-    pub fn plugin(&self, request: String) -> Result<Value, String> {
+    pub fn plugin(&self, request: String) -> Result<Value, Error> {
         self.call(|reply| Command::Plugin { request, reply })
     }
-    pub fn color_curve_graph(&self, text: String) -> Result<Value, String> {
+    pub fn color_curve_graph(&self, text: String) -> Result<Value, Error> {
         self.call(|reply| Command::ColorCurveGraph { text, reply })
     }
-    pub fn composition(&self, text: String) -> Result<Value, String> {
+    pub fn composition(&self, text: String) -> Result<Value, Error> {
         self.call(|reply| Command::Composition { text, reply })
     }
-    pub fn media(&self, text: String) -> Result<Value, String> {
+    pub fn media(&self, text: String) -> Result<Value, Error> {
         self.call(|reply| Command::Media { text, reply })
     }
-    pub fn tracked_video_replacement(&self, request: crate::workflow::tracked_video::Request) -> Result<Value, String> {
+    pub fn tracked_video_replacement(&self, request: crate::workflow::tracked_video::Request) -> Result<Value, Error> {
         request.validate()?;
-        if serde_json::to_vec(&request).map_err(|e| e.to_string())?.len() > REQUEST_LIMIT {
+        if serde_json::to_vec(&request).map_err(motion_host::Error::from)?.len() > REQUEST_LIMIT {
             return Err("tracked replacement request exceeds 256 KiB".into());
         }
         self.call(|reply| Command::TrackedVideoReplacement { request, reply })
     }
-    pub fn media_package_limits(&self) -> Result<Value, String> {
+    pub fn media_package_limits(&self) -> Result<Value, Error> {
         self.call(Command::MediaPackageLimits)
     }
-    pub fn media_capabilities(&self, text: String) -> Result<Value, String> {
+    pub fn media_capabilities(&self, text: String) -> Result<Value, Error> {
         self.call(|reply| Command::MediaCapabilities { text, reply })
     }
-    pub fn capture(&self) -> Result<Value, String> {
+    pub fn capture(&self) -> Result<Value, Error> {
         self.call(|reply| Command::Capture { output: None,
             control: motion_desktop_media::movie::ExportControl::default(), reply })
     }
     pub fn capture_async(&self, output: PathBuf, control: motion_desktop_media::movie::ExportControl)
-        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::Capture { output: Some(output), control, reply })
     }
     pub fn capture_viewer_snapshot_async(&self, window: u64)
-        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::CaptureViewerSnapshot { window, reply })
     }
     pub fn save_viewer_snapshot_async(&self, window: u64, path: PathBuf, channel: motion_render::ViewChannel)
-        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::SaveViewerSnapshot { window, path, channel, reply })
     }
-    pub fn render_preview(&self, frame: Option<f64>) -> Result<Value, String> {
+    pub fn render_preview(&self, frame: Option<f64>) -> Result<Value, Error> {
         self.call(|reply| Command::RenderPreview { frame, reply })
     }
-    pub fn pack(&self) -> Result<Value, String> {
+    pub fn pack(&self) -> Result<Value, Error> {
         self.call(Command::Pack)
     }
-    pub fn image_info(&self, path: String) -> Result<Value, String> {
+    pub fn image_info(&self, path: String) -> Result<Value, Error> {
         self.call(|reply| Command::ImageInfo { path, reply })
     }
-    pub fn import_image(&self, file: PathBuf) -> Result<Value, String> {
+    pub fn import_image(&self, file: PathBuf) -> Result<Value, Error> {
         self.call(|reply| Command::ImportImage { file, reply })
     }
-    pub fn import_model(&self, file: PathBuf, expected_revision: u64) -> Result<Value, String> {
+    pub fn import_model(&self, file: PathBuf, expected_revision: u64) -> Result<Value, Error> {
         self.call(|reply| Command::ImportModel { file, expected_revision: Some(expected_revision), source: None, reply })
     }
     pub fn import_tracking(&self, file: PathBuf, source: motion_core::media_assets::AssetRef,
-        revision: u64, generation: u64) -> Result<Value, String> {
+        revision: u64, generation: u64) -> Result<Value, Error> {
         self.call(|reply| Command::ImportTracking { file, source, revision, generation, reply })
     }
     pub fn create_text(
@@ -1376,7 +1495,7 @@ impl Engine {
         size: f32,
         width: u32,
         font: Option<(PathBuf, u32)>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, Error> {
         self.call(|reply| Command::CreateText {
             text,
             size,
@@ -1389,8 +1508,8 @@ impl Engine {
         &self,
         control: motion_desktop_media::movie::ExportControl,
     ) -> Result<
-        std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>,
-        String,
+        std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, Error>>,
+        Error,
     > {
         if !cfg!(feature = "ffmpeg") {
             return Err("this build does not support MP4 export".into());
@@ -1401,19 +1520,19 @@ impl Engine {
         &self,
         source: crate::layer_clipboard::KeyframeSource,
         control: motion_desktop_media::movie::ExportControl,
-    ) -> Result<std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, Error>>, Error> {
         if !cfg!(feature = "ffmpeg") {
             return Err("this build does not support MP4 export".into());
         }
         self.request(|reply| Command::FreezeMovie { source: Some(source), control, reply })
     }
-    pub fn prepare_image(&self, root: PathBuf, path: String) -> Result<Value, String> {
+    pub fn prepare_image(&self, root: PathBuf, path: String) -> Result<Value, Error> {
         self.call(|reply| Command::PrepareImage { root, path, reply })
     }
-    pub fn resource_info(&self, directory: PathBuf) -> Result<Value, String> {
+    pub fn resource_info(&self, directory: PathBuf) -> Result<Value, Error> {
         self.call(|reply| Command::ResourceInfo { directory, reply })
     }
-    pub fn video_frame(&self, object: u64, sequence: u64) -> Result<ArcFrame, String> {
+    pub fn video_frame(&self, object: u64, sequence: u64) -> Result<ArcFrame, Error> {
         self.call(|reply| Command::VideoFrame {
             object,
             sequence,
@@ -1421,7 +1540,7 @@ impl Engine {
         })
     }
 
-    pub fn open_directory(&self, directory: PathBuf) -> Result<Value, String> {
+    pub fn open_directory(&self, directory: PathBuf) -> Result<Value, Error> {
         self.call(|reply| Command::OpenDirectory { directory, reply })
     }
     pub fn attach_async(
@@ -1429,7 +1548,7 @@ impl Engine {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.check_running()?;
         // Winit exposes Win32 handles only on the GUI thread. Build a surface
         // here, then transfer rendering ownership to the session worker.
@@ -1441,7 +1560,7 @@ impl Engine {
         window: u64,
         width: u32,
         height: u32,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, Error>>, Error> {
         self.request(|reply| Command::Resize {
             window,
             width,
@@ -1455,7 +1574,7 @@ impl Engine {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, Error> {
         self.check_running()?;
         let target = {
             let factory = self
@@ -1466,7 +1585,7 @@ impl Engine {
             let surface = factory
                 .instance
                 .create_surface(window)
-                .map_err(|e| e.to_string())?;
+                .map_err(Error::from)?;
             if !surface
                 .get_capabilities(&factory.adapter)
                 .formats
@@ -1483,18 +1602,23 @@ impl Engine {
         };
         self.call(|reply| Command::FloatWindow { key, target, reply })
     }
-    pub fn close_window(&self, key: u64) -> Result<Value, String> {
+    pub fn close_window(&self, key: u64) -> Result<Value, Error> {
         self.call(|reply| Command::CloseWindow { key, reply })
     }
     pub fn present_async(
         &self,
         ui: UiFrame,
-    ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+    ) -> Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
         self.request(|reply| Command::Present { ui, reply })
     }
     pub(crate) fn present_frozen_async(&self, ui: UiFrame)
-        -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+        -> Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
         self.request(|reply| Command::PresentFrozen { ui, reply })
+    }
+
+    pub(crate) fn present_poll_async(&self, ui: UiFrame, frozen: bool)
+        -> Result<std::sync::mpsc::Receiver<Result<bool, Error>>, Error> {
+        self.request(|reply| Command::PresentPoll { ui, frozen, reply })
     }
 }
 
@@ -1506,7 +1630,7 @@ impl Drop for Engine {
         if let Some(worker) = self.worker.take() {
             if let Err(payload) = worker.join() {
                 let error = format!("engine shutdown failed: worker panicked outside its command boundary: {}", motion_media::panic_reason(payload));
-                *self.failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(error.clone());
+                *self.failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(error.clone().into());
                 log::error!("{error}");
             }
         }
@@ -1538,14 +1662,14 @@ fn clear_target(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
 }
 
 
-fn respond<T>(reply: Sender<Result<T, String>>, value: motion_host::Result<T>) {
+fn respond<T>(reply: Sender<Result<T, Error>>, value: motion_host::Result<T>) {
     if let Err(reason) = &value {
         if let Some(flight) = CURRENT_COMMAND.get() {
             log::error!("error #{} {} {}ms: {}", flight.request, flight.operation,
                 flight.started.elapsed().as_millis(), crate::fallback_observation::error_cause(reason));
         }
     }
-    let _ = reply.send(value.map_err(String::from));
+    let _ = reply.send(value.map_err(Error::from));
 }
 
 /// Execute one command against the session.
@@ -1558,18 +1682,19 @@ struct ProjectGuard {
     initial: Option<motion_core::Project>,
 }
 impl ProjectGuard {
-    fn acquire(root: &std::path::Path) -> Result<Self, String> {
-        std::fs::create_dir_all(root).map_err(|e| e.to_string())?;
-        let root = root.canonicalize().map_err(|e| e.to_string())?;
+    fn acquire(root: &std::path::Path) -> motion_host::Result<Self> {
+        std::fs::create_dir_all(root)?;
+        let root = root.canonicalize()?;
         let file = std::fs::OpenOptions::new()
             .create(true)
             .truncate(false)
             .read(true)
             .write(true)
             .open(root.join(".motion-editor.lock"))
-            .map_err(|e| e.to_string())?;
+            ?;
         file.try_lock()
-            .map_err(|e| format!("project is already open or cannot be locked: {e}"))?;
+            .map_err(|cause| motion_host::Error::with_context(
+                "project is already open or cannot be locked", cause))?;
         Ok(Self {
             root,
             _file: file,
@@ -1581,9 +1706,9 @@ impl ProjectGuard {
             .root
             .join("project.json")
             .try_exists()
-            .map_err(|e| e.to_string())?
+            ?
         {
-            Some(motion_core::storage::load_document(&self.root).map_err(|e| e.to_string())?)
+            Some(motion_core::storage::load_document(&self.root)?)
         } else {
             self.initial.clone()
         };
@@ -1600,7 +1725,7 @@ impl ProjectGuard {
         let state = result?;
         let root = PathBuf::from(state["root"].as_str().ok_or("missing project root")?)
             .canonicalize()
-            .map_err(|e| e.to_string())?;
+            ?;
         if root != self.root {
             *self = Self::acquire(&root)?;
         }
@@ -1643,6 +1768,8 @@ fn handle(
     diagnostics: &crate::diagnostics::Diagnostics,
     allocation_budget: &motion_render::AllocationBudget,
     factory: &Mutex<Option<SurfaceFactory>>,
+    frame_completions: &mut frame_completion::Queue,
+    continuation: &mut Option<Command>,
     command: Command,
 ) -> bool {
     // Project operations and view changes can overwrite the shared scratch.
@@ -1650,7 +1777,7 @@ fn handle(
     // frozen presentation may reuse it, ordinary presentation still compares time.
     if !matches!(
         &command,
-        Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
+        Command::Present { .. } | Command::PresentFrozen { .. } | Command::PresentPoll { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
         | Command::CaptureViewerSnapshot { .. } | Command::SaveViewerSnapshot { .. }
         | Command::ViewerInput { .. }
@@ -1658,14 +1785,15 @@ fn handle(
     ) {
         presentation.retained = None;
     }
-    let frozen = matches!(&command, Command::PresentFrozen { .. });
+    let frozen = matches!(&command, Command::PresentFrozen { .. } | Command::PresentPoll { frozen: true, .. });
+    let polling = matches!(&command, Command::PresentPoll { .. });
     match command {
         #[cfg(test)]
         Command::TestStudy { operation, reply } => respond(reply, operation(id)),
         #[cfg(test)]
         Command::TestPanic { during_prepare, reply } => respond(reply, motion_host::session::with_session(id, |session| {
             if during_prepare {
-                session.engine.apply_batch_with_prepare(vec![motion_core::Command::SetColor { object: 0, value: [1.,0.,0.,1.] }], |_| panic!("injected preparation panic")).map_err(|error| error.to_string())?;
+                session.engine.apply_batch_with_prepare(vec![motion_core::Command::SetColor { object: 0, value: [1.,0.,0.,1.] }], |_| panic!("injected preparation panic"))?;
             }
             panic!("injected worker panic");
         })),
@@ -1745,7 +1873,7 @@ fn handle(
             }
             let preview=node_preview.active.as_mut().ok_or("no installed plugin preview")?;
             if preview.stamp!=stamp {return Ok(false);}
-            preview.set_plugin_values(&values).map_err(|e|e.to_string())?;
+            preview.set_plugin_values(&values)?;
             Ok(true)
         })()),
         Command::NodeInstall { snapshot, compiled, canonical,reply } => respond(reply, (|| {
@@ -1755,7 +1883,7 @@ fn handle(
                 log::debug!("node install superseded received={:?} desired={:?} revision={}", snapshot.preview_stamp(), node_preview.desired, snapshot.revision);
                 return Ok(false);
             }
-            let compiled = compiled.prepare().map_err(|e| e.to_string())?;
+            let compiled = compiled.prepare()?;
             let (preview, canonical_preview) = motion_host::session::with_session(id, |session| {
                 let graphics = session.graphics.as_ref().ok_or("node GPU not attached")?;
                 let context = crate::node_preview::GpuContext {
@@ -1793,7 +1921,7 @@ fn handle(
             g.renderer.submit_allocated(encoder.finish(),|ledger|ledger.merge(target.texture_resource_ledger()))?;
             let pixels=g.renderer.read_image_target(&target)?.pixels;
             let fingerprint=pixels.iter().fold(0xcbf29ce484222325u64,|h,b|(h^u64::from(*b)).wrapping_mul(0x100000001b3));
-            image::save_buffer(&path,&pixels,dimension,dimension,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
+            image::save_buffer(&path,&pixels,dimension,dimension,image::ColorType::Rgba8)?;
             Ok(serde_json::json!({"path":path,"seconds":seconds,"fingerprint":format!("{fingerprint:016x}"),"stamp":preview.stamp,"renders":preview.renders,"frames":preview.frames}))
             });
             frame_allocation::finish(frame,&result,|_|true);
@@ -1909,18 +2037,18 @@ fn handle(
             diagnostics.native_test_phase("capture.target");
             let g = s.graphics.as_ref().ok_or("desktop surface is not attached")?;
             let (width,height)=if ui.window==0{(g.config.width,g.config.height)}else{let window=windows.get(&ui.window).ok_or("floating screenshot window closed")?;(window.config.width,window.config.height)};
-            let target = ui_paint::display_capture_target(&g.renderer, width, height).map_err(|e| e.to_string())?;
+            let target = ui_paint::display_capture_target(&g.renderer, width, height)?;
             capture_phase = "capture.painter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.painter");
             let mut chrome = motion_ui::Painter::new_admitted(ui_paint::allocation::context(g.renderer.allocation_context()), wgpu::TextureFormat::Rgba8UnormSrgb)
-                .map_err(|e| format!("phase=capture.painter: {e}"))?;
+                .map_err(|e| ui_paint::error("phase=capture.painter", e))?;
             capture_phase = "capture.atlas";
             let upload = ui.atlas.take().ok_or("screenshot requires the complete glyph atlas")?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.atlas");
             chrome.upload_atlas_owned(&g.renderer.device, &g.renderer.queue, upload.pixels, upload.width, upload.height)
-                .map_err(|e| format!("phase=capture.atlas: {e}"))?;
+                .map_err(|e| ui_paint::error("phase=capture.atlas", e))?;
             capture_phase = "capture.presenter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
@@ -1929,16 +2057,16 @@ fn handle(
                 &g.scratch.working_front().ok_or("working preview target missing")?.view
             } else { &g.scratch.view };
             let mut presenter = motion_render::Presenter::new_admitted(&g.renderer, source, wgpu::TextureFormat::Rgba8UnormSrgb)
-                .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=capture.presenter", error))?;
             if ui.composition.is_some() {
                 presenter.set_view_channel(&g.renderer.queue, ui.inspection.channel)
-                    .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+                    .map_err(|error| motion_host::Error::with_context("phase=capture.presenter", error))?;
             }
             presentation.inspection.configure_capture(&ui, &g.renderer, &mut presenter)
-                .map_err(|e| format!("phase=capture.inspection: {e}"))?;
+                .map_err(|error| motion_host::Error::with_context("phase=capture.inspection", error))?;
                 Some(presenter)
             } else { None };
-            let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
+            let mut encoder = g.renderer.allocation_command_encoder(&Default::default())?;
             if let Some(plan)=&ui.views {
                 s.encode_view_group_capture_with_inspection(ui.window,&plan.borrow(),&view_inspections,&mut encoder,target.view(),[width,height])?;
             } else if let Some([x,y,w,h])=ui.composition {
@@ -1946,14 +2074,14 @@ fn handle(
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
                 presenter.as_mut().ok_or("single-view capture presenter missing")?.encode_view(&g.renderer.queue, &mut encoder, target.view(), None,
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
-                    .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+                    .map_err(|error| motion_host::Error::with_context("phase=capture.presenter", error))?;
             } else {clear_target(&mut encoder,target.view());}
             capture_phase = "capture.paint";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.paint");
             let plugin_content=node_preview.plugin_parameters.is_some();
             if plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,target.view(),viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}}
-            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,target.view(),&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
+            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,target.view(),&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|ui_paint::error(format!("capture_ui window={}",ui.window),e))?;
             capture_phase = "capture.node";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.node");
@@ -1970,15 +2098,15 @@ fn handle(
                 for inspection in &view_inspections { if let Some((source,_))=inspection.comparison {
                     source.collect_texture_resources(ledger,"viewer/capture-comparison",motion_render::TextureState::Retained);
                 }}
-            }).map_err(|e|e.to_string())?;
+            })?;
             capture_phase = "capture.readback";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.readback");
-            let pixels = g.renderer.read_image_target(&target).map_err(|e| e.to_string())?.pixels;
+            let pixels = g.renderer.read_image_target(&target)?.pixels;
             capture_phase = "capture.save";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.save");
-            image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;
+            image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8)?;
             Ok(serde_json::json!({"path":path,"width":width,"height":height}))
             });
             frame_allocation::finish(frame,&result,|_|true);
@@ -2006,7 +2134,7 @@ fn handle(
             let mut attached = false;
             let result = motion_host::session::with_session(id, |s| {
                 let next = motion_ui::Painter::new_admitted(ui_paint::allocation::context(target.renderer.allocation_context()), target.config.format)
-                    .map_err(|e| format!("phase=attach.painter: {e}"))?;
+                    .map_err(|e| ui_paint::error("phase=attach.painter", e))?;
                 s.attach(target)?;
                 *painter = Some(next);
                 attached = true;
@@ -2038,6 +2166,7 @@ fn handle(
             windows.insert(key,target);s.snapshot()
         })),
         Command::CloseWindow {key,reply} => {
+            frame_completions.cancel_window(key, paints);
             windows.remove(&key);
             respond(reply, motion_host::session::with_session(id, |s| {
                 presentation.inspection.close_window(s, key);
@@ -2057,8 +2186,9 @@ fn handle(
             }
             s.snapshot()
         })),
-        Command::Present { mut ui, reply } | Command::PresentFrozen { mut ui, reply } => {
+        Command::Present { mut ui, reply } | Command::PresentFrozen { mut ui, reply } | Command::PresentPoll { mut ui, reply, .. } => {
         let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::Present);
+        let mut preparing = false;
         let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
             diagnostics.native_test_phase("present.prepare");
@@ -2093,9 +2223,9 @@ fn handle(
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");
                 if let Some(upload)=ui.atlas.take() {painter.upload_atlas_owned(&g.renderer.device,&g.renderer.queue,upload.pixels,upload.width,upload.height)
-                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;}
+                    .map_err(|e|ui_paint::error(format!("present window={} phase=atlas",ui.window),e))?;}
                 painter.retry_atlas(&g.renderer.device,&g.renderer.queue)
-                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;
+                    .map_err(|e|ui_paint::error(format!("present window={} phase=atlas",ui.window),e))?;
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
@@ -2156,11 +2286,7 @@ fn handle(
                         (Ok(_),Some(error))=>Err(error.into()),
                         (Err(primary),Some(secondary))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(secondary.into())}),
                     };
-                    let result=match (result,paint_error) {
-                        (Ok(value),error)=>ui_paint::finish(Ok(value),error,ui.window).map_err(motion_host::Error::from),
-                        (Err(primary),None)=>Err(primary),
-                        (Err(primary),Some(error))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(motion_host::Error::from(format!("UI overlay window={}: {error}",ui.window)))}),
-                    };
+                    let result=ui_paint::finish(result,paint_error,ui.window);
                     presentation.retained=if batch.is_none() && result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
@@ -2189,7 +2315,7 @@ fn handle(
                     clear_target(&mut encoder,&view);
                     let plugin_content=node_preview.plugin_parameters.is_some();
                     if plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}}
-                    painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|format!("present window={}: {e}",ui.window))?;
+                    painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|ui_paint::error(format!("present window={}",ui.window),e))?;
                     if !plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}}
                     #[cfg(test)]
                     diagnostics.native_test_phase("present.submit");
@@ -2207,16 +2333,22 @@ fn handle(
             if presentation.last_present_us>=30_000 {
                 log::debug!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
+            preparing = result.as_ref().is_ok_and(|value| !*value) && ui.composition.is_some()
+                && s.pipeline_preparation_pending();
             result.map_err(|error| motion_host::Error::with_context(format!("present window={} logical_size={:?}", ui.window, ui.logical_size),error))
         });
+        frame_allocation::finish(frame,&result,|rendered|*rendered);
+        if !polling && preparing && result.is_ok() {
+            *continuation = Some(if frozen { Command::PresentFrozen { ui, reply } } else { Command::Present { ui, reply } });
+        } else {
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
-        frame_allocation::finish(frame,&result,|rendered|*rendered);
         respond(reply,result);
+        }
         },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{
-            motion_core::storage::load(&directory).map_err(|e|e.to_string())?;
-            let directory=directory.canonicalize().map_err(|e|e.to_string())?;
+            motion_core::storage::load(&directory)?;
+            let directory=directory.canonicalize()?;
             if directory==guard.root{return project::save(id);}
             let next=ProjectGuard::acquire(&directory)?;
             let result=project::open_directory(id,&directory)?;*guard=next;Ok(result)
@@ -2228,13 +2360,13 @@ fn handle(
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "modelImport":{"supported":true,"formats":["gltf","glb","obj"],"tool":"import_model","owned":true,"pixelsPerMetre":100,"samples":1,"automaticAnimation":false},
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
-                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),
+                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),"frameCompletions":frame_completions.status(),
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalCandidatePipelineBuilds":node_preview.canonical.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalRetainedShaderCodeBytes":node_preview.canonical.as_ref().map_or(0,|p|p.shader_code_bytes()),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
         Command::NewProject { text, reply } => respond(reply,guard.changed(project::new_project_with_choice(id, &text, project::PreviousProject::Save))),
         Command::OpenProject { name, reply } => respond(reply,(||{
-            let directory=guard.root.parent().ok_or("project parent is missing")?.join(&name).canonicalize().map_err(|e|e.to_string())?;
+            let directory=guard.root.parent().ok_or("project parent is missing")?.join(&name).canonicalize()?;
             if directory==guard.root{return project::save(id);}
             let next=ProjectGuard::acquire(&directory)?;
             let result=project::open_project(id,&name)?;*guard=next;Ok(result)
@@ -2248,7 +2380,7 @@ fn handle(
                 motion_host::tracking::import::Error::Cancelled | motion_host::tracking::import::Error::Superseded))) {
                 // Keep the rejection on the wire, without classifying expected
                 // cancellation as a fault. Replies retain best-effort semantics.
-                let _ = reply.send(result.map_err(String::from));
+                let _ = reply.send(result.map_err(Error::from));
             } else {
                 respond(reply, result);
             }
@@ -2289,7 +2421,7 @@ fn handle(
                 })?;
                 let plan = plan.with_observation_request(CURRENT_COMMAND.get().map_or(0, |flight| flight.request));
                 let cancel = control.clone();
-                movie_freeze.start(reply.clone(), control, move || plan.freeze(&cancel))?;
+                movie_freeze.start(reply.clone(), control, move || plan.freeze(&cancel).map_err(motion_host::Error::from))?;
                 Ok(())
             })();
             if let Err(error) = result { movie_freeze::respond_movie(reply, Err(error)); }
@@ -2326,7 +2458,16 @@ fn handle(
             height,
             reply,
         } => respond(reply,preview::navigate(id, dx, dy, zoom, multi, width, height)),
-        Command::Render { frame, reply } => respond(reply,preview::render(id, frame)),
+        Command::Render { frame, reply } => {
+            let mut preparing = false;
+            let result = motion_host::session::with_session(id, |session| {
+                let result = preview::render_inner(session, frame);
+                preparing = result.as_ref().is_ok_and(|value| !*value) && session.pipeline_preparation_pending();
+                result
+            });
+            if preparing && result.is_ok() { *continuation = Some(Command::Render { frame, reply }); }
+            else { respond(reply, result); }
+        }
         Command::ConfigureMemory {
             total,
             guarded,
@@ -2356,7 +2497,7 @@ fn handle(
             let result = crate::workflow::tracked_video::request(id, request);
             if matches!(&result, Err(motion_host::Error::TrackingImport(
                 motion_host::tracking::import::Error::Cancelled | motion_host::tracking::import::Error::Superseded))) {
-                let _ = reply.send(result.map_err(String::from));
+                let _ = reply.send(result.map_err(Error::from));
             } else {
                 respond(reply, result);
             }
@@ -2402,7 +2543,7 @@ fn media_request(id: i64, text: &str) -> motion_host::Result<Value> {
 fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> motion_host::Result<Value> {
     let value = motion_host::ops::parse_request(text, 16 * 1024, "media request")?;
     let request = serde_json::from_value::<media::Request>(value)
-        .map_err(|error| format!("media request: {error}"))?;
+        .map_err(|cause| motion_host::Error::with_context("media request", cause))?;
     let media::Request::MediaCapabilities { video_query: query } = request else {
         return Err("expected media_capabilities request".into());
     };

@@ -54,7 +54,7 @@ fn cached_plan_failure_reaches_original_reply_file_and_stderr_at_default_level()
                 cause.as_ref(),
                 motion_render::RenderError::Effects(_)
             ));
-            let (reply, receive) = channel::<Result<Value, String>>();
+            let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
             CURRENT_COMMAND.set(Some(Flight {
                 request,
                 operation: "test_effect_plan",
@@ -66,7 +66,7 @@ fn cached_plan_failure_reaches_original_reply_file_and_stderr_at_default_level()
                 receive
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 original
             );
         }

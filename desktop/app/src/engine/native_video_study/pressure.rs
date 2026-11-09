@@ -123,7 +123,7 @@ fn require_quality(state: &Value, full: bool) -> Result<u64> {
 fn seek_source_frame(
     shell: &mut Shell,
     frame: u32,
-) -> Result<Receiver<std::result::Result<Value, String>>> {
+) -> Result<Receiver<std::result::Result<Value, crate::engine::Error>>> {
     // Use the ordinary action: it updates Shell.frame before dispatching the
     // same worker seek. accept_edit_state alone intentionally updates only the
     // snapshot, so a raw worker command leaves the driver's expected ID stale.

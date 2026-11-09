@@ -48,13 +48,13 @@ fn rejected_project_schema_preserves_files_state_and_default_error_channels() {
             let bytes = serde_json::to_vec(&value).unwrap();
             std::fs::write(folder.join("project.json"), &bytes).unwrap();
             let error = engine.open_project(directory.into()).unwrap_err();
-            assert!(error.contains(cause), "{error}");
+            assert!(error.to_string().contains(cause), "{error}");
             if name == "old-version" {
-                assert!(error.contains(&format!(
+                assert!(error.to_string().contains(&format!(
                     "version={}",
                     motion_core::CURRENT_PROJECT_VERSION - 1
                 )));
-                assert!(error.contains(&format!(
+                assert!(error.to_string().contains(&format!(
                     "expected={}",
                     motion_core::CURRENT_PROJECT_VERSION
                 )));
@@ -265,9 +265,9 @@ fn real_save_publication_failure_reaches_reply_file_and_stderr() {
         std::fs::write(target.join("keep"), b"preserved").unwrap();
         let error = engine.save().unwrap_err();
         for field in ["phase=publish", "published=false", "cause=", "project.json"] {
-            assert!(error.contains(field), "{error}");
+            assert!(error.to_string().contains(field), "{error}");
         }
-        std::fs::write(root.join("reply.txt"), &error).unwrap();
+        std::fs::write(root.join("reply.txt"), &error.to_string()).unwrap();
         assert_eq!(std::fs::read(target.join("keep")).unwrap(), b"preserved");
         assert!(!project_root.join("project.json.tmp").exists());
         assert!(!engine.failed());
@@ -399,15 +399,15 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
             let error = result.unwrap_err();
             if import {
                 assert!(
-                    error.contains(CAUSE) && error.contains("Could not find EOCD"),
+                    error.to_string().contains(CAUSE) && error.to_string().contains("Could not find EOCD"),
                     "{error}"
                 );
             } else {
                 // JSON alone cannot supply an external file to a fresh root.
                 assert!(
-                    error.contains(MISSING)
-                        && error.contains(&missing_cause)
-                        && error.contains(&resource.path),
+                    error.to_string().contains(MISSING)
+                        && error.to_string().contains(&missing_cause)
+                        && error.to_string().contains(&resource.path),
                     "{error}"
                 );
             }

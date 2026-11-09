@@ -111,7 +111,7 @@ fn execute(host: &engine::Engine, actions: Vec<Action>) -> (Ticket, Result<Value
                 source,
                 commands: vec![Command::SetExpression { expression, frame }],
                 reply,
-            }),
+            }).map_err(String::from),
         ),
         Action::ExpressionCheck {
             ticket,
@@ -123,7 +123,7 @@ fn execute(host: &engine::Engine, actions: Vec<Action>) -> (Ticket, Result<Value
                 target,
                 source: text,
                 reply,
-            }),
+            }).map_err(String::from),
         ),
         a => panic!("unexpected action {a:?}"),
     }

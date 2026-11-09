@@ -5,6 +5,46 @@ does not acquire a Python, ONNX or inference dependency. No inference runtime or
 model is bundled, no network is used at inference time, and no Android support
 or desktop UI integration is implied by this host API.
 
+## Explicit native WGSL execution
+
+`depth::wgsl::Wgsl` is an alternative implementation of the same `Backend` trait.
+Construct `wgsl::Config` with absolute `python`, `worker`, `program`, and writable
+`scratch` paths, plus an explicit `Hardware::{Vulkan,Dx12,Metal}` request. Pass
+it to the existing `Jobs::start` or generic Session backend installation API.
+Construction does not initialize a GPU. Model and processing identities remain
+the same as ONNX; choosing a GPU API does not select another model or quality.
+
+Build the worker explicitly:
+
+```text
+cargo build --locked -p motion-desktop --bin motion-depth-wgsl
+```
+
+The worker accepts an absolute tensor request and a new absolute result directory.
+Normal clients should use the host backend, which owns input/output files,
+fingerprints, subprocesses and scalar validation. It directly owns preparation,
+inference and remapping children, so cancellation never leaves an inference
+grandchild. Its Python environment requires the already documented NumPy/OpenCV;
+ONNX Runtime is not imported by these transforms. No network access or runtime
+installation occurs during inference.
+
+Only the pinned Small Float32/518-square program identified by
+`wgsl::PROGRAM_SHA256` and its corresponding resources is admitted. Unsupported
+plans, software adapters, missing capabilities and mismatched model/backend
+reports fail explicitly; there is no implicit CPU or different-model fallback.
+The current manually prepared research plan/resources must be installed
+separately. The release package does not bundle them or the new worker, and msfx
+does not acquire a compute-plan capability. Generic model-package installation
+and requested/resolved quality negotiation remain pending.
+
+The [actual shared-job record](../validation/depth75-shared-backend-current.md)
+documents CPU/GPU outputs, actual cancellation and stale-source rejection.
+The native child currently pays cold device/pipeline/resource setup on every
+request. It is not an interactive fast tier. `Costs.inference` measures that
+entire child, while preparation/remapping measure their child wall times;
+unmeasured load/copy subphases remain zero. No physical VRAM, zero-copy or
+sustained latency claim follows from these counters.
+
 ## External model preparation
 
 Use a separate directory for the runtime, reference checkout, weights and model.
@@ -20,13 +60,18 @@ before importing the upstream implementation. Base/Large/Giant are not inputs.
 With absolute paths, run:
 
 ```text
-<runtime-python> -B tools/export_ai_depth.py --reference <checkout> --weights <small-pth> --output <new-model-directory>
+<runtime-python> -B tools/export_ai_depth.py --reference <checkout> --weights <small-pth> --output <new-model-directory> [--side 266|392|518]
 ```
 
 The tool performs no download or package installation. It refuses an existing
-output directory, exports a fixed `1x3x518x518` float32, single-file opset-17
+output directory, exports a fixed `1x3xSxS` Float32, single-file opset-17
 model, and checks an actual CPU ONNX prediction against the official PyTorch
 forward. It then publishes the model, upstream license and `model.json` together.
+`S` is the requested side; it defaults to 518. The three sides are explicit
+measurement candidates, not measured fast/standard/high quality tiers. All three
+real exports and native Jobs paths have passed same-weight reference comparisons;
+see [source-bound evidence and remaining limits](../validation/depth75-resolution-export-current.md).
+This does not qualify automatic quality switching, interactive latency or peak memory.
 The manifest records both the original weight hash and the exported ONNX hash,
 tool versions, processing identity and numerical bounds. Different export
 environments must retain their own manifest and pass the comparison.
@@ -41,9 +86,18 @@ An input contains owned opaque **RGB8 in sRGB encoding**, after the declared
 crop, clockwise quarter-turn and horizontal mirror. Alpha compositing and
 conversion from the renderer's working space belong to the caller. Dimensions
 must match the oriented crop and are capped at 4096 per axis. The worker uses
-RGB bicubic letterboxing to 518 square, explicit normalization and NCHW layout,
+RGB bicubic letterboxing to the declared square, explicit normalization and NCHW layout,
 then inverse-crops and resamples scalar depth with aligned endpoints. The
-processing identity is `dav2-small-rgb8-letterbox518-align-corners-relative-v1`.
+processing identity is `dav2-small-rgb8-letterboxS-align-corners-relative-v1`,
+with `S` exactly 266, 392 or 518. Unknown identities or model metadata that
+disagrees with the requested side are refused. Backend/provider choice does
+not select or silently change resolution. Native WGSL admission remains bound
+to its independently qualified 518 plan; this ONNX source change does not
+qualify new WGSL plans.
+The host also checks reported tensor-copy bytes against the selected square:
+`3 * S * S * 4` input bytes and `S * S * 4` output bytes. These are tensor
+payload counts; the final resource uses the oriented source crop dimensions.
+They do not measure provider-internal allocations or device transfers.
 
 `Key` carries asset ID, source revision, exact rational PTS, full geometry and
 `DepthModel`. The model's `sha256` is the **exported ONNX file hash** from

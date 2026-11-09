@@ -50,7 +50,7 @@ fn blocked_freeze_retains_one_source_owner_and_rejects_additional_workers() {
     assert_eq!(worker.status()["workerFinished"], false);
     let called = Arc::new(AtomicUsize::new(0));
     for _ in 0..64 {
-        let (reply, _) = channel::<Result<(), String>>();
+        let (reply, _) = channel::<Result<(), crate::engine::Error>>();
         let called = called.clone();
         let error = worker
             .start(reply, ExportControl::default(), move || {
@@ -58,7 +58,7 @@ fn blocked_freeze_retains_one_source_owner_and_rejects_additional_workers() {
                 Ok(())
             })
             .unwrap_err();
-        assert!(error.contains("still running or cancelling"));
+        assert!(error.to_string().contains("still running or cancelling"));
     }
     assert_eq!(called.load(Ordering::Relaxed), 0);
     assert!(!released_source.load(Ordering::Acquire));
@@ -84,7 +84,7 @@ fn shutdown_publishes_cancellation_then_joins_source_work_before_returning() {
     let checked = control.clone();
     let (entered, entry) = channel();
     let (release, released) = channel();
-    let (reply, receive) = channel::<Result<(), String>>();
+    let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
     CURRENT_COMMAND.set(Some(Flight {
         request: 32,
         operation: "freeze_movie",
@@ -94,7 +94,7 @@ fn shutdown_publishes_cancellation_then_joins_source_work_before_returning() {
         .start(reply, control.clone(), move || {
             entered.send(()).unwrap();
             released.recv().unwrap();
-            checked.check()
+            Ok(checked.check()?)
         })
         .unwrap();
     CURRENT_COMMAND.set(None);
@@ -122,7 +122,7 @@ fn shutdown_publishes_cancellation_then_joins_source_work_before_returning() {
         receive
             .recv_timeout(Duration::from_secs(5))
             .unwrap()
-            .unwrap_err(),
+            .unwrap_err().to_string(),
         "movie export cancelled"
     );
     exit.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -134,7 +134,7 @@ fn shutdown_publishes_cancellation_then_joins_source_work_before_returning() {
 fn completed_worker_is_reaped_and_explicit_next_request_can_recover() {
     let observation = Arc::new(Mutex::new(None));
     let mut worker = Worker::new(observation.clone());
-    let (reply, receive) = channel::<Result<(), String>>();
+    let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
     worker
         .start(reply, ExportControl::default(), || {
             Err("original freeze failure".into())
@@ -144,7 +144,7 @@ fn completed_worker_is_reaped_and_explicit_next_request_can_recover() {
         receive
             .recv_timeout(Duration::from_secs(5))
             .unwrap()
-            .unwrap_err(),
+            .unwrap_err().to_string(),
         "original freeze failure"
     );
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -214,8 +214,8 @@ fn reply_cleanup_panic_is_reported_and_clears_in_flight_before_next_request() {
         std::thread::yield_now();
     }
     let error = worker.available().unwrap_err();
-    assert!(error.contains("request=Some(33)"), "{error}");
-    assert!(error.contains("controlled reply drop panic"), "{error}");
+    assert!(error.to_string().contains("request=Some(33)"), "{error}");
+    assert!(error.to_string().contains("controlled reply drop panic"), "{error}");
     assert!(observation.lock().unwrap().is_none());
     let (reply, receive) = channel();
     worker
@@ -310,7 +310,7 @@ fn queued_movie_capture_rejects_stale_identity_and_keeps_the_accepted_revision()
         let result = engine.freeze_movie_for_queue(
             crate::layer_clipboard::KeyframeSource::of(&stale), control.clone(),
         ).unwrap().recv_timeout(Duration::from_secs(15)).unwrap();
-        assert!(matches!(result, Err(ref cause) if cause == "movie export cancelled"));
+        assert!(matches!(result, Err(ref cause) if cause.to_string() == "movie export cancelled"));
         assert!(control.check().is_err());
         assert_eq!(engine.state().unwrap()["project"], original["project"]);
     }

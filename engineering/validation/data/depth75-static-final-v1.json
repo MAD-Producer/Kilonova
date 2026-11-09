@@ -1,0 +1,69 @@
+{
+  "status": "static_gates_passed_full_native_regression_pending",
+  "createdUtc": "2026-11-06T08:01:58.613154+00:00",
+  "archive": "depth75-static-final-v1.zip",
+  "bytes": 9283,
+  "sha256": "efe770726cf0f0995d7b16ff3a46f45062fbbf71819990c9923d2b07c9f3aaa0",
+  "entries": {
+    "archive-controller.py": {
+      "bytes": 2123,
+      "sha256": "f836099210eaab3ff4cedd1a462c6496c7616f3ef25673a66dd4a7a603718894"
+    },
+    "controller.py": {
+      "bytes": 2646,
+      "sha256": "513f1b78c4b3c004205f79b652c4368d42960b7a427201783a882be68e3df4df"
+    },
+    "diff.stderr.log": {
+      "bytes": 119,
+      "sha256": "76cfabbb5a5213d739ffff07bbe753b7c534b119065a2edcda9222c85c163a05"
+    },
+    "diff.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "inventory.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "inventory.stdout.log": {
+      "bytes": 105,
+      "sha256": "d74bbcec5c2ea0dd61bbdfdb66e8ceb7feb4ce3e1876dc1c90db697f6f954312"
+    },
+    "provenance.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "provenance.stdout.log": {
+      "bytes": 46,
+      "sha256": "fd149c77200219b7d6711b8f9f8380bc1e1d2c5ae47a1bbd2ac97d36831c8d84"
+    },
+    "receipt.json": {
+      "bytes": 2292,
+      "sha256": "3260e637fb41de873aa11524aa8977ebeedd706a2039098dccb35ddecc02666b"
+    },
+    "style.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "style.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tools.stderr.log": {
+      "bytes": 21551,
+      "sha256": "69167a5819941eb4088cb769e214980d0ff4ab59df5202588b962c83b5e841a2"
+    },
+    "tools.stdout.log": {
+      "bytes": 2067,
+      "sha256": "9273cccee5ab0318ca0aa9f4371762cd6293253b044080c55e689faed183da37"
+    }
+  },
+  "tests": 114,
+  "passed": 113,
+  "existingSkipped": 1,
+  "limits": [
+    "Original system-Python discovery failed two imports; preserved in receipt, not counted as passing",
+    "Existing optional Python supplies already-required PyYAML; TEMP/TMP are explicitly on E",
+    "No complete workspace regression or new GPU qualification is claimed"
+  ]
+}

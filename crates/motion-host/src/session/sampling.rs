@@ -6,7 +6,7 @@ use crate::render_sampling::{needs_exposure, ExposureMedia, ExposureMediaPolicy}
 use motion_render::{
     exposure_scene::{ExposureDocument, ExposureScenes},
     preview_memory::PreviewMemoryQuality,
-    ExposureFrame, ExposurePoll, RenderError, ResourceRejection, TextureResourceLedger,
+    ExposureFrame, ExposurePoll, RenderError, TextureResourceLedger,
 };
 use std::time::Duration;
 use motion_render::gpu_commands::ExposureCommandContext;
@@ -35,17 +35,18 @@ pub(super) struct RequestKey {
 
 struct Failure {
     cause: String,
-    rejection: Option<ResourceRejection>,
+    error: Arc<RenderError>,
+}
+#[derive(Debug, thiserror::Error)]
+pub(super) enum PollError {
+    #[error(transparent)]
+    Render(#[from] RenderError),
+    #[error(transparent)]
+    Preparation(crate::Error),
 }
 impl Failure {
     fn error(&self) -> RenderError {
-        match self.rejection {
-            Some(rejection) => RenderError::Resource {
-                rejection,
-                message: self.cause.clone(),
-            },
-            None => RenderError::Invalid(self.cause.clone()),
-        }
+        RenderError::Shared(self.error.clone())
     }
 }
 struct Request {
@@ -165,7 +166,8 @@ impl SamplingPreview {
         key: RequestKey,
         observer: Option<Observer>,
         slice: Duration,
-    ) -> std::result::Result<ExposurePoll, RenderError> {
+        preparation: Option<(&mut super::pipeline_preparation::State, super::pipeline_preparation::Key)>,
+    ) -> std::result::Result<ExposurePoll, PollError> {
         let cancellation_error = if self.request.as_ref().is_none_or(|r| r.key != key) {
             let error = self.cancel(videos).err();
             self.request = Some(Request::new(key));
@@ -179,9 +181,10 @@ impl SamplingPreview {
             .ok_or_else(|| RenderError::Invalid("preview exposure request missing".into()))?;
         let _command_scope = renderer.exposure_command_scope(request.begin_poll());
         if let Some(error) = &request.failure {
-            return Err(error.error());
+            return Err(error.error().into());
         }
         let began = Instant::now();
+        let mut preparation_failure = None;
         let result = (|| {
             if let Some(error) = cancellation_error {
                 return Err(RenderError::Invalid(format!(
@@ -198,10 +201,13 @@ impl SamplingPreview {
                     &document.composition_id,
                     request.key.frame,
                     request.key.preview,
-                    observer,
+                    observer.clone(),
                     motion_core::ExpressionEvaluator,
                 )
-                .map_err(|e| RenderError::Invalid(e.to_string()))?;
+                .map_err(|error| RenderError::Diagnostic {
+                    message: error.to_string(),
+                    cause: Box::new(RenderError::Model(error)),
+                })?;
                 request.task = Some(ExposureFrame::new(
                     renderer,
                     scenes,
@@ -224,11 +230,28 @@ impl SamplingPreview {
                     video_edge: request.key.quality.video_edge,
                 },
             };
-            let result = task.poll(renderer, slice, |renderer, scene| {
+            let mut preparation = preparation;
+            let result = task.poll_prepared(renderer, slice, |renderer, scene, size| {
                 let began = Instant::now();
                 let result = media.prepare(renderer, scene);
                 request.media_us = request.media_us.saturating_add(micros(began.elapsed()));
-                result
+                if !result? { return Ok(false); }
+                if let Some((state, base)) = preparation.as_mut() {
+                    let mut key = base.clone();
+                    key.width = size[0];
+                    key.height = size[1];
+                    key.exposure = Some(super::pipeline_preparation::ExposureScope {
+                        composition: scene.composition_id.clone(), frame: scene.frame.to_bits(),
+                        layers: scene.layers.iter().map(|layer| layer.id).collect(),
+                    });
+                    // Keep the typed primary cause for the existing exposure
+                    // error boundary instead of turning worker errors into text.
+                    return match state.ensure(renderer, document.source(), scene, observer.as_ref(), key) {
+                        Ok(ready) => Ok(ready),
+                        Err(error) => { preparation_failure = Some(error); Ok(false) }
+                    };
+                }
+                Ok(true)
             })?;
             if matches!(result, ExposurePoll::Ready(_)) {
                 let target = scratch.prepare(renderer, request.key.size[0], request.key.size[1])?;
@@ -237,6 +260,12 @@ impl SamplingPreview {
             Ok(result)
         })();
         request.cpu_us = request.cpu_us.saturating_add(micros(began.elapsed()));
+        // Preparation already retains the terminal typed failure. Do not feed
+        // it through the legacy exposure RenderError/text boundary or advance
+        // the receiver; another Present reports the same failed request.
+        if let Some(error) = preparation_failure {
+            return Err(PollError::Preparation(error));
+        }
         result.map_err(|error: RenderError| {
             let mut cause = format!(
                 "preview exposure composition={} revision={:?} frame={} size={}x{} view={} surface={} phase=request: {error}",
@@ -251,20 +280,19 @@ impl SamplingPreview {
             if let Err(cleanup) = videos.cancel_pending_sampling() {
                 cause.push_str(&format!("; cancel pending exposure reads also failed: {cleanup}"));
             }
-            request.failure = Some(Failure {
+            let failure = Failure {
                 cause: cause.chars().take(2048).collect(),
-                rejection: error.resource_rejection().copied(),
-            });
+                error: Arc::new(RenderError::Diagnostic {
+                    message: cause,
+                    cause: Box::new(error),
+                }),
+            };
+            let error = failure.error();
+            request.failure = Some(failure);
             request.task = None;
             scratch.discard_candidate();
-            match error.resource_rejection().copied() {
-                Some(rejection) => RenderError::Resource {
-                    rejection,
-                    message: cause,
-                },
-                None => RenderError::Invalid(cause),
-            }
-        })
+            error
+        }).map_err(PollError::Render)
     }
 }
 fn micros(duration: Duration) -> u64 {
@@ -329,6 +357,15 @@ impl Session {
                 }).transpose()?,
             };
             let poll_began = Instant::now();
+            let preparation_key = super::pipeline_preparation::Key {
+                context: motion_render::PipelinePreparationContext {
+                    document_generation: self.document_generation,
+                    project_revision: self.engine.revision(),
+                },
+                surface: self.surface_epoch, view: self.view_revision,
+                width: rw, height: rh, preview: self.preview.mode != PreviewMode::High,
+                window: 0, exposure: None, views: None,
+            };
             let result = self.sampling.poll_into(
                 &mut g.renderer,
                 &mut g.scratch,
@@ -338,6 +375,7 @@ impl Session {
                 key,
                 observer,
                 Duration::from_millis(8),
+                Some((&mut self.pipeline_preparation, preparation_key)),
             );
             let poll_us = micros(poll_began.elapsed());
             // Presentation belongs to this attempt, including a pending attempt
@@ -352,7 +390,8 @@ impl Session {
                     self.presented += u64::from(painted);
                     return Ok(false);
                 }
-                Err(error) => {
+                Err(PollError::Preparation(error)) => return Err(error),
+                Err(PollError::Render(error)) => {
                     if error.resource_rejection().is_none() {
                         return Err(error.into());
                     }
@@ -482,6 +521,11 @@ impl Session {
             }
             self.preview_memory.succeeded();
             self.last_error = None;
+            self.pipeline_preparation.frame_presented(&mut g.renderer,
+                motion_render::PipelinePreparationContext {
+                    document_generation: self.document_generation,
+                    project_revision: self.engine.revision(),
+                })?;
             return Ok(true);
         }
         self.preview_memory_held = g.scratch.valid();

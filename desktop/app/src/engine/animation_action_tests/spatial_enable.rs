@@ -52,9 +52,9 @@ fn local_roving_worker_rolls_back_complete_batch_and_reports_original_failure() 
             let cause =
                 apply(&original, vec![command(7, vec![-9]), command(8, vec![-8])]).unwrap_err();
             assert!(
-                cause.contains("operation=spatial_keyframes")
-                    && cause.contains("object=8")
-                    && cause.contains("phase=enable_local frames=[-8]"),
+                cause.to_string().contains("operation=spatial_keyframes")
+                    && cause.to_string().contains("object=8")
+                    && cause.to_string().contains("phase=enable_local frames=[-8]"),
                 "{cause}"
             );
             let rejected = engine.state().unwrap();

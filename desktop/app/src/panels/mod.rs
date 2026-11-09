@@ -89,6 +89,7 @@ mod key_selection;
 mod path_clipboard;
 pub(crate) mod numeric;
 mod observation;
+mod preparation_status;
 mod layer_identity;
 #[cfg(test)]
 mod observation_tests;
@@ -806,6 +807,10 @@ pub fn chrome(
     project_drag::finish(list, atlas, size, panels, state, &mut out);
     let status = Rect::new(0.0, size[1] - 20.0, size[0], 20.0);
     paint::rect(list, status, colors.CHROME);
+    let padding = styles.resolve("panel", Default::default()).unwrap().padding;
+    let status_text = preparation_status::reserve(list, atlas,
+        Rect::new(padding, status.min[1], (status.width() - padding * 2.).max(0.), status.height()),
+        panels.locale, panels.preview_preparing);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
     let localized_error = render_error.map(|e| panels.locale.error(e));
     let plugin_warning = (state["preview"]["pluginEditorRecovery"]["gesture"] == true).then_some(
@@ -821,7 +826,7 @@ pub fn chrome(
         .or(panels.effect_drag.status())
         .or(panels.message.as_deref())
         .or(plugin_warning)
-        .unwrap_or(panels.locale.t(T::Ready));
+        .unwrap_or(if panels.preview_preparing { "" } else { panels.locale.t(T::Ready) });
     if render_error.is_some() {
         let style = styles
             .as_ref()
@@ -830,7 +835,7 @@ pub fn chrome(
         motion_ui::style::text_style(
             list,
             atlas,
-            Rect::new(8., status.min[1], status.width() - 16., status.height()),
+            status_text,
             message,
             style,
             Align::Left,
@@ -839,12 +844,7 @@ pub fn chrome(
         label(
             list,
             atlas,
-            Rect::new(
-                8.0,
-                status.min[1],
-                (status.width() - 16.0).max(0.0),
-                status.height(),
-            ),
+            status_text,
             message,
             render_error.is_none(),
         );
@@ -1356,10 +1356,16 @@ pub fn floating_chrome(
     );
     let render_error = state["renderError"].as_str().filter(|error| !error.is_empty());
     let localized_error = render_error.map(|error| panels.locale.error(error));
+    let padding = styles.resolve("panel", Default::default()).unwrap().padding;
+    let row_height = styles.metric("row.height", metrics::PROPERTY_ROW);
+    let status_text = preparation_status::reserve(list, atlas,
+        Rect::new(padding, size[1] - row_height,
+            (size[0] - padding * 2.).max(0.), row_height),
+        panels.locale, panels.preview_preparing);
     motion_ui::style::text_style(
         list,
         atlas,
-        Rect::new(8.0, size[1] - 22.0, (size[0] - 16.0).max(1.0), 22.0),
+        status_text,
         localized_error
             .as_deref()
             .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))

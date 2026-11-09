@@ -39,9 +39,9 @@ pub enum Cause {
     Invalid(String),
     #[error("unsupported capability: {0}")]
     Unsupported(String),
-    #[error(transparent)]
+    #[error("{0}")]
     Io(#[from] std::io::Error),
-    #[error(transparent)]
+    #[error("{0}")]
     Json(#[from] serde_json::Error),
 }
 

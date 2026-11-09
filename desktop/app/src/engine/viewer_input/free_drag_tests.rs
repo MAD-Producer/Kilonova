@@ -89,14 +89,14 @@ fn missing_drag_key_reports_original_cause_without_mutation_and_allows_recovery(
         .recv_timeout(Duration::from_secs(30))
         .unwrap()
         .unwrap_err();
-    assert!(error.contains("object=7 key=999: spatial key no longer exists"));
+    assert!(error.to_string().contains("object=7 key=999: spatial key no longer exists"));
     let error = engine
         .drag_at_key_async(7, [3., -2.], [64, 64], Some(999))
         .unwrap()
         .recv_timeout(Duration::from_secs(30))
         .unwrap()
         .unwrap_err();
-    assert!(error.contains("object=7 key=999: spatial key no longer exists"));
+    assert!(error.to_string().contains("object=7 key=999: spatial key no longer exists"));
     let after = engine.state().unwrap();
     for field in [
         "project",

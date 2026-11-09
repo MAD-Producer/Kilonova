@@ -16,10 +16,11 @@ const MAX_MISS_BYTES: usize = 16 * 1024;
 
 pub(super) struct Catalog {
     pub database: fontdb::Database,
+    pub(super) selection_failures: super::font_error::SelectionFailures,
     candidates: Vec<fontdb::ID>,
 }
 impl Catalog {
-    fn new(database: fontdb::Database) -> Self {
+    pub(super) fn new(database: fontdb::Database) -> Self {
         let mut ranked: Vec<_> = database
             .faces()
             .map(|f| {
@@ -45,6 +46,7 @@ impl Catalog {
         Self {
             database,
             candidates,
+            selection_failures: Default::default(),
         }
     }
 }

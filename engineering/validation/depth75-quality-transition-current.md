@@ -1,0 +1,297 @@
+# Relative-depth quality transition: alignment component
+
+This branch continues #75 after the explicit-resolution work and depends on the
+shared-backend branch (#626). It does not complete #75 or enable automatic quality
+switching. Alignment and pure transition admission are implemented. All fourteen
+alignment controls passed on Linux, Windows and macOS Intel at commit
+`5b606e0e`; these runs do not include the subsequent admission controller.
+At `abf5d351`, all 30 alignment/admission/actual-Jobs controls passed in one
+native Windows run (14 + 9 + 7, zero ignored, failed or filtered). The integrated
+parent `5fb253a4` also passed an actual default-Info file-sink probe with four
+blocked backend requests, including an original Error in file and stderr with
+isolated stdout. Full-feature regression remains a separate requirement. The original native admission requires 10 GiB free.
+Syntax/format checks cannot qualify the Rust behavior. The complete parent run
+and the subsequent model router are qualified separately below; the router's
+new commit still requires its own cross-platform CI.
+
+## Alignment contract
+
+`motion_host::depth::alignment` estimates a positive affine map from a candidate
+resource's decoded scalar values to a reference resource's decoded values. Both
+must describe the same source/revision, exact rational PTS, geometry and scalar
+grid, with the same relative-depth near direction. Different models/processing
+profiles are allowed; their names do not establish quality or capability.
+Metric/inverse-metric resources are rejected rather than relabeled.
+
+Every acceptance limit is supplied explicitly. At most 4,096 evenly spaced
+eligible pairs enter the fit. All other eligible pixels enter held-out
+validation, including the final pixel; fit residuals are checked separately.
+Both residual populations use the fit reference population's standard deviation
+as their normalization unit. The algorithm uses constant extra memory and
+bounded linear work over the existing validated resource size. Cancellation is
+polled before work and at most 256 iterations apart.
+
+An explicit minimum paired-coverage fraction also bounds support over the entire
+scalar grid. A handful of valid pairs cannot establish global support. Pair-count
+rejections report the population actually inspected; an unvisited holdout is not
+reported as having zero valid pairs.
+
+Validity masks remain authoritative. A requested confidence threshold requires
+both confidence planes; absent confidence is not promoted to one. Statistics
+retain skipped, fitted and validated counts. Constant/unstable populations,
+unqualified scale, excessive residuals and cancellation are explicit typed
+rejections. This is a pure bounded calculation: it does not acquire business
+locks, launch workers, write logs or conceal a rejection as a missing result.
+When a transition worker invokes it, that worker must publish/log its request,
+generation and phase before entering the calculation and handle its rejection.
+
+The accepted proof binds the two immutable resource-instance identities. A new
+resource with identical source/model metadata cannot reuse that proof. Binding
+checks both reference and candidate once; scalar access retains candidate
+validity, applies its existing decode first, and reports nonfinite output as an
+error. It does not rewrite raw planes, relabel the model, allocate another scalar
+plane or establish a persistent cache/export identity.
+
+## Controls and remaining work
+
+Fourteen new Rust controls cover independent known affine coefficients, decoded
+scale/offset, equivalent rational clocks, source/geometry/grid rejection,
+relative/metric boundaries, constant/reversed data, explicit scale gates,
+full held-out coverage beyond the fit cap, fit-population residuals, missing
+confidence, masks and paired coverage, stale instances, cancellation and invalid limits.
+All fourteen controls actually passed once in each of the three completed desktop
+jobs of run `42240801893`. The collector matched all 42 exact named passing test
+records to the exact source head before retaining the raw logs. No existing
+assertion was changed. The read-back-verified archive is
+[`depth75-alignment-ci-v1.zip`](data/depth75-alignment-ci-v1.zip), 362,028 bytes,
+SHA-256 `ca3aa9718dfd7a2e9f37bdddfcab07628d6d3b5d8a13c0e07b957fefe04c56a4`;
+its [manifest](data/depth75-alignment-ci-v1.json) records the scope. This is not
+qualification of the later admission controller or real-model/video quality.
+
+The previously measured real 266/392/518 outputs are not globally affine
+equivalents. Neither this implementation nor perfect synthetic affine controls
+would qualify real transitions. Actual resource-backed execution, source-bound
+real-output measurements and full regression remain required.
+
+## Transition admission component
+
+`depth::transition` accepts two exact, independently resolved model/hash/profile
+keys. It does not interpret a backend or a larger resolution as higher quality.
+Its caller supplies positive idle and minimum interactive residence durations;
+there is no implicit default, system timer or sleep. Interaction immediately
+requests the interactive choice. Settling requires both continuous idle and
+residence. Repeated interaction resets idle, while advancing PTS invalidates old
+work without itself resetting the qualified configuration's timers. Source,
+revision, geometry or either model/profile changes restart both timers. Seek or
+cancellation explicitly invalidates outstanding work even at an identical key.
+
+Opaque per-controller ownership and checked, non-wrapping generations prevent
+foreign tickets and A-to-B-to-A results from becoming current again. Every new
+key or phase issues a new ticket; duplicate polling issues none. The caller must
+check a ticket against the independent live key and exact returned resource
+identity after expensive work. A successful alignment proof does not override a
+later generation. Invalid keys, backwards clocks and exhausted generations are
+typed errors and do not mutate prior valid state. Old results are normal
+identity rejections, not logged faults.
+
+State admission performs no inference or IO. Explicit `request`, `take_ready`
+and `invalidate_jobs` helpers now connect tickets to the existing single `Jobs`
+worker without creating another thread or installation path. Stale or foreign
+tickets do not submit work or consume a current generation's result; mismatched
+inputs are typed errors. Revocation occurs before worker cancellation. Original
+worker errors remain typed sources, logged outside observation locks with bounded
+context. Prepared fingerprints, actual provider and costs remain worker-owned.
+The helpers add no retries and reuse Jobs' start/in-flight/cancellation behavior.
+Each successful submission binds its generation to the exact worker and actual
+request number. A new phase with an identical key still requires a new submission;
+neither a different worker's same-number request nor an unbound later request in
+the same worker can be claimed by an older ticket. Weak worker ownership prevents
+allocation-address reuse without retaining scalar planes or a worker thread.
+
+These helpers do not install unaligned depth, rewrite metadata, create cache
+entries or freeze export. The caller still must qualify a capability selection,
+align when required, and recheck admission afterward. No UI, automatic quality
+selector or end-to-end video transition is connected by this component.
+
+Nine new Rust controls cover exact timing boundaries, interaction chatter,
+advancing frames, opaque ownership, A-to-B-to-A, explicit cancellation, independent
+live/result identity, equivalent rational PTS, changed configuration, atomic
+invalid-input/clock refusal, identical explicit models and a completed alignment
+whose generation became stale. All nine passed in the native run at `abf5d351`; they
+neither measure real-model transition quality nor replace the fourteen alignment
+controls or the original full-feature regression.
+
+Seven additional controls, all passed in that same native run, use the actual Jobs thread and a
+controlled blocking backend. They check pre-submission refusal, in-flight
+publication, a deliberately late success after cancellation, stale polling that
+cannot consume a newer frame, explicit cancellation without replacement and an
+original backend failure returned once without retry. Three of these explicitly
+exercise identical-key phase changes, same-number foreign workers and later
+unbound requests, checking that rejected polling leaves the ready result intact.
+Release guards unblock the
+fixture on assertion unwinding; five-second fixture deadlines do not change any
+product timeout or existing test assertion. These controls are not model or
+file-sink observability qualification.
+
+Still pending are measured model/quality/backend capability resolution,
+requested/resolved reporting, full-feature regression,
+end-to-end integration of transition hysteresis, versioned caching, frozen export
+policy, continuous video drift/jump controls, sustained/thermal and other-desktop-
+GPU measurements. Bounds require those qualifications; these components supply
+no default policy or automatic fallback.
+
+## Source-bound native boundary evidence
+
+The [manifest](data/depth75-native-boundaries-v1.json) and
+[read-back-verified archive](data/depth75-native-boundaries-v1.zip) retain the
+30 exact named passes, unchanged-source hashes, command, original stdout/stderr
+and consumed native session. The separate file probe uses the actual parent
+logging sink and Jobs worker: each start, processing profile and complete model
+hash is read from the file before releasing the blocked backend. Three requests
+succeed and the fourth returns its original typed backend error once. That error
+appears in both actual file and stderr; stdout contains only one result JSON.
+The file fixture was regenerated after local cache cleanup and has an explicitly
+new identity. Its original failed locked-build attempt is not relabeled a pass.
+
+The file probe qualifies parent `5fb253a4`, while the native30 run qualifies
+`abf5d351`; neither result substitutes for the other, cross-platform qualification
+of the latest helpers, or a full maintained-workspace pass. The full native v6
+command retains ffmpeg and both ai-depth features. Its subsequent failure is
+recorded below; this boundary archive did not qualify a full workspace pass.
+Real-model video quality, installation and export policy remain unqualified.
+
+## Subsequent exact-head admission CI
+
+At `369a4e7d`, all 23 exact named alignment/admission tests actually passed
+in each desktop test job on Linux, Windows and macOS Intel (69 named passes).
+The complete workflow `42320228605` then finished successfully, including its
+policy-skipped jobs. The [manifest](data/depth75-admission-ci-three-platforms-v1.json)
+and [read-back-verified archive](data/depth75-admission-ci-three-platforms-v1.zip)
+retain the three raw logs, collectors, exact head and terminal workflow state.
+No run was canceled or restarted to publish subsequent work.
+
+This source predates `6d71c47e`/`abf5d351`: the seven actual-Jobs helper controls
+are qualified by the separate native30 record and require the new push's own CI.
+Neither prior green workflow qualifies those later worker-binding changes.
+
+
+## Actual worker-binding CI and subsequent full-run boundary
+
+At `a86e8ffa`, all 30 exact named controls passed in each desktop test job on
+Linux, Windows and macOS Intel: fourteen alignment, nine admission and seven
+actual-Jobs controls per platform. Complete workflow `42328873218` finished
+successfully before this evidence update. The [manifest](data/depth75-worker-binding-ci-three-platforms-v1.json)
+and [archive](data/depth75-worker-binding-ci-three-platforms-v1.zip) retain the
+three raw logs, terminal workflow/jobs, collectors and exact source snapshots.
+All 27 members were read back and verified; the 430,761-byte archive has SHA-256
+`6ed3fc3eb481091ddd88b35e3a81bfd43e6026be72c7495fc108d42fbc4a6a04`.
+Unlike the earlier `369a4e7d` CI, this source includes the seven worker-binding
+controls. It does not establish model quality, automatic selection or thermal
+qualification.
+
+The separate unchanged full-feature native command at parent `5fb253a4` then
+finished with Cargo 101/controller 1: 4,992 passes, one ordinary failure, 78
+original ignores and zero filtering. All 430 source targets started, but only
+429 produced summaries. The original dependency-boundary assertion could not
+run offline metadata because the cleaned registry cache lacked `alsa 0.9.1`.
+Additionally, `nested_exposure` exited with `0xc0000005` before producing a test
+summary. Both failures remain authoritative; this is not a full pass.
+
+The exact lockfile's 563 registry archives have subsequently been SHA-256
+verified, restoring 206 missing archives from the official registry without
+adding dependencies or changing the lock. Restoration alone is not the original
+offline assertion passing. This IO-only restoration occurred after the observed
+cache failure while the original command continued; it did not amend that result.
+
+The unchanged failed native executable separately listed its nine tests and
+passed all nine with uncaptured output. A bounded diagnostic observer then saw
+32 successful startup listings and all nine original assertions passing. This
+observer uses the already installed Windows SDK, records only its owned child,
+and can retain exception context, stacks and minidumps without registry changes.
+A separate intentional hardware fault in an owned toy process verified both
+exception chances, actual dumps/stacks and preservation of the unhandled exit.
+The observer can affect timing: these results do not explain or waive the
+original access violation, establish a shared cause with older failures, or
+replace a fresh complete normal command. Assertions, features, ignores, GPU,
+backend and the original 10 GiB admission remain unchanged. Integrated full
+regression and the real-model/video/capability/cache/export work remained pending
+at that point. The following observations supersede only the pending-run status.
+
+## Complete maintained-workspace observation
+
+The subsequent ordinary v8 command at exact parent `5fb253a4`, admitted against
+main `5a025a2d`, completed with Cargo/controller zero. All 430 expected source
+invocations produced summaries: 5,002 passed, zero failed, 78 original ignores
+and zero filtering. Every tracked source byte remained unchanged. The original
+command retained ffmpeg and both ai-depth features, serial execution, the GPU
+and backend selection, and the original 10 GiB admission. Android was excluded
+as requested. No debugger or runner override was used.
+
+The [manifest](data/depth75-maintained-workspace-v3.json) and
+[archive](data/depth75-maintained-workspace-v3.zip) retain the full raw outputs,
+source-bound target coverage, consumed terminal response, actual corrected
+offline metadata/boundary outputs, passive memory observations and the previous
+failed v6 run. All 50 members were read back and verified: 1,371,510 bytes,
+SHA-256 `70fded20fb4eede0906d9e744c1a892fcacc8b2ebc2fe6a030141ec57bd1407b`.
+The archive preserves the actual qualified source bytes and separately binds
+Git's canonical bytes, admitting only exact CRLF/LF text differences. Its prior
+observer's rejected byte comparison is retained. No product assertion changed.
+
+The original access violation did not recur in this complete run. Its cause
+remains unknown; a fresh complete pass does not retroactively explain or erase
+the original failure. These results qualify the parent source, not the later
+alignment/admission/Jobs/router delta or real-video quality.
+
+## Exact model/backend routing
+
+An ONNX backend binds one model file. Changing a transition ticket alone cannot
+make that backend execute a second exported hash/profile. `depth::routing::Routed`
+now binds two exact validated model identities to two explicitly supplied
+backends. It implements the existing Backend contract and can enter the same
+Jobs or `Session::configure_depth_in`; construction does no model or hardware IO.
+Identical identities are ambiguous and rejected. An unbound ID, revision, hash
+or processing profile is refused before either backend runs. A selected error
+is returned unchanged and never invokes the other binding.
+
+The caller still resolves and qualifies both configurations. There is no quality
+ranking inferred from a resolution/backend, automatic capability probe, extra
+worker, restart, retry, or implicit fallback. Jobs continues to publish its
+flight and flush the Info start before dispatch. The selected backend's actual
+provider, costs, resource identity and the worker-owned RGB fingerprint survive
+the transition and installation admission checks.
+
+All 36 native controls passed together: the unchanged fourteen alignment, nine
+admission and seven actual-Jobs controls, plus six new routing controls. The
+new controls exercise heterogeneous backend types on one actual worker, exact
+identity refusal, ambiguity/invalid configuration, original selected errors,
+cross-route cancellation, and the unchanged returned-resource identity gate.
+There were no failures, ignores or filtered cases.
+
+A separate real-model control then used the production Routed/Controller/Jobs
+path for actual CPU ONNX profiles 266 -> 518 -> 266 with two separately
+hash-bound model files. All three outputs matched their frozen independent
+official references at the original max 0.0002 / mean 0.00002 limits; observed
+maximum normalized error was `1.1488222992897823e-5`, and maximum mean normalized
+error was `5.787359014061221e-7`. All three actual Info starts, with exact profiles
+and full hashes, were read from the production log file before output appeared.
+A fourth unbound request preserved its original Error in file and stderr;
+stdout contained one JSON result. Counts were four submitted, three completed,
+one failed, no canceled jobs, and no remaining flight or queued input.
+
+The restored interpreter separately passed nine frozen-reference comparisons
+and three wrong-profile refusals before these native/model controls. The
+[routing manifest](data/depth75-routed-execution-v1.json) and
+[archive](data/depth75-routed-execution-v1.zip) bind the exact source delta over
+`7cf9c23c`, raw logs, real fixture, original gates and consumed terminal results.
+All 28 members were read back and verified: 753,161 bytes, SHA-256
+`ad3134ab971acbb70164306c1fbde47afc92810640c6bf7d03eda762ad6732a5`.
+No model, image, RGB, scalar tensor, executable, symbols or dump is included.
+
+The complete workflow `42337737934` passed at `7cf9c23c` before this delta. That
+workflow covers the earlier thirty controls, not these new six or the router.
+This commit requires its own CI. Actual mixed ONNX/WGSL routing, measured
+capability/quality selection and requested/resolved reporting, alignment
+installation, versioned caches, frozen export policy, real-model continuous
+video transitions, sustained/thermal measurements and other supported desktop
+hardware remain separate outstanding #75 acceptance. No panels/UI, default
+model distribution or Android behavior was changed.

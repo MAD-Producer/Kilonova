@@ -2,6 +2,8 @@
 pub(super) mod allocation;
 #[cfg(test)]
 mod admission_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod native_error_tests;
 
 /// UI and node-preview screenshots capture display pixels independently of
 /// the project's native working attachment. The shader sees linear premultiplied
@@ -19,17 +21,23 @@ pub(super) fn display_capture_target(
 }
 
 pub(super) fn finish(
-    result: Result<bool, String>,
-    error: Option<motion_ui::paint::PaintError>,
+    result: motion_host::Result<bool>,
+    paint_error: Option<motion_ui::paint::PaintError>,
     window: u64,
-) -> Result<bool, String> {
-    match (result, error) {
+) -> motion_host::Result<bool> {
+    match (result, paint_error) {
         (result, None) => result,
-        (Ok(_), Some(error)) => Err(format!("present window={window}: {error}")),
-        (Err(primary), Some(error)) => {
-            Err(format!("{primary}; UI overlay window={window}: {error}"))
-        }
+        (Ok(_), Some(cause)) => Err(error(format!("present window={window}"), cause)),
+        (Err(primary), Some(secondary)) => Err(motion_host::Error::Related {
+            context: format!("UI overlay window={window}"),
+            primary: Box::new(primary),
+            secondary: Box::new(motion_host::Error::from_source(secondary)),
+        }),
     }
+}
+
+pub(super) fn error(context: impl Into<String>, cause: motion_ui::paint::PaintError) -> motion_host::Error {
+    motion_host::Error::with_context(context, motion_host::Error::from_source(cause))
 }
 
 #[cfg(test)]
@@ -79,10 +87,10 @@ mod tests {
                 .unwrap_err();
             assert_eq!(error.required_bytes, 5_856_576);
             assert!(pollster::block_on(scope.pop()).is_none());
-            assert_eq!(finish(Ok(false), None, 7), Ok(false));
-            assert_eq!(finish(Ok(true), None, 7), Ok(true));
+            assert_eq!(finish(Ok(false), None, 7).map_err(String::from), Ok(false));
+            assert_eq!(finish(Ok(true), None, 7).map_err(String::from), Ok(true));
             assert_eq!(
-                finish(Err("primary".into()), None, 7),
+                finish(Err("primary".into()), None, 7).map_err(String::from),
                 Err("primary".into())
             );
             // The host overlay callback returns (), so preserve its actual error
@@ -93,7 +101,7 @@ mod tests {
                 (903, Err("original surface failure".into())),
             ] {
                 let result = finish(host_result, Some(error.clone()), 7);
-                let original = result.as_ref().unwrap_err().clone();
+                let original = result.as_ref().unwrap_err().to_string();
                 if request == 903 {
                     assert!(original.starts_with("original surface failure; UI overlay"));
                 }
@@ -105,7 +113,7 @@ mod tests {
                 }));
                 respond(reply, result.map_err(motion_host::Error::from));
                 CURRENT_COMMAND.set(None);
-                assert_eq!(receive.recv().unwrap(), Err(original));
+                assert_eq!(receive.recv().unwrap().map_err(String::from), Err(original));
             }
             return;
         }

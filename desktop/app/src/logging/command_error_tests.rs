@@ -21,8 +21,8 @@ fn long_command_and_startup_errors_are_bounded_without_truncating_replies() {
         let reply = engine
             .edit(serde_json::json!({"op":operation}).to_string())
             .unwrap_err();
-        assert!(reply.contains(&operation));
-        assert!(reply.chars().count() > 2_048);
+        assert!(reply.to_string().contains(&operation));
+        assert!(reply.to_string().chars().count() > 2_048);
         let after = engine.state().unwrap();
         assert_eq!(after["project"], before["project"]);
         assert_eq!(after["revision"], before["revision"]);
@@ -76,8 +76,8 @@ fn long_command_and_startup_errors_are_bounded_without_truncating_replies() {
         )
         .err()
         .expect("invalid project unexpectedly opened");
-        assert!(reply.contains(&field));
-        assert!(reply.chars().count() > 2_048);
+        assert!(reply.to_string().contains(&field));
+        assert!(reply.to_string().chars().count() > 2_048);
         assert_eq!(fs::read(broken.join("project.json")).unwrap(), original);
         flush();
         return;

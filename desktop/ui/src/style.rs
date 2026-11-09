@@ -7,6 +7,9 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, io::Read, path::Path, sync::OnceLock};
+mod error;
+pub use error::{Cause, Error, Phase};
+
 const MAX_BYTES: usize = 256 * 1024;
 const MAX_STYLES: usize = 256;
 const DEFAULT_SOURCE: &str = include_str!("../styles/dark.json");
@@ -151,50 +154,57 @@ pub struct StyleSheet {
     colors: BTreeMap<String, Color>,
     observations: std::sync::Arc<crate::observability::Failures>,
 }
+fn read_source(path: &Path) -> Result<Vec<u8>, Error> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .map_err(|e| Error::new(Phase::Open, Cause::Io(e)).at(path))?
+        .take(MAX_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| Error::new(Phase::Read, Cause::Io(e)).at(path))?;
+    Ok(bytes)
+}
+
 impl StyleSheet {
-    pub fn from_json(bytes: &[u8]) -> Result<Self, String> {
+    pub fn from_json(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() > MAX_BYTES {
-            return Err("stylesheet exceeds 256 KiB".into());
+            return Err(Error::new(
+                Phase::Decode,
+                Cause::TooLarge { limit: MAX_BYTES },
+            ));
         }
         let document: Document =
-            serde_json::from_slice(bytes).map_err(|e| format!("invalid stylesheet: {e}"))?;
-        Self::compile(document)
+            serde_json::from_slice(bytes).map_err(|e| Error::new(Phase::Decode, Cause::Json(e)))?;
+        Self::compile(document).map_err(|e| Error::new(Phase::Compile, Cause::Invalid(e)))
     }
-    pub fn load(path: &Path) -> Result<Self, String> {
-        let mut bytes = vec![];
-        std::fs::File::open(path)
-            .map_err(|e| format!("{}: {e}", path.display()))?
-            .take(MAX_BYTES as u64 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|e| e.to_string())?;
-        Self::from_json(&bytes)
+    pub fn load(path: &Path) -> Result<Self, Error> {
+        Self::from_json(&read_source(path)?).map_err(|e| e.at(path))
     }
     /// Patches inherit the bundled stylesheet; unknown properties and references still fail.
-    pub fn with_overrides(&self, bytes: &[u8]) -> Result<Self, String> {
+    pub fn with_overrides(&self, bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() > MAX_BYTES {
-            return Err("stylesheet override exceeds 256 KiB".into());
+            return Err(Error::new(
+                Phase::DecodeOverride,
+                Cause::TooLarge { limit: MAX_BYTES },
+            ));
         }
-        let override_value: serde_json::Value =
-            serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
+        let override_value: serde_json::Value = serde_json::from_slice(bytes)
+            .map_err(|e| Error::new(Phase::DecodeOverride, Cause::Json(e)))?;
         if !override_value.is_object() {
-            return Err("stylesheet override must be an object".into());
+            return Err(Error::new(
+                Phase::DecodeOverride,
+                Cause::Invalid("stylesheet override must be an object".into()),
+            ));
         }
-        let mut base = serde_json::from_str::<serde_json::Value>(&self.to_json())
-            .map_err(|e| e.to_string())?;
+        let mut base = serde_json::to_value(&self.document)
+            .map_err(|e| Error::new(Phase::EncodeBase, Cause::Json(e)))?;
         merge(&mut base, override_value);
         let document = serde_json::from_value(base)
-            .map_err(|e| format!("invalid stylesheet override: {e}"))?;
-        Self::compile(document)
+            .map_err(|e| Error::new(Phase::DecodeOverride, Cause::Json(e)))?;
+        Self::compile(document).map_err(|e| Error::new(Phase::Compile, Cause::Invalid(e)))
     }
-    pub fn load_overrides(&self, path: &Path) -> Result<Self, String> {
-        let mut bytes = vec![];
-        std::fs::File::open(path)
-            .map_err(|e| format!("{}: {e}", path.display()))?
-            .take(MAX_BYTES as u64 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|e| format!("{}: {e}", path.display()))?;
-        self.with_overrides(&bytes)
-            .map_err(|e| format!("{}: {e}", path.display()))
+    pub fn load_overrides(&self, path: &Path) -> Result<Self, Error> {
+        self.with_overrides(&read_source(path)?)
+            .map_err(|e| e.at(path))
     }
     pub fn font_family(&self) -> &str {
         &self.document.tokens.font_family
@@ -206,13 +216,11 @@ impl StyleSheet {
         self.compiled.get(class).map(|all| all[states.0 as usize])
     }
     pub fn color(&self, name: &str) -> Color {
-        self.colors
-            .get(name)
-            .copied()
-            .unwrap_or_else(|| {
-                self.observations.record("style.color", name, format_args!("fallback=transparent"));
-                Color::rgba(0, 0, 0, 0.)
-            })
+        self.colors.get(name).copied().unwrap_or_else(|| {
+            self.observations
+                .record("style.color", name, format_args!("fallback=transparent"));
+            Color::rgba(0, 0, 0, 0.)
+        })
     }
     pub fn easing(&self) -> crate::motion::Easing {
         self.document.tokens.motion.easing
@@ -228,12 +236,13 @@ impl StyleSheet {
             .copied()
             .filter(|v| v.is_finite())
             .unwrap_or_else(|| {
-                self.observations.record("style.metric", name, format_args!("fallback={fallback}"));
+                self.observations
+                    .record("style.metric", name, format_args!("fallback={fallback}"));
                 fallback
             })
     }
     /// Retains the current compiled sheet if the replacement fails to load or validate.
-    pub fn reload(&mut self, path: &Path) -> Result<(), String> {
+    pub fn reload(&mut self, path: &Path) -> Result<(), Error> {
         let next = Self::load(path)?;
         *self = next;
         Ok(())
@@ -448,10 +457,6 @@ impl StyleSheet {
         }
         Ok(())
     }
-    fn to_json(&self) -> String {
-        // Keep original reference forms when applying overrides, rather than flattening tokens.
-        serde_json::to_string(&self.document).expect("validated stylesheet can serialize")
-    }
 }
 pub fn default_stylesheet_arc() -> std::sync::Arc<StyleSheet> {
     static SHEET: OnceLock<std::sync::Arc<StyleSheet>> = OnceLock::new();
@@ -556,3 +561,6 @@ pub fn text_style(
         style.font_size,
     );
 }
+
+#[cfg(test)]
+mod tests;

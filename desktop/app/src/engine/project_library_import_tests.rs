@@ -16,11 +16,11 @@ fn engine(root: &Path) -> Engine {
     Engine::start(root.into(), motion_desktop_media::platform(), 8 << 30).unwrap()
 }
 fn apply(engine: &Engine, state: &Value, operation: Request) -> Result<Value, String> {
-    engine.call(|reply| Command::ProjectAsset {
+    Ok(engine.call(|reply| Command::ProjectAsset {
         source: KeyframeSource::of(state),
         operation,
         reply,
-    })
+    })?)
 }
 fn folder(engine: &Engine, id: u64) -> Value {
     engine

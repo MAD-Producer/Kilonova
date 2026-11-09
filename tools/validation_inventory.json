@@ -1,6 +1,41 @@
 {
   "version": 1,
   "tools": {
+    "tools/color-management/export_processor.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/export_processor.py --config-directory <verified-bundle> --selection <explicit-selection.json> --phase <phase> --input-alpha <alpha> --output-alpha <alpha> --output <new-file.json>",
+      "requires": ["Separately installed official opencolorio==2.6.0 and numpy==2.3.5", "Closed configuration bundle and explicit content-bound color selection"],
+      "reason": "Explicit external OCIO GPU preparation; CI consumes committed qualification fixtures without installing the optional runtimes or regenerating reference outputs."
+    },
+    "tools/color-management/export_config.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/export_config.py --builtin <pinned-config-id> --output <new-bundle-directory>",
+      "requires": [
+        "Separately installed official opencolorio==2.6.0 reference runtime",
+        "Explicit pinned ACES configuration and new output directory"
+      ],
+      "reason": "Explicit authoring preparation snapshots native OCIO catalogues; no configuration is selected from the environment and CI does not install or redistribute the optional reference runtime."
+    },
+    "tools/color-management/generate_lut_reference.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/generate_lut_reference.py --output <reference-directory>",
+      "requires": [
+        "Separately installed official opencolorio==2.6.0 reference runtime",
+        "Explicit reference fixture output directory"
+      ],
+      "reason": "Maintainer-only numerical reference generation uses a pinned external runtime; CI consumes committed fixtures without installing OCIO or regenerating acceptance values."
+    },
+    "tools/depth_tensor.py": {
+      "mode": "manual",
+      "command": "python tools/depth_tensor.py <host-generated-transform-directory>",
+      "requires": ["Exact bounded transform request and RGB/scalar files", "Separately installed NumPy/OpenCV; no ONNX runtime or model required for transforms"],
+      "reason": "The optional WGSL backend owns each transform child directly; learned inference runs in a separate directly owned native child. No weights are downloaded by CI."
+    },
+    "tools/test_ci_depth_tensor.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by test_ci_*.py discovery; rejects malformed transforms and actual failed child responses under normal and optimized Python before optional imports."
+    },
     "tools/tracking/calibrate_photographs.py": {
       "mode": "manual",
       "command": "python tools/tracking/calibrate_photographs.py --source <pinned-photo-directory> --output <new-evidence-directory> [--download]",
@@ -35,12 +70,17 @@
     },
     "tools/export_ai_depth.py": {
       "mode": "manual",
-      "command": "python tools/export_ai_depth.py --reference <absolute-checkout> --weights <absolute-small-weights> --output <new-absolute-directory>",
+      "command": "python tools/export_ai_depth.py --reference <absolute-checkout> --weights <absolute-small-weights> --output <new-absolute-directory> [--side 266|392|518]",
       "requires": [
         "The pinned official reference checkout and SHA-256-identified Small weights",
         "The optional pinned CPU reference/export environment documented in engineering/host-api/optional-depth-inference.md"
       ],
       "reason": "Model export and numerical reference evaluation are explicit external acceptance work; neither model weights nor the upstream reference implementation are bundled in ordinary CI."
+    },
+    "tools/test_ci_depth_export.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Validate explicit export resolution admission, processing identity isolation and non-overwrite behavior, including actual invalid CLI subprocesses under optimized Python; no model execution or quality claim"
     },
     "tools/build_android.py": {
       "mode": "manual",

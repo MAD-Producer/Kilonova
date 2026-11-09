@@ -52,12 +52,12 @@ fn spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_a
         )
         .unwrap_err();
         assert!(
-            error.contains("operation=spatial_keyframes") && error.contains("object=7"),
+            error.to_string().contains("operation=spatial_keyframes") && error.to_string().contains("object=7"),
             "{error}"
         );
         assert!(
-            error.contains("phase=time key=999")
-                && error.contains("selected spatial key identity is missing"),
+            error.to_string().contains("phase=time key=999")
+                && error.to_string().contains("selected spatial key identity is missing"),
             "{error}"
         );
         let after = engine.state().unwrap();
@@ -65,9 +65,9 @@ fn spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_a
             assert_eq!(after[field], after_enable[field], "{field}");
         }
         let move_error = apply(&after, SpatialKeyEdit::Move { keys: vec![2, 999], delta: 1.25 }).unwrap_err();
-        assert!(move_error.contains("operation=spatial_keyframes")
-            && move_error.contains("phase=move delta=1.25")
-            && move_error.contains("selected spatial key identity is missing"), "{move_error}");
+        assert!(move_error.to_string().contains("operation=spatial_keyframes")
+            && move_error.to_string().contains("phase=move delta=1.25")
+            && move_error.to_string().contains("selected spatial key identity is missing"), "{move_error}");
         let after_failed_move = engine.state().unwrap();
         for field in ["project", "revision", "history"] {
             assert_eq!(after_failed_move[field], after_enable[field], "failed group move {field}");

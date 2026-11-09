@@ -189,7 +189,7 @@ fn call(
     engine: &Engine,
     operation: fn(i64) -> motion_host::Result<Value>,
 ) -> Result<Value, String> {
-    engine.call(|reply| EngineCommand::TestStudy { operation, reply })
+    Ok(engine.call(|reply| EngineCommand::TestStudy { operation, reply })?)
 }
 
 #[test]

@@ -1,6 +1,9 @@
 //! Portable effect descriptions and shader compilation, without editor/GPU dependencies.
 pub mod builtin;
 pub mod image_contract;
+pub mod color_lut;
+pub mod color_config;
+pub mod color_processor;
 pub mod execution_plan;
 pub mod execution_template;
 pub mod pointwise;

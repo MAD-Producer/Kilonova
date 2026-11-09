@@ -29,8 +29,8 @@ fn refused_expression_edits_reach_actual_worker_default_channels_and_recover() {
         let mut causes = Vec::new();
         for (source, reason) in [("value +", "JavaScript"), ("[1,2]", "scalar")] {
             let failure = engine.edit(command(source)).unwrap_err();
-            assert!(failure.contains(reason) && failure.contains("at frame 0:"), "{failure}");
-            assert!(failure.contains("\"object\":7"), "{failure}");
+            assert!(failure.to_string().contains(reason) && failure.to_string().contains("at frame 0:"), "{failure}");
+            assert!(failure.to_string().contains("\"object\":7"), "{failure}");
             let after = engine.state().unwrap();
             for field in ["project", "revision", "history", "canUndo", "canRedo"] {
                 assert_eq!(after[field], before[field], "{reason}: changed {field}");

@@ -10,6 +10,9 @@ pub mod path_ops;
 pub mod auto_tangents;
 pub mod groups;
 mod authored;
+#[cfg(test)]
+#[path = "vector/dispatch_tests.rs"]
+mod dispatch_tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -434,10 +437,14 @@ impl VectorContent {
     fn edit_contents(&mut self,size:[f32;2],keep_flat:bool,edit:impl FnOnce(&mut groups::VectorGroup)->Result<()>)->Result<()> {
         if let VectorSource::Group{group}=&mut self.source{return edit(group);}
         let mut wrapped=groups::VectorGroup::wrap(self.clone(),size);
-        let VectorSource::Group{group}=&mut wrapped.source else{unreachable!()};
+        let VectorSource::Group{group}=&mut wrapped.source else{
+            return Err(crate::Error::Invalid("vector contents wrapper requires a group".into()));
+        };
         edit(group)?;
         if keep_flat {
-            let groups::GroupItem::Geometry{vector,..}=group.items.remove(0)else{unreachable!()};
+            let Some(groups::GroupItem::Geometry{vector,..})=std::mem::take(&mut group.items).into_iter().next()else{
+                return Err(crate::Error::Invalid("flat vector contents require a first geometry item".into()));
+            };
             *self=*vector;
         }else{*self=wrapped;}
         Ok(())
@@ -592,9 +599,8 @@ impl VectorContent {
         Ok(())
     }
     pub fn sample(&self, frame: f64, size: [f32; 2]) -> Result<SampledVector> {
-        if let VectorSource::Group { group } = &self.source { return group.sample(frame); }
         let paths = match &self.source {
-            VectorSource::Group { .. } => unreachable!(),
+            VectorSource::Group { group } => return group.sample(frame),
             VectorSource::Paths { paths } => paths
                 .iter()
                 .map(|p| p.sample(frame))

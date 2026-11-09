@@ -38,7 +38,7 @@ impl Shell {
                             .error("PNG export reply is missing its published path")
                     }
                 },
-                Err(error) if error == "PNG export cancelled" => {
+                Err(error) if error.to_string() == "PNG export cancelled" => {
                     self.workspace.locale.t(T::ExportCancelled).into()
                 }
                 Err(error) => self.workspace.locale.error(&error),

@@ -44,6 +44,7 @@ pub mod tracking;
 
 pub use platform::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 pub use session::{Result, Session};
+pub use session::pipeline_preparation::Error as PipelinePreparationError;
 
 /// Error type alias used across the host surface.
 pub type SessionError = Error;

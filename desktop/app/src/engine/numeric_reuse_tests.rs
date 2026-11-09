@@ -171,7 +171,7 @@ fn node_numeric_reuse_records_real_faults_and_restores_preview() {
             .recv_timeout(Duration::from_secs(30))
             .unwrap()
             .unwrap_err();
-        assert!(error.contains("node graph"), "{error}");
+        assert!(error.to_string().contains("node graph"), "{error}");
         let capture = engine.node_capture(0., root.join("retained.png")).unwrap();
         assert_eq!(fingerprint.as_ref().unwrap(), &capture["fingerprint"]);
         assert_eq!(

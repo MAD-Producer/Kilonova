@@ -201,6 +201,7 @@ impl Scene {
     /// Create an empty, unsampled context. Imported cameras require a catalog
     /// before `sample`; the initial empty pose is never a source-camera fallback.
     pub fn new(project: &Project) -> motion_model::Result<Self> {
+        project.color_management.require_unmanaged("scene_create")?;
         let initial = if project.camera.imported.is_some() || project.camera.tracking.is_some() { motion_model::Camera::new(project.width, project.height).pose(0., project.width, project.height)? } else { project.camera.pose(0., project.width, project.height)? };
         Ok(Self::empty(initial, project.background,
             project.width, project.height, project.fps, project.composition_id.clone()))
@@ -208,6 +209,7 @@ impl Scene {
     /// Create the empty context before a host changes its active composition.
     /// Install source ownership and sample before using it for content rendering.
     pub fn for_composition(project: &Project, id: &str) -> motion_model::Result<Self> {
+        project.color_management.require_unmanaged("scene_composition")?;
         let view = project.composition_view(id)?;
         let initial = if view.camera.imported.is_some() || view.camera.tracking.is_some() { motion_model::Camera::new(view.width, view.height).pose(0., view.width, view.height)? } else { view.camera.pose(0., view.width, view.height)? };
         Ok(Self::empty(initial, view.background,
@@ -306,6 +308,7 @@ impl Scene {
     }
     fn sample_view_root(&mut self, document: &Project, project: &Project, frame: f64,
         view: ViewCamera<'_>, evaluator: &dyn motion_model::FrameEvaluator) -> Result<()> {
+        document.color_management.require_unmanaged("scene_sample")?;
         let result = (|| {
             let cursor = SourceTimeSample { frame, rate: 1., traversal: TimeTraversal::Later };
             self.sample_inner(document, project, cursor, view, 0, &mut 0, evaluator)?;

@@ -12,6 +12,8 @@ mod publication;
 mod animation_presets;
 mod node_resources;
 mod tracking_resources;
+mod color_resources;
+pub use color_resources::{open_color_resource, read_color_config};
 pub use tracking_resources::{open_tracking_resource, read_tracking_resource};
 pub use node_resources::{open_node_resource, read_node_resource, resource_sha256, NodeResourceStage};
 pub use animation_presets::{read_animation_preset, save_animation_preset, stage_animation_preset, StagedAnimationPreset};
@@ -42,6 +44,7 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
     let mut seen = std::collections::HashMap::new();
     let mut total = 0u64;
     let node_resources = project.node_resources()?;
+    let color_resources = project.color_management.resources()?;
     for (asset_path, limit, bytes) in project
         .assets
         .iter()
@@ -62,6 +65,7 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
                 .map(|a| (&a.path, MAX_MEDIA_ASSET, Some(a.bytes))),
         )
         .chain(node_resources.iter().map(|a| (&a.path, crate::node_resources::MAX_NODE_RESOURCE_BYTES, Some(a.bytes))))
+        .chain(color_resources.iter().map(|a| (&a.path, motion_effects::color_config::MAX_RESOURCE_BYTES as u64, Some(a.identity.bytes as u64))))
     {
         validate_relative_path(asset_path)?;
         if let Some((previous_path, previous_limit, previous_bytes)) =
@@ -85,11 +89,14 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
         );
         let owned_node = node_resources.iter().any(|resource| resource.path == *asset_path);
         let owned_tracking = project.tracking_assets.iter().any(|resource| resource.path == *asset_path);
+        let owned_color = color_resources.iter().find(|resource| resource.path == *asset_path);
         let path = root.join(asset_path).canonicalize().map_err(|source| {
             if owned_node {
                 crate::Error::NodeResourceIo { phase: "resolve", path: asset_path.clone(), source }
             } else if owned_tracking {
                 crate::Error::TrackingResourceIo { phase: "resolve", path: asset_path.clone(), source }
+            } else if owned_color.is_some() {
+                crate::color_management::ProjectColorError::Io { phase: "resolve", path: asset_path.clone(), source }.into()
             } else {
                 crate::Error::Invalid(format!("素材无法读取：{asset_path} ({source})"))
             }
@@ -103,6 +110,8 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
                 crate::Error::NodeResourceIo { phase: "metadata", path: asset_path.clone(), source }
             } else if owned_tracking {
                 crate::Error::TrackingResourceIo { phase: "metadata", path: asset_path.clone(), source }
+            } else if owned_color.is_some() {
+                crate::color_management::ProjectColorError::Io { phase: "metadata", path: asset_path.clone(), source }.into()
             } else {
                 crate::Error::Io(source)
             }
@@ -111,6 +120,11 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
             .checked_add(meta.len())
             .ok_or_else(|| crate::Error::Invalid("project resource size overflow".into()))?;
         ensure(total <= MAX_PACKAGE, "project resource budget exceeded")?;
+        if owned_color.is_some() && (!meta.is_file() || bytes != Some(meta.len())) {
+            return Err(crate::color_management::ProjectColorError::Resource {
+                phase: "metadata", path: asset_path.clone(), reason: "resource size differs from declared identity",
+            }.into());
+        }
         ensure(
             meta.is_file() && meta.len() <= limit && bytes.is_none_or(|n| n == meta.len()),
             "asset is invalid or too large",
@@ -118,6 +132,7 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
     }
     for resource in &node_resources { open_node_resource(root, resource)?; }
     for resource in &project.tracking_assets { open_tracking_resource(root, resource)?; }
+    for resource in &color_resources { open_color_resource(root, resource)?; }
     Ok(())
 }
 pub fn load(root: &Path) -> Result<Project> {
@@ -219,6 +234,7 @@ impl PackageSnapshot {
         let mut sources = Vec::new();
         let mut written = HashSet::new();
         let node_resources = project.node_resources()?;
+        let color_resources = project.color_management.resources()?;
         for (name, limit, declared_bytes) in project
             .assets
             .iter()
@@ -239,6 +255,7 @@ impl PackageSnapshot {
                     .map(|a| (&a.path, MAX_MEDIA_ASSET, Some(a.bytes))),
             )
             .chain(node_resources.iter().map(|a| (&a.path, crate::node_resources::MAX_NODE_RESOURCE_BYTES, Some(a.bytes))))
+            .chain(color_resources.iter().map(|a| (&a.path, motion_effects::color_config::MAX_RESOURCE_BYTES as u64, Some(a.identity.bytes as u64))))
         {
             if !written.insert(name) {
                 continue;
@@ -264,7 +281,8 @@ impl PackageSnapshot {
                 file,
                 bytes,
                 verified_sha256: node_resources.iter().find(|r| r.path == *name).map(|r| r.sha256.clone())
-                    .or_else(|| project.tracking_assets.iter().find(|r|r.path==*name).map(|r|r.sha256.clone())),
+                    .or_else(|| project.tracking_assets.iter().find(|r|r.path==*name).map(|r|r.sha256.clone()))
+                    .or_else(|| color_resources.iter().find(|r|r.path==*name).map(|r|r.identity.sha256.clone())),
             });
         }
         Ok(Self {
@@ -349,6 +367,12 @@ impl PackageSnapshot {
             }
             ensure(copied == source.bytes, "source changed while packaging")?;
             if let Some(hash) = resource_hash {
+                if source.name.starts_with("assets/color/")
+                    && source.verified_sha256.as_deref() != Some(format!("{:x}", hash.clone().finalize()).as_str()) {
+                    return Err(crate::color_management::ProjectColorError::Resource {
+                        phase: "package_copy", path: source.name.clone(), reason: "resource content changed while packaging",
+                    }.into());
+                }
                 ensure(source.verified_sha256.as_deref() == Some(format!("{:x}", hash.finalize()).as_str()),
                     &format!("{} resource content changed while packaging: {}", if source.name.starts_with("assets/tracking/") { "tracking" } else { "node" }, source.name))?;
             }
@@ -411,7 +435,7 @@ pub fn import_package_with_progress(
     let mut zip = ZipArchive::new(input)?;
     ensure(
         zip.len() <= crate::MAX_LAYERS * 3 + crate::node_resources::MAX_NODE_PROJECT_RESOURCES
-            + crate::tracking_assets::MAX_TRACKING_ASSETS + 1,
+            + crate::tracking_assets::MAX_TRACKING_ASSETS + motion_effects::color_config::MAX_CONFIG_RESOURCES + 2,
         "too many package entries",
     )?;
     let mut total = 0u64;
@@ -441,6 +465,8 @@ pub fn import_package_with_progress(
             MAX_JSON
         } else if name.starts_with("assets/tracking/") {
             crate::tracking_assets::MAX_TRACKING_ASSET_BYTES
+        } else if name.starts_with("assets/color/") {
+            motion_effects::color_config::MAX_RESOURCE_BYTES as u64
         } else {
             MAX_MEDIA_ASSET
         };
@@ -490,6 +516,7 @@ pub fn import_package_with_progress(
         .chain(project.tracking_assets.iter().map(|a| a.path.to_lowercase()))
         .chain(project.fonts.iter().map(|a| a.path.to_lowercase()))
         .chain(project.node_resources()?.iter().map(|a| a.path.to_lowercase()))
+        .chain(project.color_management.resources()?.iter().map(|a| a.path.to_lowercase()))
         .chain(std::iter::once("project.json".into()))
         .collect();
     ensure(

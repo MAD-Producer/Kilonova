@@ -118,8 +118,8 @@ fn panic_saves_last_valid_project_releases_session_lock_and_reports_the_failure(
                 Duration::from_secs(5),
             )
             .unwrap_err();
-        assert!(error.contains("native panic"), "{error}");
-        assert!(error.contains("recovery JSON:"));
+        assert!(error.to_string().contains("native panic"), "{error}");
+        assert!(error.to_string().contains("recovery JSON:"));
         wait_stopped(&engine);
         assert_eq!(engine.state().unwrap_err(), error);
         assert_eq!(engine.save().unwrap_err(), error);
@@ -185,7 +185,7 @@ fn queued_requests_disconnect_after_panic_and_ordinary_errors_keep_the_worker_al
         .recv_timeout(Duration::from_secs(5))
         .unwrap()
         .unwrap_err();
-    assert!(error.contains("native panic"));
+    assert!(error.to_string().contains("native panic"));
     assert!(matches!(
         queued.recv_timeout(Duration::from_secs(5)),
         Err(std::sync::mpsc::RecvTimeoutError::Disconnected)
@@ -212,7 +212,7 @@ fn recovery_io_failure_is_reported_and_still_releases_the_session() {
             Duration::from_secs(5),
         )
         .unwrap_err();
-    assert!(error.contains("recovery unavailable"));
+    assert!(error.to_string().contains("recovery unavailable"));
     wait_stopped(&engine);
     assert_eq!(fs::read(root.join("project.json")).unwrap(), saved);
     assert_eq!(
@@ -240,7 +240,7 @@ fn reply_timeout_does_not_retry_or_turn_a_late_success_into_a_failed_worker() {
             Duration::from_millis(1),
         )
         .unwrap_err();
-    assert!(error.contains("still pending"));
+    assert!(error.to_string().contains("still pending"));
     assert_eq!(engine.state().unwrap()["project"], before["project"]);
     assert!(engine.failure.lock().unwrap().is_none());
 }
@@ -299,7 +299,7 @@ fn attached_hidden_surface_and_factory_release_after_worker_panic() {
             Duration::from_secs(10),
         )
         .unwrap_err();
-    assert!(error.contains("native panic"));
+    assert!(error.to_string().contains("native panic"));
     wait_stopped(&engine);
     let resources = motion_host::session::resource_info(&root).unwrap();
     assert_eq!(resources["sessions"], 0);
@@ -312,7 +312,7 @@ fn reply_poll_distinguishes_pending_success_failure_and_disconnection() {
     let folder = tempfile::tempdir().unwrap();
     let engine = Engine::start(folder.path().join("project"), motion_desktop_media::platform(), 8 << 30).unwrap();
     for operation in ["attach", "present", "resize", "freeze_movie"] {
-        let (send, receive) = channel::<Result<u64, String>>();
+        let (send, receive) = channel::<Result<u64, crate::engine::Error>>();
         assert!(engine.poll_reply(&receive, operation).is_none());
         send.send(Ok(7)).unwrap();
         assert_eq!(engine.poll_reply(&receive, operation), Some(Ok(7)));
@@ -320,8 +320,8 @@ fn reply_poll_distinguishes_pending_success_failure_and_disconnection() {
         assert_eq!(engine.poll_reply(&receive, operation), Some(Err("original failure".into())));
         drop(send);
         let error = engine.poll_reply(&receive, operation).unwrap().unwrap_err();
-        assert!(error.contains(operation));
-        assert!(error.contains("disconnected"));
+        assert!(error.to_string().contains(operation));
+        assert!(error.to_string().contains("disconnected"));
     }
     assert!(!engine.failed());
 }
@@ -334,7 +334,7 @@ fn impossible_memory_budget_is_rejected_before_creating_or_locking_the_project()
         Ok(_) => panic!("out-of-range memory budget was accepted"),
         Err(error) => error,
     };
-    assert!(error.contains("signed 64-bit preview budget"));
+    assert!(error.to_string().contains("signed 64-bit preview budget"));
     assert!(!project.exists());
     let engine = Engine::start(project.clone(),motion_desktop_media::platform(),8<<30).unwrap();
     assert!(engine.state().is_ok());
@@ -351,7 +351,7 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
         let _logger = crate::logging::init(root.clone()).unwrap();
         let (entered, entry) = channel();
         let (release, released) = channel();
-        let (reply, receive) = channel::<Result<(),String>>();
+        let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
         let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
         CURRENT_COMMAND.set(Some(Flight {request:21,operation:"freeze_movie",started:Instant::now()}));
         worker.start(reply, motion_desktop_media::movie::ExportControl::default(), move || {
@@ -365,24 +365,40 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
         assert!(text.contains("async start #21 freeze_movie"));
         assert!(!text.contains("controlled freeze IO failure"));
         release.send(()).unwrap();
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(),"controlled freeze IO failure");
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(),"controlled freeze IO failure");
 
-        let (reply, receive) = channel::<Result<(),String>>();
+        let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {request:22,operation:"freeze_movie",started:Instant::now()}));
         // A received result precedes the final worker bookkeeping. Reap it
         // explicitly before testing a second independent worker.
         drop(worker);
         let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
-        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || panic!("controlled freeze panic payload")).unwrap();
+        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || {
+            match std::env::var("MOTION_FREEZE_LOG_TEST_CONTROL").as_deref() {
+                Ok("no_reply") => loop { std::thread::park(); },
+                Ok("wrong_reason") => panic!("controlled unexpected freeze cause"),
+                Ok(other) => panic!("unknown freeze log test control: {other}"),
+                Err(_) => panic!("controlled freeze panic payload"),
+            }
+        }).unwrap();
         CURRENT_COMMAND.set(None);
-        assert!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().contains("controlled freeze panic payload"));
+        // Wait for the actual panic hook and worker cleanup before checking the
+        // delivered channel result. The parent bounds the entire child process;
+        // symbol resolution is not this log-context test's channel latency SLA.
+        // Joining an active worker logs/flushes on the parent thread. Wait for
+        // the published flight to clear first, so this observer cannot occupy
+        // the file sink while the panic hook deliberately uses try_lock.
+        while !worker.status().is_null() {
+            std::thread::sleep(Duration::from_millis(1));
+        }
         drop(worker);
+        assert!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string().contains("controlled freeze panic payload"));
         let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
-        let (reply, receive) = channel::<Result<(),String>>();
+        let (reply, receive) = channel::<Result<(), crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {request:23,operation:"freeze_movie",started:Instant::now()}));
         worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || Err("movie export cancelled".into())).unwrap();
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(),"movie export cancelled");
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(),"movie export cancelled");
         drop(worker);
         struct PanickingReply;
         impl Drop for PanickingReply {
@@ -411,10 +427,33 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
         return;
     }
     let root=tempfile::tempdir().unwrap();
-    let output=std::process::Command::new(std::env::current_exe().unwrap())
+    let child_stdout = root.path().join("child.stdout");
+    let child_stderr = root.path().join("child.stderr");
+    let mut child=std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact","engine::failure::tests::asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_panic"])
-        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+        .env(CHILD,root.path()).env_remove("MOTION_LOG")
+        .stdout(fs::File::create(&child_stdout).unwrap())
+        .stderr(fs::File::create(&child_stderr).unwrap()).spawn().unwrap();
+    // Same total deadline as the existing real panic-hook subprocess control.
+    // This also bounds joins, which previously had no parent deadline.
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() { break status; }
+        if Instant::now() >= deadline {
+            let killed = child.kill();
+            let joined = child.wait();
+            let retained = retain_freeze_log_evidence(root.path(), &child_stdout, &child_stderr);
+            panic!("freeze log child exceeded 20s: kill={killed:?} wait={joined:?} evidence={retained:?}\nstdout:\n{}\nstderr:\n{}",
+                fs::read_to_string(&child_stdout).unwrap_or_default(),
+                fs::read_to_string(&child_stderr).unwrap_or_default());
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let retained = retain_freeze_log_evidence(root.path(), &child_stdout, &child_stderr);
+    let output = std::process::Output { status,
+        stdout: fs::read(child_stdout).unwrap(), stderr: fs::read(child_stderr).unwrap() };
     assert!(output.status.success(),"child status={}\nstdout:\n{}\nstderr:\n{}",output.status,String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    retained.expect("could not retain freeze log evidence");
     let text=fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
     assert!(text.contains("error #21 freeze_movie ") && text.contains("controlled freeze IO failure"));
     assert!(text.contains("panic command=Some((22, \"freeze_movie\","));
@@ -426,6 +465,17 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
     assert!(text.contains("movie freeze shutdown failed request=Some(24) phase=join cause=controlled reply cleanup failure"));
     assert!(String::from_utf8_lossy(&output.stderr).contains("movie freeze shutdown failed request=Some(24)"));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("movie freeze shutdown failed request=Some(24)"));
+}
+fn retain_freeze_log_evidence(root: &std::path::Path, stdout: &std::path::Path,
+    stderr: &std::path::Path) -> std::io::Result<()> {
+    let Some(destination) = std::env::var_os("MOTION_FREEZE_LOG_TEST_EVIDENCE") else { return Ok(()); };
+    let destination = PathBuf::from(destination);
+    fs::create_dir_all(&destination)?;
+    for (name, source) in [("worker.stdout", stdout.to_path_buf()),
+        ("worker.stderr", stderr.to_path_buf()), ("worker.log", root.join("motion-studio.log"))] {
+        fs::copy(source, destination.join(name))?;
+    }
+    Ok(())
 }
 mod image_errors;
 mod shader_errors;

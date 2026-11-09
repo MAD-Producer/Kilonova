@@ -2,7 +2,7 @@
 use crate::*;
 pub(crate) struct Task {
     ticket: panels::auxiliary::text_style::Ticket,
-    receive: std::sync::mpsc::Receiver<Result<Value, String>>,
+    receive: std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>,
     began: Instant,
 }
 impl Shell {
@@ -30,10 +30,10 @@ impl Shell {
             Err(cause) => {
                 self.panels.auxiliary.text_style.response(
                     &ticket,
-                    &Err(cause.clone()),
+                    &Err(cause.to_string()),
                     self.workspace.locale,
                 );
-                Err(cause)
+                Err(cause.to_string())
             }
         }
     }
@@ -53,7 +53,7 @@ impl Shell {
         self.panels
             .auxiliary
             .text_style
-            .response(&task.ticket, &result, self.workspace.locale);
+            .response(&task.ticket, &result.as_ref().cloned().map_err(ToString::to_string), self.workspace.locale);
         match result {
             Ok(state) => {
                 let applied = state["textEdit"]["cancelled"] == false;

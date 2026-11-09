@@ -252,7 +252,7 @@ impl PluginEditorSession {
             }
         }
         let action = match request {
-            EditorRequest::State => unreachable!(),
+            EditorRequest::State => return self.state(engine, frame),
             EditorRequest::ParameterBegin { param, .. } => {
                 ensure(self.gesture, "parameter scope requires an active editor page gesture")?;
                 let (layer, instance) = self.check(engine.project())?;

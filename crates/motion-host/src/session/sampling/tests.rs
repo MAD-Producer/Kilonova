@@ -1,5 +1,6 @@
 use super::*;
 use motion_core::{render_sampling::Shutter, Ease, Layer};
+mod error_causes;
 
 fn project() -> Project {
     let mut p = Project::new(32, 32, 30, 60).unwrap();
@@ -49,7 +50,11 @@ fn poll(
     key: RequestKey,
     slice: Duration,
 ) -> std::result::Result<ExposurePoll, RenderError> {
-    state.poll_into(r, scratch, videos, proxies, root, key, None, slice)
+    state.poll_into(r, scratch, videos, proxies, root, key, None, slice, None)
+        .map_err(|error| match error {
+            PollError::Render(error) => error,
+            PollError::Preparation(error) => panic!("unexpected preparation without a worker: {error}"),
+        })
 }
 fn texture_id(target: &motion_render::RenderTarget) -> String {
     let mut ledger = TextureResourceLedger::default();

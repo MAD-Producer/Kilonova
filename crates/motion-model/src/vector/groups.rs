@@ -378,7 +378,7 @@ fn find<'a>(g: &'a mut VectorGroup, id: u64, name: &str) -> Option<Channel<'a>> 
                 "scale" => Some(Channel::Vector(&mut r.scale)),
                 _ => None,
             },
-            GroupItem::Group { .. } => unreachable!(),
+            GroupItem::Group { group } => find(group, id, name),
         };
     }
     None
@@ -505,7 +505,7 @@ impl VectorGroup {
                                 }));
                             }
                         }
-                        _ => unreachable!(),
+                        _ => return Err(crate::Error::Invalid("stroke option dispatch requires a stroke option".into())),
                     }
                 }
             }
@@ -667,7 +667,7 @@ impl VectorGroup {
                         scalar_valid(&trim.offset, -360000., 360000., false)?;
                     }
                     GroupItem::Repeater { repeater, .. } => repeater.validate()?,
-                    GroupItem::Group { .. } => unreachable!(),
+                    GroupItem::Group { group } => visit(group, depth + 1, ids, nodes)?,
                 }
                 ensure(
                     ids.len() <= MAX_ITEMS && *nodes <= MAX_NODES,

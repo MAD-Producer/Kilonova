@@ -118,7 +118,7 @@ fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout(
             PathOperation::Tangents { target: selection()[0].target.clone(), path: 999, mode: motion_core::vector::TangentMode::Automatic },
         ] {
             let error = engine.call(|reply| Request::PathOperation { source: PathSource::of(&before), operation, reply }).unwrap_err();
-            assert!(error.contains("object=7") && error.contains("path="), "{error}");
+            assert!(error.to_string().contains("object=7") && error.to_string().contains("path="), "{error}");
             assert_eq!(engine.state().unwrap()["project"], before["project"]);
         }
         let restored = engine.call(|reply| Request::PathOperation { source: PathSource::of(&before),
@@ -144,7 +144,7 @@ fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout(
         let engine=super::engine(&sampling_root);
         let before=engine.state().unwrap();
         let error=engine.seek(5.).unwrap_err();
-        assert!(error.contains("path=3 frame=5")&&error.contains("invalid geometry node=0"),"{error}");
+        assert!(error.to_string().contains("path=3 frame=5")&&error.to_string().contains("invalid geometry node=0"),"{error}");
         let recovered=engine.seek(0.).unwrap();
         assert_eq!(recovered["project"],before["project"]);
         assert_eq!(recovered["revision"],before["revision"]);
@@ -173,11 +173,11 @@ fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout(
     }
 }
 fn read(engine: &Engine, selections: Vec<PathSelection>) -> Result<PathRead, String> {
-    engine.call(|reply| Request::PathClipboardRead {
+    Ok(engine.call(|reply| Request::PathClipboardRead {
         source: PathSource::of(&engine.state().unwrap()),
         selections,
         reply,
-    })
+    })?)
 }
 fn finish(clipboard: &mut Clipboard, engine: &Engine) -> Result<Completion, String> {
     let began = Instant::now();
@@ -232,7 +232,7 @@ fn typed_geometry_above_json_limit_survives_source_shutdown_cross_project_save_a
     .unwrap();
     assert!(json.len() > crate::engine::REQUEST_LIMIT);
     assert_eq!(
-        engine.edit(json).unwrap_err(),
+        engine.edit(json).unwrap_err().to_string(),
         "edit request exceeds 256 KiB"
     );
     drop(engine);
@@ -622,7 +622,7 @@ fn capture_and_commit_failures_reach_default_file_and_stderr_without_stdout_leak
                 reply,
             })
             .unwrap_err();
-        assert!(error.contains("phase=paste object=405"), "{error}");
+        assert!(error.to_string().contains("phase=paste object=405"), "{error}");
         assert_eq!(engine.state().unwrap()["project"], before["project"]);
         let source = PathSource::of(&engine.state().unwrap());
         let (entered, blocked) = std::sync::mpsc::channel();
@@ -655,7 +655,7 @@ fn capture_and_commit_failures_reach_default_file_and_stderr_without_stdout_leak
             .recv_timeout(Duration::from_secs(20))
             .unwrap()
             .unwrap_err();
-        assert!(primary.contains("injected worker panic"), "{primary}");
+        assert!(primary.to_string().contains("injected worker panic"), "{primary}");
         let began = Instant::now();
         let secondary = loop {
             if let Some(result) = engine.poll_reply(&queued, "path_clipboard_read") {
@@ -668,7 +668,7 @@ fn capture_and_commit_failures_reach_default_file_and_stderr_without_stdout_leak
             std::thread::sleep(Duration::from_millis(1));
         };
         assert_eq!(
-            secondary,
+            secondary.to_string(),
             format!("path_clipboard_read response disconnected: {primary}")
         );
         drop(engine);

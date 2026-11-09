@@ -513,7 +513,8 @@ impl Shell {
             (Err(cause), Err(cleanup)) => {
                 Err(format!("{cause}; fixture cleanup failed: {cleanup}"))
             }
-            (Err(cause), _) | (_, Err(cause)) => Err(cause),
+            (Err(cause), _) => Err(cause),
+            (_, Err(cause)) => Err(cause.to_string()),
             _ => Ok(()),
         }
     }
@@ -589,11 +590,11 @@ impl Shell {
         });
         let cleanup=match (undo,view) {
             (Err(a),Err(b))=>Err(format!("{a}; view restore failed: {b}")),
-            (Err(a),_)|(_,Err(a))=>Err(a),_=>Ok(()),
+            (Err(a),_)|(_,Err(a))=>Err(a.to_string()),_=>Ok(()),
         };
         match (captured,cleanup) {
             (Err(a),Err(b))=>Err(format!("{a}; 3D capture cleanup failed: {b}")),
-            (Err(a),_)|(_,Err(a))=>Err(a),_=>Ok(()),
+            (Err(a),_)|(_,Err(a))=>Err(a.to_string()),_=>Ok(()),
         }
     }
 

@@ -4,7 +4,7 @@ fn engine(root: &std::path::Path) -> Arc<Engine> {
     Arc::new(Engine::start(root.to_owned(), motion_desktop_media::platform(), 8 << 30).unwrap())
 }
 
-fn blocked(engine: &Engine) -> (Sender<()>, std::sync::mpsc::Receiver<Result<Value, String>>) {
+fn blocked(engine: &Engine) -> (Sender<()>, std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>) {
     let (entered, waiting) = channel();
     let (release, gate) = channel();
     let reply = engine
@@ -54,9 +54,9 @@ fn poisoned_node_expectations_report_through_the_command_reply_boundary() {
     assert!(engine
         .node_expect((1, 1))
         .unwrap_err()
-        .contains("node expectation lock poisoned"));
+        .to_string().contains("node expectation lock poisoned"));
     let error = engine.state().unwrap_err();
-    assert!(error.contains("node expectation lock poisoned"), "{error}");
+    assert!(error.to_string().contains("node expectation lock poisoned"), "{error}");
     assert!(engine.state().is_err());
 }
 
@@ -84,7 +84,7 @@ fn saturation_is_nonblocking_preserves_accepted_edits_and_coalesces_node_expecta
         .edit_async(serde_json::json!({"op":"rename","object":1,"name":"Rejected"}).to_string())
         .unwrap_err();
     assert!(began.elapsed() < Duration::from_secs(1));
-    assert!(error.contains("command was not queued"));
+    assert!(error.to_string().contains("command was not queued"));
     assert_eq!(engine.queue_depth(), COMMAND_QUEUE_CAPACITY);
     release.send(()).unwrap();
     blocked
@@ -121,7 +121,7 @@ fn explicit_shutdown_drains_full_queue_and_releases_project_with_another_arc_ali
     assert_eq!(engine.queue_depth(), COMMAND_QUEUE_CAPACITY);
     engine.request_shutdown().unwrap();
     engine.request_shutdown().unwrap();
-    assert!(engine.state().unwrap_err().contains("shutdown requested"));
+    assert!(engine.state().unwrap_err().to_string().contains("shutdown requested"));
     release.send(()).unwrap();
     blocked
         .recv_timeout(Duration::from_secs(5))

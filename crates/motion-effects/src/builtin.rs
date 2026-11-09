@@ -12,7 +12,8 @@ pub fn package() -> Result<Arc<EffectPackage>> {
         .clone()
         .map_err(Error::Invalid)
 }
-/// Retain the published 1.0.0 bytes so existing projects keep their exact hash.
+/// Explicit archive catalogue for SDK/regression callers. The desktop runtime
+/// loads `package()` instead, so startup does not compile every archived shader.
 pub fn packages() -> Result<Vec<Arc<EffectPackage>>> {
     static PREVIOUS: OnceLock<std::result::Result<Arc<EffectPackage>, String>> = OnceLock::new();
     let previous = PREVIOUS
@@ -66,6 +67,20 @@ pub fn packages() -> Result<Vec<Arc<EffectPackage>>> {
         legacy_current_package()?,
         package()?,
     ])
+}
+
+/// Recognize exact archived payloads without unpacking or compiling them. The
+/// original bytes stay available to explicit regression/SDK registration.
+pub(crate) fn is_archived_core_bytes(bytes: &[u8]) -> bool {
+    [
+        include_bytes!("../library/legacy/core-effects-1.0.0.msfx").as_slice(),
+        include_bytes!("../library/legacy/core-effects-1.1.0.msfx").as_slice(),
+        include_bytes!("../library/legacy/core-effects-1.2.0.msfx").as_slice(),
+        include_bytes!("../library/legacy/core-effects-1.3.0.msfx").as_slice(),
+        include_bytes!("../library/legacy/core-effects-1.4.0.msfx").as_slice(),
+        include_bytes!("../library/core-effects.msfx").as_slice(),
+    ]
+    .contains(&bytes)
 }
 
 /// Catalogue aliases/presets, never duplicate implementations or saved IDs.

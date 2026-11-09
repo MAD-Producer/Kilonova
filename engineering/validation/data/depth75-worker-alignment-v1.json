@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "base": "522bd1cae9f9b1e3dabf86142bdfee10894b1607",
+  "status": "actual_worker48_full_host_and_default_blocked_file_channels_passed",
+  "namedControls": 48,
+  "hostTotals": {
+    "passed": 443,
+    "failed": 0,
+    "ignored": 0,
+    "measured": 0,
+    "filtered": 0
+  },
+  "integrationTargets": 28,
+  "sourceDelta": {
+    "crates/motion-host/src/depth.rs": "07ca84eab3652009e8c4b779f3aa452265cc7c078887f1af658bd1df3586fc38",
+    "crates/motion-host/src/depth/onnx.rs": "c5ef7d24750c63418c7dd5ab2f23d92ab5c22cfdef1be25be34ce853ccaffd34",
+    "crates/motion-host/src/depth/transition.rs": "fe7ab6d1ca5609a204ae3f24f905f5b2d05ca4c08ae45aee458b39d06b33e26b",
+    "crates/motion-host/src/depth/transition/admission.rs": "934dbcdc48a9a406e9ad4740813bc3e6a79b229c8cef11eef7ce61f7a8082142",
+    "crates/motion-host/tests/depth_aligned_admission.rs": "aef3843f1cb16eaf849f12f0323d3fa0803643e782e6cdb64141aaf9cb976eab",
+    "crates/motion-host/tests/depth_worker_alignment.rs": "79d7281bbaca71d24fc1a1ba340ea61683730cd075e2c55fa047c0239fb643b1",
+    "desktop/app/src/logging/sink.rs": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+  },
+  "limits": [
+    "The source delta is qualified by exact code bytes over522bd1ca; fresh complete workspace and cross-platform CI for this delta are separate",
+    "Seven new actual worker controls do not establish scene quality; the analytical reference is not a shipped model",
+    "The real blocked backend start failed before the production flush, then the same behavioral fixture passed",
+    "The earlier new probe namespace compile failure is retained; no behavioral assertion ran in that attempt",
+    "Explicit aligned submission uses prepared Input; Session managed image/video installation, quality choice, cache and export policy remain pending",
+    "One running, one replaceable pending and one ready slot; references share immutable planes; no application-wide retention quota is inferred",
+    "Original model/provider/fingerprint and fit limits are retained; ordinary raw APIs cannot silently strip the alignment proof",
+    "Full host preserves default GPU, original ignores and all assertions; it is not an include-ignored execution",
+    "No UI/panels, Android, dependencies, assets, product retry/restart/timeout or project format change"
+  ],
+  "members": {
+    "native48/controller.py": {
+      "bytes": 3196,
+      "sha256": "d4b8f34f4c50e64ffe9a5330ed2c8899f791dc50ae133f3f30a52478119bd9cc"
+    },
+    "native48/receipt.json": {
+      "bytes": 860787,
+      "sha256": "6b362b9024158cc69b62e0385410ada296a15d104fe12c0318ff7370bb7b1162"
+    },
+    "native48/session-consumed.json": {
+      "bytes": 98,
+      "sha256": "ae344dffdd069a6a4fe1b1681afed614cde9564381139bb6afd9d822827def53"
+    },
+    "native48/stdout.log": {
+      "bytes": 4477,
+      "sha256": "e187c13b99a56c7ce60ba5d9cd4b36b56c4bc33dfe8e780b7b577b7ba65811bd"
+    },
+    "native48/stderr.log": {
+      "bytes": 1824,
+      "sha256": "76c78c8a01da14c852cd83c1903f2726e1b09e039089dc1c41d620a565215ce8"
+    },
+    "full-host/controller.py": {
+      "bytes": 4270,
+      "sha256": "85bf04a92e196a552e76f090dcf8d31fe0f506f1f3c1730efad33e3acdca3ad2"
+    },
+    "full-host/receipt.json": {
+      "bytes": 866593,
+      "sha256": "acae4f5549168f9f99cf4c4fda04b63c8fe1452a7179bd9c8583eed489e371ac"
+    },
+    "full-host/session-consumed.json": {
+      "bytes": 98,
+      "sha256": "094a1b94186fbf984addb8e3de6b9977829246bd93fc42cc2887e3b526b4e1b8"
+    },
+    "full-host/stdout.log": {
+      "bytes": 48394,
+      "sha256": "3324533b2ea6768ff0a626a7a27c5ca360d4c54473d5a61a232bf9230989ce66"
+    },
+    "full-host/stderr.log": {
+      "bytes": 4933,
+      "sha256": "e4ec16443a3f5e259ad40bfccafc9f43391c7d9ead0b09ba6d2665aebc8d6b02"
+    },
+    "file-before-start-flush/controller.py": {
+      "bytes": 3372,
+      "sha256": "ad44ad17b9f4b6fc4eb0ea0ea95270426302574052d7aaedc2027f02ff93f91d"
+    },
+    "file-before-start-flush/receipt.json": {
+      "bytes": 1968,
+      "sha256": "3997b1e15930da06a0bbc6e43feccfdd11842119111df2f8437168a0baafc63b"
+    },
+    "file-before-start-flush/session-consumed.json": {
+      "bytes": 261,
+      "sha256": "fe130661e37b70cc9fdf29b82590328d734681d1c727c96f251f66e344c77626"
+    },
+    "file-before-start-flush/actual.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-before-start-flush/actual.stderr.log": {
+      "bytes": 195,
+      "sha256": "6cb9cb9a3ff22336a9f8035be2f47c372f588f3d2fc3db8d2a772feb9ffa44f4"
+    },
+    "file-before-start-flush/execution/logs/motion-studio.log": {
+      "bytes": 3656,
+      "sha256": "6d0c19c1edd0e0242fcdfc296ea1a87c779ed1c178921c845460dc592731016c"
+    },
+    "file-after-start-flush/controller.py": {
+      "bytes": 3372,
+      "sha256": "cefbdc5b98299d2621789a53640b80ca1068919046612275da2a28bdacbe7eb7"
+    },
+    "file-after-start-flush/receipt.json": {
+      "bytes": 1965,
+      "sha256": "a53e958a085f4cf17867daff129eb3749839aaa7f5c6b39a826579bf28025a72"
+    },
+    "file-after-start-flush/session-consumed.json": {
+      "bytes": 98,
+      "sha256": "93cd42d74d120de2d89c9eec81e8b1fdbad18eb947762c2b1f938fb1e40dd587"
+    },
+    "file-after-start-flush/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "file-after-start-flush/build.stderr.log": {
+      "bytes": 2023,
+      "sha256": "7d1beefeee9a89e2cf2c24e9a06690d3e1a722196abe487e11a5ef0a3d608764"
+    },
+    "file-after-start-flush/actual.stdout.log": {
+      "bytes": 79,
+      "sha256": "2f1a4aa73101a87bbc0745ecb3b17566698d9febed5a470231d0a8982f429144"
+    },
+    "file-after-start-flush/actual.stderr.log": {
+      "bytes": 591,
+      "sha256": "b094faf8419b7443d0704790751658119d3490cac9de0cb79421153a2fd5358f"
+    },
+    "file-after-start-flush/execution/logs/motion-studio.log": {
+      "bytes": 1943,
+      "sha256": "c251de3b701a5bde95dd9d8949e6b9cbe67ca791490a48d539b2419415c67032"
+    },
+    "probe-setup-compile-failure/controller.py": {
+      "bytes": 3369,
+      "sha256": "855aae8642a993ad95d3b82d45a32754f12e2b2b5b75b76617a4e850ac664ef7"
+    },
+    "probe-setup-compile-failure/receipt.json": {
+      "bytes": 1688,
+      "sha256": "7ee2c960232d7b7f633f887c484ea215210aee84a24358ae32da90019219ec25"
+    },
+    "probe-setup-compile-failure/session-consumed.json": {
+      "bytes": 197,
+      "sha256": "0c066e1d4caff89cd7d651ebc278bb9535261145af6ca540cc79e399c9901126"
+    },
+    "probe-setup-compile-failure/build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "probe-setup-compile-failure/build.stderr.log": {
+      "bytes": 2322,
+      "sha256": "b791b8f91e8d1fec45d5e8cffe39f7f89eda0b7449eef86b0b9e36615daf849e"
+    },
+    "source/crates/motion-host/src/depth.rs": {
+      "bytes": 30962,
+      "sha256": "07ca84eab3652009e8c4b779f3aa452265cc7c078887f1af658bd1df3586fc38"
+    },
+    "source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 17638,
+      "sha256": "c5ef7d24750c63418c7dd5ab2f23d92ab5c22cfdef1be25be34ce853ccaffd34"
+    },
+    "source/crates/motion-host/src/depth/transition.rs": {
+      "bytes": 16056,
+      "sha256": "fe7ab6d1ca5609a204ae3f24f905f5b2d05ca4c08ae45aee458b39d06b33e26b"
+    },
+    "source/crates/motion-host/src/depth/transition/admission.rs": {
+      "bytes": 6854,
+      "sha256": "934dbcdc48a9a406e9ad4740813bc3e6a79b229c8cef11eef7ce61f7a8082142"
+    },
+    "source/crates/motion-host/tests/depth_aligned_admission.rs": {
+      "bytes": 8125,
+      "sha256": "aef3843f1cb16eaf849f12f0323d3fa0803643e782e6cdb64141aaf9cb976eab"
+    },
+    "source/crates/motion-host/tests/depth_worker_alignment.rs": {
+      "bytes": 15366,
+      "sha256": "79d7281bbaca71d24fc1a1ba340ea61683730cd075e2c55fa047c0239fb643b1"
+    },
+    "source/desktop/app/src/logging/sink.rs": {
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    },
+    "original-compile-failed-fixture/Cargo.toml": {
+      "bytes": 350,
+      "sha256": "39c6a800b2e012d71e23fc7f0dfed5d5fb1967192be31d626a1b32106f80f7bf"
+    },
+    "original-compile-failed-fixture/Cargo.lock": {
+      "bytes": 73401,
+      "sha256": "3bc12683479ecb9f21aa74140244156f94f76dfa631046a73809e2aa06a73b02"
+    },
+    "original-compile-failed-fixture/src/main.rs": {
+      "bytes": 8686,
+      "sha256": "d9c8a0dea1d8fd338fe1e3cb6ac6c85fb75950248679feed29e4c0376f992bad"
+    },
+    "namespace-corrected-identical-blocking-fixture/Cargo.toml": {
+      "bytes": 350,
+      "sha256": "39c6a800b2e012d71e23fc7f0dfed5d5fb1967192be31d626a1b32106f80f7bf"
+    },
+    "namespace-corrected-identical-blocking-fixture/Cargo.lock": {
+      "bytes": 73401,
+      "sha256": "3bc12683479ecb9f21aa74140244156f94f76dfa631046a73809e2aa06a73b02"
+    },
+    "namespace-corrected-identical-blocking-fixture/src/main.rs": {
+      "bytes": 8697,
+      "sha256": "a47e0c50edb9894da0520cae25f791ad6107224b5a6be943742fabdf961a3a2d"
+    },
+    "archive-controller.py": {
+      "bytes": 5893,
+      "sha256": "8566f852b24daf34494a278d9da5596427cb1c4c73e2263c82d4d52f74969df3"
+    }
+  },
+  "archive": {
+    "file": "depth75-worker-alignment-v1.zip",
+    "bytes": 680418,
+    "sha256": "d1ecaca3e0a187d1cb2808d8e8bc0e6448475da986f80a4fe323e7efce14a4f0",
+    "verifiedMembers": 44
+  }
+}

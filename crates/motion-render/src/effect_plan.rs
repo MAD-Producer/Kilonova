@@ -14,7 +14,12 @@ mod depth_material_tests;
 mod depth_material;
 mod scratch_graph;
 mod scratch_lifetimes;
+pub use scratch_graph::GraphError as ScratchGraphError;
+pub use scratch_lifetimes::PlacementError as ScratchPlacementError;
 mod scratch;
+mod attachment_intents;
+pub use attachment_intents::{EffectAttachmentIntent, AttachmentConsumers, AttachmentClearReasons};
+pub(crate) use attachment_intents::color_attachment_operations;
 mod pointwise;
 pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};
 mod execution;
@@ -826,6 +831,9 @@ impl PlanBuilder {
             #[cfg(all(debug_assertions, feature = "gpu-tests"))]
             execution_fault: None,
         })
+    }
+    pub(crate) fn plane_coverage_enabled(&self) -> bool {
+        self.plane_coverage
     }
     pub(crate) fn enable_plane_coverage(&mut self) {
         if !self.plane_coverage {

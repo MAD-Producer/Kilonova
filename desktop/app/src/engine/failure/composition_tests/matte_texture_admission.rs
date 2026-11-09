@@ -47,10 +47,10 @@ fn resized_matte_refusal_keeps_old_pixels_and_original_cause_in_default_output_c
             required_bytes: before.admitted_bytes + 64 * 64, budget_bytes: before.admitted_bytes,
         }));
         let original = failure.to_string();
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
         assert_eq!(renderer.read_target(&small).unwrap(), old_pixels);
         assert_eq!(renderer.compositing_pipeline_set_builds(), 1);

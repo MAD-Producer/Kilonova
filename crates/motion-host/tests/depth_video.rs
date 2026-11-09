@@ -755,6 +755,11 @@ fn decoder_open_is_observable_before_blocking_and_seek_discards_old_request() {
         .iter()
         .any(|line| line.contains("start #1 depth_infer asset=74")
             && line.contains("target_us=43333 phase=video_decode")));
+    assert!(LOG.0.lock().unwrap().iter().any(|line| {
+        line.contains("start #1 depth_infer asset=74")
+            && line.contains("processing=owned-rgb-test-v1 ")
+            && line.contains(&format!("model_sha256={}", "07".repeat(32)))
+    }));
     f.session.frame = 3.;
     f.session.sample().unwrap();
     assert!(f.session.poll_depth().unwrap().is_none());

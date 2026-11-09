@@ -193,13 +193,12 @@ impl Stream {
                                     log::logger().flush();
                                     announced_open = true;
                                 }
-                                let base = root.canonicalize().map_err(|e| e.to_string())?;
+                                let base = root.canonicalize()?;
                                 let source = root
                                     .join(&media.path)
-                                    .canonicalize()
-                                    .map_err(|e| e.to_string())?;
+                                    .canonicalize()?;
                                 if !source.starts_with(base)
-                                    || source.metadata().map_err(|e| e.to_string())?.len()
+                                    || source.metadata()?.len()
                                         != media.bytes
                                 {
                                     return Err("owned video source missing or changed".into());
@@ -288,7 +287,7 @@ impl Stream {
                     // Do not await another VSync: fill the next available cache slot.
                 }
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(MediaError::from)?;
         Ok(Self { object, asset, path, pts, shared, worker: Some(worker) })
     }
     fn key(&self, time: u64) -> Result<(u64, usize)> {

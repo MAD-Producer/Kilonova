@@ -5,14 +5,14 @@ pub(crate) struct Task {
     ticket: panels::expressions::Ticket,
     apply: bool,
     began: Instant,
-    receive: std::sync::mpsc::Receiver<Result<Value, String>>,
+    receive: std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>,
 }
 impl Shell {
     pub(crate) fn start_expression_task(
         &mut self,
         ticket: panels::expressions::Ticket,
         apply: bool,
-        receive: Result<std::sync::mpsc::Receiver<Result<Value, String>>, String>,
+        receive: Result<std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>, crate::engine::Error>,
     ) -> Result<(), String> {
         match receive {
             Ok(receive) => {
@@ -27,10 +27,10 @@ impl Shell {
             Err(cause) => {
                 self.panels.expressions.expression_response(
                     &ticket,
-                    &Err(cause.clone()),
+                    &Err(cause.to_string()),
                     self.workspace.locale,
                 );
-                Err(cause)
+                Err(cause.to_string())
             }
         }
     }
@@ -53,7 +53,7 @@ impl Shell {
         );
         self.panels
             .expressions
-            .expression_response(&task.ticket, &result, self.workspace.locale);
+            .expression_response(&task.ticket, &result.as_ref().cloned().map_err(ToString::to_string), self.workspace.locale);
         if task.apply {
             match result {
                 Ok(state) => self.accept_edit_state(state),

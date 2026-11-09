@@ -1,0 +1,9 @@
+{
+  "checked_source_files": 2440,
+  "mismatches": [],
+  "compiled_executable_sha256": "16174a82a2d2669c5f1b0fb77b9167079bdc1d06fd7ce5101fd6a797b6ffaa72",
+  "compiled_source_inventory_sha256": "c35e415431e6dc2ae6ee440e77c7ac4ca59a43f6b8e0b098d406a4d0954f09cd",
+  "baseline_full_source": "3bc4478d261703995ee6a18fb1e7882b2180b3d7",
+  "final_source": "051cd85c3c2509985965c94c00438d764c2f612e",
+  "scope": "Full desktop and host execute baseline; final source matches diagnostics 15 and viewer 4 verification exactly. Documentation changes excluded."
+}

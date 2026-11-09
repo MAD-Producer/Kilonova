@@ -73,7 +73,7 @@ fn keyframe_clipboard_failures_use_default_engine_error_channel_and_preserve_sta
             let error = engine
                 .edit(serde_json::to_string(&commands).unwrap())
                 .unwrap_err();
-            assert!(error.contains(cause), "{error}");
+            assert!(error.to_string().contains(cause), "{error}");
             let after = engine.state().unwrap();
             assert_eq!(after["project"], before["project"]);
             assert_eq!(after["revision"], before["revision"]);
@@ -98,7 +98,7 @@ fn keyframe_clipboard_failures_use_default_engine_error_channel_and_preserve_sta
                 .unwrap(),
             )
             .unwrap_err();
-        assert!(error.contains("clipboard cut source changed"), "{error}");
+        assert!(error.to_string().contains("clipboard cut source changed"), "{error}");
         let after_cut = engine.state().unwrap();
         assert_eq!(after_cut["project"], before_cut["project"]);
         assert_eq!(after_cut["revision"], before_cut["revision"]);

@@ -152,7 +152,7 @@ fn alignment_worker_errors_reach_default_file_and_stderr_and_valid_requests_reco
             .recv_timeout(Duration::from_secs(10))
             .unwrap()
             .unwrap_err();
-        assert!(error.contains("align layer 999"));
+        assert!(error.to_string().contains("align layer 999"));
         let rejected = engine.state().unwrap();
         for field in ["project", "revision", "canUndo", "canRedo", "frame"] {
             assert_eq!(before[field], rejected[field]);
@@ -341,7 +341,7 @@ fn distribution_actual_worker_failure_and_recovery_preserve_project_and_history_
             .recv_timeout(Duration::from_secs(10))
             .unwrap()
             .unwrap_err();
-        assert!(error.contains("999"));
+        assert!(error.to_string().contains("999"));
         let rejected = engine.state().unwrap();
         for key in ["project", "revision", "canUndo", "canRedo", "frame"] {
             assert_eq!(before[key], rejected[key]);
@@ -412,7 +412,7 @@ fn distribution_actual_worker_failure_and_recovery_preserve_project_and_history_
             .recv_timeout(Duration::from_secs(10))
             .unwrap()
             .unwrap_err();
-        assert!(error.contains("reversed edge order"));
+        assert!(error.to_string().contains("reversed edge order"));
         let rejected = reopened.state().unwrap();
         for key in ["project", "revision", "canUndo", "canRedo", "frame"] {
             assert_eq!(impossible[key], rejected[key]);

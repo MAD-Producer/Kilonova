@@ -167,12 +167,12 @@ fn retired_effects_leave_catalogue_and_old_project_failures_reach_default_sinks(
             .plugin(serde_json::json!({"op":"editor_open","object":1,"instance":1}).to_string())
             .unwrap_err();
         assert!(
-            error.contains("retired bundled plugin") && error.contains(&particle.hash),
+            error.to_string().contains("retired bundled plugin") && error.to_string().contains(&particle.hash),
             "{error}"
         );
         let error = engine.plugin(serde_json::json!({"op":"install","path":cached.join(format!("{}.msfx", particle.hash))}).to_string()).unwrap_err();
         assert!(
-            error.contains("retired bundled plugin") && error.contains(&particle.manifest.id),
+            error.to_string().contains("retired bundled plugin") && error.to_string().contains(&particle.manifest.id),
             "{error}"
         );
         assert_eq!(engine.state().unwrap()["project"], before["project"]);

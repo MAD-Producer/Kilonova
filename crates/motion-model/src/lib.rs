@@ -15,6 +15,7 @@ pub use camera::lens;
 pub mod composition;
 mod curve;
 pub mod color_curves;
+pub mod color_management;
 pub mod depth;
 mod commands;
 pub mod layer_clipboard;
@@ -100,6 +101,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    ProjectColor(#[from] color_management::ProjectColorError),
     #[error(transparent)]
     FrameRate(#[from] RateError),
     #[error("viewer_camera object={object} phase=selection: {source}")]

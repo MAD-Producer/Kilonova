@@ -1,5 +1,24 @@
 # Motion Studio 来源说明 / Provenance
 
+Optional WGSL-depth numerical research references the mathematical error-function
+approximation in AMS55 equation 7.1.26 and the NIST DLMF 7.6.1 series. Evaluation
+and tests are independently authored. No reference implementation, scan, figure
+or prose is copied. Attribution records the exact mathematical references and
+the distinction between scalar mathematics and unqualified GPU execution.
+
+The #75 WGSL-depth checkpoint contains independently generated operator/shape
+and static-memory metadata for the already attributed external Small model.
+Its evidence archives contain no model weights, upstream implementation or
+image assets. Static inspection and integer shape folding do not qualify a
+second inference backend or authorize default model distribution.
+The subsequent optional host backend uses independently authored WGSL kernels,
+strict typed admission and directly owned child processes. It shares the
+existing owned color/letterbox/remap procedure; no reference implementation or
+model/weight/runtime binary is copied into the product. Its plan is an explicit
+pinned bootstrap profile, not a general SDK compute capability. Numerical and
+cancellation evidence does not authorize default model distribution or imply
+interactive/video quality acceptance.
+
 The COLMAP camera text adapter references the public format and coordinate
 conventions at a pinned upstream revision. Its parser, pose conversion boundary
 and numerical fixtures are independently authored. It does not embed COLMAP or
@@ -55,6 +74,10 @@ The optional desktop depth prototype uses independently authored host/process
 code and a separately installed, hash-verified Apache-2.0 Small model. The export
 tool requires the pinned official reference checkout and retains its original
 license and a model manifest next to the external ONNX artifact. No upstream
+implementation is modified by the optional 266/392/518 export selection. Those
+independently authored candidates retain distinct shape/processing identities
+and require their own original numerical reference gates before publication;
+export availability alone does not qualify a product quality tier. No upstream
 source, weights, images or inference runtime enter project/effect packages or
 the shipped product. Authors, revisions, hashes and modification scope are
 recorded in [ATTRIBUTION.md](ATTRIBUTION.md).
@@ -87,6 +110,12 @@ Every new third-party asset or adapted implementation must record its author, so
 
 This file records the repository's engineering process. It is not legal advice and does not replace review of a particular jurisdiction, asset, or distribution agreement.
 
+Native depth panic fixtures and the ordered CPU/WGSL crop observer are locally
+authored validation work. The observer transforms an existing attributed NASA
+fixture; it adds no third-party image or model asset. Public evidence records
+source revisions, bounded failure context and numerical results while excluding
+raw images, learned tensors, external model resources and optional runtimes.
+
 The CPU scene importer follows the public Khronos glTF 2.0 document and retains
 owned, content-identified resource bytes. Its implementation and adversarial
 fixtures are independently authored. External Khronos validation models are
@@ -98,3 +127,28 @@ loader or a commercial application's binary resources. New OBJ/MTL fixtures,
 comparison geometry and PNG pixels are locally authored numerical test data.
 Wavefront's classic material descriptors remain distinct from glTF PBR, with
 unsupported directives explicitly rejected rather than silently translated.
+
+The bounded Cube parser, CPU lookup, WGSL interpolation and synthetic color
+fixtures are independently authored. OpenColorIO 2.6.0 is an external numerical
+reference only, pinned and credited in ATTRIBUTION.md; its runtime and upstream
+assets are not shipped. Linear/tetrahedral references come from its real CPU
+processor. Nearest references use a separately identified exhaustive grid oracle,
+retaining the actual OCIO output where its CPU processor resolves the hint to
+linear. A LUT does not imply an OCIO configuration, ACES version or display role.
+
+The OCIO catalogue preparation tool uses the same separately installed official
+runtime to export explicitly versioned built-in configuration bytes and metadata.
+Its output remains an explicit external preparation artifact, not a bundled
+configuration or automatic project default. Content verification and catalogue
+selection are independently authored. They do not parse OCIO syntax, compile
+processors or qualify the application's complete display/output chain.
+
+The subsequent explicit GPU preparer exports official OCIO 2.6 GLSL and numeric
+tables. Three versioned configuration serializations and their generated GPU/CPU
+references are retained in the attributed test fixture only; none is an implicit
+application configuration. The separately authored adapter flattens equivalent
+RGB component expressions, translates declared 2D table reads into explicit
+buffer interpolation, and uses the official Naga public IR to guard dispatch
+bounds before normal validation/WGSL output. No upstream library source patch,
+arbitrary 3D LUT approximation, or commercial binary content is used. This layer
+does not establish the final image, decode or OS display workflow.

@@ -291,7 +291,7 @@ fn typed_fractional_clipboard_native_input_transactions_errors_and_reopen() {
                 })
                 .err()
                 .expect("missing source must fail");
-            assert!(cause.contains("source local key missing"), "{cause}");
+            assert!(cause.to_string().contains("source local key missing"), "{cause}");
             let read = shell
                 .engine
                 .call(|reply| crate::engine::Command::KeyframeClipboardRead {
@@ -323,7 +323,7 @@ fn typed_fractional_clipboard_native_input_transactions_errors_and_reopen() {
                     reply,
                 })
                 .unwrap_err();
-            assert!(cause.contains("continuous key addressing"), "{cause}");
+            assert!(cause.to_string().contains("continuous key addressing"), "{cause}");
             let after = shell.engine.state().unwrap();
             for key in ["project", "revision", "history"] {
                 assert_eq!(after[key], before[key]);

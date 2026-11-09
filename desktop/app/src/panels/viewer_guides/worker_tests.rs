@@ -19,11 +19,11 @@ fn dispatch(engine: &Engine, action: Action) -> Result<Value, String> {
     let Action::EditorAction { source, commands } = action else {
         panic!("guide edit bypassed the source-checked worker")
     };
-    engine.call(|reply| WorkerCommand::EditorAction {
+    Ok(engine.call(|reply| WorkerCommand::EditorAction {
         source,
         commands,
         reply,
-    })
+    })?)
 }
 fn set(state: &Value, position: f64) -> Action {
     edit(

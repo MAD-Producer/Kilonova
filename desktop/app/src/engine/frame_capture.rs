@@ -35,8 +35,8 @@ impl Worker {
         id: i64,
         output: Option<PathBuf>,
         control: ExportControl,
-        reply: Sender<Result<Value, String>>,
-    ) -> Result<(), String> {
+        reply: Sender<Result<Value, Error>>,
+    ) -> motion_host::Result<()> {
         if let Some((worker, _, _)) = &self.active {
             if !worker.is_finished() {
                 return Err("PNG export is still running or cancelling".into());
@@ -89,7 +89,7 @@ impl Worker {
                                 motion_media::panic_reason(payload)
                             ))
                         });
-                respond_frame(reply, result);
+                respond_frame(reply, result.map_err(motion_host::Error::from));
                 if let Some(flight) = flight {
                     log::debug!(
                         "async done #{} {} {}ms",
@@ -106,17 +106,17 @@ impl Worker {
                 );
                 CURRENT_COMMAND.set(None);
             })
-            .map_err(|error| format!("PNG export worker spawn failed: {error}"))?;
+            .map_err(|cause| motion_host::Error::with_context("PNG export worker spawn failed", cause))?;
         self.active = Some((worker, control, flight));
         Ok(())
     }
 }
-pub(super) fn respond_frame(reply: Sender<Result<Value, String>>, result: Result<Value, String>) {
+pub(super) fn respond_frame(reply: Sender<Result<Value, Error>>, result: motion_host::Result<Value>) {
     // Cancellation can happen before the serial worker captures source handles,
     // during freezing, or during rendering. All three are normal terminal paths.
     if result.as_ref().err().is_some_and(|error| {
         matches!(
-            error.as_str(),
+            error.to_string().as_str(),
             "PNG export cancelled" | "movie export cancelled"
         )
     }) {
@@ -130,7 +130,7 @@ pub(super) fn respond_frame(reply: Sender<Result<Value, String>>, result: Result
         }
         let _ = reply.send(Err("PNG export cancelled".into()));
     } else {
-        respond(reply, result.map_err(motion_host::Error::from));
+        respond(reply, result);
     }
 }
 impl Drop for Worker {

@@ -158,7 +158,7 @@ impl Shell {
                 Err(format!("{primary}; effect selection cleanup: {cleanup}"))
             }
             (Err(primary), _) => Err(primary),
-            (_, Err(cleanup)) => Err(cleanup),
+            (_, Err(cleanup)) => Err(cleanup.to_string()),
             _ => Ok(()),
         }
     }

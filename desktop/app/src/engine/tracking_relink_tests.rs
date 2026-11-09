@@ -122,7 +122,7 @@ fn tracked_image_relink_keeps_native_output_and_records_wrong_source() {
     let cause = engine
         .media(json!({"op":"finish_asset_relink","request_id":"desktop-relink-wrong"}).to_string())
         .unwrap_err();
-    assert!(cause.contains("tracking source content differs"), "{cause}");
+    assert!(cause.to_string().contains("tracking source content differs"), "{cause}");
     assert_eq!(engine.state().unwrap()["project"], before["project"]);
     assert_eq!(capture(&engine), warm);
     engine

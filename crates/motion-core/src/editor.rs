@@ -229,6 +229,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::RemovePaths { clipboard } => clipboard.remove(project)?,
         Command::CopyPathAs { target, path } => { motion_model::path_conversion::copy_as(project, target, path)?; },
         Command::SetWorkingPrecision { precision } => project.working_precision = precision,
+        Command::SetColorManagement { settings } => project.color_management = settings,
         Command::DepthCalibration { object, calibration } => {
             let layer = project.layer_mut(object)?;
             ensure(!layer.locked, "calibrated layer is locked")?;

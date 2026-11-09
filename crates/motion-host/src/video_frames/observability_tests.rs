@@ -1,5 +1,6 @@
 use super::*;
 mod shutdown_tests;
+mod source_errors;
 use std::{
     fs::File,
     io::{BufWriter, Write},

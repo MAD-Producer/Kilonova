@@ -14,12 +14,12 @@ mod native_tests;
 
 struct Pending {
     key: Key,
-    receive: Receiver<Result<Value, String>>,
+    receive: Receiver<Result<Value, crate::engine::Error>>,
 }
 struct Pick {
     key: Key,
     cell: usize,
-    receive: Receiver<Result<Value, String>>,
+    receive: Receiver<Result<Value, crate::engine::Error>>,
 }
 #[derive(Default)]
 pub(crate) struct Queries {
@@ -65,7 +65,7 @@ impl Shell {
                                     self.projection_failure(&key, "invalid projection group reply");
                                 }
                             }
-                            Err(error) => self.projection_failure(&key, &error),
+                            Err(error) => self.projection_failure(&key, &error.to_string()),
                         }
                         self.dirty = true;
                     } else if let Err(error) = result {
@@ -132,16 +132,16 @@ impl Shell {
                 .map(|i| self.panels.viewer_views.settings.camera(i, canvas))
                 .collect::<Result<Vec<_>, _>>();
             let result = cameras.and_then(|cameras| {
-                self.engine.viewer_input_async(Request {
+                Ok(self.engine.viewer_input_async(Request {
                     window: key.window,
                     source: key.source.clone(),
                     frame: f64::from_bits(key.frame),
                     query: Query::States(cameras),
-                })
+                })?)
             });
             match result {
                 Ok(receive) => self.viewer_projection.states = Some(Pending { key, receive }),
-                Err(error) => self.projection_failure(&key, &error),
+                Err(error) => self.projection_failure(&key, &error.to_string()),
             }
         }
     }
@@ -319,7 +319,7 @@ impl Shell {
             Err(error) => {
                 let key = self.projection_key();
                 if self.panels.viewer_views.failed.as_ref() != Some(&key) {
-                    self.projection_failure(&key, &error);
+                    self.projection_failure(&key, &error.to_string());
                 }
                 None
             }

@@ -7,6 +7,8 @@ mod snapshots;
 mod owned_image;
 #[path = "depth_session/playback.rs"]
 mod playback;
+#[path = "depth_session/transitions.rs"]
+mod transitions;
 
 use motion_core::{Asset, Command, Engine, Project};
 use motion_host::{

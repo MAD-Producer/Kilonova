@@ -3,20 +3,20 @@
 use super::*;
 use std::io::Write;
 
-pub(super) type Failure = Arc<std::sync::Mutex<Option<String>>>;
+pub(super) type Failure = Arc<std::sync::Mutex<Option<Error>>>;
 pub(super) enum ErrorReply {
-    CurveClipboard(Sender<Result<crate::layer_clipboard::curves::Read, String>>),
-    Clipboard(Sender<Result<crate::layer_clipboard::Read, String>>),
-    KeyframeClipboard(Sender<Result<crate::layer_clipboard::KeyframeRead, String>>),
-    PathClipboard(Sender<Result<crate::layer_clipboard::PathRead, String>>),
-    Value(Sender<Result<Value, String>>),
-    Bool(Sender<Result<bool, String>>),
-    Ticket(Sender<Result<crate::project_lifecycle::Ticket, String>>),
-    Movie(Sender<Result<motion_desktop_media::movie::FrozenMovie, String>>),
-    Frame(Sender<Result<ArcFrame, String>>),
+    CurveClipboard(Sender<Result<crate::layer_clipboard::curves::Read, Error>>),
+    Clipboard(Sender<Result<crate::layer_clipboard::Read, Error>>),
+    KeyframeClipboard(Sender<Result<crate::layer_clipboard::KeyframeRead, Error>>),
+    PathClipboard(Sender<Result<crate::layer_clipboard::PathRead, Error>>),
+    Value(Sender<Result<Value, Error>>),
+    Bool(Sender<Result<bool, Error>>),
+    Ticket(Sender<Result<crate::project_lifecycle::Ticket, Error>>),
+    Movie(Sender<Result<motion_desktop_media::movie::FrozenMovie, Error>>),
+    Frame(Sender<Result<ArcFrame, Error>>),
 }
 impl ErrorReply {
-    pub(super) fn send(self, error: String) {
+    pub(super) fn send(self, error: Error) {
         match self {
             Self::CurveClipboard(reply) => { let _ = reply.send(Err(error)); }
             Self::Clipboard(reply) => { let _ = reply.send(Err(error)); }
@@ -69,7 +69,7 @@ impl Write for RecoveryWriter<'_> {
     }
 }
 
-pub(super) fn recovery(id: i64) -> Result<PathBuf, String> {
+pub(super) fn recovery(id: i64) -> Result<PathBuf, Error> {
     motion_host::session::with_session(id, |session| {
         // Do not require external assets to still exist. They may be the cause
         // of the failure; keep their project-relative references for repair.
@@ -77,27 +77,27 @@ pub(super) fn recovery(id: i64) -> Result<PathBuf, String> {
             .engine
             .project()
             .validate()
-            .map_err(|error| error.to_string())?;
+            ?;
         let path = session.root.join(format!(
             ".motion-recovery-{}.json",
             motion_host::ops::stamp()?
         ));
         let mut file = crate::owned_file::OwnedFile::create(&path)
-            .map_err(|error| error.to_string())?;
+            ?;
         let result = (|| {
             let mut writer = RecoveryWriter {
                 file: file.file(),
                 remaining: MAX_RECOVERY_BYTES,
             };
             serde_json::to_writer(&mut writer, session.engine.project())
-                .map_err(|error| error.to_string())?;
-            writer.flush().map_err(|error| error.to_string())?;
-            file.file().sync_all().map_err(|error| error.to_string())
+                ?;
+            writer.flush()?;
+            file.file().sync_all().map_err(motion_host::Error::from)
         })();
         result?;
         file.keep();
         Ok(path)
-    }).map_err(String::from)
+    }).map_err(Error::from)
 }
 
 impl Engine {
@@ -105,30 +105,30 @@ impl Engine {
     /// when the worker died before it could publish its failure message.
     pub(crate) fn poll_reply<T>(
         &self,
-        receive: &std::sync::mpsc::Receiver<Result<T, String>>,
+        receive: &std::sync::mpsc::Receiver<Result<T, Error>>,
         operation: &str,
-    ) -> Option<Result<T, String>> {
+    ) -> Option<Result<T, Error>> {
         match receive.try_recv() {
             Ok(result) => Some(result),
             Err(std::sync::mpsc::TryRecvError::Empty) => None,
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                let error = format!("{operation} response disconnected: {}", self.stopped_error());
+                let error = Error::ReplyDisconnected { operation: operation.into(), cause: Box::new(self.stopped_error()) };
                 log::error!("{error}");
-                Some(Err(error))
+                Some(Err(error.into()))
             }
         }
     }
     pub(crate) fn failed(&self) -> bool {
         self.check_running().is_err()
     }
-    pub(super) fn check_running(&self) -> Result<(), String> {
+    pub(super) fn check_running(&self) -> Result<(), Error> {
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
         if let Some(error) = crate::fallback_observation::recovered(&self.failure, &FAILURES, "engine.failure.check", |value| value.clone())
         {
             return Err(error);
         }
         if self.shutdown.load(Ordering::Acquire) {
-            return Err("engine shutdown requested; new commands are not accepted".into());
+            return Err(Error::ShuttingDown);
         }
         if self
             .worker
@@ -139,10 +139,10 @@ impl Engine {
         }
         Ok(())
     }
-    pub(super) fn stopped_error(&self) -> String {
+    pub(super) fn stopped_error(&self) -> Error {
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
         crate::fallback_observation::recovered(&self.failure, &FAILURES, "engine.failure.stopped", |value| value.clone())
-            .unwrap_or_else(|| "engine session has stopped; reopen the project".into())
+            .unwrap_or(Error::Stopped)
     }
 }
 
@@ -152,6 +152,8 @@ mod tests;
 mod composition_tests;
 #[cfg(test)]
 mod project_tests;
+#[cfg(test)]
+mod color_tests;
 #[cfg(test)]
 mod sampling_tests;
 #[cfg(test)]

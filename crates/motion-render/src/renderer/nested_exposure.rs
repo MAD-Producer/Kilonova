@@ -61,7 +61,7 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
         preview: bool,
         budget: &mut PollBudget,
         progress: &mut ExposureProgress,
-        prepare: &mut dyn FnMut(&mut Renderer, &Scene) -> Result<bool>,
+        prepare: &mut dyn FnMut(&mut Renderer, &Scene, [u32; 2]) -> Result<bool>,
     ) -> Result<bool> {
         while let Some(child) = self.children.get(self.next) {
             let context = format!(
@@ -82,7 +82,10 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
                         factory.1.clone(),
                         Some(factory.2.child(child.source_reference, child.source_time)),
                     )
-                    .map_err(|error| RenderError::Invalid(error.to_string()))?;
+                    .map_err(|error| {
+                        let message = error.to_string();
+                        RenderError::Model(error).with_diagnostic(message)
+                    })?;
                     self.active = Some(Box::new(ExposureFrame::new(
                         renderer,
                         scenes,

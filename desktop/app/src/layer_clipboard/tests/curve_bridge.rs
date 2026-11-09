@@ -164,7 +164,7 @@ fn local_curve_worker_keeps_fractional_source_stamp_atomic_rejection_and_one_und
         assert_eq!(cancelled["clipboard_status"],"superseded");
         let mut missing=local.clone();missing.frames=vec![999];
         let cause=paste(read.stamp.clone(),Arc::new(AtomicBool::new(false)),vec![missing]).unwrap_err();
-        assert!(cause.contains("does not exist"),"{cause}");
+        assert!(cause.to_string().contains("does not exist"),"{cause}");
         assert_eq!(engine.state().unwrap()["project"],before["project"]);
         let after=paste(read.stamp.clone(),Arc::new(AtomicBool::new(false)),vec![local.clone()]).unwrap();
         assert_eq!(after["project"]["layers"][0]["transform"]["opacity"]["keys"][1]["ease"],"out");

@@ -20,7 +20,7 @@ fn session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr() {
         engine.plugin(serde_json::json!({"op":"memory_policy","policy":policy}).to_string()).unwrap();
         let reply=engine.capture_async(output.clone(),ExportControl::default()).unwrap();
         let error=reply.recv_timeout(Duration::from_secs(30)).unwrap().unwrap_err();
-        assert!(error.contains("PNG GPU initialization") && error.contains("required_bytes=4 budget_bytes=1"),"{error}");
+        assert!(error.to_string().contains("PNG GPU initialization") && error.to_string().contains("required_bytes=4 budget_bytes=1"),"{error}");
         assert_eq!(std::fs::read(&output).unwrap(),b"previous publication");
         let info=engine.plugin("{\"op\":\"allocation_budget\"}".into()).unwrap();
         assert_eq!(info["allocationBudget"]["admittedBytes"],0);
@@ -153,8 +153,8 @@ fn finished_worker_panic_clears_observation_before_returning_its_original_error(
     let error = worker
         .start(i64::MAX, None, ExportControl::default(), reply)
         .unwrap_err();
-    assert!(error.contains("request=Some(47)"), "{error}");
-    assert!(error.contains("controlled completed PNG panic"), "{error}");
+    assert!(error.to_string().contains("request=Some(47)"), "{error}");
+    assert!(error.to_string().contains("controlled completed PNG panic"), "{error}");
     assert!(worker.active.is_none());
     assert!(observation.lock().unwrap().is_none());
 }
@@ -275,7 +275,7 @@ fn real_png_completion_and_cancelled_shutdown_preserve_output_transaction() {
                 reply
                     .recv_timeout(Duration::from_secs(15))
                     .unwrap()
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 "PNG export cancelled"
             );
             assert_eq!(std::fs::read(output).unwrap(), b"prior output");

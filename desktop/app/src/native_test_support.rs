@@ -28,8 +28,8 @@ pub(crate) fn capture_ui(
     let window = ui.window;
     let evidence = path.with_extension("failure.json");
     let reply = engine.request(|reply| crate::engine::Command::CaptureUi { ui, path, reply })?;
-    receive(event_loop, &reply, Duration::from_secs(60))
-        .map_err(|error| report_capture_wait_failure(engine, &evidence, window, error))?
+    Ok(receive(event_loop, &reply, Duration::from_secs(60))
+        .map_err(|error| report_capture_wait_failure(engine, &evidence, window, error))??)
 }
 
 pub(crate) fn report_capture_wait_failure(

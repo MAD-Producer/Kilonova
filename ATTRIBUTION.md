@@ -1,5 +1,33 @@
 # 第三方归属说明 / Third-party attribution
 
+## Windows 私有驱动缓存目录的系统接口
+
+- 作者：Microsoft Corporation 与 windows-rs contributors。
+- 来源：官方 `microsoft/windows-rs`，`windows-sys` 0.61.2，revision
+  `32c3144490c016fe496a0aed769bce60987a2e9d`，目录 `crates/libs/sys`。
+  crates.io 校验和为 `ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc`。
+- 许可：MIT OR Apache-2.0；本次使用 MIT 选项，完整许可保留在 NOTICE。
+- 修改范围：上游绑定不作修改。将锁文件已有的间接依赖显式用于 Windows
+  目录创建、DACL/所有者验证及原生资源释放；策略、状态机和验收独立编写。
+  不新增图像、图标、字体或上游示例实现。
+
+## Mathematical references for optional WGSL depth research
+
+- Authors: Milton Abramowitz and Irene A. Stegun (editors), US National Bureau
+  of Standards; the original approximation credits C. Hastings, Jr. NIST DLMF
+  and its contributors provide the separate power-series reference
+- Sources/revision: AMS55, *Handbook of Mathematical Functions*, printed page 299,
+  equation 7.1.26, identified by the
+  [primary handbook facsimile](https://digital.library.unt.edu/ark:/67531/metadc40302/m1/315/ocr/);
+  [NIST DLMF equation 7.6.1](https://dlmf.nist.gov/7.6.E1), accessed 2026-11-06
+- Rights/scope: mathematical formulas and coefficient facts are references only.
+  No upstream program, book prose, scan, figure, font or other asset is copied
+  or distributed. The independently authored evaluation and tests use the
+  repository MIT license; no broader rights in the reference works are claimed
+- Modification scope: independent FP32 coefficient evaluation, a small-argument
+  series and scalar numerical controls. The mathematical approximation bound
+  does not establish actual WGSL/GPU rounding, model quality or performance
+
 ## COLMAP camera text interchange reference
 
 - Authors: ETH Zurich, UNC Chapel Hill and the COLMAP contributors
@@ -153,6 +181,33 @@ This file lists third-party material currently intended for the repository or a 
 
 ## Optional desktop depth prototype
 
+The #75 static WGSL-candidate audit reuses this same pinned, external Small
+export and the existing optional ONNX installation. It adds independently
+authored metadata/inspection controllers, not another dependency, model or
+upstream implementation. Shape folding evaluates only a bounded integer
+constant program; no learned inference is executed by that audit. Its public
+archives exclude the external model, weights, upstream source and image assets.
+The follow-up standalone composed research adds independently authored WGSL
+indexing, typed plan admission, lifetime allocation and runtime controllers.
+Its archived static blueprint derives operation names, dimensions, attributes
+and resource hashes from the same external Small export; it contains no learned
+tensor payloads. Numerical references use locally authored normalized RGB;
+neither those raw tensors nor model/runtime binaries are redistributed.
+
+The optional WGSL host backend promotes independently authored shaders, strict
+graph admission and execution code from that numerical qualification. Shared
+RGB/letterbox/remap procedures and directly owned subprocess orchestration are
+locally authored. The new worker ships no learned model/resource payload; static
+plan/resource installation remains separate. Real host acceptance reuses the
+already attributed NASA Destiny fixture with bounded crop, clockwise rotation
+and mirroring, without adding image assets to product or release resources.
+The native panic controls and twelve-frame crop observer are independently
+authored Motion Studio test data under this repository's MIT license. Their
+source hashes and base revision are recorded in the panic-retention evidence
+manifest. The ordered crops reuse that same credited NASA photograph; public
+evidence contains generated measurements and attribution, without image, model
+or learned tensor payloads.
+
 Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
 Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:
 [official source](https://github.com/DepthAnything/Depth-Anything-V2/tree/a561b849ebae10a6f5ef49e26c83cbbcd36c71bf),
@@ -164,6 +219,11 @@ noncommercial Base/Large/Giant models are not used. No model weights, reference
 source or upstream images are bundled. The separately installed reference is
 unmodified; the owned export procedure produces a fixed-shape opset-17 ONNX
 artifact and retains its original license and provenance next to that artifact.
+The owned exporter also offers explicit 266-, 392- and 518-square candidate
+exports from those same pinned Small weights. Each export must independently
+pass the unchanged CPU reference error bounds before publication. This changes
+the export input shape, not the upstream implementation or its license, and
+does not qualify a product quality tier or authorize default distribution.
 The host's letterboxing, process protocol, scheduling and installation checks
 are independently authored under this repository's MIT license.
 
@@ -367,3 +427,47 @@ crate SHA-256 5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5�
 原许可和 COPYRIGHT 说明保留于 NOTICE。上游源码未修改；仅调用双向级别与运行
 排序 API，与项目独立编写的字素/字体/脚本分段和塑形布局组合。不新增或分发字体
 及第三方界面资产；接入模块不代表产品绘制或整个 #129 已完成。
+
+## OpenColorIO 数值参考工具（仅开发验收）
+
+后续配置目录导出同样使用该固定外部运行时，显式选择 CG 配置
+`cg-config-v2.2.0_aces-v1.3_ocio-v2.4`、
+`cg-config-v4.0.0_aces-v2.0_ocio-v2.5` 或
+`cg-config-v5.0.0_aces-v2.1_ocio-v2.6`。原生配置与目录仅在显式的本地
+导出/验收目录生成，不作为产品资产或工程默认配置提交。后续 GPU 处理器验收
+将这三份原生序列化配置及生成的 GLSL/数值表保存在
+`crates/motion-effects/tests/color_processor/reference.json`，仅供测试，不接入
+应用默认配置。对应固定配置 ID 如上，版本及原始配置字节 SHA-256 保存在
+夹具内的 manifest。生成源码和表未手工修改；输入色卡和容差独立编写。
+内容身份、目录验证、
+选择解析及故障夹具由本项目独立编写；不复制 OCIO 实现代码。
+
+作者：Contributors to the OpenColorIO Project。来源：
+https://github.com/AcademySoftwareFoundation/OpenColorIO ，官方 Python 包
+https://pypi.org/project/opencolorio/2.6.0/ ，固定发行版本 v2.6.0。
+本次本地参考运行使用官方 `opencolorio-2.6.0-cp311-cp311-win_amd64.whl`，
+SHA-256 `2d9662abd4551e714fa7480443b36ee300ef6e1169d65b92188b36983802ea21`。
+许可 BSD-3-Clause，原文保留于 NOTICE。未修改上游代码，未把 OCIO 运行时、
+二进制或上游 LUT 打包进产品。处理器适配使用现有官方 Naga 30.0.1 的
+`glsl-in`/`wgsl-out` 特性，不修改 Naga 或 OCIO 上游源代码。
+
+`tools/color-management/generate_lut_reference.py` 和
+`crates/motion-effects/tests/color_lut/*.cube` 由 Motion Studio 独立编写，
+使用仓库 MIT 许可。`reference.json` 的线性和四面体预期值由上述官方
+CPU 文件处理器测得；最近邻预期值来自独立的网格距离穷举参考，另保留
+官方处理器对最近邻提示返回的实际结果，不将其线性结果冒称为最近邻。
+Cube 兼容字段按公开 OCIO 文件变换接口及自建数值样例独立实现；未复制
+商业产品的格式说明、代码或素材。用途、插值和域范围均由调用方显式指定。
+
+`export_processor.py` 的数组读取使用独立验收环境中的官方 NumPy 2.3.5，
+作者 NumPy Developers，来源 https://pypi.org/project/numpy/2.3.5/ ，BSD-3-Clause。
+本地官方 cp311 Windows wheel SHA-256 为
+`a414504bef8945eae5f2d7cb7be2d4af77c5d1cb5e20b296c2c25b61dff2900c`。
+未修改、未复制 NumPy 源码或二进制进产品。
+
+Naga GLSL 前端新增的间接官方 Cargo 依赖：
+
+| 依赖 | 作者与来源 | 固定版本与许可 | 修改范围 |
+|---|---|---|---|
+| pp-rs | Corentin Wallez / pp-rs Developers，https://github.com/Kangz/glslpp-rs | 0.2.1，BSD-3-Clause；精确 registry 校验和见 Cargo.lock，许可原文见 NOTICE | 无上游改动 |
+| unicode-xid | unicode-rs contributors，https://github.com/unicode-rs/unicode-xid | 0.2.6，MIT OR Apache-2.0；精确 registry 校验和见 Cargo.lock，随包保留许可 | 无上游改动 |

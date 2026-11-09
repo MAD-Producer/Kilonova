@@ -54,7 +54,7 @@ fn capture(out: PathBuf) {
         )
         .unwrap_err();
     assert!(
-        error.contains("model_import") && error.contains("missing.obj"),
+        error.to_string().contains("model_import") && error.to_string().contains("missing.obj"),
         "{error}"
     );
     assert_eq!(shell.engine.state().unwrap()["project"], before["project"]);

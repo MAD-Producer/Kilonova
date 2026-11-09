@@ -18,7 +18,15 @@ REFERENCE = "https://github.com/DepthAnything/Depth-Anything-V2"
 REVISION = "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf"
 WEIGHTS_URL = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
 WEIGHTS_SHA256 = "715fade13be8f229f8a70cc02066f656f2423a59effd0579197bbf57860e1378"
-PROCESSING = "dav2-small-rgb8-letterbox518-align-corners-relative-v1"
+SIDES = (266, 392, 518)
+
+
+def processing_identity(side):
+    # Candidates for measurement, not calibrated fast/standard/high tiers.
+    # Refuse coercion: a bool or float must not identify another model profile.
+    if type(side) is not int or side not in SIDES:
+        raise ValueError("export side must be one of 266, 392, 518")
+    return f"dav2-small-rgb8-letterbox{side}-align-corners-relative-v1"
 
 
 def digest(path):
@@ -29,7 +37,8 @@ def digest(path):
     return result.hexdigest()
 
 
-def export(reference, weights, destination):
+def export(reference, weights, destination, side=518):
+    processing = processing_identity(side)
     if any(not p.is_absolute() for p in (reference, weights, destination)):
         raise ValueError("reference, weights and output paths must be absolute")
     if destination.exists():
@@ -62,14 +71,16 @@ def export(reference, weights, destination):
         model.load_state_dict(torch.load(weights, map_location="cpu", weights_only=True), strict=True)
         y, x = np.indices((109, 109))
         bgr = np.stack((x * 255 // 108, y * 255 // 108, (x + y) * 255 // 216), axis=-1).astype(np.uint8)
-        tensor, _ = model.image2tensor(bgr, input_size=518)
-        if tuple(tensor.shape) != (1, 3, 518, 518):
+        tensor, _ = model.image2tensor(bgr, input_size=side)
+        if tuple(tensor.shape) != (1, 3, side, side):
             raise ValueError("official preprocessing returned an unexpected shape")
         staged = scratch / "accepted"
         staged.mkdir()
-        output = staged / "depth_anything_v2_vits_518.onnx"
+        output = staged / f"depth_anything_v2_vits_{side}.onnx"
         with torch.no_grad():
             expected = model(tensor).cpu().numpy()
+            if expected.shape != (1, side, side) or not np.isfinite(expected).all():
+                raise ValueError("reference returned invalid scalar depth")
             torch.onnx.export(model, (tensor,), str(output), input_names=["rgb"],
                               output_names=["relative_inverse_depth"], opset_version=17,
                               dynamo=False, external_data=False)
@@ -80,8 +91,15 @@ def export(reference, weights, destination):
         options.intra_op_num_threads = options.inter_op_num_threads = 1
         session = ort.InferenceSession(str(output), sess_options=options, providers=["CPUExecutionProvider"])
         session.disable_fallback()
+        inputs, outputs = session.get_inputs(), session.get_outputs()
+        if (len(inputs) != 1 or len(outputs) != 1
+                or inputs[0].name != "rgb" or outputs[0].name != "relative_inverse_depth"
+                or inputs[0].shape != [1, 3, side, side] or outputs[0].shape != [1, side, side]
+                or inputs[0].type != "tensor(float)" or outputs[0].type != "tensor(float)"
+                or session.get_providers() != ["CPUExecutionProvider"]):
+            raise ValueError("exported model metadata or provider differs from requested profile")
         actual = session.run(["relative_inverse_depth"], {"rgb": tensor.numpy().copy(order="C")})[0]
-        if actual.shape != (1, 518, 518) or not np.isfinite(actual).all():
+        if actual.shape != (1, side, side) or not np.isfinite(actual).all():
             raise ValueError("ONNX returned invalid scalar depth")
         error = np.abs(actual.astype(np.float64) - expected.astype(np.float64))
         amplitude = max(float(np.abs(expected).max()), 1e-6)
@@ -95,22 +113,29 @@ def export(reference, weights, destination):
             "weightsSha256": WEIGHTS_SHA256, "license": "Apache-2.0 (Small only)",
             "modification": "Unmodified reference; fixed-shape CPU ONNX opset-17 export",
             "file": output.name, "sha256": digest(output), "bytes": output.stat().st_size,
-            "processing": PROCESSING, "measure": "relative", "near": "increasing",
+            "processing": processing, "inputShape": [1, 3, side, side],
+            "outputShape": [1, side, side], "measure": "relative", "near": "increasing",
             "versions": {name: importlib.metadata.version(name) for name in
                          ("torch", "onnx", "onnxruntime", "numpy", "opencv-python-headless")},
             "referenceProbe": {"maxNormalized": maximum, "meanNormalized": mean,
                                "maxBound": 2e-4, "meanBound": 2e-5},
-            "scope": "external optional prototype; no metric calibration or quality guarantee",
+            "scope": "external optional resolution candidate; no host admission, quality tier, metric calibration or quality guarantee",
         }
         (staged / "model.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         del session, model
         staged.rename(destination)
 
 
-if __name__ == "__main__":
+def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference", required=True, type=Path)
     parser.add_argument("--weights", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    args = parser.parse_args()
-    export(args.reference, args.weights, args.output)
+    parser.add_argument("--side", type=int, choices=SIDES, default=518,
+                        help="fixed square resolution candidate; not a measured quality tier")
+    return parser.parse_args(argv)
+
+
+if __name__ == "__main__":
+    args = arguments()
+    export(args.reference, args.weights, args.output, args.side)

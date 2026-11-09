@@ -49,9 +49,9 @@ fn frame(window: u64, size: [u32; 2], pan: bool) -> UiFrame {
 }
 fn receive<T>(
     events: &mut EventLoop<()>,
-    pending: &std::sync::mpsc::Receiver<Result<T, String>>,
+    pending: &std::sync::mpsc::Receiver<Result<T, crate::engine::Error>>,
 ) -> Result<T, String> {
-    crate::native_test_support::receive(events, pending, Duration::from_secs(30)).unwrap()
+    Ok(crate::native_test_support::receive(events, pending, Duration::from_secs(30)).unwrap()?)
 }
 fn ready(events: &mut EventLoop<()>, engine: &Engine, window: u64, size: [u32; 2], pan: bool) {
     let until = Instant::now() + Duration::from_secs(30);

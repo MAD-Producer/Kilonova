@@ -53,7 +53,17 @@ pub(crate) struct EffectGpu {
     pub builder: PlanBuilder,
     pub state: GpuState,
 }
+/// Counterfactual native operations and old-pixel contamination exist only in
+/// the unit-test executable. Product builds have no switch to bypass Clear.
+#[cfg(test)]
+pub(crate) struct AttachmentTestPolicy {
+    pub operations: Vec<wgpu::Operations<wgpu::Color>>,
+    pub encoded: Vec<usize>,
+    pub poison: bool,
+}
 pub(crate) struct GpuState {
+    #[cfg(test)]
+    pub attachment_test_policy: Option<AttachmentTestPolicy>,
     allocation_budget: crate::AllocationBudget,
     format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
     uniform_layout: wgpu::BindGroupLayout,
@@ -71,6 +81,8 @@ pub(crate) struct GpuState {
     luts: Vec<Lut>,
     pipelines: HashMap<(u32, u32), pipeline_cache::Pipeline>,
     previous_pipelines: pipeline_cache::PreviousPipelines,
+    pub(crate) driver_pipeline_cache: Option<wgpu::PipelineCache>,
+    pub(crate) driver_cached_pipeline_creations: u64,
     resource_textures: HashMap<(String, String), FxTexture>,
     pub resource_bytes: u64,
     pub parameter_resource_upload_bytes: u64,
@@ -96,7 +108,10 @@ mod fixed_admission_tests;
 mod curve_lut;
 mod instance_data;
 mod pipeline_cache;
+pub(crate) mod native_pipeline;
+pub use native_pipeline::NativeEffectPipelineError;
 pub use pipeline_cache::EffectPipelineCacheInfo;
+pub(crate) use pipeline_cache::KnownPipeline;
 pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
@@ -215,6 +230,7 @@ impl EffectGpu {
         allocation_budget: crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
         format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
+        registry: Registry,
     ) -> Result<Self, RenderError> {
         let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("effect SDK uniform"),
@@ -242,9 +258,7 @@ impl EffectGpu {
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        let mut builder = PlanBuilder::new(
-            Registry::new_with_builtins().map_err(RenderError::from)?,
-        )?;
+        let mut builder = PlanBuilder::new(registry)?;
         builder.set_alpha(0, 1, 1, &[255; 4])?;
         let white = admitted_texture(
             device,
@@ -286,6 +300,8 @@ impl EffectGpu {
         Ok(Self {
             builder,
             state: GpuState {
+                #[cfg(test)]
+                attachment_test_policy: None,
                 allocation_budget,
                 format_capabilities,
                 allocation_uploads,
@@ -299,6 +315,8 @@ impl EffectGpu {
                 luts: Vec::new(),
                 pipelines: HashMap::new(),
                 previous_pipelines: Default::default(),
+                driver_pipeline_cache: None,
+                driver_cached_pipeline_creations: 0,
                 resources: HashMap::new(),
                 resource_textures: HashMap::new(),
                 resource_bytes: 0,
@@ -341,6 +359,11 @@ impl EffectGpu {
     }
 }
 impl GpuState {
+    pub(crate) fn pipeline_compiler(&self, device: &wgpu::Device) -> native_pipeline::NativePipelineCompiler {
+        native_pipeline::NativePipelineCompiler::new(device, &self.uniform_layout, &self.input_layout,
+            &self.resource_layout, self.driver_pipeline_cache.as_ref())
+    }
+
     fn upload_instances(&mut self, device: &wgpu::Device, queue: &wgpu::Queue,
         sprites: &[crate::scene_generator::Sprite]) -> Result<(), RenderError> {
         if sprites.len() > motion_effects::MAX_SPRITES {
@@ -599,102 +622,29 @@ impl GpuState {
                 let observation = pointwise.then(|| crate::pointwise_observation::CompilePhase::start(
                     "pointwise_native_pipeline", &program.key, group.map(|g| g.object),
                     group.into_iter().flat_map(|g| g.effects.iter().copied()), Some(p.program), Some(target_kind)));
-                let source = motion_effects::shader::native_output_wgsl(
-                    &program.shader, target.native() == wgpu::TextureFormat::Rgba16Float,
-                )?.into_owned();
                 #[cfg(all(debug_assertions, feature = "gpu-tests"))]
-                let source = if pointwise && std::mem::take(&mut self.invalid_pointwise_source_once) {
-                    source + "\nfn pointwise_diagnostic_invalid( {"
-                } else { source };
-                let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
-                let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: Some("effect WGSL"),
-                    source: wgpu::ShaderSource::Wgsl(
-                        source.into(),
-                    ),
-                });
-                let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: None,
-                    bind_group_layouts: &[Some(&self.uniform_layout), Some(&self.input_layout), Some(&self.resource_layout)],
-                    immediate_size: 0,
-                });
-                let sprite = builder.programs[p.program as usize].shader.sprite;
-                let additive = builder.programs[p.program as usize].shader.additive;
-                const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
-                    wgpu::vertex_attr_array![0=>Float32x4,1=>Float32x4,2=>Float32x4];
-                let vertex_layout = Some(wgpu::VertexBufferLayout {
-                    array_stride: 48,
-                    step_mode: wgpu::VertexStepMode::Instance,
-                    attributes: &ATTRIBUTES,
-                });
-                let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("effect fullscreen pass"),
-                    layout: Some(&layout),
-                    vertex: wgpu::VertexState {
-                        module: &module,
-                        entry_point: Some("sdk_vertex"),
-                        compilation_options: Default::default(),
-                        buffers: if sprite {
-                            std::slice::from_ref(&vertex_layout)
-                        } else {
-                            &[]
-                        },
-                    },
-                    primitive: Default::default(),
-                    depth_stencil: None,
-                    multisample: Default::default(),
-                    fragment: Some(wgpu::FragmentState {
-                        module: &module,
-                        entry_point: Some("sdk_fragment"),
-                        compilation_options: Default::default(),
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: target.native(),
-                            blend: if sprite {
-                                Some(if additive {
-                                    wgpu::BlendState {
-                                        color: wgpu::BlendComponent {
-                                            src_factor: wgpu::BlendFactor::One,
-                                            dst_factor: wgpu::BlendFactor::One,
-                                            operation: wgpu::BlendOperation::Add,
-                                        },
-                                        alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
-                                    }
-                                } else {
-                                    wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING
-                                })
-                            } else {
-                                None
-                            },
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    multiview_mask: None,
-                    cache: None,
-                });
-                let validation = error_scope.pop();
-                // Native validation scopes are ready independently of queue
-                // completion. Service callbacks without draining unrelated frames.
-                let polled = device.poll(wgpu::PollType::Poll);
-                if let Some(e) = pollster::block_on(validation) {
-                    let message = format!(
-                        "effect program {}: {e}",
-                        builder.programs[p.program as usize].key
-                    );
-                    let message = match &polled {
-                        Err(error) => format!("{message}; GPU poll also failed: {error}"),
-                        Ok(_) => message,
-                    };
-                    self.failed_program = Some((p.program, message.clone()));
-                    if let Some(observation) = observation { observation.failed(&message); }
-                    return Err(RenderError::Invalid(message));
-                }
-                if let Err(error) = polled {
-                    let error = RenderError::from(error);
-                    if let Some(observation) = observation { observation.failed(&error.to_string()); }
-                    return Err(error);
-                }
+                let suffix = if pointwise && std::mem::take(&mut self.invalid_pointwise_source_once) {
+                    Some("\nfn pointwise_diagnostic_invalid( {")
+                } else { None };
+                #[cfg(not(all(debug_assertions, feature = "gpu-tests")))]
+                let suffix = None;
+                let pipeline = match self.pipeline_compiler(device).compile(program, target.native(), suffix) {
+                    Ok(pipeline) => pipeline,
+                    Err(error) => {
+                        let message = match &error {
+                            RenderError::EffectPipeline(native) => native.to_string(),
+                            _ => error.to_string(),
+                        };
+                        self.failed_program = Some((p.program, message.clone()));
+                        if let Some(observation) = observation { observation.failed(&message); }
+                        return Err(error);
+                    }
+                };
                 if let Some(observation) = observation { observation.done(program.shader.wgsl.len()); }
                 self.insert_pipeline(key, &program.shader, pipeline);
+                if self.driver_pipeline_cache.is_some() {
+                    self.driver_cached_pipeline_creations = self.driver_cached_pipeline_creations.saturating_add(1);
+                }
                 self.pipeline_builds += 1;
                 self.pipeline_build_nanos = self.pipeline_build_nanos.saturating_add(
                     pipeline_began.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64);
@@ -1035,6 +985,28 @@ impl GpuState {
                     p.program, pipeline_format
                 ))
             })?;
+        let operations = crate::effect_plan::color_attachment_operations();
+        #[cfg(test)]
+        let operations = if let Some(control) = &mut self.attachment_test_policy {
+            let operations = *control.operations.get(index).ok_or_else(||
+                RenderError::Invalid(format!("attachment test pass={index} phase=operations: missing control")))?;
+            if control.poison {
+                drop(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("test-only old attachment pixels"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: target, depth_slice: None, resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 1., g: 0., b: 1., a: 1. }),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None, timestamp_writes: None,
+                    occlusion_query_set: None, multiview_mask: None,
+                }));
+            }
+            control.encoded.push(index);
+            operations
+        } else { operations };
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             multiview_mask: None,
             label: Some("motion-studio effect"),
@@ -1042,10 +1014,7 @@ impl GpuState {
                 depth_slice: None,
                 view: target,
                 resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: wgpu::StoreOp::Store,
-                },
+                ops: operations,
             })],
             depth_stencil_attachment: None,
             timestamp_writes: None,

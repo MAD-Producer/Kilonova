@@ -15,13 +15,13 @@ fn fixed_startup_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
         }));
         assert_eq!(budget.info().unwrap().admitted_bytes, 0);
         let original = failure.to_string();
-        let (reply, receive) = channel::<Result<Value, String>>();
+        let (reply, receive) = channel::<Result<Value, crate::engine::Error>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 206, operation: "test_renderer_start", started: Instant::now(),
         }));
         respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
-        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().to_string(), original);
         return;
     }
     let root = tempfile::tempdir().unwrap();

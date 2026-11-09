@@ -34,7 +34,7 @@ pub(crate) enum Intent {
     RemoveTemplate(u64),
 }
 struct Freeze {
-    receive: Receiver<Result<FrozenMovie, String>>,
+    receive: Receiver<Result<FrozenMovie, crate::engine::Error>>,
     template: Template,
     output: PathBuf,
     control: ExportControl,
@@ -232,12 +232,12 @@ impl Controller {
                     Ok(())
                 });
                 if let Err(cause) = result {
-                    if cause != "movie export cancelled" {
+                    if cause.to_string() != "movie export cancelled" {
                         log::error!(
                             "render queue add dispatch failed phase=freeze_reply cause={}",
                             crate::fallback_observation::error_cause(&cause)
                         );
-                        self.error = Some(cause);
+                        self.error = Some(cause.to_string());
                     }
                 }
                 changed = true;

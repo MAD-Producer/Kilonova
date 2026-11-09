@@ -15,6 +15,22 @@ const MAX_CATALOG_BYTES: u64 = 320 * 1024 * 1024;
 // geometry arrays. Temporary decoder allocations are not a process RAM cap.
 const MAX_CATALOG_RETAINED_BYTES: usize = 320 * 1024 * 1024;
 
+#[derive(Debug, thiserror::Error)]
+pub enum ModelSourceError {
+    #[error("model source={source_id} phase=validate: {cause}")]
+    Validation {
+        source_id: u64,
+        #[source]
+        cause: motion_model::Error,
+    },
+    #[error("model source={source_id} phase=import: {cause}")]
+    Import {
+        source_id: u64,
+        #[source]
+        cause: motion_scene::Error,
+    },
+}
+
 #[derive(Clone)]
 pub(super) struct Source {
     asset: ModelAsset,
@@ -168,7 +184,7 @@ fn prepare_catalog(
             }
             asset
                 .validate()
-                .map_err(|e| RenderError::Invalid(e.to_string()))?;
+                .map_err(|cause| ModelSourceError::Validation { source_id: asset.id, cause })?;
             if let Some(source) = previous
                 .get(&asset.id)
                 .filter(|source| source.asset == *asset && source.root == root)
@@ -230,7 +246,7 @@ fn prepare_catalog(
                 motion_model::model_assets::MAX_MODEL_ASSET_BYTES as usize,
                 &limits,
             )
-            .map_err(|e| RenderError::Invalid(e.to_string()))?;
+            .map_err(|cause| ModelSourceError::Import { source_id: asset.id, cause })?;
             retained = charge_retained(retained, scene.retained_bytes(), retained_limit, asset.id)?;
             sources.insert(
                 asset.id,

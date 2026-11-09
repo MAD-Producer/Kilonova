@@ -9,6 +9,7 @@ use motion_core::{Asset, Content, Layer, Project, VideoAsset};
 use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime, PreparedDepthInput};
 use std::{path::PathBuf, sync::Arc};
 mod retained;
+mod transition;
 #[cfg(test)]
 mod clock_tests;
 
@@ -16,6 +17,11 @@ pub(super) struct State {
     jobs: Jobs,
     binding: Option<Binding>,
     installed: Option<(Arc<Estimate>, PreparedDepthInput, Option<u64>)>,
+    prepared: Option<depth::PreparedEstimate>,
+    transition: Option<transition::ImageTransition>,
+    // Export intent survives frame-only revocation of a live admission. It
+    // prevents silently freezing an older raw reference after a seek.
+    transition_export: Option<Binding>,
     retained: retained::Results,
     archive: Option<(Binding, Arc<depth::storage::Store>)>,
     storage_directory: PathBuf,
@@ -208,8 +214,12 @@ impl Binding {
 }
 impl Session {
     pub(crate) fn capture_depth_snapshot(&self) -> Result<crate::depth_snapshot::DepthSnapshot> {
-        use crate::depth_snapshot::{DepthSnapshot, Entry, Owned, VideoEntry};
         let project = self.engine.project();
+        if self.depth.as_ref().is_some_and(|state| state.transition.is_some())
+            && !project.layers.iter().any(|l| l.three_d && l.depth_calibration.is_some()) {
+            return Err("frozen image depth transition requires an explicit qualified export binding".into());
+        }
+        use crate::depth_snapshot::{DepthSnapshot, Entry, Owned, VideoEntry};
         let mut snapshot = DepthSnapshot { composition: project.composition_id.clone(), entries: Vec::new(), videos: Vec::new() };
         for composition in project.reachable_compositions()? {
             let view = project.composition_view(&composition)?;
@@ -271,6 +281,10 @@ impl Session {
                 if composition != project.composition_id {
                     return Err(format!("frozen depth object={} phase=capture: nested depth is not supported", layer.id).into());
                 }
+                if let Some(entry) = self.freeze_image_depth_transition(&composition, layer.id, calibration)? {
+                    snapshot.entries.push(entry);
+                    continue;
+                }
                 let sample = self.saved_depth_sample(&composition, layer.id, calibration)?
                     .ok_or_else(|| crate::Error::from(format!("frozen depth object={} phase=capture: current source pending or absent", layer.id)))?;
                 let (Source::Image(asset), Identity::Sample(key)) = (sample.source, sample.key) else {
@@ -278,7 +292,7 @@ impl Session {
                 };
                 snapshot.entries.push(Entry {
                     object: layer.id, asset, key, input: sample.input,
-                    calibration: calibration.clone(), estimate: sample.estimate,
+                    calibration: calibration.clone(), estimate: sample.estimate, alignment: None,
                     request: sample.request,
                     decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
                 });
@@ -411,12 +425,18 @@ impl Session {
         if self.depth.is_none() {
             return Err("calibrated depth phase=render: configure a depth backend and request the current source".into());
         }
-        self.poll_depth()?;
+        if self.depth.as_ref().is_some_and(|state| state.transition.is_some()) {
+            self.poll_image_depth_transition()?;
+        } else { self.poll_depth()?; }
         let required: Vec<_> = scene
             .calibrated_depth_layers()
             .map(|(id, c)| (id, c.clone()))
             .collect();
         for (object, calibration) in required {
+            if let Some(ready) = self.attach_image_depth_transition(scene, object, &calibration)? {
+                if !ready { return Ok(false); }
+                continue;
+            }
             let source_object = scene.source_object(object);
             let Some(sample) = self.saved_depth_sample(
                 &scene.composition_id,
@@ -500,7 +520,9 @@ impl Session {
         &mut self,
         object: u64,
     ) -> Result<Option<motion_model::depth::RelativeDepthCalibration>> {
-        self.poll_depth()?;
+        if self.depth.as_ref().is_some_and(|state| state.transition.is_some()) {
+            self.poll_image_depth_transition()?;
+        } else { self.poll_depth()?; }
         if self
             .depth
             .as_ref()
@@ -515,6 +537,7 @@ impl Session {
             .iter()
             .find(|layer| layer.id == object)
             .ok_or("calibrated layer does not exist")?;
+        let image_layer = matches!(&layer.content, Content::Image { .. });
         let selected = if let Some(track) = &layer.video_depth_calibration {
             let Content::Video { video } = &layer.content else { return Err("video depth source is not video".into()); };
             let asset = self.engine.project().video_assets.iter().find(|asset| asset.id == video.asset)
@@ -522,11 +545,14 @@ impl Session {
             let Some(target) = video_target(self.engine.project(), layer, asset, self.frame)? else { return Ok(None); };
             Some(track.at(target).ok_or("video depth calibration has no indexed sample at this source time")?.calibration())
         } else { layer.depth_calibration.as_ref() };
-        let Some(calibration) = selected else {
+        let Some(calibration) = selected.cloned() else {
             return Ok(None);
         };
+        if image_layer && self.depth.as_ref().and_then(|state| state.transition.as_ref()).is_some_and(|transition| transition.applies_to(calibration.asset())) {
+            return self.image_depth_transition()?.map(|view| view.calibration(&calibration)).transpose().map_err(Into::into);
+        }
         let Some(sample) =
-            self.saved_depth_sample(&self.engine.project().composition_id, object, calibration)?
+            self.saved_depth_sample(&self.engine.project().composition_id, object, &calibration)?
         else {
             return Ok(None);
         };
@@ -556,6 +582,9 @@ impl Session {
             jobs: Jobs::start(backend)?,
             binding: None,
             installed: None,
+            prepared: None,
+            transition: None,
+            transition_export: None,
             retained: retained::Results::default(),
             archive: None,
             storage_directory: directory,
@@ -637,6 +666,9 @@ impl Session {
         });
         depth.retained.remove_source(key.source.asset);
         depth.installed = None;
+        depth.prepared = None;
+        depth.transition = None;
+        depth.transition_export = None;
         Ok(request)
     }
 
@@ -738,6 +770,9 @@ impl Session {
             });
         } else { state.retained.remove_source(key.asset); }
         state.installed = None;
+        state.prepared = None;
+        state.transition = None;
+        state.transition_export = None;
         Ok(Some(request))
     }
 
@@ -751,6 +786,11 @@ impl Session {
         let Some(state) = &mut self.depth else {
             return Ok(None);
         };
+        if state.transition.is_some() {
+            return Err(depth::Error::Invalid(
+                "aligned image transition requires its guarded sampling API",
+            ).into());
+        }
         let Some(binding) = &state.binding else {
             return Ok(None);
         };
@@ -776,6 +816,7 @@ impl Session {
             }
         }
         let state = self.depth.as_mut().ok_or(depth::Error::Invalid("depth owner disappeared during admission"))?;
+        let prepared = estimate.clone();
         let (estimate, input, image, video_end_us) = estimate.into_owned_parts();
         let estimate = Arc::new(estimate);
         let entry = retained::Entry { binding, estimate: estimate.clone(), input, image, video_end_us };
@@ -785,6 +826,7 @@ impl Session {
         else { state.retained.admit(entry,
             motion_model::depth::MAX_DEPTH_RESOURCE_BYTES, motion_model::MAX_LAYERS)?; }
         state.installed = Some((estimate.clone(), input, video_end_us));
+        state.prepared = Some(prepared);
         Ok(Some(estimate))
     }
 
@@ -793,6 +835,9 @@ impl Session {
     pub fn depth_input_fingerprint(&mut self) -> Result<Option<PreparedDepthInput>> {
         self.check_thread()?;
         self.synchronize_depth()?;
+        if self.depth.as_ref().is_some_and(|state| state.transition.is_some()) {
+            return self.image_depth_transition().map(|view| view.map(|view| view.input()));
+        }
         Ok(self
             .depth
             .as_ref()
@@ -806,6 +851,9 @@ impl Session {
             // Clear ownership even when cancellation finds a poisoned worker.
             state.binding = None;
             state.installed = None;
+            state.prepared = None;
+            state.transition = None;
+            state.transition_export = None;
             state.retained.clear();
             state.archive = None;
             state.jobs.cancel()?;
@@ -820,15 +868,16 @@ impl Session {
             .as_ref()
             .map(|state| {
                 let stored = state.archive.as_ref().map(|(_, store)| store.stats()).transpose()?.unwrap_or_default();
+                let (transition_samples, transition_bytes, transition_images) = state.transition.as_ref().map_or((0, 0, 0), |transition| transition.usage());
                 Ok(SessionStatus {
                     request: state.binding.as_ref().map(|b| b.request),
-                    installed: state.installed.is_some(),
+                    installed: state.transition.as_ref().map_or(state.installed.is_some(), |_| transition_samples != 0),
                     counts: state.jobs.counts()?,
                     in_flight: state.jobs.in_flight()?,
                     queue_depth: state.jobs.queue_depth()?,
-                    retained_samples: state.retained.entries.len(),
-                    retained_bytes: state.retained.bytes,
-                    retained_image_bytes: state.retained.image_bytes,
+                    retained_samples: state.retained.entries.len() + transition_samples,
+                    retained_bytes: state.retained.bytes + transition_bytes,
+                    retained_image_bytes: state.retained.image_bytes + transition_images,
                     retention_rejections: state.retained.rejections,
                     stored_samples: stored.samples,
                     stored_bytes: stored.bytes,
@@ -840,6 +889,9 @@ impl Session {
 
     pub(super) fn synchronize_depth(&mut self) -> Result<()> {
         let Some(mut state) = self.depth.take() else { return Ok(()); };
+        if state.transition_export.as_ref().is_some_and(|scope| !scope.document_matches(self)) {
+            state.transition_export = None;
+        }
         if state.archive.as_ref().is_some_and(|(scope, _)| !scope.document_matches(self)) {
             state.archive = None;
         }
@@ -861,6 +913,8 @@ impl Session {
             if !current {
                 state.binding = None;
                 state.installed = None;
+                state.prepared = None;
+                state.transition = None;
                 state.jobs.cancel()?;
             }
             Ok(())

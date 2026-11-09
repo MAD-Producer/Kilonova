@@ -164,6 +164,19 @@ fn named_schema(kind: &str) -> (bool, Value) {
                         "required":["clip","offset_seconds","speed"],"properties":{"clip":{"type":"integer","minimum":0},
                             "offset_seconds":{"type":"number"},"speed":{"type":"number"}}}]}}}),
             "ChannelPrecision" => json!({"type":"string","enum":["unorm8","unorm16","float16","float32"]}),
+            "ProjectColorManagement" => json!({"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind"],
+                    "properties":{"kind":{"const":"unmanaged"}}},
+                {"type":"object","additionalProperties":false,"required":["kind","settings"],
+                    "properties":{"kind":{"const":"ocio"},"settings":{
+                        "type":"object","additionalProperties":false,
+                        "description":"Explicit catalogue/selection and signal declarations; nested values are validated by the typed project color contract, not an installed rendering capability",
+                        "required":["manifest","selection","default_input","authored_input","working","display","output","sources"],
+                        "properties":{"manifest":{"type":"object"},"selection":{"type":"object"},
+                            "default_input":{"type":"object"},"authored_input":{"type":"object"},
+                            "working":{"type":"object"},"display":{"type":"object"},"output":{"type":"object"},
+                            "sources":{"type":"array","maxItems":crate::color_management::MAX_SOURCE_COLOR_ASSIGNMENTS,"items":{"type":"object"}}}}}}
+            ]}),
             "PointBinding" => json!({"type":"object","additionalProperties":false,
                 "description":"Original-PTS point displacement in target-local pixel axes, added after authored position corrections; no keyframe baking",
                 "required":["asset","track","anchor_local_frame","source_anchor_pts","speed_numerator","speed_denominator","reference_pixels","crop","rotation","interpolation","max_gap_ticks","minimum_confidence","missing"],
@@ -379,6 +392,7 @@ registry! {
     Command::SetWorkArea { .. } => "set_work_area" [("in_frame","u32",true), ("out_frame","u32",true)];
     Command::SetGuides { .. } => "set_guides" [("guides","Vec<Guide>",true)];
     Command::SetWorkingPrecision { .. } => "set_working_precision" [("precision","ChannelPrecision",true)];
+    Command::SetColorManagement { .. } => "set_color_management" [("settings","ProjectColorManagement",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
     Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","f64",true), ("anchor",[f32; 2],true), ("keys","Option<AnchorKeyBinding>",false)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];

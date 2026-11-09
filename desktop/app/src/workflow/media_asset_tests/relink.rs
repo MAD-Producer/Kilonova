@@ -44,7 +44,7 @@ fn ready(e: &Engine, id: &str) -> Value {
     }
 }
 fn finish_batch(e: &Engine, id: &str) -> Result<Value, String> {
-    e.media(json!({"op":"finish_asset_relink","request_id":id}).to_string())
+    Ok(e.media(json!({"op":"finish_asset_relink","request_id":id}).to_string())?)
 }
 
 #[test]

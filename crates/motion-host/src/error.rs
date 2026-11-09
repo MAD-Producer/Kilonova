@@ -7,6 +7,8 @@ use motion_core::composition::CompositionError;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
+    PipelinePreparation(#[from] std::sync::Arc<crate::PipelinePreparationError>),
+    #[error(transparent)]
     TrackingSource(#[from] crate::tracking::project::Error),
     #[error(transparent)]
     TrackingImport(#[from] crate::tracking::import::Error),
@@ -48,10 +50,28 @@ pub enum Error {
         primary: Box<Error>,
         secondary: Box<Error>,
     },
+    /// An integration-owned cause without a dependency from the host to that
+    /// integration. Known host/native variants should still use their From impl.
+    #[error("{cause}")]
+    NativeSource {
+        #[source]
+        cause: Box<dyn std::error::Error + Send + Sync>,
+    },
+    /// A related failure is retained separately; it never replaces the primary
+    /// cause or supplies the primary structured composition detail.
+    #[error("{primary}; {context}: {secondary}")]
+    Related {
+        context: String,
+        #[source]
+        primary: Box<Error>,
+        secondary: Box<Error>,
+    },
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    FileLock(#[from] std::fs::TryLockError),
     #[error(transparent)]
     Image(#[from] image::ImageError),
     #[error(transparent)]
@@ -71,6 +91,10 @@ pub enum Error {
 }
 
 impl Error {
+    pub fn from_source(cause: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::NativeSource { cause: Box::new(cause) }
+    }
+
     pub fn with_context(context: impl Into<String>, cause: impl Into<Error>) -> Self {
         Self::Context {
             context: context.into(),
@@ -80,6 +104,10 @@ impl Error {
 
     pub fn composition_detail(&self) -> Option<&CompositionError> {
         match self {
+            Self::PipelinePreparation(error) => match error.as_ref() {
+                crate::PipelinePreparationError::Render(error) => render_composition_detail(error),
+                _ => None,
+            },
             Self::Composition(detail) | Self::CompositionContext { detail, .. } => Some(detail),
             Self::Model(motion_core::Error::Composition(detail)) => Some(detail),
             Self::Render(error) => render_composition_detail(error),
@@ -95,7 +123,7 @@ impl Error {
                 media_composition_detail(error)
             }
             Self::Context { cause, .. } => cause.composition_detail(),
-            Self::Cleanup { primary, .. } => primary.composition_detail(),
+            Self::Cleanup { primary, .. } | Self::Related { primary, .. } => primary.composition_detail(),
             _ => None,
         }
     }

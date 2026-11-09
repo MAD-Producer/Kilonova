@@ -11,6 +11,9 @@ use motion_effects::image_contract::{ChannelPrecision, ImageContract, ImageMeani
 use motion_effects::{AlphaMode, WorkingSpace};
 use std::sync::Arc;
 
+#[cfg(test)]
+mod native_preparation_tests;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToneMap {
     /// Clip negative channels to zero and highlights to one.
@@ -143,7 +146,10 @@ impl ColorOutput {
         descriptor.transform.validate()?;
         contract
             .preferred_storage()
-            .map_err(|cause| RenderError::Invalid(format!("color output input: {cause}")))?;
+            .map_err(|cause| {
+                let message = format!("color output input: {cause}");
+                RenderError::from(cause).with_diagnostic(message)
+            })?;
         let ImageMeaning::Color { space, alpha } = contract.meaning else {
             return Err(RenderError::Invalid("color output requires color input; numeric data and coverage are not display color".into()));
         };

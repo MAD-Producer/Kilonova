@@ -40,6 +40,7 @@ pub(crate) fn serialized_visit_bytes() -> usize {
 pub(crate) struct Changes {
     all: bool,
     library: bool,
+    color_management: bool,
     nodes: HashMap<String, NodeChanges>,
 }
 #[derive(Clone, Default)]
@@ -62,6 +63,10 @@ impl Changes {
             }
             Command::ProjectLibrary { .. } => {
                 self.library = true;
+                return;
+            }
+            Command::SetColorManagement { .. } => {
+                self.color_management = true;
                 return;
             }
             Command::SetVector { object, .. }
@@ -135,6 +140,7 @@ impl Changes {
             return;
         }
         self.library |= other.library;
+        self.color_management |= other.color_management;
         for (id, changes) in other.nodes {
             let node = self.nodes.entry(id).or_default();
             node.camera |= changes.camera;
@@ -232,6 +238,7 @@ impl ProjectSize {
         }
         let globals = HashMap::from([
             ("library", counted(&project.library)),
+            ("color_management", counted(&project.color_management)),
             ("assets", counted(&project.assets)),
             ("model_assets", counted(&project.model_assets)),
             ("tracking_assets", counted(&project.tracking_assets)),
@@ -260,6 +267,9 @@ impl ProjectSize {
         next.spatial = self.spatial.updated(project, changes);
         if changes.library {
             Arc::make_mut(&mut next.globals).insert("library", counted(&project.library));
+        }
+        if changes.color_management {
+            Arc::make_mut(&mut next.globals).insert("color_management", counted(&project.color_management));
         }
         if !changes.nodes.is_empty() {
             let nodes = Arc::make_mut(&mut next.nodes);

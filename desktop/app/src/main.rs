@@ -15,6 +15,7 @@ mod engine;
 mod home;
 mod i18n;
 mod logging;
+mod pipeline_cache;
 mod mcp;
 mod movie_export;
 mod render_queue;
@@ -306,12 +307,12 @@ struct Shell {
     node_tasks: node_tasks::NodeTasks,
     node_standalone: Option<node_editor::NodeEditor>,
     node_save_project: Option<node_editor::EditorSnapshot>,
-    node_sources: Vec<(node_editor::EditorSnapshot,std::sync::mpsc::Receiver<Result<Value,String>>,bool)>,
+    node_sources: Vec<(node_editor::EditorSnapshot,std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>,bool)>,
     node_compile_due: Option<Instant>,
     node_installing: Vec<(
         node_editor::EditorSnapshot,
         motion_graph::CompileReport,
-        std::sync::mpsc::Receiver<Result<bool, String>>,
+        std::sync::mpsc::Receiver<Result<bool, crate::engine::Error>>,
     )>,
     node_close_prompt: Option<node_editor::EditorSnapshot>,
     node_close_save: Option<node_editor::EditorSnapshot>,
@@ -336,41 +337,41 @@ struct Shell {
     next_composition: Instant,
     audio: Option<audio_output::AudioOutput>,
     freezing_movie: Option<(
-        std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>,
+        std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, crate::engine::Error>>,
         PathBuf,
         motion_desktop_media::movie::ExportControl,
         motion_core::FrameScope,
     )>,
     exporting_movie: Option<movie_export::MovieExport>,
     exporting_frame: Option<(
-        std::sync::mpsc::Receiver<Result<Value, String>>,
+        std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>,
         motion_desktop_media::movie::ExportControl,
     )>,
     export_notified: bool,
-    importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
+    importing_image: Option<std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>>,
     importing_media: Option<(String, Instant)>,
     library_import: Option<shell::project_import::Import>,
     project_image: Option<shell::project_import::ImageImport>,
     project_image_pool: workflow::library_image::Pool,
     replacing_asset: Option<media_assets::Source>,
     relinking_assets: bool,
-    relink_reply: Option<(shell::media_assets::RelinkPhase, std::sync::mpsc::Receiver<Result<Value, String>>)>,
+    relink_reply: Option<(shell::media_assets::RelinkPhase, std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>)>,
     file_location: Option<shell::media_assets::Location>,
     audio_analysis: Option<shell::audio_analysis::Analysis>,
     importing_effect: Option<effect_import::Task>,
-    attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
+    attaching: Option<std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>>,
     attached: bool,
-    rendering: std::collections::HashMap<u64, std::sync::mpsc::Receiver<Result<bool, String>>>,
+    rendering: std::collections::HashMap<u64, std::sync::mpsc::Receiver<Result<bool, crate::engine::Error>>>,
     exposure_presentations: std::collections::HashSet<u64>,
-    resizing: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
+    resizing: Option<std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>>,
     resize_queue: std::collections::HashMap<u64, [u32; 2]>,
     actions: std::collections::VecDeque<panels::Action>,
-    editing: Option<(Instant, std::sync::mpsc::Receiver<Result<Value, String>>)>,
+    editing: Option<(Instant, std::sync::mpsc::Receiver<Result<Value, crate::engine::Error>>)>,
     expression_task: Option<shell::expressions::Task>,
     text_style_task: Option<shell::text_style::Task>,
     present_due: bool,
     present_deferrals: shell::presentation_observation::ActionDeferrals,
-    diagnostics_export: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
+    diagnostics_export: Option<std::sync::mpsc::Receiver<diagnostics::ReportResult>>,
     closing: bool,
     next_redraw: Instant,
     fatal: Option<String>,
@@ -401,7 +402,7 @@ struct FloatWindow {
 }
 
 impl Shell {
-    fn new(root: PathBuf, smoke: Option<PathBuf>, locale: Option<Locale>) -> Result<Self, String> {
+    fn new(root: PathBuf, smoke: Option<PathBuf>, locale: Option<Locale>) -> Result<Self, engine::Error> {
         #[cfg(test)]
         let test_preferences = tempfile::tempdir()
             .map_err(|error| format!("create test preferences directory: {error}"))?;
@@ -543,7 +544,7 @@ impl Shell {
         if shell.smoke.is_none() {
             if let Some(path) = shell.workspace.style_path.clone() {
                 if let Err(error) = shell.load_style_source(path) {
-                    shell.panels.message = Some(error);
+                    shell.panels.message = Some(error.to_string());
                 }
             }
         }
@@ -740,7 +741,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             if let Some(result) = result {
                 self.panels.message = Some(match result {
                     Ok(()) => self.workspace.locale.t(T::DiagnosticsExported).into(),
-                    Err(e) => self.workspace.locale.error(&e),
+                    Err(e) => self.workspace.locale.error(&e.to_string()),
                 });
                 self.diagnostics_export = None;
                 self.dirty = true;
@@ -781,7 +782,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.accept_edit_state(state);
                     }
                     Err(error) => {
-                        self.panels.message = Some(if error.contains("project revision changed") {
+                        self.panels.message = Some(if error.to_string().contains("project revision changed") {
                             if self.workspace.locale == Locale::Zh { "工程在操作期间发生变化，请重试" }
                             else { "The project changed during this operation; please retry" }.into()
                         } else { self.workspace.locale.error(&error) });
@@ -805,7 +806,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let scope = *scope;
                 self.freezing_movie = None;
                 match result.and_then(|snapshot| {
-                    movie_export::MovieExport::start_with_control(snapshot.with_scope(scope), output, control)
+                    Ok(movie_export::MovieExport::start_with_control(snapshot.with_scope(scope), output, control)?)
                 }) {
                     Ok(task) => self.exporting_movie = Some(task),
                     Err(error) => self.panels.message = Some(self.workspace.locale.error(&error)),
@@ -900,7 +901,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                         }
                     }
                     Err(error) => {
-                        self.fatal = Some(error);
+                        self.fatal = Some(error.to_string());
                         event_loop.exit();
                         return;
                     }
@@ -932,7 +933,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.stop();
                     self.panels.message = Some(self.workspace.locale.error(&e));
                     if self.smoke.is_some() {
-                        self.fatal = Some(e);
+                        self.fatal = Some(e.to_string());
                         event_loop.exit();
                         return;
                     }
@@ -944,7 +945,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.resizing = None;
                 match result {
                     Ok(state) => self.state = state,
-                    Err(e) => self.panels.message = Some(e),
+                    Err(e) => self.panels.message = Some(e.to_string()),
                 }
                 self.dirty = true;
             }
@@ -992,7 +993,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.resize_queue.remove(&key);
                 match self.engine.resize_async(key, size[0], size[1]) {
                     Ok(receive) => self.resizing = Some(receive),
-                    Err(e) => self.panels.message = Some(e),
+                    Err(e) => self.panels.message = Some(e.to_string()),
                 }
             }
             if self.closing && self.editing.is_none() && self.actions.is_empty() && !self.render_queue.busy() {
@@ -1147,6 +1148,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .floating
                     .values()
                     .any(|f| f.panel == dock::Panel::Nodes));
+        self.sync_preview_preparation();
         let ui_animating = self.panels.motion.active() || self.panels.timeline.edge_pan_at.is_some();
         let presentation_pending = self.presentation_pending();
         if busy

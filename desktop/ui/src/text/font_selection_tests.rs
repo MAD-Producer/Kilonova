@@ -75,7 +75,7 @@ fn assert_rendered(atlas: &mut TextAtlas) {
 #[test]
 fn automatic_chinese_selection_searches_past_a_usable_latin_candidate() {
     let (database, latin, chinese) = fixtures();
-    let (font, family, index) = select_candidate(&database, [latin, chinese], true).unwrap();
+    let (font, family, index) = select_candidate(&database, [latin, chinese], true).selected.unwrap();
     assert_ne!(
         font.glyph_id('中').0,
         0,
@@ -92,12 +92,12 @@ fn automatic_chinese_selection_searches_past_a_usable_latin_candidate() {
 fn latin_preference_and_missing_coverage_keep_the_existing_fallback() {
     let (database, latin, chinese) = fixtures();
     let expected = database.face(latin).unwrap().families[0].0.clone();
-    let (_, family, _) = select_candidate(&database, [latin, chinese], false).unwrap();
+    let (_, family, _) = select_candidate(&database, [latin, chinese], false).selected.unwrap();
     assert_eq!(family, expected);
-    let (font, family, _) = select_candidate(&database, [latin], true).unwrap();
+    let (font, family, _) = select_candidate(&database, [latin], true).selected.unwrap();
     assert_eq!(family, expected);
     assert_eq!(font.glyph_id('中').0, 0);
-    assert!(select_candidate(&database, [], true).is_none());
+    assert!(select_candidate(&database, [], true).selected.is_none());
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn collection_face_index_is_shared_by_rasterization_and_shaping() {
     database.load_system_fonts();
     let mut checked = 0;
     for face in database.faces().filter(|face| face.index > 0) {
-        let Some((font, family, index)) = select_candidate(&database, [face.id], false) else {
+        let Some((font, family, index)) = select_candidate(&database, [face.id], false).selected else {
             continue;
         };
         assert_eq!(index, face.index);

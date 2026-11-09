@@ -15,8 +15,11 @@ const RECENT_LIMIT: usize = 128;
 const STALL_LIMIT: usize = 512;
 const STALL_US: u64 = 16_000;
 const MAX_REPORT_BYTES: usize = 2 * 1024 * 1024;
+pub(crate) type ReportResult = Result<(), crate::engine::Error>;
 #[cfg(test)]
 mod native_test_evidence;
+#[cfg(test)]
+mod native_error_tests;
 
 #[derive(Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,8 +75,8 @@ struct State {
     last_checkpoint: Option<Instant>,
 }
 enum Job {
-    Checkpoint(Option<Sender<Result<(), String>>>),
-    Export(PathBuf, Sender<Result<(), String>>),
+    Checkpoint(Option<Sender<ReportResult>>),
+    Export(PathBuf, Sender<ReportResult>),
 }
 pub struct Diagnostics {
     began: Instant,
@@ -231,18 +234,18 @@ impl Diagnostics {
             "stallThresholdUs":STALL_US,"totalStalls":state.total_stalls,"recent":state.recent,"stalls":state.stalls,"reporting":self.status()})
         })
     }
-    pub fn export(&self, path: PathBuf) -> Result<Receiver<Result<(), String>>, String> {
+    pub fn export(&self, path: PathBuf) -> Result<Receiver<ReportResult>, crate::engine::Error> {
         let (reply, receive) = std::sync::mpsc::channel();
         self.jobs
             .try_send(Job::Export(path, reply))
-            .map_err(|_| "diagnostics reporter is busy or stopped".to_string())?;
+            .map_err(|_| crate::engine::Error::from("diagnostics reporter is busy or stopped"))?;
         Ok(receive)
     }
-    pub fn checkpoint(&self) -> Result<Receiver<Result<(), String>>, String> {
+    pub fn checkpoint(&self) -> Result<Receiver<ReportResult>, crate::engine::Error> {
         let (reply, receive) = std::sync::mpsc::channel();
         self.jobs
             .try_send(Job::Checkpoint(Some(reply)))
-            .map_err(|_| "diagnostics reporter is busy or stopped".to_string())?;
+            .map_err(|_| crate::engine::Error::from("diagnostics reporter is busy or stopped"))?;
         Ok(receive)
     }
 }
@@ -259,7 +262,7 @@ fn push_bounded<T>(values: &mut VecDeque<T>, value: T, limit: usize) {
     }
     values.push_back(value);
 }
-fn write_report(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
+fn write_report(path: &std::path::Path, bytes: &[u8]) -> ReportResult {
     use std::io::Write;
     if bytes.len() > MAX_REPORT_BYTES {
         return Err("diagnostics report exceeds its byte budget".into());
@@ -267,7 +270,7 @@ fn write_report(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()
         .ok_or("diagnostics destination has no parent")?;
-    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(parent).map_err(motion_host::Error::from)?;
     let tmp = parent.join(format!(
         ".motion-diagnostics-{}-{}.tmp",
         std::process::id(),
@@ -288,7 +291,8 @@ fn write_report(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
         drop(file);
         std::fs::rename(&tmp, path)
     })()
-    .map_err(|e| e.to_string());
+    .map_err(motion_host::Error::from)
+    .map_err(crate::engine::Error::from);
     if result.is_err() && created {
         if let Err(error) = std::fs::remove_file(&tmp) {
             if error.kind() != std::io::ErrorKind::NotFound {
@@ -334,7 +338,7 @@ fn reporter(
         crate::logging::flush();
         let report = owner.report();
         let encoded = serde_json::to_vec_pretty(&report)
-            .map_err(|error| format!("diagnostics serialization failed: {error}"))
+            .map_err(|error| crate::engine::Error::from(motion_host::Error::with_context("diagnostics serialization failed", error)))
             .and_then(|bytes| if bytes.len() <= MAX_REPORT_BYTES { Ok(bytes) }
                 else { Err("diagnostics report exceeds its byte budget".into()) });
         let bytes = match encoded {

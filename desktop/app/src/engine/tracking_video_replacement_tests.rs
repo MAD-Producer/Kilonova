@@ -13,7 +13,7 @@ mod authored;
 mod paired;
 
 fn media(engine: &Engine, request: Value) -> Result<Value, String> {
-    engine.media(request.to_string())
+    Ok(engine.media(request.to_string())?)
 }
 
 fn ready(engine: &Engine, request: &str) {
@@ -44,7 +44,7 @@ fn frame(engine: &Engine) -> image::RgbaImage {
     let captured = loop {
         match engine.render_preview(Some(0.)) {
             Ok(frame) => break frame,
-            Err(pending) if pending == "video capture pending; request frames and retry" => {
+            Err(pending) if pending.to_string() == "video capture pending; request frames and retry" => {
                 assert!(began.elapsed() < Duration::from_secs(30), "{pending}");
                 std::thread::sleep(Duration::from_millis(10));
             }

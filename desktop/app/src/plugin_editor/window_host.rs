@@ -8,6 +8,9 @@ use std::{
 #[cfg(all(test, windows))]
 #[path = "window_host_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "window_font_error_tests.rs"]
+mod font_error_tests;
 struct Owner {
     // The author workspace contains a complete node editor. Keep it out of the
     // already large Shell value and Windows' default main-thread stack.
@@ -39,6 +42,8 @@ enum Job {
     },
     #[cfg(test)]
     Panic,
+    #[cfg(test)]
+    FontInput { bytes: Arc<[u8]>, face_index: u32 },
 }
 enum Done {
     Opened(Option<Owner>),
@@ -51,7 +56,7 @@ struct Queued {
 }
 struct Worker {
     send: mpsc::SyncSender<Queued>,
-    reply: Receiver<Result<Done, String>>,
+    reply: Receiver<Result<Done, crate::engine::Error>>,
     flight: Arc<Mutex<Option<Flight>>>,
     thread: Option<JoinHandle<()>>,
 }
@@ -90,7 +95,7 @@ impl Worker {
         })
     }
 }
-fn execute(job: Job) -> Result<Done, String> {
+fn execute(job: Job) -> Result<Done, crate::engine::Error> {
     match job {
         Job::Open { path, zh } => {
             let path = path.or_else(|| {
@@ -135,6 +140,12 @@ fn execute(job: Job) -> Result<Done, String> {
         }
         #[cfg(test)]
         Job::Panic => panic!("controlled author window panic"),
+        #[cfg(test)]
+        Job::FontInput { bytes, face_index } => {
+            let _font = motion_ui::text::shaping::RunShaper::new(bytes, face_index)
+                .map_err(motion_ui::text::FontError::from)?;
+            Ok(Done::Recovered(false))
+        }
     }
 }
 impl Drop for Worker {
@@ -178,7 +189,7 @@ impl Hosted {
             return Err(job);
         };
         let Some(request) = self.request.checked_add(1) else {
-            self.report("author window request identity exhausted".into());
+            self.report("author window request identity exhausted");
             return Err(job);
         };
         self.request = request;
@@ -196,7 +207,7 @@ impl Hosted {
         };
         if !published {
             self.failed = true;
-            self.report("author window in-flight state poisoned; job not dispatched".into());
+            self.report("author window in-flight state poisoned; job not dispatched");
             return Err(job);
         }
         match worker.send.try_send(Queued {
@@ -221,7 +232,9 @@ impl Hosted {
             }
         }
     }
-    fn report(&mut self, error: String) {
+    // Format only after the worker reply reaches the tool presentation boundary.
+    fn report(&mut self, error: impl Into<String>) {
+        let error = error.into();
         log::error!(
             "plugin.host phase=controller request={} cause={}",
             self.request,

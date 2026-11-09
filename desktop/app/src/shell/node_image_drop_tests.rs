@@ -17,7 +17,7 @@ struct Host {
     shell: Shell,
     drops: Vec<WindowId>,
     keys: usize,
-    fronts: Vec<(u64, std::sync::mpsc::Receiver<Result<bool, String>>)>,
+    fronts: Vec<(u64, std::sync::mpsc::Receiver<Result<bool, crate::engine::Error>>)>,
 }
 impl ApplicationHandler for Host {
     fn resumed(&mut self, _: &ActiveEventLoop) {}

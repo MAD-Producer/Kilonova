@@ -1,6 +1,29 @@
 //! Bounded observations of application readback work, not bus traffic or VRAM.
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
+/// Original callback, mapping and view errors, with the historical phase text.
+#[derive(Debug, thiserror::Error)]
+pub enum ReadbackError {
+    #[error("{context}{cause}")]
+    Callback { context: &'static str, #[source] cause: std::sync::mpsc::RecvError },
+    #[error("{context}{cause}")]
+    Mapping { context: &'static str, #[source] cause: wgpu::BufferAsyncError },
+    #[error("{context}{cause}")]
+    Range { context: &'static str, #[source] cause: wgpu::MapRangeError },
+}
+
+#[cfg(test)]
+std::thread_local! { static CANCEL_NEXT_MAP: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
+#[cfg(test)]
+pub(crate) fn cancel_next_map() { CANCEL_NEXT_MAP.with(|flag| flag.set(true)); }
+#[cfg(test)]
+pub(crate) fn after_map(buffer: &wgpu::Buffer) {
+    if CANCEL_NEXT_MAP.with(|flag| flag.replace(false)) { buffer.unmap(); }
+}
+
+#[cfg(test)]
+mod error_tests;
+
 pub(crate) struct Counters<const N: usize> {
     values: [AtomicU64; N],
     saturated: AtomicBool,
