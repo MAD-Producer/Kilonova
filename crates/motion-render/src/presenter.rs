@@ -269,13 +269,22 @@ impl Presenter {
     pub(crate) fn encode_view_load(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4], load: bool) -> Result<(), crate::RenderError> {
-        if self.inspection_region.is_some() || self.comparison_split.is_some() {
+        self.encode_view_region_load(queue, encoder, output, timestamps, viewport, image,
+            background, self.inspection_region, load)
+    }
+    /// Supply the region with each draw, without changing retained presenter
+    /// state. Independent view cells still require independent uniforms.
+    pub(crate) fn encode_view_region_load(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
+        output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
+        viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4],
+        region: Option<[f32; 4]>, load: bool) -> Result<(), crate::RenderError> {
+        if region.is_some() || self.comparison_split.is_some() {
             let comparison = match self.comparison_split {
                 Some(split) => Some((self.comparison_group.as_ref().ok_or_else(||
                     crate::RenderError::Invalid("viewer comparison snapshot is unavailable".into()))?, split)),
                 None => None,
             };
-            let (live, captured) = Self::inspection_scissors(viewport, image, self.inspection_region, self.comparison_split)?;
+            let (live, captured) = Self::inspection_scissors(viewport, image, region, self.comparison_split)?;
             let [x, y, w, h] = viewport;
             self.write_view_geometry(queue, viewport, image)?;
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

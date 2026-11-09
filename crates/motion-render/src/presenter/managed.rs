@@ -173,6 +173,22 @@ impl ManagedDisplayPresenter {
         background: [f32; 4],
         load: bool,
     ) -> Result<(), RenderError> {
+        self.encode_region_view_load(renderer, encoder, output, viewport, image, background, None, load)
+    }
+    /// Region coordinates are normalized to the composition image, then clipped
+    /// to this cell. They never alter the retained display image or its uniforms
+    /// for a later call. Earlier cells are preserved when `load` is true.
+    pub fn encode_region_view_load(
+        &self,
+        renderer: &Renderer,
+        encoder: &mut AllocationEncoder,
+        output: &wgpu::Texture,
+        viewport: [f32; 4],
+        image: Option<[f32; 4]>,
+        background: [f32; 4],
+        region: Option<[f32; 4]>,
+        load: bool,
+    ) -> Result<(), RenderError> {
         self.check_output(renderer, encoder, output)?;
         let [x, y, w, h] = viewport;
         if !viewport.iter().all(|v| v.is_finite())
@@ -190,7 +206,7 @@ impl ManagedDisplayPresenter {
             ));
         }
         let view = output.create_view(&Default::default());
-        self.presenter.encode_view_load(
+        self.presenter.encode_view_region_load(
             &renderer.queue,
             encoder,
             &view,
@@ -198,6 +214,7 @@ impl ManagedDisplayPresenter {
             viewport,
             image,
             background,
+            region,
             load,
         )
     }

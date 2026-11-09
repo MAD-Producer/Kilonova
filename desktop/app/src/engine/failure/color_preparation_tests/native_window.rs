@@ -2,6 +2,8 @@
 use super::*;
 use crate::engine::failure::color_tests::runtime_platform::RuntimePlatform;
 use winit::platform::windows::EventLoopBuilderExtWindows;
+#[path = "native_window_roi.rs"]
+mod roi;
 
 #[test]
 #[ignore = "requires an actual Windows surface, GPU and pinned native OCIO runtime"]
@@ -372,6 +374,7 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
                 engine.preview_info().unwrap()["video"]["renderAttempts"],
                 attempts
             );
+            roi::qualify(&engine, || layout(count), count, expected, &root);
         }
         engine.seek(0.625).unwrap();
         let stale_path = root.join("stale-display.png");
@@ -484,6 +487,12 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
             "managed-display-2.png",
             "managed-display-4.png",
             "managed-display-floating.png",
+            "managed-roi-1.png",
+            "managed-roi-2.png",
+            "managed-roi-4.png",
+            "managed-roi-pan-1.png",
+            "managed-roi-pan-2.png",
+            "managed-roi-pan-4.png",
         ] {
             let source = root.path().join(name);
             if source.exists() {
@@ -557,7 +566,8 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
     assert!(!stdout.contains("phase=surface_capture"));
     for reason in [
         "completed group is no longer current",
-        "capture channels, ROI and comparison",
+        "capture channels and comparison",
+        "invalid viewer inspection viewport, image or region",
     ] {
         let record = file
             .lines()

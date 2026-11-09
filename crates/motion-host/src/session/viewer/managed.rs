@@ -9,12 +9,11 @@ fn inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result
     validate_inspections(views, inspections)?;
     if inspections.iter().any(|inspection| {
         inspection.channel != motion_render::ViewChannel::Color
-            || inspection.region.is_some()
             || inspection.comparison.is_some()
     }) {
         return Err(refuse(
             "surface_inspection",
-            "managed channel, ROI and comparison consumers require explicit integration",
+            "managed channel and comparison consumers require explicit integration",
         )
         .into());
     }
@@ -60,6 +59,7 @@ impl Session {
                 &mut encoder,
                 &output.texture,
                 &placements,
+                inspection,
                 false,
             )?;
         overlay(&g.renderer, &mut encoder, &target);
@@ -170,6 +170,7 @@ impl Session {
                 &mut encoder,
                 &output.texture,
                 &placements,
+                inspection,
                 true,
             )?;
         overlay(&g.renderer, &mut encoder, &target);

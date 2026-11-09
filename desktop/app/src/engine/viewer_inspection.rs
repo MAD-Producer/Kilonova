@@ -130,10 +130,9 @@ impl State {
             && ui.composition.is_some()
             && ui.views.is_none()
             && (ui.inspection.channel != ViewChannel::Color
-                || ui.inspection.region.is_some()
                 || ui.inspection.comparison_split.is_some())
         {
-            return Err("managed viewer phase=surface_inspection: channel, ROI and comparison require their explicit managed consumer".into());
+            return Err("managed viewer phase=surface_inspection: channel and comparison require their explicit managed consumer".into());
         }
         self.reconcile(session);
         let selection = if ui.composition.is_some() && ui.views.is_none() {

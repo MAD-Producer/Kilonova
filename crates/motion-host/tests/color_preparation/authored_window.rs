@@ -16,6 +16,8 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 mod images;
 #[path = "authored_window_capture.rs"]
 mod display_capture;
+#[path = "authored_window_roi.rs"]
+mod roi;
 
 fn attach(session: &mut Session, events: &winit::event_loop::EventLoop<()>) {
     #[allow(deprecated)]
@@ -87,6 +89,16 @@ fn capture_owner(
     retained: bool,
     owner: u64,
 ) -> Vec<u8> {
+    capture_inspected(session, frame, views, retained, owner, None)
+}
+fn capture_inspected(
+    session: &mut Session,
+    frame: f64,
+    views: &[View<'_>],
+    retained: bool,
+    owner: u64,
+    inspections: Option<&[ViewInspection<'_>]>,
+) -> Vec<u8> {
     let graphics = session.graphics.as_ref().unwrap();
     let format = graphics.config.format;
     let buffer = graphics
@@ -124,7 +136,13 @@ fn capture_owner(
                     },
                 );
             };
-        let done = if owner == 0 && retained {
+        let done = if let Some(inspections) = inspections {
+            if retained {
+                session.present_retained_views_with_inspection(owner, views, inspections, false, overlay)
+            } else {
+                session.render_views_with_inspection(owner, frame, views, inspections, overlay)
+            }
+        } else if owner == 0 && retained {
             session.present_retained_with_view(
                 views[0].placement.viewport,
                 views[0].placement.image,

@@ -6,6 +6,11 @@ use motion_effects::{
 };
 
 fn screenshot(session: &Session, owner: u64, cells: &[View<'_>]) -> motion_host::Result<Vec<u8>> {
+    screenshot_inspected(session, owner, cells, &[ViewInspection::default(); 4][..cells.len()])
+}
+pub(super) fn screenshot_inspected(
+    session: &Session, owner: u64, cells: &[View<'_>], inspections: &[ViewInspection<'_>],
+) -> motion_host::Result<Vec<u8>> {
     let g = session.graphics.as_ref().unwrap();
     let target = g.renderer.image_capture_target(
         128,
@@ -22,7 +27,7 @@ fn screenshot(session: &Session, owner: u64, cells: &[View<'_>]) -> motion_host:
     let capture = session.encode_managed_view_capture(
         owner,
         cells,
-        &[ViewInspection::default(); 4][..cells.len()],
+        inspections,
         &mut encoder,
         &target,
         [128, 128],

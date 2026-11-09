@@ -381,6 +381,7 @@ impl State {
         encoder: &mut AllocationEncoder,
         output: &wgpu::Texture,
         placements: &[motion_render::multiview::ViewPlacement],
+        inspections: &[motion_render::multiview::ViewInspection<'_>],
         candidate: bool,
     ) -> std::result::Result<(), RenderError> {
         let cells = if candidate {
@@ -389,17 +390,18 @@ impl State {
             self.front.as_ref().filter(|_| self.published.is_some())
         }
         .ok_or_else(|| refuse("surface_present", "complete display group is unavailable"))?;
-        if cells.len() != placements.len() {
+        if cells.len() != placements.len() || cells.len() != inspections.len() {
             return Err(refuse("surface_present", "layout and group counts differ"));
         }
-        for (index, (cell, placement)) in cells.iter().zip(placements).enumerate() {
-            cell.presenter.encode_view_load(
+        for (index, ((cell, placement), inspection)) in cells.iter().zip(placements).zip(inspections).enumerate() {
+            cell.presenter.encode_region_view_load(
                 renderer,
                 encoder,
                 output,
                 placement.viewport,
                 placement.image,
                 [0., 0., 0., 1.],
+                inspection.region,
                 index != 0,
             )?;
         }

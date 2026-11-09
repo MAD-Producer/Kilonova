@@ -84,14 +84,15 @@ impl Session {
                     refuse("surface_capture", "layout and display group counts differ").into(),
                 );
             }
-            for (index, (presenter, placement)) in presenters.iter().zip(placements).enumerate() {
-                presenter.encode_view_load(
+            for (index, ((presenter, placement), inspection)) in presenters.iter().zip(placements).zip(inspection).enumerate() {
+                presenter.encode_region_view_load(
                     &g.renderer,
                     encoder,
                     output.view().texture(),
                     placement.viewport,
                     placement.image,
                     [0., 0., 0., 1.],
+                    inspection.region,
                     index != 0,
                 )?;
             }
