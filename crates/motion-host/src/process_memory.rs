@@ -24,8 +24,8 @@ pub enum ProcessPeak {
     },
 }
 
-/// Fixed direct-child stages, in backend execution order. Missing observations
-/// stay explicit. This does not enumerate processes or cover runtime descendants.
+/// Fixed backend phases, in execution order. Missing observations and a host
+/// remap stay explicit. No process enumeration or runtime-descendant coverage.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "backend", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Children {
@@ -48,6 +48,15 @@ pub enum Children {
         prepare: Option<ProcessPeak>,
         inference: Option<ProcessPeak>,
         remap: Option<ProcessPeak>,
+    },
+    /// Retained worker plus Python preparation, with remap on the host itself.
+    /// host_remap is NOT another child and must never be summed as one.
+    WgslRetainedHostRemap {
+        resolution_transform: Option<ProcessPeak>,
+        resolution_native: Option<ProcessPeak>,
+        prepare: Option<ProcessPeak>,
+        inference: Option<ProcessPeak>,
+        host_remap: Option<ProcessPeak>,
     },
 }
 
@@ -75,7 +84,7 @@ impl Snapshot {
     /// Missing/unavailable/malformed counters and overflow remain unknown.
     pub fn observed_resident_sum(&self) -> Option<u64> {
         let (count, stages) = match &self.children {
-            Children::WgslRetained { .. } => return None,
+            Children::WgslRetained { .. } | Children::WgslRetainedHostRemap { .. } => return None,
             Children::Onnx {
                 resolution,
                 inference,
@@ -248,6 +257,27 @@ fn query() -> Result<ProcessPeak, String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn host_remap_is_explicit_and_cannot_be_summed_as_a_separate_child() {
+        let snapshot = Snapshot {
+            host: observed(1, 1000),
+            children: Children::WgslRetainedHostRemap {
+                resolution_transform: Some(observed(2,100)),
+                resolution_native: Some(observed(3,200)),
+                prepare: Some(observed(4,300)),
+                inference: Some(observed(5,400)),
+                host_remap: Some(observed(1,1000)),
+            },
+        };
+        assert!(snapshot.observed_resident_sum().is_none());
+        let encoded = serde_json::to_value(&snapshot).unwrap();
+        assert_eq!(encoded["children"]["host_remap"]["pid"],1);
+        assert!(encoded["children"].get("remap").is_none());
+        let restored: Snapshot = serde_json::from_value(encoded.clone()).unwrap();
+        assert!(restored.observed_resident_sum().is_none());
+        assert_eq!(serde_json::to_value(&restored).unwrap(),encoded);
+    }
 
     fn observed(pid: u32, resident: u64) -> ProcessPeak {
         ProcessPeak::Observed {

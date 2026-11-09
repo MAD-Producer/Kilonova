@@ -97,7 +97,7 @@ impl Attestation {
     }
 }
 
-fn worker_digest(path: &Path, cancellation: &Cancellation) -> Result<[u8; 32]> {
+pub(super) fn worker_digest(path: &Path, cancellation: &Cancellation) -> Result<[u8; 32]> {
     cancellation.check()?;
     let mut file = fs::File::open(path)?;
     let metadata = file.metadata()?;

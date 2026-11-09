@@ -257,7 +257,7 @@ fn samples(backend: impl Backend, model: DepthModel, input_root: &Path, root: &P
 fn run() -> Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if args.len() != 7 {
-        return Err("usage: depth_reference onnx|wgsl|wgsl-retained PYTHON MODEL PROGRAM WORKER INPUT_DIRECTORY OUTPUT_DIRECTORY".into());
+        return Err("usage: depth_reference onnx|wgsl|wgsl-retained|wgsl-retained-rust-remap PYTHON MODEL PROGRAM WORKER INPUT_DIRECTORY OUTPUT_DIRECTORY".into());
     }
     let kind = args[0].to_str().ok_or("backend must be ASCII")?;
     let paths: Vec<_> = args[1..].iter().map(PathBuf::from).collect();
@@ -299,7 +299,7 @@ fn run() -> Result<()> {
             input_root,
             root,
         ),
-        "wgsl" | "wgsl-retained" => {
+        "wgsl" | "wgsl-retained" | "wgsl-retained-rust-remap" => {
             let config = depth::wgsl::Config {
                 python: python.clone(),
                 worker: worker.clone(),
@@ -307,14 +307,16 @@ fn run() -> Result<()> {
                 scratch: root.join("scratch"),
                 hardware: depth::wgsl::Hardware::Vulkan,
             };
-            let backend = if kind == "wgsl-retained" {
+            let backend = if kind == "wgsl-retained-rust-remap" {
+                depth::wgsl::Wgsl::new_retained_rust_remap(config)?
+            } else if kind == "wgsl-retained" {
                 depth::wgsl::Wgsl::new_retained(config)?
             } else {
                 depth::wgsl::Wgsl::new(config)?
             };
             samples(backend, model, input_root, root)
         }
-        _ => Err("explicit onnx, wgsl or wgsl-retained backend required".into()),
+        _ => Err("explicit onnx, wgsl, wgsl-retained or wgsl-retained-rust-remap backend required".into()),
     }
 }
 fn main() {

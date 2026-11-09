@@ -24,6 +24,7 @@ const DEPTH_BYTES: u64 = SIDE * SIDE * 4;
 const BUFFER_BYTES: u64 = 227_968_156;
 mod identity;
 mod service;
+mod rust_remap;
 use identity::Attestation;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,6 +70,8 @@ pub struct Wgsl {
     service: Option<service::Service>,
     service_attestation: Option<Attestation>,
     service_failed: bool,
+    rust_remap: bool,
+    rust_remap_execution: Option<Execution>,
 }
 impl Wgsl {
     pub fn new(config: Config) -> Result<Self> {
@@ -95,6 +98,8 @@ impl Wgsl {
             service: None,
             service_attestation: None,
             service_failed: false,
+            rust_remap: false,
+            rust_remap_execution: None,
         })
     }
     /// Explicit retained-process mode. Cancellation or a protocol/GPU failure
@@ -103,6 +108,15 @@ impl Wgsl {
     pub fn new_retained(config: Config) -> Result<Self> {
         let mut backend = Self::new(config)?;
         backend.retained = true;
+        Ok(backend)
+    }
+    /// Explicit retained GPU mode with independently authored host remapping.
+    /// Python/NumPy/OpenCV still perform RGB preparation and attestation. This
+    /// eliminates only the separate remap child, not all Python/native faults.
+    /// Cache/profile identity includes the host executable and remap procedure.
+    pub fn new_retained_rust_remap(config: Config) -> Result<Self> {
+        let mut backend = Self::new_retained(config)?;
+        backend.rust_remap = true;
         Ok(backend)
     }
     fn ensure_service(
@@ -133,6 +147,7 @@ impl Wgsl {
     fn close_failed_service(&mut self, primary: Error) -> Error {
         self.service_failed = true;
         self.service_attestation = None;
+        self.rust_remap_execution = None;
         match self.service.take() {
             Some(mut service) => service.failure(primary),
             None => primary,
@@ -204,6 +219,11 @@ impl Wgsl {
         cancellation: &Cancellation,
         expected: Option<&Execution>,
     ) -> Result<Transform> {
+        if self.rust_remap && stage == "remap" {
+            let report = rust_remap::run(root, input, rgb, depth, cancellation)?;
+            report.validate(input, stage, rgb, depth)?;
+            return Ok(report);
+        }
         let [width, height] = input.size();
         let request = serde_json::json!({"schema":1,"stage":stage,"processing":super::onnx::PROCESSING,
             "width":width,"height":height,"rgb_sha256":rgb,"depth_sha256":depth});
@@ -407,7 +427,15 @@ impl Wgsl {
                     postprocess: post,
                     input_bytes: TENSOR_BYTES,
                     output_bytes: DEPTH_BYTES,
-                    child_process_memory: Some(if self.retained {
+                    child_process_memory: Some(if self.rust_remap {
+                        crate::process_memory::Children::WgslRetainedHostRemap {
+                            resolution_transform: attestation.and_then(|a| a.transform_memory.clone()),
+                            resolution_native: attestation.and_then(|a| a.native_memory.clone()),
+                            prepare: prepared.process_memory,
+                            inference: report.inference_process_memory.clone(),
+                            host_remap: remapped.process_memory,
+                        }
+                    } else if self.retained {
                         crate::process_memory::Children::WgslRetained {
                             resolution_transform: attestation
                                 .and_then(|a| a.transform_memory.clone()),
@@ -456,11 +484,22 @@ impl Backend for Wgsl {
         } else {
             self.resolve_cache_identity(input, cancellation)?
         };
-        let execution = if self.retained {
+        let mut execution = if self.retained {
             attestation.combined_retained()?
         } else {
             attestation.combined()?
         };
+        if self.rust_remap {
+            let local = match rust_remap::resolve(input, cancellation) {
+                Ok(local) => local,
+                Err(primary) => return Err(self.close_failed_service(primary)),
+            };
+            execution = match rust_remap::combine(&execution, &local) {
+                Ok(execution) => execution,
+                Err(primary) => return Err(self.close_failed_service(primary)),
+            };
+            self.rust_remap_execution = Some(local);
+        }
         self.attestation = Some(attestation);
         Ok(Some(execution))
     }
@@ -473,6 +512,18 @@ impl Backend for Wgsl {
             match self.ensure_service(input, cancellation) {
                 Ok(attestation) => self.attestation = Some(attestation),
                 Err(error) => return Err(self.close_failed_service(error)),
+            }
+        }
+        if self.rust_remap {
+            let checked = rust_remap::resolve(input, cancellation).and_then(|actual| {
+                if self.rust_remap_execution.as_ref().is_some_and(|expected| expected != &actual) {
+                    return Err(Error::Invalid("host remap execution changed since cache resolution"));
+                }
+                self.rust_remap_execution = Some(actual);
+                Ok(())
+            });
+            if let Err(primary) = checked {
+                return Err(self.close_failed_service(primary));
             }
         }
         let scratch = self
