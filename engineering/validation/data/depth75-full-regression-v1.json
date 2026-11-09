@@ -1,0 +1,69 @@
+{
+  "archive": "depth75-full-regression-v1.zip",
+  "bytes": 526767,
+  "sha256": "d67ccc627bcf58a842fed1b0758eae7657f7de8afdb5a2177f8c4b8fe7cc98ba",
+  "members": {
+    "abnormal-target-interim.json": {
+      "bytes": 864,
+      "sha256": "eac35db3be227ae142c6a53269567f9b12bcc2ede56888a52b7da4542156142d"
+    },
+    "cargo-metadata.json": {
+      "bytes": 160484,
+      "sha256": "fb411cbb1bab184970bceea75946503218874d5c015d4df239610879fcae2d87"
+    },
+    "collection-controller.py": {
+      "bytes": 4908,
+      "sha256": "704b1cab69286bf8d508f5cb2acf46d7643bd6e67754f3c2120322cc72968375"
+    },
+    "collection.json": {
+      "bytes": 2584,
+      "sha256": "5f81935c6f2eb18dae831648063e4ae560f5a7e643f390d183082b0088353026"
+    },
+    "controller.py": {
+      "bytes": 7824,
+      "sha256": "3ded798ddaf05225be36e9ad87ea399d9ef1bb088dfd3a4b4696ed7be3ad7d63"
+    },
+    "desktop-failure-assessment.json": {
+      "bytes": 2000,
+      "sha256": "516d9005a787a02d10175f5f574079ebcd3c32fb376be5ab195e08ad2f6304ed"
+    },
+    "metadata.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipt.json": {
+      "bytes": 1017259,
+      "sha256": "d86dbe8b575d4b6b49210130c718e6b37989a2a61b2fb799a5da8198cee98213"
+    },
+    "session-consumed.json": {
+      "bytes": 479,
+      "sha256": "6e1b6617111f39d049e4600551419a9aaf55c1e139f2707e83856e6af83aa928"
+    },
+    "source/crates/motion-effects/tests/packages.rs": {
+      "bytes": 15372,
+      "sha256": "86a69ec9ff175082a4db474ba744ef55ad8ee5ae0cd9736adf6d6754f30d3dae"
+    },
+    "source/crates/motion-render/tests/pointwise_fusion.rs": {
+      "bytes": 30371,
+      "sha256": "eab97b1477e9d1f9f826a37f721f9d9cdb98675e869e92990555fe4dbd61835f"
+    },
+    "source/desktop/app/src/engine/failure/composition_tests/accumulator_admission.rs": {
+      "bytes": 4983,
+      "sha256": "54bf53f8da87f3f92f30dbd4031b045fda7cde267eeeafc63b43910941132815"
+    },
+    "source/desktop/app/src/engine/sampling_playback_tests.rs": {
+      "bytes": 12167,
+      "sha256": "099694cd80e5e277dca9e76323c02c955fb5c7d8a0c8f9727eb0cd7267b1d942"
+    },
+    "stderr.log": {
+      "bytes": 150995,
+      "sha256": "c7161cf234890dca926f12fb6ef3a4a5a8bdcca82b897acc0ba3abef5fedecf3"
+    },
+    "stdout.log": {
+      "bytes": 625423,
+      "sha256": "81b566ec2dedaa5272b32a91293354a157c961f969ee2fa6ea1a2021b79c9461"
+    }
+  },
+  "readback": "Every member CRC, byte length and SHA-256 verified",
+  "acceptance": "Original failed command retained; not a complete regression pass"
+}

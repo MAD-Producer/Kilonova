@@ -1,0 +1,84 @@
+{
+  "archive": "depth75-current-platform-memory-v1.zip",
+  "bytes": 910319,
+  "sha256": "a5554a3f78378ea310615122a4f22b0fd546ad9ff253cf838d6c1c5afca82bcd",
+  "members": {
+    "collection.json": {
+      "bytes": 5512,
+      "sha256": "9f0f47086c17dcd9d8c83894753285bf7fb2719776585edb43083d9867d459e7"
+    },
+    "controller.py": {
+      "bytes": 6350,
+      "sha256": "e4d314957c96f5dcf2b3ad70c25be9b5bea8d15c2ee67035d47121817b73d9ba"
+    },
+    "job-128962725301.log": {
+      "bytes": 559985,
+      "sha256": "4e2af5bd6842692c6e74550616e2daf8bc80260ff217e740fc6c0e2c4d9e7edf"
+    },
+    "job-128962725699.log": {
+      "bytes": 555569,
+      "sha256": "d5a264b857b347389a97874bf11371dfd185e4bec005b0ed5752fcdbfa4fd378"
+    },
+    "job-128962725735.log": {
+      "bytes": 25652,
+      "sha256": "17af4a94aa0176a975a8ca0efe60d0e5c90da20c6d95410c3b9c54da597c6b7f"
+    },
+    "job-128962725778.log": {
+      "bytes": 546762,
+      "sha256": "f6ca83b60c721dd029d76763df4985e9a9161fc0ee89d979d24e82a0be77fd46"
+    },
+    "job-128962728238.log": {
+      "bytes": 565520,
+      "sha256": "dba06fda35898a2985d1d15242ec971bc1bb9ef0b22e8d8eed8f1ffbf7b2f97a"
+    },
+    "job-128978134556.log": {
+      "bytes": 89161,
+      "sha256": "433fac06b81ccdefeb42ffc49dbeab75468cbdad1f30816f3eb6f9359ce3d022"
+    },
+    "job-128978134613.log": {
+      "bytes": 105839,
+      "sha256": "d98a9b04900c02ac51738ef338730d84260d95a1b763ae23a400f2435808a885"
+    },
+    "job-128978134705.log": {
+      "bytes": 128152,
+      "sha256": "1848162953d1513443b534a389d947815bf7faff82b3eb04b7b882b03a3f9b5f"
+    },
+    "jobs.json": {
+      "bytes": 41071,
+      "sha256": "7a8a1e3ec0b59ebce6a55e41303c71ee1dca1af38d9b435f3158f92a8a867a3c"
+    },
+    "run.json": {
+      "bytes": 13059,
+      "sha256": "307a64511bd9616e2af7ea7629dd226a61ae3d8f5c49c80f357b7417a69e5778"
+    },
+    "source/crates/motion-host/src/depth/capability/memory.rs": {
+      "bytes": 126,
+      "sha256": "e89e5fe466c77e35faff80fb4b85a984e7075a612cc30c42d60f9d3088d94ddf"
+    },
+    "source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 22951,
+      "sha256": "0348bc4a136d0c92ddcd0fdd19ea24f1b726f8fc3fb2a8d737dc5633885d4516"
+    },
+    "source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 26059,
+      "sha256": "d11f6b1bad8606d99af13fd997dd509f3a741027c75877154db35ce23d6403d5"
+    },
+    "source/crates/motion-host/src/process_memory.rs": {
+      "bytes": 16466,
+      "sha256": "11a355ffb634bfa10e1b9ef211af3d5ccc25f2fa6b56ad94afba2e6edfd23ee8"
+    },
+    "source/desktop/app/src/depth_worker/graph_runtime_impl.rs": {
+      "bytes": 22567,
+      "sha256": "2e582bea8a24fea58066486eb7a31f49fc5cf6b88723709f81381c7c6b23254e"
+    },
+    "source/desktop/app/src/depth_worker/main.rs": {
+      "bytes": 7743,
+      "sha256": "e71a1974d9baf9e6a042a63dd2b051f665e69ee94b9672518db7147dbc743e3e"
+    },
+    "source-bindings.json": {
+      "bytes": 874486,
+      "sha256": "654f7241a7f0de90c2e49b9dfe5a97771166aa03cec99c273a3aaa38edce32a3"
+    }
+  },
+  "readback": "CRC, length and SHA-256 of every member verified"
+}
