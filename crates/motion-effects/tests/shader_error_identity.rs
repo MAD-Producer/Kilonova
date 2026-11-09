@@ -11,6 +11,37 @@ const HEALTHY_HOST: &str = r#"
 "#;
 
 #[test]
+fn host_parse_failure_identifies_exact_module_without_flattening_native_cause() {
+    use sha2::{Digest, Sha256};
+    for text in ["fn truncated(", "fn truncated(\n"] {
+        let error = shader::compile_host_program(text, "vertex", "fragment").unwrap_err();
+        let motion_effects::Error::ShaderParse { message, cause } = &error else {
+            panic!("{error:?}");
+        };
+        let native = cause.downcast_ref::<naga::front::wgsl::ParseError>().unwrap();
+        assert_eq!(message, &format!(
+            "compilation=host_program module_bytes={} module_sha256={:x}\n{}",
+            text.len(), Sha256::digest(text.as_bytes()), native.emit_to_string(text)));
+        assert_eq!(native.location(text).unwrap().offset as usize, text.len());
+    }
+}
+
+#[test]
+fn image_parse_failure_identifies_expanded_module_instead_of_authored_text() {
+    use sha2::{Digest, Sha256};
+    let text = "fn main_fx(";
+    let error = shader::compile(text, "main_fx").unwrap_err();
+    let motion_effects::Error::ShaderParse { message, cause } = &error else {
+        panic!("{error:?}");
+    };
+    let metadata = message.lines().next().unwrap();
+    assert!(metadata.starts_with("compilation=image module_bytes="));
+    assert!(!metadata.contains(&format!("module_sha256={:x}", Sha256::digest(text))));
+    assert_eq!(metadata.split("module_sha256=").nth(1).unwrap().len(), 64);
+    assert!(cause.downcast_ref::<naga::front::wgsl::ParseError>().is_some());
+}
+
+#[test]
 fn plugin_parse_failure_retains_the_native_parser_error() {
     let error = shader::compile(
         "fn main_fx(p: vec2<f32>) -> vec4<f32> { return vec4<f32>(; }",

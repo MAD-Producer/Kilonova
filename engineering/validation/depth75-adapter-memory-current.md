@@ -1,7 +1,7 @@
 # Inference adapter memory observations
 
-Status: implementation and component controls complete; actual learned-model
-telemetry and complete regression are not accepted. Issue #75 remains open.
+Status: implementation, component controls and actual learned-model telemetry
+diagnostic complete; production qualification remains pending. Issue #75 stays open.
 
 The native depth worker now binds one read-only memory observer to its actual
 adapter. Cold, batch and retained requests record before/after observations,
@@ -53,3 +53,32 @@ The successful original published-source CI runs #42605523017 (#651) and
 #42601997144 (#582) precede these changes. They do not cover the new telemetry
 or resolve local failures. Domain quality, cross-resolution consistency, thermal
 qualification and complete device peak allocation remain separate pending gates.
+
+## Exact-module diagnostic and actual telemetry
+
+The subsequent [parser diagnostic](depth75-shader-parse-current.md) retains
+the original failure and adds module fingerprints. Its complete host-library
+command passed with 294 passed, zero failed, one original ignore and no filtering.
+This does not establish the cause or repair of the preceding native parser error.
+
+`depth75-adapter-memory-telemetry-diagnostic-v1` then rebuilt both the worker and
+reference driver, copied and hashed their executables, and ran all 32 fixed inputs
+in their original order with the original 60-second request wait. Every complete
+Float32 output matched the sealed cold baseline byte for byte. There was one
+native inference PID (54176); all 64 before/after samples belonged to that same
+process and reported available Vulkan device-local heap data. Sample ages ranged
+from zero to 511 ms. Observed usage ranged from 474,787,840 to 476,884,992 bytes;
+this range is not a peak-allocation measurement. Scratch was empty after closure.
+
+Default Info retained all 32 host remap starts, and successful stdout/stderr were
+both empty. No retry, output deletion, input reordering or threshold change took
+place. The original terminal result was consumed (session 83426, chunk 6fd75d),
+and the source remained unchanged throughout. The tested source is base
+`fe3a13ab4ed9e06400eb2eb4e8fa19666cd172bf` plus tracked diff SHA-256
+`b6a2186132376d1d6726a93d028082c5d2e5e9f0b0e7156bf05e2cd4e180b3df`.
+
+This separately scoped telemetry diagnostic does not run or weaken the original
+unmet qualification controller (`depth75-adapter-memory-actual-v1`), which remains
+unexecuted. Original domain, cross-resolution, thermal and complete-regression
+failures remain. All records, command results, executable hashes, measured outputs
+and observation summaries are retained under its private artifact directory.

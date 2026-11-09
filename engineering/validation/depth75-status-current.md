@@ -9,6 +9,14 @@ qualification was explicitly waived. Old project/runtime compatibility is not
 a delivery requirement during this iteration. No external learned-model weights
 are added to the product or evidence archives.
 
+Latest: [actual inference adapter observations](depth75-adapter-memory-current.md)
+now reach host costs and reference reports. A source-bound real-model diagnostic
+completed all 32 fixed inputs with exact cold-baseline bytes and 64 valid native
+samples. These are advisory instantaneous observations, not full device peaks.
+The [instrumented parser controls](depth75-shader-parse-current.md) and complete
+host-library command passed; the original uninstrumented native WGSL parse
+failure remains unresolved. Neither result grants production qualification.
+
 ## Requirement-by-requirement state
 
 | Issue requirement | Current evidence | Remaining acceptance |
