@@ -49,7 +49,9 @@ impl ImageCaptureTarget {
     pub(crate) fn texture(&self) -> &OwnedTexture {
         &self.texture
     }
-    pub(crate) fn check_owner(&self, renderer: &Renderer) -> Result<(), RenderError> {
+    /// Host-side typed consumers must validate the target before encoding GPU
+    /// work. This rejects another device without relying on a driver panic.
+    pub fn check_owner(&self, renderer: &Renderer) -> Result<(), RenderError> {
         if std::sync::Arc::ptr_eq(&renderer.allocation_owner, &self.owner) {
             Ok(())
         } else {

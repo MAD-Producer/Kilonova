@@ -36,6 +36,56 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         };
         write_image();
         managed.validate().unwrap();
+        let motion_core::color_management::ProjectColorManagement::Ocio { settings: declared } =
+            managed.color_management.as_ref()
+        else {
+            unreachable!()
+        };
+        let config = motion_effects::color_config::VerifiedColorConfig::new(
+            declared.manifest.clone(),
+            Arc::from(
+                fs::read(active.join(&managed.color_management.resources().unwrap()[0].path))
+                    .unwrap(),
+            ),
+            std::collections::BTreeMap::new(),
+        )
+        .unwrap();
+        let native = motion_effects::native_color::NativeColorRuntime::load(std::path::Path::new(
+            &std::env::var_os("MOTION_TEST_OCIO_RUNTIME").unwrap(),
+        ))
+        .unwrap();
+        let working = native
+            .prepare(
+                &config,
+                &declared.selection,
+                motion_effects::color_processor::ColorProcessorPhase::InputToWorking,
+                declared.default_input.alpha,
+                declared.working.alpha,
+            )
+            .unwrap()
+            .apply_rgb([128. / 255., 64. / 255., 32. / 255.])
+            .unwrap();
+        let rgb = native
+            .prepare(
+                &config,
+                &declared.selection,
+                motion_effects::color_processor::ColorProcessorPhase::WorkingToDisplay,
+                declared.working.alpha,
+                declared.working.alpha,
+            )
+            .unwrap()
+            .apply_rgb(working)
+            .unwrap();
+        let expected = rgb.map(|value| (value.clamp(0., 1.) * 255.).round() as u8);
+        fs::write(
+            root.join("capture-reference.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "manifest":declared.manifest,"input":[128,64,32,255],"working":working,
+                "display":rgb,"expected":expected,
+            }))
+            .unwrap(),
+        )
+        .unwrap();
         motion_core::storage::save(&active, &managed).unwrap();
         let platform = Arc::new(RuntimePlatform {
             manifest: PathBuf::from(std::env::var_os("MOTION_TEST_OCIO_RUNTIME").unwrap()),
@@ -88,8 +138,8 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         let present_in = |owner| {
             let until = Instant::now() + Duration::from_secs(30);
             loop {
-                let mut frame=ui();
-                frame.window=owner;
+                let mut frame = ui();
+                frame.window = owner;
                 if engine
                     .present_async(frame)
                     .unwrap()
@@ -105,7 +155,7 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
                 );
             }
         };
-        let present=||present_in(0);
+        let present = || present_in(0);
         present();
         let attempts = engine.preview_info().unwrap()["video"]["renderAttempts"].clone();
         present();
@@ -116,33 +166,105 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         );
         engine.seek(1.25).unwrap();
         let until = Instant::now() + Duration::from_secs(30);
-        while !engine.present_frozen_async(ui()).unwrap().recv_timeout(Duration::from_secs(30)).unwrap().unwrap() {
-            assert!(Instant::now() < until, "managed frozen Present did not complete");
+        while !engine
+            .present_frozen_async(ui())
+            .unwrap()
+            .recv_timeout(Duration::from_secs(30))
+            .unwrap()
+            .unwrap()
+        {
+            assert!(
+                Instant::now() < until,
+                "managed frozen Present did not complete"
+            );
         }
         assert_eq!(engine.state().unwrap()["frame"], 1.25);
-        assert_eq!(engine.preview_info().unwrap()["video"]["renderAttempts"], attempts,
-            "frozen Present must not sample the advanced clock");
+        assert_eq!(
+            engine.preview_info().unwrap()["video"]["renderAttempts"],
+            attempts,
+            "frozen Present must not sample the advanced clock"
+        );
         present();
-        assert_eq!(engine.preview_info().unwrap()["video"]["renderAttempts"].as_u64().unwrap(),
-            attempts.as_u64().unwrap()+1,
-            "ordinary Present must render the new clock after a frozen repaint");
+        assert_eq!(
+            engine.preview_info().unwrap()["video"]["renderAttempts"]
+                .as_u64()
+                .unwrap(),
+            attempts.as_u64().unwrap() + 1,
+            "ordinary Present must render the new clock after a frozen repaint"
+        );
         #[allow(deprecated)]
-        let floating=Arc::new(events.create_window(
-            winit::window::Window::default_attributes().with_visible(false)
-                .with_inner_size(winit::dpi::PhysicalSize::new(64,64)),
-        ).unwrap());
-        engine.float_window(7,floating,64,64).unwrap();
-        let owner_attempts=engine.preview_info().unwrap()["video"]["renderAttempts"].as_u64().unwrap();
+        let floating = Arc::new(
+            events
+                .create_window(
+                    winit::window::Window::default_attributes()
+                        .with_visible(false)
+                        .with_inner_size(winit::dpi::PhysicalSize::new(64, 64)),
+                )
+                .unwrap(),
+        );
+        engine.float_window(7, floating, 64, 64).unwrap();
+        let owner_attempts = engine.preview_info().unwrap()["video"]["renderAttempts"]
+            .as_u64()
+            .unwrap();
         present_in(7);
-        assert_eq!(engine.preview_info().unwrap()["video"]["renderAttempts"],owner_attempts+1,
-            "another window must not inherit the main window's managed owner");
+        assert_eq!(
+            engine.preview_info().unwrap()["video"]["renderAttempts"],
+            owner_attempts + 1,
+            "another window must not inherit the main window's managed owner"
+        );
         present_in(7);
-        assert_eq!(engine.preview_info().unwrap()["video"]["renderAttempts"],owner_attempts+1,
-            "the floating window must reuse its own published group");
+        assert_eq!(
+            engine.preview_info().unwrap()["video"]["renderAttempts"],
+            owner_attempts + 1,
+            "the floating window must reuse its own published group"
+        );
         present();
-        assert_eq!(engine.preview_info().unwrap()["video"]["renderAttempts"],owner_attempts+2,
-            "returning to the main window must restore the correct owner");
+        assert_eq!(
+            engine.preview_info().unwrap()["video"]["renderAttempts"],
+            owner_attempts + 2,
+            "returning to the main window must restore the correct owner"
+        );
         engine.close_window(7).unwrap();
+        #[allow(deprecated)]
+        let capture_window = Arc::new(
+            events
+                .create_window(
+                    winit::window::Window::default_attributes()
+                        .with_visible(false)
+                        .with_inner_size(winit::dpi::PhysicalSize::new(96, 64)),
+                )
+                .unwrap(),
+        );
+        engine.float_window(8, capture_window, 96, 64).unwrap();
+        let float_ui = || {
+            let mut frame = ui();
+            frame.window = 8;
+            frame.logical_size = [96., 64.];
+            frame.composition = Some([0., 0., 96., 64.]);
+            frame
+        };
+        let until = Instant::now() + Duration::from_secs(30);
+        while !engine
+            .present_async(float_ui())
+            .unwrap()
+            .recv_timeout(Duration::from_secs(30))
+            .unwrap()
+            .unwrap()
+        {
+            assert!(Instant::now() < until, "floating capture did not publish");
+        }
+        let float_path = root.join("managed-display-floating.png");
+        engine.capture_ui(float_ui(), float_path.clone()).unwrap();
+        let pixels = image::open(float_path).unwrap().to_rgba8();
+        assert_eq!(pixels.dimensions(), (96, 64));
+        let pixel = pixels.get_pixel(48, 32).0;
+        assert!(
+            (0..3).all(|channel| pixel[channel].abs_diff(expected[channel]) <= 1),
+            "floating capture used another surface: actual={pixel:?} CPU={expected:?}"
+        );
+        assert_eq!(pixel[3], 255);
+        engine.close_window(8).unwrap();
+        present();
         let before = engine.state().unwrap();
         fs::remove_file(&image).unwrap();
         let mut changed = managed.color_management.clone();
@@ -184,10 +306,116 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         render(0.5);
         present();
         present();
-        let capture_path=root.join("unqualified-capture.png");
-        let capture_error=engine.capture_ui(ui(),capture_path.clone()).unwrap_err();
-        assert!(capture_error.to_string().contains("phase=surface_capture"),"{capture_error}");
-        assert!(!capture_path.exists(),"unqualified capture wrote a legacy image");
+        let layout = |count| {
+            let mut frame = ui();
+            if count > 1 {
+                frame.views = Some(crate::engine::viewer_frame::Plan {
+                    active: 0,
+                    cells: (0..count)
+                        .map(|index| crate::engine::viewer_frame::Cell {
+                            camera: crate::engine::viewer_frame::Camera::Composition,
+                            placement: motion_render::multiview::ViewPlacement {
+                                viewport: if count == 2 {
+                                    [index as f32 * 32., 0., 32., 64.]
+                                } else {
+                                    [(index % 2) as f32 * 32., (index / 2) as f32 * 32., 32., 32.]
+                                },
+                                image: None,
+                            },
+                            inspection: Default::default(),
+                        })
+                        .collect(),
+                });
+            }
+            frame
+        };
+        for count in [1, 2, 4] {
+            let until = Instant::now() + Duration::from_secs(30);
+            while !engine
+                .present_async(layout(count))
+                .unwrap()
+                .recv_timeout(Duration::from_secs(30))
+                .unwrap()
+                .unwrap()
+            {
+                assert!(Instant::now() < until, "capture layout did not publish");
+            }
+            let attempts = engine.preview_info().unwrap()["video"]["renderAttempts"].clone();
+            let before_capture = engine.state().unwrap();
+            let path = root.join(format!("managed-display-{count}.png"));
+            engine.capture_ui(layout(count), path.clone()).unwrap();
+            let pixels = image::open(path).unwrap().to_rgba8();
+            assert_eq!(pixels.dimensions(), (64, 64));
+            for index in 0..count {
+                let (x, y) = match count {
+                    1 => (32, 32),
+                    2 => (index * 32 + 16, 32),
+                    _ => (index % 2 * 32 + 16, index / 2 * 32 + 16),
+                };
+                let pixel = pixels.get_pixel(x as u32, y as u32).0;
+                assert!(
+                    (0..3).all(|channel| pixel[channel].abs_diff(expected[channel]) <= 1),
+                    "managed worker capture count={count} cell={index} actual={pixel:?} CPU={expected:?}"
+                );
+                assert_eq!(pixel[3], 255);
+            }
+            let after_capture = engine.state().unwrap();
+            for key in [
+                "project", "revision", "frame", "history", "canUndo", "canRedo",
+            ] {
+                assert_eq!(
+                    after_capture[key], before_capture[key],
+                    "capture changed {key}"
+                );
+            }
+            assert_eq!(
+                engine.preview_info().unwrap()["video"]["renderAttempts"],
+                attempts
+            );
+        }
+        engine.seek(0.625).unwrap();
+        let stale_path = root.join("stale-display.png");
+        let stale_before = engine.state().unwrap();
+        let stale_error = engine
+            .capture_ui(layout(4), stale_path.clone())
+            .unwrap_err();
+        let stale_cause = crate::engine::error::command_cause(stale_error.host().unwrap());
+        for context in [
+            "phase=surface_capture",
+            "completed group is no longer current",
+            "document=",
+            "revision=",
+            "owner=0",
+            "frame=0.625",
+            "published=",
+        ] {
+            assert!(stale_cause.contains(context), "{stale_cause}");
+        }
+        assert!(!stale_path.exists());
+        let stale_after = engine.state().unwrap();
+        for key in [
+            "project", "revision", "frame", "history", "canUndo", "canRedo",
+        ] {
+            assert_eq!(
+                stale_after[key], stale_before[key],
+                "rejected capture changed {key}"
+            );
+        }
+        present();
+        let capture_path = root.join("unqualified-capture.png");
+        let mut unqualified_capture = ui();
+        unqualified_capture.inspection.channel = motion_render::ViewChannel::Alpha;
+        let capture_error = engine
+            .capture_ui(unqualified_capture, capture_path.clone())
+            .unwrap_err();
+        assert!(
+            capture_error.to_string().contains("phase=surface_capture"),
+            "{capture_error}"
+        );
+        assert!(
+            !capture_path.exists(),
+            "unqualified capture wrote a legacy image"
+        );
         let mut unqualified = ui();
         unqualified.inspection.channel = motion_render::ViewChannel::Alpha;
         let error = engine
@@ -250,6 +478,18 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         fs::write(evidence.join("motion-studio.log"), &file).unwrap();
         fs::write(evidence.join("child.stdout"), &stdout).unwrap();
         fs::write(evidence.join("child.stderr"), &stderr).unwrap();
+        for name in [
+            "capture-reference.json",
+            "managed-display-1.png",
+            "managed-display-2.png",
+            "managed-display-4.png",
+            "managed-display-floating.png",
+        ] {
+            let source = root.path().join(name);
+            if source.exists() {
+                fs::copy(source, evidence.join(name)).unwrap();
+            }
+        }
     }
     assert!(status.success(), "{status}\n{stdout}\n{stderr}\n{file}");
     assert!(file.contains("logging initialized level=INFO"), "{file}");
@@ -257,7 +497,11 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         .lines()
         .filter(|line| line.contains(" ERROR ") && line.contains("window.png"))
         .collect();
-    assert_eq!(errors.len(), 4, "source, image-set, surface and worker must each preserve the original cause: {file}");
+    assert_eq!(
+        errors.len(),
+        4,
+        "source, image-set, surface and worker must each preserve the original cause: {file}"
+    );
     let preparation = errors
         .iter()
         .find(|line| line.contains("operation=prepare_surface_display"))
@@ -305,7 +549,20 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         .unwrap();
     assert!(stderr.contains(inspection.split_once(": ").unwrap().1));
     assert!(!stdout.contains("phase=surface_inspection"));
-    let capture=file.lines().find(|line|line.contains(" ERROR ")&&line.contains("phase=surface_capture")).unwrap();
+    let capture = file
+        .lines()
+        .find(|line| line.contains(" ERROR ") && line.contains("phase=surface_capture"))
+        .unwrap();
     assert!(stderr.contains(capture.split_once(": ").unwrap().1));
     assert!(!stdout.contains("phase=surface_capture"));
+    for reason in [
+        "completed group is no longer current",
+        "capture channels, ROI and comparison",
+    ] {
+        let record = file
+            .lines()
+            .find(|line| line.contains(" ERROR ") && line.contains(reason))
+            .unwrap();
+        assert!(stderr.contains(record.split_once(": ").unwrap().1));
+    }
 }

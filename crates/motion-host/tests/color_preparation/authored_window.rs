@@ -14,6 +14,8 @@ use std::{collections::BTreeMap, time::Instant};
 use winit::platform::windows::EventLoopBuilderExtWindows;
 #[path = "authored_window_images.rs"]
 mod images;
+#[path = "authored_window_capture.rs"]
+mod display_capture;
 
 fn attach(session: &mut Session, events: &winit::event_loop::EventLoop<()>) {
     #[allow(deprecated)]
@@ -452,6 +454,7 @@ fn ordinary_managed_window_publishes_whole_groups_and_preserves_failed_edits() {
             .unwrap();
         qualify(&events);
         images::qualify(&events);
+        display_capture::qualify(&events);
         return;
     }
     let root = tempfile::tempdir().unwrap();
@@ -493,4 +496,5 @@ fn ordinary_managed_window_publishes_whole_groups_and_preserves_failed_edits() {
     assert!(status.success(), "{status}\n{stdout}\n{stderr}");
     assert!(stdout.contains("actual Windows surface native CPU pixels=215040"));
     assert!(stdout.contains("actual source reassignment CPU pixels=23040"));
+    assert!(stdout.contains("managed display capture CPU pixels=53760"));
 }

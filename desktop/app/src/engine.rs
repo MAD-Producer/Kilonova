@@ -2030,14 +2030,27 @@ fn handle(
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {
             viewer_frame::validate(&ui)?;
-            if s.color_programs().is_some() && ui.composition.is_some() && ui.views.is_none() {
+            let managed_color=s.color_programs().is_some();
+            if managed_color && ui.composition.is_some() && ui.views.is_none()
+                && (ui.inspection.channel != motion_render::ViewChannel::Color
+                    || ui.inspection.region.is_some() || ui.inspection.comparison_split.is_some()) {
                 return Err(motion_render::RenderError::from(motion_render::AuthoredSceneError::Admission {
                     phase:"surface_capture",object:None,
-                    reason:"managed single-view capture requires its explicit display consumer",
+                    reason:"managed capture channels, ROI and comparison require explicit integration",
                 }).into());
             }
             presentation.inspection.reconcile(s);
-            let view_inspections = presentation.inspection.views(&ui)?;
+            let mut view_inspections = presentation.inspection.views(&ui)?;
+            let observer=(managed_color && s.observing).then(||s.observer.clone());
+            let managed_views=if managed_color {
+                ui.views.as_ref().map(viewer_frame::Plan::borrow).or_else(||ui.composition.map(|viewport| {
+                    view_inspections.push(motion_render::multiview::ViewInspection::default());
+                    vec![motion_host::session::viewer::View {
+                        camera:motion_render::ViewCamera::from(observer.as_ref()),
+                        placement:motion_render::multiview::ViewPlacement {viewport,image:ui.composition_image},
+                    }]
+                }))
+            } else {None};
             capture_phase = "capture.target";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.target");
@@ -2058,7 +2071,7 @@ fn handle(
             capture_phase = "capture.presenter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
-            let mut presenter = if ui.views.is_none() {
+            let mut presenter = if ui.views.is_none() && !managed_color {
                 let source = if ui.composition.is_some() && ui.inspection.channel != motion_render::ViewChannel::Color {
                 &g.scratch.working_front().ok_or("working preview target missing")?.view
             } else { &g.scratch.view };
@@ -2073,6 +2086,10 @@ fn handle(
                 Some(presenter)
             } else { None };
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default())?;
+            let managed_capture=if let Some(views)=&managed_views {
+                Some(s.encode_managed_view_capture(ui.window,views,&view_inspections,&mut encoder,
+                    &target,[width,height])?)
+            } else {
             if let Some(plan)=&ui.views {
                 s.encode_view_group_capture_with_inspection(ui.window,&plan.borrow(),&view_inspections,&mut encoder,target.view(),[width,height])?;
             } else if let Some([x,y,w,h])=ui.composition {
@@ -2082,6 +2099,8 @@ fn handle(
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
                     .map_err(|error| motion_host::Error::with_context("phase=capture.presenter", error))?;
             } else {clear_target(&mut encoder,target.view());}
+            None
+            };
             capture_phase = "capture.paint";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.paint");
@@ -2100,6 +2119,7 @@ fn handle(
                 ledger.merge(target.texture_resource_ledger());
                 g.scratch.collect_texture_resources(ledger);
                 if let Some(presenter)=&presenter { presenter.collect_inspection_resources(ledger); }
+                if let Some(capture)=&managed_capture { capture.collect_texture_resources(ledger); }
                 if ui.views.is_some() { ledger.merge(s.view_group_resource_ledger()); }
                 for inspection in &view_inspections { if let Some((source,_))=inspection.comparison {
                     source.collect_texture_resources(ledger,"viewer/capture-comparison",motion_render::TextureState::Retained);

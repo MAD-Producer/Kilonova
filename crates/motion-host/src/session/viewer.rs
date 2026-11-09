@@ -12,6 +12,7 @@ use motion_render::{
 use std::time::Duration;
 pub(super) mod preparation;
 mod managed;
+pub use managed::ManagedViewCapture;
 
 #[derive(Clone, Copy)]
 pub struct View<'a> {

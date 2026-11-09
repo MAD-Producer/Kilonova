@@ -227,6 +227,30 @@ impl State {
     pub(crate) fn published(&self) -> Option<&Key> {
         self.published.as_ref()
     }
+    pub(crate) fn capture_presenters(
+        &self,
+        renderer: &Renderer,
+        format: wgpu::TextureFormat,
+    ) -> std::result::Result<Vec<ManagedDisplayPresenter>, RenderError> {
+        let cells = self
+            .front
+            .as_ref()
+            .filter(|_| self.published.is_some())
+            .ok_or_else(|| refuse("surface_capture", "complete display group is unavailable"))?;
+        let first = cells
+            .first()
+            .ok_or_else(|| refuse("surface_capture", "complete display group is empty"))?;
+        // Capture is an explicit cold command. Its attachment may differ from
+        // the native surface; prepare one qualified pipeline and independent
+        // per-cell uniforms, then retain them through the caller's submission.
+        let prototype = ManagedDisplayPresenter::new(renderer, &first.display, format)?;
+        let mut presenters = Vec::with_capacity(cells.len());
+        for cell in cells.iter().skip(1) {
+            presenters.push(prototype.rebind(renderer, &cell.display)?);
+        }
+        presenters.insert(0, prototype);
+        Ok(presenters)
+    }
     pub(crate) fn ready(&self, key: &Key) -> bool {
         self.ready.as_ref() == Some(key)
     }

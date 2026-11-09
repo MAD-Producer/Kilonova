@@ -2,6 +2,8 @@
 //! A candidate group is published only after the complete presentation submits.
 use super::*;
 use crate::session::color::surface::refuse;
+mod capture;
+pub use capture::ManagedViewCapture;
 
 fn inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result<()> {
     validate_inspections(views, inspections)?;
