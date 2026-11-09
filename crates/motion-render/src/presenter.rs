@@ -278,6 +278,19 @@ impl Presenter {
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4],
         region: Option<[f32; 4]>, load: bool) -> Result<(), crate::RenderError> {
+        self.encode_view_region_group_load(queue, encoder, output, timestamps,
+            viewport, image, background, region, load, &self.view_group, None)
+    }
+    /// Typed managed presentation selects either the display-code group or the
+    /// original numeric working group. Both retain this cell's own uniform.
+    fn encode_view_region_group_load(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
+        output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
+        viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4],
+        region: Option<[f32; 4]>, load: bool, group: &wgpu::BindGroup,
+        channel: Option<ViewChannel>) -> Result<(), crate::RenderError> {
+        if let Some(channel) = channel {
+            self.view_buffer.write(queue, 4, bytemuck::bytes_of(&(channel as u32)))?;
+        }
         if region.is_some() || self.comparison_split.is_some() {
             let comparison = match self.comparison_split {
                 Some(split) => Some((self.comparison_group.as_ref().ok_or_else(||
@@ -303,7 +316,7 @@ impl Presenter {
             pass.set_pipeline(&self.pipeline);
             if let Some([x, y, w, h]) = live {
                 pass.set_scissor_rect(x, y, w, h);
-                pass.set_bind_group(0, &self.view_group, &[]);
+                pass.set_bind_group(0, group, &[]);
                 pass.draw(0..3, 0..1);
             }
             if let (Some([x, y, w, h]), Some((group, _))) = (captured, comparison) {
@@ -314,7 +327,7 @@ impl Presenter {
             return Ok(());
         }
         self.write_view_geometry(queue, viewport, image)?;
-        self.encode_group_impl(encoder, output, timestamps, Some(viewport), background, &self.view_group, None, load, false);
+        self.encode_group_impl(encoder, output, timestamps, Some(viewport), background, group, None, load, false);
         Ok(())
     }
     /// Present a live image, optionally comparing a captured image to its right.

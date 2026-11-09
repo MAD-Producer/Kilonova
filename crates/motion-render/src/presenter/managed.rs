@@ -15,6 +15,9 @@ use motion_effects::{
 pub struct ManagedDisplayTarget {
     image: ColorImageTarget,
     conversion: ColorProcessorOutput,
+    // A numeric inspection source, with the original allocation retained. This
+    // never acquires the transformed display target's colour identity.
+    working: crate::AdmittedTextureView,
 }
 impl ManagedDisplayTarget {
     /// Cold pipeline/target preparation. Reuse the result between Present calls.
@@ -40,7 +43,8 @@ impl ManagedDisplayTarget {
             working.image().height(),
             output,
         )?;
-        Ok(Self { image, conversion })
+        let working = working.image().texture().admitted_view()?;
+        Ok(Self { image, conversion, working })
     }
     pub fn contract(&self) -> ColorImageContract {
         self.image.contract()
@@ -52,7 +56,8 @@ impl ManagedDisplayTarget {
         let image = renderer.color_image_target(
             working.image().width(), working.image().height(), self.contract(),
         )?;
-        Ok(Self { image, conversion })
+        let working = working.image().texture().admitted_view()?;
+        Ok(Self { image, conversion, working })
     }
     pub fn dimensions(&self) -> [u32; 2] {
         [self.image.image().width(), self.image.image().height()]
@@ -75,6 +80,7 @@ impl ManagedDisplayTarget {
 /// host must separately qualify that the selected display matches the surface.
 pub struct ManagedDisplayPresenter {
     presenter: Presenter,
+    working_group: wgpu::BindGroup,
     resources: TextureResourceLedger,
     owner: std::sync::Arc<()>,
     contract: ColorImageContract,
@@ -107,10 +113,13 @@ impl ManagedDisplayPresenter {
         let buffers = memory::Buffers::admitted_display_codes(renderer, format)?;
         let mut presenter = Presenter::with_encoding(renderer, &view, format, buffers, true);
         presenter.source_allocation = Some(view.lease.clone());
+        let working_group = Presenter::source_group(&renderer.device, &presenter.layout,
+            &presenter.sampler, &presenter.view_buffer, &source.working);
         let mut resources = TextureResourceLedger::default();
         source.collect_texture_resources(&mut resources);
         Ok(Self {
             presenter,
+            working_group,
             resources,
             owner: renderer.allocation_owner.clone(),
             contract: source.contract(),
@@ -132,10 +141,12 @@ impl ManagedDisplayPresenter {
         let buffers = memory::Buffers::admitted_display_codes(renderer, self.presenter.format)?;
         let mut presenter = self.presenter.with_prepared_pipeline(renderer, &view, buffers);
         presenter.source_allocation = Some(view.lease.clone());
+        let working_group = Presenter::source_group(&renderer.device, &presenter.layout,
+            &presenter.sampler, &presenter.view_buffer, &source.working);
         let mut resources = TextureResourceLedger::default();
         source.collect_texture_resources(&mut resources);
         Ok(Self {
-            presenter, resources, owner: self.owner.clone(),
+            presenter, working_group, resources, owner: self.owner.clone(),
             contract: self.contract, processor: self.processor,
         })
     }
@@ -189,6 +200,24 @@ impl ManagedDisplayPresenter {
         region: Option<[f32; 4]>,
         load: bool,
     ) -> Result<(), RenderError> {
+        self.encode_inspected_region_view_load(renderer, encoder, output, viewport, image,
+            background, ViewChannel::Color, region, load)
+    }
+    /// Colour uses the prepared native display result. Other channels expose
+    /// clamped raw working components as opaque numeric intensities, including
+    /// pre-matte alpha. They do not pass through an OCIO colour transform.
+    pub fn encode_inspected_region_view_load(
+        &self,
+        renderer: &Renderer,
+        encoder: &mut AllocationEncoder,
+        output: &wgpu::Texture,
+        viewport: [f32; 4],
+        image: Option<[f32; 4]>,
+        background: [f32; 4],
+        channel: ViewChannel,
+        region: Option<[f32; 4]>,
+        load: bool,
+    ) -> Result<(), RenderError> {
         self.check_output(renderer, encoder, output)?;
         let [x, y, w, h] = viewport;
         if !viewport.iter().all(|v| v.is_finite())
@@ -206,7 +235,9 @@ impl ManagedDisplayPresenter {
             ));
         }
         let view = output.create_view(&Default::default());
-        self.presenter.encode_view_region_load(
+        let group = if channel == ViewChannel::Color { &self.presenter.view_group }
+            else { &self.working_group };
+        self.presenter.encode_view_region_group_load(
             &renderer.queue,
             encoder,
             &view,
@@ -216,6 +247,8 @@ impl ManagedDisplayPresenter {
             background,
             region,
             load,
+            group,
+            Some(channel),
         )
     }
     fn check_output(

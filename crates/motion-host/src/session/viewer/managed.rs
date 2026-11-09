@@ -7,13 +7,10 @@ pub use capture::ManagedViewCapture;
 
 fn inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result<()> {
     validate_inspections(views, inspections)?;
-    if inspections.iter().any(|inspection| {
-        inspection.channel != motion_render::ViewChannel::Color
-            || inspection.comparison.is_some()
-    }) {
+    if inspections.iter().any(|inspection| inspection.comparison.is_some()) {
         return Err(refuse(
             "surface_inspection",
-            "managed channel and comparison consumers require explicit integration",
+            "managed comparison consumer requires explicit integration",
         )
         .into());
     }

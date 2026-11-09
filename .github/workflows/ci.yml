@@ -358,6 +358,7 @@ jobs:
           cargo test -p motion-render --test color_image_processor managed_display::native_display_surface_codes_match_original_cpu_references_without_double_encoding --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-render --test color_image_processor opaque_display::opaque_display_mattes_before_native_view_and_keeps_alpha_endpoint_separate --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-render --test color_image_processor prepared_display::rebound_display_keeps_native_pixels_and_independent_cells_without_new_tables --locked -- --ignored --exact --nocapture --test-threads=1
+          cargo test -p motion-render --test color_image_processor managed_components::managed_components_keep_pre_matte_values_independent_cells_and_color_restoration --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-render --test color_processor cubes::native_cube_buffers_match_cpu_for_linear_tetrahedral_and_mixed_tables --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-render --test color_processor resources::native_file_resources_match_cpu_in_compute_and_float_image_paths --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_resources::resource_failures_reach_default_channels_and_preserve_the_complete_edit_state --locked -- --ignored --exact --nocapture --test-threads=1

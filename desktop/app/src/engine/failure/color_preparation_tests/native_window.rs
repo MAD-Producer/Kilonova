@@ -4,6 +4,8 @@ use crate::engine::failure::color_tests::runtime_platform::RuntimePlatform;
 use winit::platform::windows::EventLoopBuilderExtWindows;
 #[path = "native_window_roi.rs"]
 mod roi;
+#[path = "native_window_components.rs"]
+mod components;
 
 #[test]
 #[ignore = "requires an actual Windows surface, GPU and pinned native OCIO runtime"]
@@ -375,6 +377,7 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
                 attempts
             );
             roi::qualify(&engine, || layout(count), count, expected, &root);
+            components::qualify(&engine, || layout(count), count, working, expected, &root);
         }
         engine.seek(0.625).unwrap();
         let stale_path = root.join("stale-display.png");
@@ -407,7 +410,7 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
         present();
         let capture_path = root.join("unqualified-capture.png");
         let mut unqualified_capture = ui();
-        unqualified_capture.inspection.channel = motion_render::ViewChannel::Alpha;
+        unqualified_capture.inspection.comparison_split = Some(0.5);
         let capture_error = engine
             .capture_ui(unqualified_capture, capture_path.clone())
             .unwrap_err();
@@ -420,7 +423,7 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
             "unqualified capture wrote a legacy image"
         );
         let mut unqualified = ui();
-        unqualified.inspection.channel = motion_render::ViewChannel::Alpha;
+        unqualified.inspection.comparison_split = Some(0.5);
         let error = engine
             .present_async(unqualified)
             .unwrap()
@@ -499,6 +502,12 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
                 fs::copy(source, evidence.join(name)).unwrap();
             }
         }
+        for count in [1, 2, 4] {
+            for phase in 0..5 {
+                let name = format!("managed-components-{count}-{phase}.png");
+                fs::copy(root.path().join(&name), evidence.join(name)).unwrap();
+            }
+        }
     }
     assert!(status.success(), "{status}\n{stdout}\n{stderr}\n{file}");
     assert!(file.contains("logging initialized level=INFO"), "{file}");
@@ -566,7 +575,7 @@ fn managed_window_source_failure_preserves_project_and_default_error_channels() 
     assert!(!stdout.contains("phase=surface_capture"));
     for reason in [
         "completed group is no longer current",
-        "capture channels and comparison",
+        "managed capture comparison requires explicit integration",
         "invalid viewer inspection viewport, image or region",
     ] {
         let record = file

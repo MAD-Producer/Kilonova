@@ -18,6 +18,8 @@ mod images;
 mod display_capture;
 #[path = "authored_window_roi.rs"]
 mod roi;
+#[path = "authored_window_components.rs"]
+mod components;
 
 fn attach(session: &mut Session, events: &winit::event_loop::EventLoop<()>) {
     #[allow(deprecated)]
@@ -360,7 +362,8 @@ fn qualify(events: &winit::event_loop::EventLoop<()>) {
             session.configure_memory_policy(policy)?;
             checked += check(&capture(session, 0.75, &cells, false), 4, original_expected);
             let mut inspections = [ViewInspection::default(); 4];
-            inspections[1].channel = motion_render::ViewChannel::Alpha;
+            let legacy = session.graphics.as_ref().unwrap().renderer.render_target(64, 64)?;
+            inspections[1].comparison = Some((&legacy, 0.5));
             assert!(
                 session
                     .render_views_with_inspection(77, 1., &cells, &inspections, |_, _, _| panic!(

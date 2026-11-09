@@ -85,13 +85,14 @@ impl Session {
                 );
             }
             for (index, ((presenter, placement), inspection)) in presenters.iter().zip(placements).zip(inspection).enumerate() {
-                presenter.encode_region_view_load(
+                presenter.encode_inspected_region_view_load(
                     &g.renderer,
                     encoder,
                     output.view().texture(),
                     placement.viewport,
                     placement.image,
                     [0., 0., 0., 1.],
+                    inspection.channel,
                     inspection.region,
                     index != 0,
                 )?;

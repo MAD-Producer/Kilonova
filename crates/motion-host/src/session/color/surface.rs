@@ -394,13 +394,14 @@ impl State {
             return Err(refuse("surface_present", "layout and group counts differ"));
         }
         for (index, ((cell, placement), inspection)) in cells.iter().zip(placements).zip(inspections).enumerate() {
-            cell.presenter.encode_region_view_load(
+            cell.presenter.encode_inspected_region_view_load(
                 renderer,
                 encoder,
                 output,
                 placement.viewport,
                 placement.image,
                 [0., 0., 0., 1.],
+                inspection.channel,
                 inspection.region,
                 index != 0,
             )?;
