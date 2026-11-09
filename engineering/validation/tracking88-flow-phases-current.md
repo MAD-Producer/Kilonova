@@ -71,3 +71,7 @@ The collector exited0, consumed chunk `af738b`, without a running session.
 Media, corner annotations, images and correspondence/observation arrays stay
 private; their seals are retained. Original prototype/native, quality,
 full-regression and current-CI boundaries remain separate. Issue #88 stays open.
+
+The subsequent [single fixed MAGSAC check](tracking88-magsac-fixed-fit-current.md)
+uses the same sealed fitting points without labels. It still fails the original
+held-out maximum gate and is not adopted. No estimator/parameter sweep follows.

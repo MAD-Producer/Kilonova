@@ -1,0 +1,36 @@
+{
+  "archive": "tracking88-magsac-fixed-fit-v1.zip",
+  "bytes": 296791,
+  "sha256": "8eb3ea3ce29ecc166ecc241dab6b5ba4a7b060b88cadfae29f079b94e2534c4a",
+  "members": 6,
+  "head": "a6b060ccbba1d5ee6a93910441127ceb48f95f6a",
+  "status": "candidate_rejected_original_heldout_limit",
+  "candidate_adopted": false,
+  "input_arrays_redistributed": false,
+  "files": {
+    "controller.py": {
+      "bytes": 6668,
+      "sha256": "63a35834b3a821d50a0736a57a2c794eccfb0dffbf5e4f5c3554a748547fb71a"
+    },
+    "receipt.json": {
+      "bytes": 870773,
+      "sha256": "903d5334cca7c584a93fcd49bb9f7d9689e5c194c557b0d43296077e99eb7f11"
+    },
+    "session-consumed.json": {
+      "bytes": 588,
+      "sha256": "92c610435b68ad73be44162d1a9911f008cafd4e66080eec312e322c47a203c4"
+    },
+    "observation.log": {
+      "bytes": 279,
+      "sha256": "1de73c7902014ca20d1fe66020834be03d37383a3b4e8884a09c6dd80dfac768"
+    },
+    "consumer.py": {
+      "bytes": 2360,
+      "sha256": "91746ee47bdcc76736c2500a4ca9332678cf149795e7bc518ac22527147ed6f4"
+    },
+    "collector.py": {
+      "bytes": 2056,
+      "sha256": "e3de636687fe5d560253349182a8a23e288de463a107d443f04519a7cf7988ee"
+    }
+  }
+}
