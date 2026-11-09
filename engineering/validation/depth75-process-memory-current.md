@@ -1,7 +1,8 @@
 # Owned inference-process memory observations (#75)
 
-Status: Windows self-process observation and actual ONNX propagation verified at
-`b65a016f`. Current cross-platform validation and broader acceptance remain open.
+Status: Windows host and direct-child phase observations verified at `54a4707d`.
+Earlier source-specific results are retained below. Current cross-platform
+validation and broader acceptance remain open.
 This does not complete #75.
 
 The optional ONNX worker queries its own OS high-water marks once, after output
@@ -144,7 +145,7 @@ The earlier complete library failure remains a distinct failed run; this new
 source's pass neither establishes its cause nor changes its result. This is
 not a full maintained-workspace pass or cross-platform acceptance for b388ada3.
 
-## Host and direct-child phase observations (validation pending)
+## Host and direct-child phase observations (Windows verified)
 
 The measured Jobs snapshot now queries the host process after backend/output
 ownership checks and before downstream alignment. It retains a fixed-size
@@ -172,5 +173,50 @@ and the original issue's remaining requirements are still pending.
 New controls cover each missing/failed child slot, nonconcurrent aggregation,
 overflow, fixed report bounds, unchanged execution identity, actual resolver
 self-counters, and snapshot/Profile retention. Original assertions and budgets
-remain unchanged. Complete tools/native commands and actual CPU/GPU probes are
-required before this extension is described as verified.
+remain unchanged.
+
+At `54a4707d`, actual tool discovery ran 150 tests: 149 passed, zero failed, one
+original skip. The complete host library/capability/Session targets passed
+279/40/32 tests respectively: 351 passed, zero failed, ignored or filtered.
+The host checked without default features or AI-depth, and the three actual
+probes plus WGSL worker built successfully.
+
+Actual CPU266 and WGSL518 routes each completed two uncached requests on the
+original frozen reference RGB. Both ONNX child stages and all five WGSL child
+stages had valid OS observations, alongside the correct actual driver PID for
+each host. There were 18 host/child observations, none fabricated or missing.
+The reported resident sums exactly matched host peak plus largest child peak:
+CPU 367,046,656 / 367,194,112 bytes; WGSL 184,786,944 / 184,639,488 bytes.
+
+The maximum values in each individual stage across the two requests were:
+
+| Route / stage | Resident bytes | Private commit bytes |
+| --- | ---: | ---: |
+| CPU / host | 11,366,400 | 5,660,672 |
+| CPU / resolution | 355,774,464 | 1,113,395,200 |
+| CPU / inference | 355,827,712 | 1,113,460,736 |
+| WGSL / host | 13,295,616 | 9,564,160 |
+| WGSL / transform resolution | 36,143,104 | 799,010,816 |
+| WGSL / native resolution | 141,160,448 | 291,553,280 |
+| WGSL / prepare | 52,436,992 | 814,776,320 |
+| WGSL / inference | 171,491,328 | 653,971,456 |
+| WGSL / remap | 40,337,408 | 803,409,920 |
+
+Resident and private-commit peaks are distinct counters and may occur at
+different instants. In particular, the WGSL prepare private-commit observation
+exceeded the native inference observation; final inference alone would omit
+this larger stage. These values must not be presented as simultaneous usage,
+physical-device usage, complete final process lifetimes, source-domain quality
+or tier qualification. The backend managed-buffer figure remains separate.
+
+Default Info starts were present in actual file logs; CLI stdout contained only
+the intended probe JSON. Original session 74546 was consumed with exit 0 and
+tracked source hashes remained unchanged. The
+[manifest](data/depth75-phase-process-memory-v1.json) and
+[archive](data/depth75-phase-process-memory-v1.zip) retain complete commands,
+150-tool discovery, full native output, all four actual route observations,
+logs and source snapshots. Every member was read back and SHA-256 verified:
+450,562 bytes, SHA-256
+`0b41f2daf0f660bb1839d2487a05763410e832943a9c384956501eba69e72492`.
+Earlier failures remain failed; this is not a current full maintained-workspace,
+cross-platform, device-allocation or full memory-admission pass. #75 is open.
