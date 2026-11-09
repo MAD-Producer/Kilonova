@@ -124,6 +124,7 @@ struct NativeTable {
     binding: u32,
     width: u32,
     height: u32,
+    depth: u32,
     channels: u32,
     interpolation: u32,
     values: *const f32,
@@ -680,6 +681,7 @@ impl NativeColorProgram {
                 binding: table.binding,
                 width: table.width,
                 height: table.height,
+                depth: table.depth,
                 channels: table.channels,
                 interpolation: match table.interpolation {
                     0 => TableInterpolation::Nearest,

@@ -20,7 +20,7 @@ namespace ocio = OCIO_NAMESPACE;
 struct Error { uint32_t kind; char message[2048]; };
 struct Table {
     const char *texture, *sampler;
-    uint32_t binding, width, height, channels, interpolation;
+    uint32_t binding, width, height, depth, channels, interpolation;
     const float *values;
     size_t count;
 };
@@ -123,7 +123,27 @@ static void closed(const ocio::ConstConfigRcPtr &config) {
     }
 }
 static void table(const Program *program, uint32_t index, Table *out) {
-    if (index >= program->gpu->getNumTextures()) throw Admission("table index outside program");
+    if (!program || !program->gpu) throw Admission("table program is missing");
+    const auto planes = program->gpu->getNumTextures();
+    if (index >= planes + program->gpu->getNum3DTextures()) throw Admission("table index outside program");
+    if (index >= planes) {
+        const auto cube = index - planes;
+        ocio::Interpolation interpolation;
+        program->gpu->get3DTexture(cube, out->texture, out->sampler, out->depth, interpolation);
+        if (out->depth < 2 || out->depth > 64 ||
+            (interpolation != ocio::INTERP_NEAREST && interpolation != ocio::INTERP_LINEAR))
+            throw Admission("unsupported 3D table edge or sampler interpolation");
+        length(out->texture, 128); length(out->sampler, 128);
+        out->width = out->height = out->depth;
+        out->channels = 3;
+        out->interpolation = interpolation == ocio::INTERP_NEAREST ? 0 : 1;
+        out->binding = program->gpu->get3DTextureShaderBindingIndex(cube);
+        out->count = size_t(out->depth)*out->depth*out->depth*3;
+        program->gpu->get3DTextureValues(cube, out->values);
+        if (!out->values) throw Admission("OCIO returned a null 3D table");
+        return;
+    }
+    out->depth = 1;
     ocio::GpuShaderCreator::TextureType channel;
     ocio::GpuShaderCreator::TextureDimensions dimensions;
     ocio::Interpolation interpolation;
@@ -208,10 +228,10 @@ MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const cha
         program->gpu->setFunctionName("motion_ocio_transform");
         program->gpu->setResourcePrefix("motion_ocio_");
         processor->getDefaultGPUProcessor()->extractGpuShaderInfo(program->gpu);
-        if (program->gpu->getNum3DTextures() || program->gpu->getNumUniforms() || program->gpu->getNumTextures() > 4)
-            throw Admission("3D tables, dynamic uniforms or excessive tables are not admitted");
+        if (program->gpu->getNumUniforms() || program->gpu->getNumTextures() + program->gpu->getNum3DTextures() > 4)
+            throw Admission("dynamic uniforms or excessive tables are not admitted");
         length(program->gpu->getShaderText(), 256*1024);
-        for (unsigned i = 0; i < program->gpu->getNumTextures(); ++i) { Table info{}; table(program.get(), i, &info); }
+        for (unsigned i = 0; i < program->gpu->getNumTextures() + program->gpu->getNum3DTextures(); ++i) { Table info{}; table(program.get(), i, &info); }
         *output = program.release();
     });
 }
@@ -230,11 +250,12 @@ MOTION_EXPORT bool motion_ocio_shader(const Program *program, const char **text,
     return checked(error, [&] {
         *text = program->gpu->getShaderText();
         *size = length(*text, 256*1024);
-        *tables = program->gpu->getNumTextures();
+        *tables = program->gpu->getNumTextures() + program->gpu->getNum3DTextures();
     });
 }
 MOTION_EXPORT bool motion_ocio_table(const Program *program, uint32_t index, Table *out, Error *error) noexcept {
-    return checked(error, [&] { table(program, index, out); });
+    *out = {};
+    return checked(error, [&] { Table candidate{}; table(program, index, &candidate); *out = candidate; });
 }
 MOTION_EXPORT bool motion_ocio_apply_rgb(const Program *program, float *rgb, Error *error) noexcept {
     return checked(error, [&] { program->cpu->applyRGB(rgb); });

@@ -6,6 +6,8 @@ use std::{
     sync::{mpsc, Arc},
 };
 use wgpu::util::DeviceExt;
+#[path = "color_processor/cubes.rs"]
+mod cubes;
 
 #[derive(Deserialize)]
 struct Reference {
@@ -110,6 +112,7 @@ fn numeric_tables_interpolate_fractional_coordinates_without_texture_filtering()
         binding: 1,
         width: 2,
         height: 2,
+        depth: 1,
         channels: 1,
         interpolation: TableInterpolation::Linear,
         values: vec![0., 10., 20., 30.],

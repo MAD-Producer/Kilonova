@@ -163,6 +163,16 @@ No ambient FetchContent download is used for this header. Original dependency
 licenses are retained byte-for-byte as offline packaging fixtures, with authors,
 source paths, revisions, hashes and copy scope recorded in ATTRIBUTION.md.
 
+The native 3D table adapter reads the pinned OCIO public descriptor API and
+independently implements bounded numeric-buffer nearest/trilinear sampling.
+OCIO's unmodified shader retains its own axis mapping and any tetrahedral
+interpolation. Qualification constructs independently authored inline tables,
+compares the actual generated GLSL/table ABI with native CPU output, and does
+not install those generated fixtures or copy upstream implementation code.
+The recipe separately qualifies the cube ABI before publishing its manifest.
+This table support does not remove the closed resource-free configuration
+restriction or authorize arbitrary FileTransform resources.
+
 # 显式 PNG 色彩元数据编码
 
 桌面 PNG 输出直接使用锁文件已有的 `png` 0.18.1，固定 crates.io 校验和

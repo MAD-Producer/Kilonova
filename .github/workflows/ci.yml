@@ -358,6 +358,7 @@ jobs:
           cargo test -p motion-render --test color_image_processor managed_display::native_display_surface_codes_match_original_cpu_references_without_double_encoding --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-render --test color_image_processor opaque_display::opaque_display_mattes_before_native_view_and_keeps_alpha_endpoint_separate --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-render --test color_image_processor prepared_display::rebound_display_keeps_native_pixels_and_independent_cells_without_new_tables --locked -- --ignored --exact --nocapture --test-threads=1
+          cargo test -p motion-render --test color_processor cubes::native_cube_buffers_match_cpu_for_linear_tetrahedral_and_mixed_tables --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-effects --test native_color --locked -- --include-ignored --nocapture --test-threads=1
           cargo test -p motion-host --lib color_preparation::tests --locked -- --include-ignored --nocapture --test-threads=1
           cargo test -p motion-host --test color_preparation authored:: --locked -- --ignored --nocapture --test-threads=1

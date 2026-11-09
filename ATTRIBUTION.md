@@ -419,6 +419,15 @@ contributors，来源 [crates.io 固定发行版](https://crates.io/crates/liblo
 
 ## OpenColorIO 数值参考工具（仅开发验收）
 
+`tools/ocio-native/cube_tests.cpp` 是独立编写的资格程序，使用同一固定
+OpenColorIO 2.6.0 官方提交 `10a43ec1df03d072ca9a9e2fb3f26e454b0900d8`
+（Contributors to the OpenColorIO Project，BSD-3-Clause，原许可见 NOTICE）
+构造本项目自定义的 2/5 阶数值网格，产生未修改的原生 GLSL、数值表和
+CPU 结果。生成文件仅在资格构建目录中使用，不安装为运行时库或默认
+工程素材。输入函数、测试色卡、缓冲区采样及 C ABI 独立编写；上游源码
+未修改。三线性和四面体算法仍由 OCIO 生成着色器选择，不把硬件最近邻
+采样提示误称为最终颜色插值策略。
+
 后续配置目录导出同样使用该固定外部运行时，显式选择 CG 配置
 `cg-config-v2.2.0_aces-v1.3_ocio-v2.4`、
 `cg-config-v4.0.0_aces-v2.0_ocio-v2.5` 或

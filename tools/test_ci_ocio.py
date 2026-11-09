@@ -141,6 +141,39 @@ class OcioRecipeTest(unittest.TestCase):
                 ocio.publish(build, [], {})
             self.assertFalse((root / "prefix/ocio-runtime.json").exists())
 
+    def test_failed_cube_child_cannot_qualify_a_runtime_after_boundary_success(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            build = ocio.Build(root, "windows-x86_64", "unused", "unused", 1)
+            original = build.run
+            phases = []
+            def actual_child(component, phase, command):
+                phases.append(phase)
+                # Translate native executable paths to controlled real child
+                # processes; this checks recipe publication, not native math.
+                code = "import sys; sys.exit(7)" if phase == "cube-boundaries" else "pass"
+                return original(component, phase, [sys.executable, "-c", code])
+            stderr = io.StringIO()
+            stdout = io.StringIO()
+            with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(stdout):
+                with patch.object(build, "run", side_effect=actual_child):
+                    with self.assertRaises(subprocess.CalledProcessError) as failure:
+                        build.qualify_bridge()
+            self.assertEqual(failure.exception.returncode, 7)
+            self.assertEqual(phases, ["exception-boundaries", "cube-boundaries"])
+            self.assertFalse(build.bridge_qualified)
+            self.assertFalse(json.loads((root / "in-flight.json").read_text())["running"])
+            events = [json.loads(line) for line in (root / "events.jsonl").read_text().splitlines()]
+            cube = [event for event in events if event["phase"] == "cube-boundaries"]
+            self.assertEqual([(event["level"],event["operation"]) for event in cube],
+                             [("info","start"),("error","done")])
+            self.assertEqual(cube[-1]["exit_code"],7)
+            self.assertIn("phase=cube-boundaries",stderr.getvalue())
+            self.assertEqual(stdout.getvalue(),"")
+            with self.assertRaisesRegex(ValueError,"exception boundary qualification is missing"):
+                ocio.publish(build,[],{})
+            self.assertFalse((root / "prefix/ocio-runtime.json").exists())
+
 
 class OcioSourceStageTest(unittest.TestCase):
     @staticmethod

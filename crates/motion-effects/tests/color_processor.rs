@@ -4,6 +4,8 @@ use std::{
     error::Error as _,
     sync::Arc,
 };
+#[path = "color_processor/cubes.rs"]
+mod cubes;
 
 fn config() -> (VerifiedColorConfig, ColorSelection) {
     let bytes = Arc::<[u8]>::from(b"synthetic shader-interface contract".as_slice());
@@ -66,6 +68,7 @@ fn table() -> ColorProcessorTable {
         binding: 1,
         width: 2,
         height: 1,
+        depth: 1,
         channels: 3,
         interpolation: TableInterpolation::Linear,
         values: vec![-1., 2., 4., 3., -2., 8.],
