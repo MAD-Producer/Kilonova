@@ -43,6 +43,13 @@ does not include every process, allocator, driver or device allocation. The
 host and child process observations retain their actual PIDs. Overlapping
 lifetime peaks are not summed as simultaneous resident memory.
 
+The [one-service scheduling and host counter controls](depth75-sustained-host-controls-current.md)
+now pass: all four complete example tests and its build, plus an independent
+three-process Windows job committed-memory peak control. These are prerequisites,
+not an actual learned-model sustained, memory or thermal qualification. The
+[fixed sustained protocol](depth75-sustained-host-remap-protocol.md) remains
+unexecuted at this record's publication.
+
 ## Regression and publication
 
 Publication `dc17b0071e79e5485882c8cce5f0be2fe8e50757` is draft PR #651.

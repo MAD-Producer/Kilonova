@@ -1,0 +1,77 @@
+{
+  "archive": "depth75-sustained-host-controls-v1.zip",
+  "bytes": 322531,
+  "sha256": "b2550df00736ff969439c270340335f7b280af2d6432ca8170331fe2b2f8933d",
+  "members": {
+    "collection-controller.py": {
+      "bytes": 5701,
+      "sha256": "967d2a97775135e2c64dd6b39bd68ecfeb377e78d24080dac3f778fc01983dbf"
+    },
+    "collection.json": {
+      "bytes": 1162,
+      "sha256": "74c545c8348ea371cea3f6b67a133aaab3b559ed3703cbc37a2fe7cd3dd649e3"
+    },
+    "consume-controller.py": {
+      "bytes": 2513,
+      "sha256": "dfd70e147ea6f8363d2ccffbfc2384aeffb9b2e220b9409b3e2a36da795db3c5"
+    },
+    "controller.py": {
+      "bytes": 6327,
+      "sha256": "4f5aa140bb6694c0963b54ae4774bb9878652f6cadeba7b30024e081cf943006"
+    },
+    "example-build.stderr.log": {
+      "bytes": 1008,
+      "sha256": "b0ae70766300ae993049ffa52f5f1cfe182257f69c018b60af551cab78bbcabb"
+    },
+    "example-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "example-tests.stderr.log": {
+      "bytes": 1160,
+      "sha256": "0a1cb6c552a0c870f9250a9a5357c66c57c386b6a7147acd0c80b33f7b77df68"
+    },
+    "example-tests.stdout.log": {
+      "bytes": 464,
+      "sha256": "7f83a53c62324f747fc158de57bb6d1c08a5eee01987c17518c29f70c6c3cfa0"
+    },
+    "owned-job-control.py": {
+      "bytes": 8812,
+      "sha256": "6afcfc4357d6c46dd3e0198ae693e816d75522b88d6ff9f83df11283e517bb9d"
+    },
+    "owned-job-receipt.json": {
+      "bytes": 1498,
+      "sha256": "69eb603b487287affa6f161e2ed232e203973a42be7d6a2a870171c794f65194"
+    },
+    "owned-job-stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "owned-job-stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "protocol.md": {
+      "bytes": 3116,
+      "sha256": "6203306f373b9d2cb92c68c27aecfac582bc5b7272b24a1f67adf5a29096edb7"
+    },
+    "receipt.json": {
+      "bytes": 883984,
+      "sha256": "cd1c7bdfece6395a609698030483dcce305d5b2037d2a64eab2704cdf587cb6e"
+    },
+    "session-consumed.json": {
+      "bytes": 406,
+      "sha256": "20cd54118639ddf5e1bae386a0ff9c748f0000c28034a0b91f97f6da2b52246f"
+    },
+    "source/crates/motion-host/examples/depth_reference/sustained.rs": {
+      "bytes": 10936,
+      "sha256": "c39c5362e59d977aae6fef55675a95f5380139ae6fb58d83a19a63bddbdc1bba"
+    },
+    "source/crates/motion-host/examples/depth_reference.rs": {
+      "bytes": 19667,
+      "sha256": "8a6dcdae15b610442687e9f768ec4201ca6f53690591a1993c0bebe2d2d31100"
+    }
+  },
+  "readback": "Every member CRC, byte length and SHA-256 verified",
+  "qualification": "No actual learned-model sustained or memory qualification"
+}
