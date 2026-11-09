@@ -66,9 +66,9 @@ consumer, receipt and raw-log members: 56,741 bytes, SHA-256
 All member CRCs, lengths, hashes and bytes were read back. No model, runtime,
 executable, RGB, output tensor or cache payload is distributed.
 
-The new mode still needs actual persistent-cache isolation/reopen and live
-Session/frozen-render controls. Prior Python-mode controls do not prove those
-new-mode boundaries. Whole concurrent memory admission, sustained/thermal load,
+The new mode's [actual cache and Session controls](depth75-host-remap-integration-current.md)
+subsequently passed on the same implementation. Prior Python-mode controls
+were not used to establish those new-mode boundaries. Whole concurrent memory admission, sustained/thermal load,
 accepted cross-quality transitions and full current-source regression/CI remain
 pending. The earlier native crashes and broad regression failures remain
 unresolved. No Android, UI or panel changes are included. #75 remains incomplete.

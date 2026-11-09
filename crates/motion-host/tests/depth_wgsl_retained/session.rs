@@ -64,6 +64,16 @@ fn installed(session: &mut Session) -> Arc<Estimate> {
 #[test]
 #[ignore = "requires explicit installed model, pinned GPU worker, Python, real RGB fixture and renderer"]
 fn actual_retained_session_installs_and_freezes_depth_after_worker_exit() {
+    session_and_frozen_render(false);
+}
+
+#[test]
+#[ignore = "requires explicit installed model, pinned GPU worker, Python, real RGB fixture and renderer"]
+fn actual_host_remap_session_installs_and_freezes_depth_after_worker_exit() {
+    session_and_frozen_render(true);
+}
+
+fn session_and_frozen_render(rust_remap: bool) {
     let path = std::env::var_os("MOTION_DEPTH_RETAINED_TEST_FIXTURE")
         .expect("explicit real fixture required");
     let fixture: Fixture = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
@@ -110,13 +120,18 @@ fn actual_retained_session_installs_and_freezes_depth_after_worker_exit() {
         .unwrap();
     project.camera.target.set_at(0, [48., 36., 0.]).unwrap();
     project.camera.fov.set_at(0, 60.).unwrap();
-    let backend = Wgsl::new_retained(Config {
+    let config = Config {
         python: fixture.python.clone(),
         worker: fixture.worker.clone(),
         program: fixture.program.clone(),
         scratch: fixture.scratch.clone(),
         hardware: Hardware::Vulkan,
-    })
+    };
+    let backend = if rust_remap {
+        Wgsl::new_retained_rust_remap(config)
+    } else {
+        Wgsl::new_retained(config)
+    }
     .unwrap();
     let mut session = Session::new(project, root.clone(), Arc::new(ImagesOnly)).unwrap();
     session
@@ -343,6 +358,7 @@ fn actual_retained_session_installs_and_freezes_depth_after_worker_exit() {
     restored.verify_sources(&root, &|| Ok(())).unwrap();
     fs::write(&fixture.evidence,serde_json::to_vec_pretty(&json!({
         "status":"actual_retained_session_frozen_render_passed","qualified":false,
+        "rust_remap":rust_remap,
         "limits":["Authored calibration distances are not real-world accuracy evidence","No automatic tier policy or native access-violation fix"],
         "output_sha256":output_sha,"native":native,"cache_hits":status.counts.cache_hits,"cache_misses":status.counts.cache_misses,
         "after_calibration_native":revised_native,"after_calibration_cache_misses":revised.counts.cache_misses,

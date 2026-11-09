@@ -62,6 +62,16 @@ impl Backend for Observed {
 #[test]
 #[ignore = "requires explicit installed model, pinned GPU worker, Python and real RGB fixture"]
 fn actual_retained_cache_reopens_without_inference_and_isolates_cold_execution() {
+    cache_reopen_and_isolation(false);
+}
+
+#[test]
+#[ignore = "requires explicit installed model, pinned GPU worker, Python and real RGB fixture"]
+fn actual_host_remap_cache_reopens_without_inference_and_isolates_cold_execution() {
+    cache_reopen_and_isolation(true);
+}
+
+fn cache_reopen_and_isolation(rust_remap: bool) {
     use std::sync::{
         Mutex,
         atomic::{AtomicUsize, Ordering},
@@ -84,7 +94,9 @@ fn actual_retained_cache_reopens_without_inference_and_isolates_cold_execution()
             hardware: Hardware::Vulkan,
         };
         Observed {
-            backend: if retained {
+            backend: if retained && rust_remap {
+                Wgsl::new_retained_rust_remap(config)
+            } else if retained {
                 Wgsl::new_retained(config)
             } else {
                 Wgsl::new(config)
@@ -202,12 +214,44 @@ fn actual_retained_cache_reopens_without_inference_and_isolates_cold_execution()
     assert_eq!(actual[0], actual[2]);
     assert_eq!(actual[0], actual[4]);
     assert_eq!(actual[0].provider, actual[3].provider);
-    assert_eq!(actual[0].plan_sha256, actual[3].plan_sha256);
+    if rust_remap {
+        assert_ne!(actual[0].plan_sha256, actual[3].plan_sha256);
+    } else {
+        assert_eq!(actual[0].plan_sha256, actual[3].plan_sha256);
+    }
     assert_ne!(actual[0].runtime_sha256, actual[3].runtime_sha256);
+    let legacy_retained = if rust_remap {
+        // Resolve the other retained mode without running its Python remap or
+        // retrying its previously failed fixed32 workload.
+        let mut legacy = Wgsl::new_retained(Config {
+            python: fixture.python.clone(),
+            worker: fixture.worker.clone(),
+            program: fixture.program.clone(),
+            scratch: fixture.scratch.clone(),
+            hardware: Hardware::Vulkan,
+        })
+        .unwrap();
+        let identity = legacy
+            .execution_identity(&sample, &Cancellation::default())
+            .unwrap()
+            .unwrap();
+        assert_ne!(actual[0].plan_sha256, identity.plan_sha256);
+        assert_ne!(actual[0].runtime_sha256, identity.runtime_sha256);
+        let root = service_root(&fixture.scratch).unwrap();
+        let state = wait(|| receipt(&root.join("service/receipt.json")));
+        assert_eq!(state["completed_inputs"], 0);
+        drop(legacy);
+        assert!(!root.exists());
+        Some(identity)
+    } else {
+        None
+    };
     let log = fs::read_to_string(out.join("logs/motion-studio.log")).unwrap();
     assert!(log.contains("stage=cache_read") && log.contains("content SHA-256 differs"));
     fs::write(&fixture.evidence, serde_json::to_vec_pretty(&json!({
         "status":"actual_cache_reopen_mode_isolation_and_corruption_refusal_passed",
+        "rust_remap":rust_remap,
+        "legacy_retained_execution":legacy_retained,
         "inference_calls":calls.load(Ordering::SeqCst),"cache_entries":entries,
         "output_sha256":fixture.expected_output_sha256[0],"executions":actual,
         "first_service":first_state,"reopened_service":reopened_state,"corrupt_service":corrupt_state,
