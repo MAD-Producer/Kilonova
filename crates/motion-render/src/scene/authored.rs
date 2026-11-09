@@ -398,7 +398,6 @@ fn admit(project: &Project) -> Result<()> {
                 | Content::Audio { .. }
         ) || layer.three_d
             || !layer.effects.is_empty()
-            || !layer.masks.is_empty()
             || layer.track_matte.is_some()
             || layer.blend != motion_model::compositing::LayerBlend::default()
             || !layer.sampling.is_default()

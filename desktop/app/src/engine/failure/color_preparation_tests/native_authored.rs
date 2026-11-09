@@ -12,6 +12,8 @@ mod session;
 mod surface;
 #[path = "native_png.rs"]
 mod png;
+#[path = "native_masks.rs"]
+mod masks;
 #[cfg(target_os = "windows")]
 #[path = "native_window.rs"]
 mod window;

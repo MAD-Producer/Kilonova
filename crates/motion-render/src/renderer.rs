@@ -2215,6 +2215,7 @@ impl Renderer {
         self.validate_authored_images(frame, target, images)?;
         self.allocation_budget.check()?;
         let rasters = self.layer_gpu.authored_raster_guard();
+        let masks = self.mask_gpu.authored_raster_guard();
         let mut encoder = self.allocation_command_encoder_for(
             crate::gpu_commands::CommandStage::Composition,
             &wgpu::CommandEncoderDescriptor { label: Some("authored OCIO composition") },
@@ -2227,6 +2228,7 @@ impl Renderer {
             if let Some(images) = images { ledger.merge(images.ledger.clone()); }
         })?;
         rasters.commit();
+        masks.commit();
         self.check_health()?;
         Ok(stats)
     }
@@ -2243,7 +2245,7 @@ impl Renderer {
         #[cfg(test)]
         { self.composition_runs = 0; }
         let started = Instant::now();
-        if scene.effects.iter().any(|e| e.enabled) || scene.layers.iter().any(|l|!l.masks.is_empty())
+        if scene.effects.iter().any(|e| e.enabled) || (!working_colors && scene.layers.iter().any(|l|!l.masks.is_empty()))
             || scene
                 .layers
                 .iter()
@@ -2255,16 +2257,43 @@ impl Renderer {
             }
             return self.encode_effects(scene, Some(view), width, height, encoder, timestamps, preview, None, false);
         }
-        // Direct drawing consumes neither mask coverage nor effect-input snapshots.
-        // Release both without discarding reusable compositing pipelines.
-        self.release_effect_input_images();
+        // Managed direct drawing consumes typed coverage, without entering the
+        // effect plan's legacy color conversion or effect-input snapshots.
+        self.release_effect_inputs(working_colors);
         self.effect_diagnostics.clear();
         if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
         if working_colors {
-            self.effect_gpu.builder.prepare_authored_vectors(scene, [width, height])?;
+            self.effect_gpu.builder.prepare_authored_inputs(scene, [width, height])?;
+            let other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes()
+                + authored_images.map_or(0, |images| images.ledger.total_known_bytes());
+            let planned = &self.effect_gpu.builder.frame.masks;
+            let pixel_bytes = motion_effects::image_contract::coverage_storage(self.working_precision()).bytes_per_pixel();
+            let [mw, mh, slots] = {
+                let (w, h, slots) = crate::mask_plan::scratch_dimensions(planned);
+                [u64::from(w), u64::from(h), slots as u64]
+            };
+            let coverage = planned.chunk_by(|a,b| a.layer == b.layer)
+                .map(|g| u64::from(g[0].width) * u64::from(g[0].height) * pixel_bytes).sum::<u64>();
+            let retiring = self.images.iter().filter(|(key,_)| matches!(key,TextureKey::Mask(_)))
+                .map(|(_,image)| image.bytes).sum::<u64>();
+            let required = self.texture_bytes.saturating_sub(retiring)
+                + other + coverage + mw * mh * slots * pixel_bytes;
+            let limit = self.effect_gpu.builder.source_texture_budget;
+            if required > limit {
+                return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, required, limit,
+                    "authored sources and numeric mask coverage exceed configured source texture budget"));
+            }
+            if self.mask_gpu.prepare_checked(
+                &self.device, &self.queue, encoder, &self.image_layout, scene,
+                &self.effect_gpu.builder.frame.masks, &mut self.images, &mut self.texture_bytes,
+                other, self.effect_gpu.builder.source_texture_budget, None,
+            )? {
+                self.effect_gpu.state.invalidate();
+            }
         }
         let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes()
-            + authored_images.map_or(0, |images| images.ledger.total_known_bytes());
+            + authored_images.map_or(0, |images| images.ledger.total_known_bytes())
+            + if working_colors { self.mask_gpu.scratch_bytes() } else { 0 };
         let vectors = if working_colors { self.effect_gpu.builder.frame.vectors.as_slice() } else { &[] };
         if self.layer_gpu.prepare_vectors(
             &self.device,
@@ -2381,11 +2410,12 @@ impl Renderer {
                 0.0,
                 1.0,
             );
-            pass.set_pipeline(&self.pipeline);
             pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             for batch in &self.compositor.batches {
                 let index = batch.layer;
                 let layer = &scene.layers[index];
+                let masked = working_colors && !layer.masks.is_empty();
+                pass.set_pipeline(if masked { &self.masked_pipeline } else { &self.pipeline });
                 pass.set_bind_group(
                     0,
                     &self.uniform_group,
@@ -2396,6 +2426,11 @@ impl Renderer {
                         .ok_or_else(|| RenderError::Invalid("validated authored image binding is missing".into()))?.bind_group
                 } else { &self.images[&texture_key(scene, layer)].bind_group };
                 pass.set_bind_group(1, image, &[]);
+                if masked {
+                    let coverage = self.images.get(&TextureKey::Mask(layer.id)).ok_or_else(||
+                        RenderError::Invalid(format!("authored coverage layer={} frame={}: prepared image is missing", layer.id, scene.frame)))?;
+                    pass.set_bind_group(2, &coverage.bind_group, &[]);
+                }
                 pass.draw(batch.vertices.clone(), 0..1);
             }
         }
@@ -2414,10 +2449,14 @@ impl Renderer {
             particles_culled: 0,
         })
     }
+    #[cfg(test)]
     fn release_effect_input_images(&mut self) {
+        self.release_effect_inputs(false);
+    }
+    fn release_effect_inputs(&mut self, retain_masks: bool) {
         let mut removed = false;
         self.images.retain(|key, image| {
-            if matches!(key, TextureKey::Mask(_) | TextureKey::EffectInput(_)) {
+            if matches!(key, TextureKey::EffectInput(_)) || (!retain_masks && matches!(key, TextureKey::Mask(_))) {
                 self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
                 removed = true;
                 false

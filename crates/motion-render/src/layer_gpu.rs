@@ -6,7 +6,7 @@ use crate::{
 };
 use std::collections::HashMap;
 mod groups;
-mod raster_guard;
+pub(crate) mod raster_guard;
 const CLEAR_VERTICES: [[f32; 6]; 3] = [
     [-1., -1., 0., 0., 0., 0.],
     [3., -1., 0., 0., 0., 0.],

@@ -196,7 +196,7 @@ impl PlanBuilder {
         self.prepare_vectors_in_space(scene, size, scales, crate::vector_mesh::PaintSpace::Srgb)
     }
 
-    pub(crate) fn prepare_authored_vectors(
+    pub(crate) fn prepare_authored_inputs(
         &mut self,
         scene: &Scene,
         size: [u32; 2],
@@ -207,6 +207,20 @@ impl PlanBuilder {
             ..Default::default()
         };
         self.frame.vectors.clear();
+        let scale = (size[0] as f32 / scene.width as f32)
+            .min(size[1] as f32 / scene.height as f32).max(0.001);
+        self.frame.masks = self.mask_cache.build(scene, scale, false)?;
+        for mask in &self.frame.masks {
+            if mask.width > self.device_dimension || mask.height > self.device_dimension {
+                let rejection = ResourceRejection::TextureDimensions {
+                    width: mask.width, height: mask.height, max_dimension: self.device_dimension,
+                };
+                self.last_resource_rejection = Some(rejection);
+                return Err(RenderError::Resource { rejection, message: format!(
+                    "layer {}, mask {}: authored coverage exceeds device dimensions",
+                    scene.layers[mask.layer].id, mask.id) });
+            }
+        }
         self.vector_cache.retain(|id, _| {
             scene
                 .layers

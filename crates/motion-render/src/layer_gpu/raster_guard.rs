@@ -9,7 +9,7 @@ pub(crate) struct RasterGuard {
     committed: bool,
 }
 impl RasterGuard {
-    pub(super) fn new(invalidated: Arc<AtomicBool>) -> Self {
+    pub(crate) fn new(invalidated: Arc<AtomicBool>) -> Self {
         Self {
             invalidated,
             committed: false,

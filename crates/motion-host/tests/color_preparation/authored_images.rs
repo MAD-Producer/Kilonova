@@ -2,6 +2,8 @@ use super::*;
 use motion_core::{Asset, Content};
 use motion_render::AuthoredImageSet;
 use std::sync::atomic::AtomicBool;
+#[path = "authored_masked_images.rs"]
+mod masks;
 
 #[test]
 #[ignore = "requires the pinned native OCIO runtime and an actual GPU"]
