@@ -1,5 +1,6 @@
 //! Explicit optional depth worker. Model resources are installed separately.
 mod admission;
+mod batch_admission;
 mod convolution_admission;
 mod execution_identity;
 mod graph_admission;
@@ -144,6 +145,7 @@ fn phase(out: &Path, report: &mut Value, name: &str) -> Result<()> {
 include!("graph_runtime_impl.rs");
 enum Invocation {
     Infer,
+    ResearchBatch,
     Resolve,
     Attest(PathBuf),
 }
@@ -152,6 +154,11 @@ fn main() {
     let (mode, request, out) = match args.as_slice() {
         [_, request, out] => (
             Invocation::Infer,
+            PathBuf::from(request),
+            PathBuf::from(out),
+        ),
+        [_, flag, request, out] if flag == "--research-batch" => (
+            Invocation::ResearchBatch,
             PathBuf::from(request),
             PathBuf::from(out),
         ),
@@ -167,7 +174,7 @@ fn main() {
         ),
         _ => {
             eprintln!(
-                "usage: motion-depth-wgsl [--resolve | --attest <absolute-execution.json>] <absolute-request.json> <new-absolute-output-directory>"
+                "usage: motion-depth-wgsl [--resolve | --attest <absolute-execution.json> | --research-batch] <absolute-request.json> <new-absolute-output-directory>"
             );
             std::process::exit(2);
         }
@@ -198,6 +205,8 @@ fn main() {
             "External fixture identities are verified, not leased against concurrent filesystem mutation"]});
     let operation = if matches!(mode, Invocation::Resolve) {
         "resolve_cache_execution"
+    } else if matches!(mode, Invocation::ResearchBatch) {
+        "research_retained_graph_batch"
     } else {
         "complete_model_probe"
     };
@@ -210,9 +219,12 @@ fn main() {
         .and_then(|()| run(&request, &out, &mut report, &mode))
     {
         log::error!(
-            "composed GPU research failed phase={} case={} elapsed_ms={} cause={cause}",
+            "composed GPU research failed request={} operation={} phase={} case={} input_index={} elapsed_ms={} cause={cause}",
+            report["request"],
+            report["operation"],
             report["phase"],
             report["case"],
+            report["input_index"],
             began.elapsed().as_millis()
         );
         report["status"] = "failed_original_cause_retained".into();
