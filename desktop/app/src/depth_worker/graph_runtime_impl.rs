@@ -517,6 +517,7 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
         report["execution"] = serde_json::to_value(execution).map_err(|e| e.to_string())?;
         if matches!(mode, Invocation::Resolve) {
             report["status"] = "actual_execution_identity_resolved_without_inference".into();
+            report["process_memory"] = json!(motion_host::process_memory::ProcessPeak::current());
             report["phase"] = "completed".into();
             report["final_readbacks"] = 0.into();
             report["in_flight"] = Value::Null;

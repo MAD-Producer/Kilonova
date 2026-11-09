@@ -7,6 +7,8 @@ pub(super) struct Attestation {
     pub native: Execution,
     pub transform: Execution,
     pub worker_sha256: [u8; 32],
+    pub native_memory: Option<crate::process_memory::ProcessPeak>,
+    pub transform_memory: Option<crate::process_memory::ProcessPeak>,
 }
 
 fn program_digest() -> Result<[u8; 32]> {
@@ -133,6 +135,7 @@ pub(super) fn worker_unchanged(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TransformResolution {
+    process_memory: Option<crate::process_memory::ProcessPeak>,
     schema: u32,
     stage: String,
     processing: String,
@@ -141,6 +144,7 @@ struct TransformResolution {
 }
 impl TransformResolution {
     fn validate(&self) -> Result<()> {
+        if let Some(memory) = &self.process_memory { memory.validate().map_err(Error::Invalid)?; }
         self.execution.validate()?;
         if self.schema != 1
             || self.stage != "resolve"
@@ -159,6 +163,7 @@ impl TransformResolution {
 
 #[derive(Deserialize)]
 struct NativeResolution {
+    process_memory: Option<crate::process_memory::ProcessPeak>,
     status: String,
     phase: String,
     model_sha256: String,
@@ -172,6 +177,7 @@ struct NativeResolution {
 }
 impl NativeResolution {
     fn validate(&self, hardware: Hardware, request: &str) -> Result<()> {
+        if let Some(memory) = &self.process_memory { memory.validate().map_err(Error::Invalid)?; }
         self.execution.validate()?;
         if self.status != "actual_execution_identity_resolved_without_inference"
             || self.phase != "completed"
@@ -293,6 +299,8 @@ impl Wgsl {
             native: native.execution,
             transform: transform.execution,
             worker_sha256,
+            native_memory: native.process_memory,
+            transform_memory: transform.process_memory,
         };
         attestation.combined()?;
         cancellation.check()?;

@@ -298,7 +298,7 @@ def infer(directory, resolve_only=False, attest=False):
                 raise ValueError("persistent caching requires an exclusive actual CPU session")
             execution = execution_environment(ort, np, cv2)
             if resolve_only:
-                return {"schema": SCHEMA, "execution": execution}
+                return {"schema": SCHEMA, "execution": execution, "process_memory": process_peak()}
         load_ns = elapsed(began)
         phase = "preprocess"
         started = time.perf_counter_ns()

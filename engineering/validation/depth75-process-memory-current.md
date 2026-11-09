@@ -143,3 +143,34 @@ members were read back and SHA-256 verified: 402,078 bytes, archive SHA-256
 The earlier complete library failure remains a distinct failed run; this new
 source's pass neither establishes its cause nor changes its result. This is
 not a full maintained-workspace pass or cross-platform acceptance for b388ada3.
+
+## Host and direct-child phase observations (validation pending)
+
+The measured Jobs snapshot now queries the host process after backend/output
+ownership checks and before downstream alignment. It retains a fixed-size
+ONNX layout (resolution/inference) or WGSL layout (transform resolution/native
+resolution/prepare/inference/remap). Every missing or unavailable phase remains
+explicit; generic backends without phase observations return no snapshot.
+The measurements never enter cache execution identities or quality admission.
+
+The resolver/transform workers return their own OS counters in the existing
+bounded reports. The native resolver adds counters to its existing receipt.
+No new process, periodic sampler, Present logging, dependency or asset is added.
+Old resolution memory is cleared before every resolution attempt; observations
+are retained only alongside the corresponding successfully resolved execution.
+
+The optional observed resident sum adds the host queried high-water mark to
+the largest queried direct-child high-water mark: these backend phases execute
+sequentially. It does not add peaks for nonconcurrent children. A missing,
+unavailable, invalid, host-PID child counter or integer overflow returns unknown.
+It is not an upper bound for final process lifetimes: queries precede final
+serialization/exit. It also excludes descendants, other live Jobs instances and
+device allocation. The host peak includes all threads and preexisting activity
+in that host, without attributing it to this request. Full memory qualification
+and the original issue's remaining requirements are still pending.
+
+New controls cover each missing/failed child slot, nonconcurrent aggregation,
+overflow, fixed report bounds, unchanged execution identity, actual resolver
+self-counters, and snapshot/Profile retention. Original assertions and budgets
+remain unchanged. Complete tools/native commands and actual CPU/GPU probes are
+required before this extension is described as verified.

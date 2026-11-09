@@ -24,6 +24,102 @@ pub enum ProcessPeak {
     },
 }
 
+/// Fixed direct-child stages, in backend execution order. Missing observations
+/// stay explicit. This does not enumerate processes or cover runtime descendants.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "backend", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Children {
+    Onnx {
+        resolution: Option<ProcessPeak>,
+        inference: Option<ProcessPeak>,
+    },
+    Wgsl {
+        resolution_transform: Option<ProcessPeak>,
+        resolution_native: Option<ProcessPeak>,
+        prepare: Option<ProcessPeak>,
+        inference: Option<ProcessPeak>,
+        remap: Option<ProcessPeak>,
+    },
+}
+
+/// Queried lifetime peaks for a measured request's host and direct children.
+/// Queries precede final serialization/exit. Other Jobs instances, descendants
+/// and device memory are not covered; this is not a whole-host budget certificate.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Snapshot {
+    pub host: ProcessPeak,
+    pub children: Children,
+}
+
+impl Snapshot {
+    pub(crate) fn capture(children: Children) -> Self {
+        Self {
+            host: ProcessPeak::current(),
+            children,
+        }
+    }
+
+    /// Host queried resident peak plus largest queried child peak. Direct
+    /// backend children execute sequentially. This observed sum is NOT a proven
+    /// full-lifetime upper bound, nor simultaneous usage or memory attribution.
+    /// Missing/unavailable/malformed counters and overflow remain unknown.
+    pub fn observed_resident_sum(&self) -> Option<u64> {
+        let (count, stages) = match &self.children {
+            Children::Onnx {
+                resolution,
+                inference,
+            } => (
+                2,
+                [resolution.as_ref(), inference.as_ref(), None, None, None],
+            ),
+            Children::Wgsl {
+                resolution_transform,
+                resolution_native,
+                prepare,
+                inference,
+                remap,
+            } => (
+                5,
+                [
+                    resolution_transform.as_ref(),
+                    resolution_native.as_ref(),
+                    prepare.as_ref(),
+                    inference.as_ref(),
+                    remap.as_ref(),
+                ],
+            ),
+        };
+        self.host.validate().ok()?;
+        let ProcessPeak::Observed {
+            pid: host_pid,
+            peak_resident_bytes: host,
+            ..
+        } = &self.host
+        else {
+            return None;
+        };
+        let mut largest = 0;
+        for peak in &stages[..count] {
+            let peak = (*peak)?;
+            peak.validate().ok()?;
+            let ProcessPeak::Observed {
+                pid,
+                peak_resident_bytes,
+                ..
+            } = peak
+            else {
+                return None;
+            };
+            if pid == host_pid {
+                return None;
+            }
+            largest = largest.max(*peak_resident_bytes);
+        }
+        host.checked_add(largest)
+    }
+}
+
 impl ProcessPeak {
     /// Query only this process, once. Peaks cover its lifetime up to this call;
     /// neither device memory nor the parent/children are included.
@@ -142,6 +238,84 @@ fn query() -> Result<ProcessPeak, String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    fn observed(pid: u32, resident: u64) -> ProcessPeak {
+        ProcessPeak::Observed {
+            pid,
+            method: Method::GetrusageLinux,
+            peak_resident_bytes: resident,
+            peak_private_commit_bytes: None,
+        }
+    }
+
+    #[test]
+    fn sequential_stages_keep_unknowns_and_do_not_sum_nonconcurrent_child_peaks() {
+        for children in [
+            Children::Onnx {
+                resolution: Some(observed(2, 100)),
+                inference: Some(observed(3, 300)),
+            },
+            Children::Wgsl {
+                resolution_transform: Some(observed(2, 10)),
+                resolution_native: Some(observed(3, 20)),
+                prepare: Some(observed(4, 300)),
+                inference: Some(observed(5, 40)),
+                remap: Some(observed(6, 50)),
+            },
+        ] {
+            let snapshot = Snapshot {
+                host: observed(1, 1000),
+                children,
+            };
+            assert_eq!(snapshot.observed_resident_sum(), Some(1300));
+            let value = serde_json::to_value(&snapshot).unwrap();
+            let restored: Snapshot = serde_json::from_value(value.clone()).unwrap();
+            assert_eq!(serde_json::to_value(&restored).unwrap(), value);
+            assert_eq!(restored.observed_resident_sum(), Some(1300));
+            for stage in value["children"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .filter(|key| key.as_str() != "backend")
+            {
+                for missing in [
+                    json!(null),
+                    json!({"status":"unavailable","pid":2,"cause":"original query failure"}),
+                    json!({"status":"observed","pid":1,"method":"getrusage_linux","peak_resident_bytes":1,"peak_private_commit_bytes":null}),
+                    json!({"status":"observed","pid":2,"method":"getrusage_linux","peak_resident_bytes":0,"peak_private_commit_bytes":null}),
+                ] {
+                    let mut invalid = value.clone();
+                    invalid["children"][stage] = missing;
+                    assert!(serde_json::from_value::<Snapshot>(invalid)
+                        .unwrap()
+                        .observed_resident_sum()
+                        .is_none());
+                }
+            }
+            let mut invalid = value;
+            invalid["children"]["unbounded_extra_phase"] = json!({});
+            assert!(serde_json::from_value::<Snapshot>(invalid).is_err());
+        }
+        let overflow = Snapshot {
+            host: observed(1, u64::MAX),
+            children: Children::Onnx {
+                resolution: Some(observed(2, 1)),
+                inference: Some(observed(3, 1)),
+            },
+        };
+        assert!(overflow.observed_resident_sum().is_none());
+        let unavailable = Snapshot {
+            host: ProcessPeak::Unavailable {
+                pid: 1,
+                cause: "original host query failure".into(),
+            },
+            children: Children::Onnx {
+                resolution: Some(observed(2, 1)),
+                inference: Some(observed(3, 1)),
+            },
+        };
+        assert!(unavailable.observed_resident_sum().is_none());
+    }
 
     #[test]
     #[cfg(any(windows, target_os = "linux", target_os = "macos"))]

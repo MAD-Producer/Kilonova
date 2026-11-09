@@ -163,6 +163,7 @@ pub struct Onnx {
     last_provider: Option<String>,
     last_diagnostic: Option<String>,
     execution: Option<super::cache::Execution>,
+    resolution_memory: Option<crate::process_memory::ProcessPeak>,
 }
 impl Onnx {
     /// Construction does not load a model or runtime on the caller's thread.
@@ -180,6 +181,7 @@ impl Onnx {
             last_provider: None,
             last_diagnostic: None,
             execution: None,
+            resolution_memory: None,
         })
     }
 
@@ -317,6 +319,10 @@ impl Onnx {
                 alignment: Duration::ZERO,
                 input_bytes: report.input_host_copy_bytes,
                 output_bytes: report.output_host_copy_bytes,
+                child_process_memory: Some(crate::process_memory::Children::Onnx {
+                    resolution: if execution.is_some() { self.resolution_memory.take() } else { None },
+                    inference: report.inference_process_memory.clone(),
+                }),
                 inference_process_memory: report.inference_process_memory,
             },
         })
@@ -327,6 +333,7 @@ impl Backend for Onnx {
     fn execution_identity(&mut self, input: &Input, cancellation: &Cancellation)
         -> Result<Option<super::cache::Execution>> {
         self.execution = None;
+        self.resolution_memory = None;
         cancellation.check()?;
         if !matches!(self.config.provider, Provider::Cpu) { return Ok(None); }
         fs::create_dir_all(&self.config.scratch)?;
@@ -350,8 +357,9 @@ impl Backend for Onnx {
             let (stdout, stderr) = capture(&mut command, cancellation)?;
             #[derive(Deserialize)]
             #[serde(deny_unknown_fields)]
-            struct Resolved { schema: u32, execution: super::cache::Execution }
+            struct Resolved { schema: u32, execution: super::cache::Execution, process_memory: Option<crate::process_memory::ProcessPeak> }
             let resolved: Resolved = serde_json::from_slice(&stdout)?;
+            if let Some(memory) = &resolved.process_memory { memory.validate().map_err(Error::Invalid)?; }
             resolved.execution.validate()?;
             if resolved.schema != 1 || resolved.execution.backend != "onnx"
                 || resolved.execution.provider != "CPUExecutionProvider" || resolved.execution.precision != "float32"
@@ -363,10 +371,10 @@ impl Backend for Onnx {
                 self.last_diagnostic = Some(stderr);
             }
             cancellation.check()?;
-            Ok(resolved.execution)
+            Ok((resolved.execution, resolved.process_memory))
         })();
         match (result, temporary.close()) {
-            (Ok(execution), Ok(())) => { self.execution = Some(execution.clone()); Ok(Some(execution)) },
+            (Ok((execution, memory)), Ok(())) => { self.execution = Some(execution.clone()); self.resolution_memory = memory; Ok(Some(execution)) },
             (Err(primary), Ok(())) => Err(primary),
             (Err(primary), Err(cleanup)) => Err(Error::Cleanup { primary: Box::new(primary), cleanup }),
             (Ok(_), Err(cleanup)) => Err(cleanup.into()),

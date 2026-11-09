@@ -205,6 +205,8 @@ pub struct Costs {
     /// Owned inference child's lifetime OS high-water marks, when observed.
     /// Excludes the host, other phases/processes and physical device memory.
     pub inference_process_memory: Option<capability::memory::ProcessPeak>,
+    /// Fixed direct-child stages only. None means the backend did not observe them.
+    pub child_process_memory: Option<crate::process_memory::Children>,
 }
 
 #[derive(Clone, Debug)]
@@ -929,6 +931,9 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
             } else { None };
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
+            let process_memory = if measured {
+                estimate.costs.child_process_memory.clone().map(crate::process_memory::Snapshot::capture)
+            } else { None };
             estimate.costs.total = began.elapsed();
             if !restored && !measured {
                 if let (Some(store), Identity::Video(key)) = (&store, &identity) {
@@ -953,7 +958,7 @@ fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, 
             let measurement = if measured {
                 Some(capability::Measurement::new(measurement_scope.clone(), job.request,
                     execution.ok_or(Error::State)?, resolve_elapsed, estimate.costs.total, retained_gpu_buffers,
-                    estimate.costs.inference_process_memory.clone()))
+                    estimate.costs.inference_process_memory.clone(), process_memory))
             } else { None };
             let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image,
                 video_end_us: input.video_end_us, measurement };

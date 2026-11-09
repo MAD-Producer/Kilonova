@@ -39,6 +39,8 @@ fn input() -> Input {
 
 fn attestation() -> Attestation {
     Attestation {
+        native_memory: None,
+        transform_memory: None,
         native: Execution {
             backend: "wgsl".into(),
             provider: "WGSL:Vulkan:authored GPU".into(),
@@ -55,6 +57,20 @@ fn attestation() -> Attestation {
         },
         worker_sha256: [3; 32],
     }
+}
+
+#[test]
+fn phase_memory_observations_do_not_change_the_runtime_identity() {
+    let mut observed = attestation();
+    let execution = observed.combined().unwrap();
+    observed.native_memory = Some(crate::process_memory::ProcessPeak::Unavailable {
+        pid:75,cause:"original native OS query failure".into(),
+    });
+    observed.transform_memory = Some(crate::process_memory::ProcessPeak::Observed {
+        pid:76,method:crate::process_memory::Method::GetrusageLinux,
+        peak_resident_bytes:123456,peak_private_commit_bytes:None,
+    });
+    assert_eq!(observed.combined().unwrap(),execution);
 }
 
 fn resolution() -> serde_json::Value {

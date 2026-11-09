@@ -185,6 +185,19 @@ runpy.run_path(script, run_name='__main__')
             self.assertFalse((root / "input.rgb").exists())
             self.assertFalse((root / "tensor.f32").exists())
 
+    def test_resolver_reports_actual_self_process_memory_outside_execution_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.modules(root)
+            result = self.run_child(root, ["--resolve"])
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            report = json.loads(result.stdout)
+            peak = report["process_memory"]
+            self.assertEqual(peak["status"], "observed", peak)
+            self.assertGreater(peak["pid"], 0)
+            self.assertGreater(peak["peak_resident_bytes"], 0)
+            self.assertNotIn("process_memory", report["execution"])
+
 
 if __name__ == "__main__":
     unittest.main()

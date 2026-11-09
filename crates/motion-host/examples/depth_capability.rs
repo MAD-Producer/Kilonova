@@ -58,6 +58,8 @@ fn samples(
             "worker_total_ns": measured.total().as_nanos(), "resolve_ns": measured.resolve().as_nanos(),
             "retained_gpu_buffer_capacity_bytes": measured.retained_gpu_buffer_capacity(),
             "inference_process_memory": measured.inference_process_memory(),
+            "process_memory": measured.process_memory(),
+            "observed_resident_sum_bytes": measured.process_memory().and_then(|m|m.observed_resident_sum()),
             "source_prepare_ns": c.source_prepare.as_nanos(), "source_rgb_bytes": c.source_rgb_bytes,
             "load_ns": c.load.as_nanos(), "preprocess_ns": c.preprocess.as_nanos(),
             "inference_ns": c.inference.as_nanos(), "postprocess_ns": c.postprocess.as_nanos(),

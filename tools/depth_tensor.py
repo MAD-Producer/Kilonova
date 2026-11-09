@@ -72,7 +72,8 @@ def resolve():
     import numpy as np
     import cv2
     return {"schema": 1, "stage": "resolve", "processing": PROCESSING,
-            "execution": execution_environment(np, cv2), "encoded_operations": 0}
+            "execution": execution_environment(np, cv2), "encoded_operations": 0,
+            "process_memory": shared.process_peak()}
 
 
 def expected_execution(directory):
@@ -128,7 +129,8 @@ def transform(directory, attest=False):
     report = {"schema": 1, "stage": request["stage"], "processing": PROCESSING,
             "width": width, "height": height, "rgb_sha256": request["rgb_sha256"],
             "depth_sha256": request["depth_sha256"], "output_sha256": hashlib.sha256(output).hexdigest(),
-            "output_bytes": len(output), "elapsed_ns": time.perf_counter_ns() - began}
+            "output_bytes": len(output), "elapsed_ns": time.perf_counter_ns() - began,
+            "process_memory": shared.process_peak()}
     if execution is not None:
         report["execution"] = execution
     return report

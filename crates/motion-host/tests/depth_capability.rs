@@ -181,6 +181,35 @@ impl Drop for Release {
 }
 
 #[test]
+fn measured_process_snapshot_captures_host_and_retains_unknown_child_phases() {
+    use motion_host::{process_memory::{Children, ProcessPeak}, depth::capability::Profile};
+    struct Family(Controlled);
+    impl Backend for Family {
+        fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate> {
+            let mut estimate = self.0.infer(input,cancellation)?;
+            estimate.costs.child_process_memory = Some(Children::Onnx { resolution:None,inference:None });
+            Ok(estimate)
+        }
+        fn execution_identity(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Option<Execution>> {
+            self.0.execution_identity(input,cancellation)
+        }
+    }
+    // Child phases deliberately remain unknown: this fixture cannot qualify memory.
+    let mut jobs = Jobs::start_measured(Family(backend(Fault::None))).unwrap();
+    jobs.request(input()).unwrap(); let ready = take(&mut jobs,1);
+    let snapshot = ready.measurement().unwrap().process_memory().unwrap();
+    match &snapshot.host {
+        ProcessPeak::Observed {pid,..} | ProcessPeak::Unavailable {pid,..} => assert_eq!(*pid,std::process::id()),
+    }
+    let expected = serde_json::to_value(snapshot).unwrap();
+    assert_eq!(expected["children"],serde_json::json!({"backend":"onnx","resolution":null,"inference":null}));
+    assert!(snapshot.observed_resident_sum().is_none());
+    let mut profile = Profile::new(1).unwrap(); profile.record(&ready).unwrap();
+    assert_eq!(serde_json::to_value(profile.observations()[0].measurement().process_memory().unwrap()).unwrap(),expected);
+    assert_eq!(jobs.counts().unwrap().completed,1);
+}
+
+#[test]
 fn measured_worker_and_profile_retain_partial_process_memory_without_certifying_whole_memory() {
     use motion_host::depth::capability::{memory::{Method, ProcessPeak}, Profile};
     struct Memory(Controlled, Option<ProcessPeak>);

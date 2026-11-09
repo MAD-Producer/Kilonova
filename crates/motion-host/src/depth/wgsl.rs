@@ -338,6 +338,13 @@ impl Wgsl {
                 postprocess: post,
                 input_bytes: TENSOR_BYTES,
                 output_bytes: DEPTH_BYTES,
+                child_process_memory: Some(crate::process_memory::Children::Wgsl {
+                    resolution_transform: attestation.and_then(|a| a.transform_memory.clone()),
+                    resolution_native: attestation.and_then(|a| a.native_memory.clone()),
+                    prepare: prepared.process_memory,
+                    inference: report.inference_process_memory.clone(),
+                    remap: remapped.process_memory,
+                }),
                 inference_process_memory: report.inference_process_memory,
                 ..Costs::default()
             },
@@ -560,6 +567,7 @@ fn read_owned(path: &Path, length: u64, hash: &str) -> Result<Vec<u8>> {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Transform {
+    process_memory: Option<crate::process_memory::ProcessPeak>,
     schema: u32,
     stage: String,
     processing: String,
@@ -594,6 +602,7 @@ impl Transform {
         }
     }
     fn validate(&self, input: &Input, stage: &str, rgb: &str, depth: Option<&str>) -> Result<()> {
+        if let Some(memory) = &self.process_memory { memory.validate().map_err(Error::Invalid)?; }
         let bytes = if stage == "prepare" {
             TENSOR_BYTES
         } else {

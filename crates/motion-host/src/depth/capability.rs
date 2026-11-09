@@ -23,6 +23,7 @@ pub struct Measurement {
     total: Duration,
     retained_gpu_buffers: Option<u64>,
     inference_process_memory: Option<memory::ProcessPeak>,
+    process_memory: Option<crate::process_memory::Snapshot>,
 }
 
 impl Measurement {
@@ -34,6 +35,7 @@ impl Measurement {
         total: Duration,
         retained_gpu_buffers: Option<u64>,
         inference_process_memory: Option<memory::ProcessPeak>,
+        process_memory: Option<crate::process_memory::Snapshot>,
     ) -> Self {
         Self {
             scope,
@@ -43,6 +45,7 @@ impl Measurement {
             total,
             retained_gpu_buffers,
             inference_process_memory,
+            process_memory,
         }
     }
 
@@ -81,6 +84,10 @@ impl Measurement {
     pub fn inference_process_memory(&self) -> Option<&memory::ProcessPeak> {
         self.inference_process_memory.as_ref()
     }
+
+    /// Host plus fixed direct-child phase observations; unknown phases remain
+    /// explicit and cannot qualify complete memory or device budgets.
+    pub fn process_memory(&self) -> Option<&crate::process_memory::Snapshot> { self.process_memory.as_ref() }
 
     /// Cloning one observation cannot turn it into a second independent run.
     /// Equal request numbers from separate workers are distinct observations.
