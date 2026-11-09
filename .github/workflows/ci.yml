@@ -361,6 +361,8 @@ jobs:
           cargo test -p motion-effects --test native_color --locked -- --include-ignored --nocapture --test-threads=1
           cargo test -p motion-host --lib color_preparation::tests --locked -- --include-ignored --nocapture --test-threads=1
           cargo test -p motion-host --test color_preparation authored:: --locked -- --ignored --nocapture --test-threads=1
+          cargo test -p motion-desktop-media --lib movie::frame::managed::tests --locked -- --ignored --nocapture --test-threads=1
+          cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::png::managed_png_worker_preserves_default_channels_and_publishes_before_native_work --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_initialization::native_initialization_exception_reaches_default_channels_without_changing_the_project --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::unsupported_authored_consumer_reaches_default_channels_without_partial_publication --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::images::authored_image_failure_reaches_default_channels_and_cancellation_is_normal --locked -- --ignored --exact --nocapture --test-threads=1

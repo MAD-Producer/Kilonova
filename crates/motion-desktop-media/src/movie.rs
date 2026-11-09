@@ -13,7 +13,7 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
     },
 };
@@ -621,7 +621,7 @@ mod tests {
 /// Cancellation and the final rename share one lock. A successful cancellation
 /// can never race publication and leave a movie reported as cancelled.
 #[derive(Clone, Default)]
-pub struct ExportControl(Arc<Mutex<ControlState>>, Arc<AtomicU64>);
+pub struct ExportControl(Arc<Mutex<ControlState>>, Arc<AtomicU64>, Arc<AtomicBool>);
 #[derive(Default)]
 struct ControlState {
     cancelled: bool,
@@ -640,7 +640,13 @@ impl ExportControl {
             return false;
         }
         state.cancelled = true;
+        // Decoders use the same successful cancellation, without polling a
+        // mutex from their inner loops. The publication lock stays authoritative.
+        self.2.store(true, Ordering::Release);
         true
+    }
+    fn cancellation_flag(&self) -> &AtomicBool {
+        &self.2
     }
     pub fn check(&self) -> Result<()> {
         if self
@@ -738,6 +744,11 @@ impl MovieFreezePlan {
             .chain(project.video_assets.iter().map(|a| PathBuf::from(&a.path)))
             .chain(project.model_assets.iter().map(|a| PathBuf::from(&a.path)))
             .collect();
+        // Colour configuration and its referenced tables are source data too.
+        // Freeze the same handles/bytes and protect them from output overwrite.
+        for resource in project.color_management.resources().map_err(|e| e.to_string())? {
+            paths.insert(PathBuf::from(resource.path));
+        }
         let voices = if include_audio { project.audio_voices().map_err(|e| e.to_string())? } else { Vec::new() };
         for asset in &project.audio_assets {
             if voices.iter().any(|v| v.asset == asset.id) {

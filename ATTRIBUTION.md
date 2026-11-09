@@ -1,5 +1,16 @@
 # 第三方归属说明 / Third-party attribution
 
+## PNG 色彩元数据编码
+
+- 作者：The image-rs Developers；MIT 许可版权声明为 Copyright (c) 2015 nwin。
+- 来源：[image-rs/image-png](https://github.com/image-rs/image-png/tree/2a3f980245e3ae38b82ade96533e7b450e8477bb)，
+  `png` 0.18.1，crates.io SHA-256
+  `60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61`。
+- 许可：MIT OR Apache-2.0；本次使用 MIT 选项，原始文本保留在 NOTICE。
+- 修改范围：上游代码不变。把既有间接依赖显式用于 PNG 标准色彩块与
+  输出身份 iTXt；色彩契约、GPU/原生 OCIO 调用及验收独立编写。
+  未复制上游示例、图像、字体或图标。
+
 ## Windows 私有驱动缓存目录的系统接口
 
 - 作者：Microsoft Corporation 与 windows-rs contributors。

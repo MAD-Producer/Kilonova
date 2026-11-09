@@ -2,6 +2,7 @@
 use super::*;
 use motion_render::{image_resources::Resolution, Renderer, Scene};
 use std::time::{Duration, Instant};
+mod managed;
 
 pub struct FrameFreezePlan {
     sources: MovieFreezePlan,
@@ -100,13 +101,28 @@ impl FrameFreezePlan {
         renderer
             .set_memory_policy(frozen.memory_policy)
             .map_err(|e| e.to_string())?;
-        renderer
-            .configure_assets(p, frozen.assets.path())
-            .map_err(|e| e.to_string())?;
-        let mut videos = motion_host::video_frames::VideoFrames::new(self.platform);
+        let managed_color = !matches!(
+            p.color_management.as_ref(),
+            motion_core::color_management::ProjectColorManagement::Unmanaged {}
+        );
+        if !managed_color {
+            renderer
+                .configure_assets(p, frozen.assets.path())
+                .map_err(|e| e.to_string())?;
+        }
+        let mut videos = motion_host::video_frames::VideoFrames::new(self.platform.clone());
         let mut proxies = motion_host::preview_video::PreviewVideoCache::default();
+        let mut managed_png = None;
         let pixels =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Vec<u8>> {
+                if managed_color {
+                    let (pixels, image) = managed::render(
+                        &mut renderer, p, frozen.assets.path(), self.platform.as_ref(),
+                        self.frame, frozen.observation_request, control,
+                    )?;
+                    managed_png = Some(image);
+                    return Ok(pixels);
+                }
                 let target = renderer.sdr_capture_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
                     .map_err(|e| format!("PNG SDR output allocation: {e}"))?;
                 if motion_host::render_sampling::needs_exposure(p)? {
@@ -180,15 +196,19 @@ impl FrameFreezePlan {
         };
         control.check()?;
         control.set_progress(0.9);
-        image::save_buffer_with_format(
-            temporary.path(),
-            &pixels,
-            p.width,
-            p.height,
-            image::ColorType::Rgba8,
-            image::ImageFormat::Png,
-        )
-        .map_err(|e| format!("encode PNG: {e}"))?;
+        if let Some(image) = &managed_png {
+            image.encode(temporary.path(), p.width, p.height, &pixels)?;
+        } else {
+            image::save_buffer_with_format(
+                temporary.path(),
+                &pixels,
+                p.width,
+                p.height,
+                image::ColorType::Rgba8,
+                image::ImageFormat::Png,
+            )
+            .map_err(|e| format!("encode PNG: {e}"))?;
+        }
         temporary
             .as_file()
             .sync_all()
@@ -214,10 +234,13 @@ impl FrameFreezePlan {
             state.published = true;
         }
         control.set_progress(1.);
-        Ok(
+        let mut result =
             serde_json::json!({"path":output,"width":p.width,"height":p.height,
-            "frame":self.frame,"revision":frozen.revision}),
-        )
+            "frame":self.frame,"revision":frozen.revision});
+        if let Some(image) = managed_png {
+            result["color"] = image.description;
+        }
+        Ok(result)
     }
 }
 

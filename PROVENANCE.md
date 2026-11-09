@@ -162,3 +162,12 @@ upstream installer; the archive and original MIT license are separately pinned.
 No ambient FetchContent download is used for this header. Original dependency
 licenses are retained byte-for-byte as offline packaging fixtures, with authors,
 source paths, revisions, hashes and copy scope recorded in ATTRIBUTION.md.
+
+# 显式 PNG 色彩元数据编码
+
+桌面 PNG 输出直接使用锁文件已有的 `png` 0.18.1，固定 crates.io 校验和
+`60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61`，
+上游 revision `2a3f980245e3ae38b82ade96533e7b450e8477bb`。
+不修改上游代码，不引入图像资产；直接依赖用于标准 gAMA/cHRM/sRGB 和
+工程输出身份 iTXt，避免把未知输出码值冒充 sRGB。归属及许可见
+ATTRIBUTION.md 与 NOTICE。

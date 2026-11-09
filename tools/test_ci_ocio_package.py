@@ -132,6 +132,21 @@ class OcioPackageTest(unittest.TestCase):
         self.assertEqual(qualify["env"]["MOTION_TEST_OCIO_RUNTIME"],
                          "${{ github.workspace }}/artifacts/ocio-native/prefix/ocio-runtime.json")
 
+    def test_managed_png_native_pixels_and_default_channels_gate_packaging(self):
+        workflow = release_tests.yaml.load((desktop.ROOT / ".github/workflows/ci.yml").read_text(),
+                                          Loader=release_tests.yaml.BaseLoader)
+        steps = workflow["jobs"]["desktop"]["steps"]
+        qualify = next(s for s in steps if s.get("name") == "Qualify native OCIO against independent references")
+        package = next(s for s in steps if s.get("name") == "Package desktop release archive")
+        self.assertNotIn("if", qualify)
+        self.assertNotIn("continue-on-error", qualify)
+        self.assertLess(steps.index(qualify), steps.index(package))
+        commands = qualify["run"].splitlines()
+        self.assertIn("cargo test -p motion-desktop-media --lib movie::frame::managed::tests --locked -- --ignored --nocapture --test-threads=1", commands)
+        self.assertIn("cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::png::managed_png_worker_preserves_default_channels_and_publishes_before_native_work --locked -- --ignored --exact --nocapture --test-threads=1", commands)
+        self.assertEqual(qualify["env"]["MOTION_TEST_OCIO_RUNTIME"],
+                         "${{ github.workspace }}/artifacts/ocio-native/prefix/ocio-runtime.json")
+
     def test_actual_managed_windows_worker_qualifies_before_packaging(self):
         workflow = release_tests.yaml.load((desktop.ROOT / ".github/workflows/ci.yml").read_text(),
                                           Loader=release_tests.yaml.BaseLoader)

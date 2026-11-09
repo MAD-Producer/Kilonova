@@ -10,6 +10,8 @@ mod images;
 mod session;
 #[path = "native_surface.rs"]
 mod surface;
+#[path = "native_png.rs"]
+mod png;
 #[cfg(target_os = "windows")]
 #[path = "native_window.rs"]
 mod window;
