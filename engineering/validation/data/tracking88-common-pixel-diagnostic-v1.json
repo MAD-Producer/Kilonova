@@ -1,0 +1,20 @@
+{
+  "archive": "tracking88-common-pixel-diagnostic-v1.zip",
+  "bytes": 10431,
+  "sha256": "19caa7419b89c91fdb5405548dbf8f9f45aa3c7f99fb4020e480c54e3226f18b",
+  "members": {
+    "observation-controller.py": {
+      "bytes": 14505,
+      "sha256": "53e6aa618acc1009f0486e0fe40ed1f714162d38332b55e93b05a565234b46a0"
+    },
+    "reduction-controller.py": {
+      "bytes": 6176,
+      "sha256": "2d3dae57039176c901302675d51bea8519ccad2e45b25c08b6930165529461dc"
+    },
+    "summary.json": {
+      "bytes": 6853,
+      "sha256": "148485d181234315bff92a3318b84e8d2e8d784e115d28977237fdac18b73c96"
+    }
+  },
+  "readback": "Every member CRC, length and SHA-256 verified"
+}
