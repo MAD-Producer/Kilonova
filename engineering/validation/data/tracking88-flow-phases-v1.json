@@ -1,0 +1,47 @@
+{
+  "archive": "tracking88-flow-phases-v1.zip",
+  "bytes": 299276,
+  "sha256": "3c883c6569bd7f3b3ca272ba01bf40949acefe46cd8acc08a8dc64b8d1fecc65",
+  "members": 7,
+  "head": "cd4456135a169018e343fd79c5e85f09fd04c3ca",
+  "source_unchanged": true,
+  "scope": "Selected phase measurement, not algorithm adoption or full quality acceptance",
+  "excluded": [
+    "Media",
+    "Corner annotations",
+    "Derived images",
+    "Correspondence arrays",
+    "Complete observations",
+    "Model/runtime/dependency payloads"
+  ],
+  "files": {
+    "collector.py": {
+      "bytes": 2385,
+      "sha256": "a9bdc0ead8fe764656d1c0b56f691869589427e1f3dc5ccaf63cb513dbd3cd23"
+    },
+    "consumer.py": {
+      "bytes": 2662,
+      "sha256": "4574418dc78803d61317f82015aa8ea16e2c3c4c715307df32c4442c7279044e"
+    },
+    "controller.py": {
+      "bytes": 10263,
+      "sha256": "e65ec4498dd4ad9623379c06fc6dd4088da8d2c8c32f33aaf0e6c67c869b00e9"
+    },
+    "decode.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "observation.log": {
+      "bytes": 1213,
+      "sha256": "798b2d62c2af91d3b7cd589a7efdf7122e099387aa8af1df6aba5e103e5f99bc"
+    },
+    "receipt.json": {
+      "bytes": 873518,
+      "sha256": "3da333a44a3515b958db532e8e6dd70af5f7a4d0120d97a3b4d0677199a9b2f0"
+    },
+    "session-consumed.json": {
+      "bytes": 893,
+      "sha256": "d4c2fbccc9f37fe32aa0bcfc07a5adc35f5aac49e03944783ebfc89a6afb18bd"
+    }
+  }
+}

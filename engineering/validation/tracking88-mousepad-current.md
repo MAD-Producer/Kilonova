@@ -92,3 +92,9 @@ shows that better fit support alone still fails the original held-out maximum.
 The fit-only polishing candidate was rejected. Numeric failure causes now expose
 the measured gates; both full core modes preserve every original observation
 apart from the explicitly extended cause text.
+
+The subsequent [phase comparison](tracking88-flow-phases-current.md) seals the
+original selected outputs before consulting the two corner annotations. It
+compares adjacent/anchored positions and the two existing models on identical
+surviving features. This bounds the contribution of anchoring in that selected
+loss; it neither identifies a complete root cause nor adopts a replacement.
