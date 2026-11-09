@@ -60,6 +60,20 @@ fn attestation() -> Attestation {
 }
 
 #[test]
+fn retained_mode_cannot_reuse_the_cold_process_execution_identity() {
+    let observation = attestation();
+    let cold = observation.combined().unwrap();
+    let retained = observation.combined_retained().unwrap();
+    assert_ne!(cold.runtime_sha256, retained.runtime_sha256);
+    assert_eq!(cold.plan_sha256, retained.plan_sha256);
+    assert_eq!(cold.provider, retained.provider);
+    assert_eq!(retained, observation.combined_retained().unwrap());
+    let mut changed = observation;
+    changed.native.runtime_sha256[0] ^= 1;
+    assert_ne!(retained, changed.combined_retained().unwrap());
+}
+
+#[test]
 fn phase_memory_observations_do_not_change_the_runtime_identity() {
     let mut observed = attestation();
     let execution = observed.combined().unwrap();

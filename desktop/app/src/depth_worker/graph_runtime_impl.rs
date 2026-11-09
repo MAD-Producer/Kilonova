@@ -455,7 +455,7 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
         },
     )?;
     let (version, program, program_sha256, requested_backend, inputs) =
-        if matches!(mode, Invocation::Resolve) {
+        if matches!(mode, Invocation::Resolve | Invocation::Serve(_)) {
             let request: ResolveRequest = serde_json::from_slice(&raw)
                 .map_err(|e| format!("graph resolve request schema: {e}"))?;
             (
@@ -566,7 +566,10 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
     .map_err(|e| format!("graph device: {e}"))?;
     report["program_sha256"] = PROGRAM.into();
     report["model_sha256"] = graph.model_sha256.clone().into();
-    if matches!(mode, Invocation::Resolve | Invocation::Attest(_)) {
+    if matches!(
+        mode,
+        Invocation::Resolve | Invocation::Attest(_) | Invocation::Serve(_)
+    ) {
         phase(out, report, "verify_cache_model_resources")?;
         for (index, name) in compiled.persistent_names.iter().enumerate() {
             let _flight = engine::enter(index as u64 + 1, "verify_model_resource");
@@ -601,7 +604,7 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
             &info,
             &device.limits(),
         )?;
-        if let Invocation::Attest(expected) = mode {
+        if let Invocation::Attest(expected) | Invocation::Serve(expected) = mode {
             require(
                 expected.is_absolute(),
                 "absolute expected native execution path required",
@@ -639,6 +642,19 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
         report["context_preparations"] = 1.into();
         report["requested_inputs"] = json!(inputs.len());
         report["completed_inputs"] = 0.into();
+        if matches!(mode, Invocation::Serve(_)) {
+            return serve_graph(
+                &device,
+                &queue,
+                &graph,
+                &compiled,
+                &prepared,
+                &program,
+                &requested_backend,
+                out,
+                report,
+            );
+        }
         let batch = matches!(mode, Invocation::ResearchBatch);
         if batch {
             report["research_batch"] = true.into();

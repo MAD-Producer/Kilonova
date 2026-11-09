@@ -8,6 +8,7 @@ mod index_admission;
 #[path = "../logging/sink.rs"]
 mod logging;
 mod panic_context;
+mod service_admission;
 
 use admission::{Result, Tensor};
 use serde_json::{Value, json};
@@ -143,11 +144,13 @@ fn phase(out: &Path, report: &mut Value, name: &str) -> Result<()> {
     save(out, report)
 }
 include!("graph_runtime_impl.rs");
+include!("service_runtime.rs");
 enum Invocation {
     Infer,
     ResearchBatch,
     Resolve,
     Attest(PathBuf),
+    Serve(PathBuf),
 }
 fn main() {
     let args: Vec<_> = std::env::args_os().collect();
@@ -169,6 +172,11 @@ fn main() {
         ),
         [_, flag, expected, request, out] if flag == "--attest" => (
             Invocation::Attest(PathBuf::from(expected)),
+            PathBuf::from(request),
+            PathBuf::from(out),
+        ),
+        [_, flag, expected, request, out] if flag == "--serve" => (
+            Invocation::Serve(PathBuf::from(expected)),
             PathBuf::from(request),
             PathBuf::from(out),
         ),
@@ -203,7 +211,9 @@ fn main() {
             "Software adapters and implicit backend/precision fallback refused",
             "Logical buffer admission is not measured process/device memory",
             "External fixture identities are verified, not leased against concurrent filesystem mutation"]});
-    let operation = if matches!(mode, Invocation::Resolve) {
+    let operation = if matches!(mode, Invocation::Serve(_)) {
+        "retained_depth_service"
+    } else if matches!(mode, Invocation::Resolve) {
         "resolve_cache_execution"
     } else if matches!(mode, Invocation::ResearchBatch) {
         "research_retained_graph_batch"

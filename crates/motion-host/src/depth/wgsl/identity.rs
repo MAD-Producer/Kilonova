@@ -32,6 +32,15 @@ fn transform_plan() -> [u8; 32] {
 }
 
 impl Attestation {
+    pub fn combined_retained(&self) -> Result<Execution> {
+        let mut execution = self.combined()?;
+        let mut hash = Sha256::new();
+        hash.update(b"MotionStudio/depth/wgsl-retained-mailbox-runtime/v1\0");
+        hash.update(execution.runtime_sha256);
+        execution.runtime_sha256 = hash.finalize().into();
+        execution.validate()?;
+        Ok(execution)
+    }
     pub fn combined(&self) -> Result<Execution> {
         self.native.validate()?;
         self.transform.validate()?;
@@ -144,7 +153,9 @@ struct TransformResolution {
 }
 impl TransformResolution {
     fn validate(&self) -> Result<()> {
-        if let Some(memory) = &self.process_memory { memory.validate().map_err(Error::Invalid)?; }
+        if let Some(memory) = &self.process_memory {
+            memory.validate().map_err(Error::Invalid)?;
+        }
         self.execution.validate()?;
         if self.schema != 1
             || self.stage != "resolve"
@@ -177,7 +188,9 @@ struct NativeResolution {
 }
 impl NativeResolution {
     fn validate(&self, hardware: Hardware, request: &str) -> Result<()> {
-        if let Some(memory) = &self.process_memory { memory.validate().map_err(Error::Invalid)?; }
+        if let Some(memory) = &self.process_memory {
+            memory.validate().map_err(Error::Invalid)?;
+        }
         self.execution.validate()?;
         if self.status != "actual_execution_identity_resolved_without_inference"
             || self.phase != "completed"
@@ -279,14 +292,20 @@ impl Wgsl {
             Ok(stdout) => stdout,
             Err(Error::Canceled) => {
                 if let Some(cause) = completed_panic(&native_root) {
-                    log::error!("operation=depth_wgsl asset={} phase=resolve_native_panic_during_cancellation cause={cause}",input.key().source.asset);
+                    log::error!(
+                        "operation=depth_wgsl asset={} phase=resolve_native_panic_during_cancellation cause={cause}",
+                        input.key().source.asset
+                    );
                 }
                 return Err(Error::Canceled);
             }
             Err(primary) => return Err(native_error(primary, &native_root)),
         };
         if let Some(cause) = completed_panic(&native_root) {
-            log::error!("operation=depth_wgsl asset={} phase=resolve_native_panic_after_completion first_observation={cause}",input.key().source.asset);
+            log::error!(
+                "operation=depth_wgsl asset={} phase=resolve_native_panic_after_completion first_observation={cause}",
+                input.key().source.asset
+            );
         }
         if !stdout.is_empty() {
             return Err(Error::Invalid("native WGSL worker wrote to stdout"));

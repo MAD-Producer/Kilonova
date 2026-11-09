@@ -1,0 +1,984 @@
+{
+  "schema": 1,
+  "archive": "depth75-live-service-v1.zip",
+  "bytes": 505947,
+  "sha256": "2b91bfaa1beada8c4d7885b2dd5a7443ab7260d352a1087c2e20921036de4795",
+  "members": {
+    "collector.py": {
+      "bytes": 4792,
+      "sha256": "6b224adb31800d53882bc7a246c7eea0415d3f924125ce9c0d43a382a48cb22e"
+    },
+    "depth75-live-mailbox-controls-v1/changed_execution/execution.json": {
+      "bytes": 782,
+      "sha256": "ca7a7155962ebcddf13c3ba1524a4a04d465bd77a6b33cb0f1e2aa77129dcd91"
+    },
+    "depth75-live-mailbox-controls-v1/changed_execution/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/changed_execution/service/logs/motion-studio.log": {
+      "bytes": 37931,
+      "sha256": "d367c64f9745910913248a21627e3e4af77aac5d46c204dce38dcce842b82279"
+    },
+    "depth75-live-mailbox-controls-v1/changed_execution/service/receipt.json": {
+      "bytes": 1146,
+      "sha256": "c94dc2d5743b5beac2e216783e4ad8102131afcc8020a722238e5c50e9b2762b"
+    },
+    "depth75-live-mailbox-controls-v1/changed_execution/stderr.log": {
+      "bytes": 822,
+      "sha256": "687b44a765ccaf919521aab3256e20e0f1e555abdd9d5d02f22d2ca57689ce3c"
+    },
+    "depth75-live-mailbox-controls-v1/changed_execution/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/changed_program/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/changed_program/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "2423a1b9a652aa4a600319d98e44ffb8012017ef07c48d75be6688f7ea604c98"
+    },
+    "depth75-live-mailbox-controls-v1/changed_program/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/changed_program/service/logs/motion-studio.log": {
+      "bytes": 114725,
+      "sha256": "b5536494e08e62ded7056e3f9cdbfa5d097676ef670fb12be9e75f32026760c0"
+    },
+    "depth75-live-mailbox-controls-v1/changed_program/service/receipt.json": {
+      "bytes": 2316,
+      "sha256": "b89a799f639ab47ab763b741edc43e118ce6e0f3291b7dd878f3eca706d49bd3"
+    },
+    "depth75-live-mailbox-controls-v1/changed_program/stderr.log": {
+      "bytes": 850,
+      "sha256": "33de5b0ff48a2fe2d6df0bff700bc6ea97344fb6545aac7bd0004aa73eeb744d"
+    },
+    "depth75-live-mailbox-controls-v1/changed_program/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/controller.py": {
+      "bytes": 9039,
+      "sha256": "82f5343f5449f233a574548153a8713c0af20e1ab8a4946c663e67c8ab3522ff"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/service/command.json": {
+      "bytes": 239,
+      "sha256": "dbf01bff48d1c37e7838c766c196e47a1ce8f3ae16be6ab95da9c4dbb6e5a8d1"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/service/logs/motion-studio.log": {
+      "bytes": 114544,
+      "sha256": "f10b0e2dc49f0a4ee4713639187e87848e6f32a2ba34fbd98d867e951e4992e1"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/service/receipt.json": {
+      "bytes": 2336,
+      "sha256": "b329dac745d086f3938bfcfb89c18b6b54eda711d3fc14d93ad75aebcd7c01f8"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/stderr.log": {
+      "bytes": 871,
+      "sha256": "de9675113b9cbf07ea08e29942a0f939b94236ce84b480c3eb1527aa08d3e49c"
+    },
+    "depth75-live-mailbox-controls-v1/escaped_path/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/service/command.json": {
+      "bytes": 2,
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/service/logs/motion-studio.log": {
+      "bytes": 114542,
+      "sha256": "2e91a0697fddf4846e85e5a1bc9479e0847676e898a49408bd2015ec8eb5a4c5"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/service/receipt.json": {
+      "bytes": 2335,
+      "sha256": "1adbbab5def735cf05fc579ef61a328372d67ec386d9142e17a3142dab09aead"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/stderr.log": {
+      "bytes": 869,
+      "sha256": "07f1a9e65647c7e55bd3a6da71548e93d7f92d06360a4483f512751325adb5b7"
+    },
+    "depth75-live-mailbox-controls-v1/malformed/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/service/command.json": {
+      "bytes": 16385,
+      "sha256": "0a6f21fda2a49df0c6671aacfe31136e24b4880f334ee89182752f35c2f0cb3d"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/service/logs/motion-studio.log": {
+      "bytes": 114509,
+      "sha256": "e0fe3c67ba0b8bf3ae72e8fd3c32ca60c29234f0276be262fa3f2b8cdf114362"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/service/receipt.json": {
+      "bytes": 2302,
+      "sha256": "06c1f85a335aee4820a691ea835ca64891330007719f32cf503515570ca29de1"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/stderr.log": {
+      "bytes": 836,
+      "sha256": "10e46a8b5d2281dc8aab5c671b6094aae25672902c425ed8c26fdc44019718ad"
+    },
+    "depth75-live-mailbox-controls-v1/oversized/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/receipt.json": {
+      "bytes": 6234,
+      "sha256": "7877267d8d2159dcfb7ce162cede6c2faed14bb3197fdd4439cdc7b65ff7bea0"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/job/native/receipt.json": {
+      "bytes": 2197,
+      "sha256": "90616aed39ea076277885108108621d9aa827098194f9288acff8e8909f8ff21"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/service/command.json": {
+      "bytes": 304,
+      "sha256": "8a040b63e358a4c37567bcd265ec03b5466cd35a96b3ec16e0cf8bafc18c9ae3"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/service/logs/motion-studio.log": {
+      "bytes": 168860,
+      "sha256": "959f51674c9ceb6d8e8b4427be070549a87be24c1f13a89d69fdc4609f195b3f"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/service/receipt.json": {
+      "bytes": 2316,
+      "sha256": "b8f8622fecb4647e45d99df50f0efbae0d926f075104a32fbf6c8dc83cd6ffeb"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/stderr.log": {
+      "bytes": 850,
+      "sha256": "9d97e40dcf58d8d652bcc780661e17dd2cb7d6725ca0ddcd099d5c89531fbfa5"
+    },
+    "depth75-live-mailbox-controls-v1/replay_after_completed_input/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/resolve.stderr.log": {
+      "bytes": 586,
+      "sha256": "c02bb7e582b9366b27b9b2168616bc62abaabc7e2b7b01fe5f9c07d527eaaf3c"
+    },
+    "depth75-live-mailbox-controls-v1/resolve.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/resolved/logs/motion-studio.log": {
+      "bytes": 37679,
+      "sha256": "de828d936ea92614b4f872c6912be43268fcf837eb1928aaf39b3ac1c1958c75"
+    },
+    "depth75-live-mailbox-controls-v1/resolved/receipt.json": {
+      "bytes": 2177,
+      "sha256": "774e7cad9010aa8cafb25e6af1a2fe27056d735ae22c8df7244b93f89d73b4b8"
+    },
+    "depth75-live-mailbox-controls-v1/session-consumed.json": {
+      "bytes": 180,
+      "sha256": "2c2d1fb9baf2409dcb089b0cc510028b66b975afc6aa953e3ae0dc71c3d2f61a"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/service/command.json": {
+      "bytes": 289,
+      "sha256": "1f31e7f7a803ca15872997841bc0e5f7eff5433d1c86f34052ca9285ac456122"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/service/logs/motion-studio.log": {
+      "bytes": 114602,
+      "sha256": "01feea0716bba050018b533747e8e257b79b7dfe8457b65295023bec7809d772"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/service/receipt.json": {
+      "bytes": 2393,
+      "sha256": "58cd3055a0995f92f241b48919924ae30f7d9076311a9d084534fbfb0804f284"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/stderr.log": {
+      "bytes": 929,
+      "sha256": "a3238e9d0ffe62943a42de3acdc162d99ed79e2b5e750a4284b412350f31e551"
+    },
+    "depth75-live-mailbox-controls-v1/unknown_field/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_digest/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_digest/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "b8287fb677fcbc90743da899ceb6bdd5000d42f023de110c0ebb47ae2e77c0de"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_digest/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_digest/service/logs/motion-studio.log": {
+      "bytes": 114710,
+      "sha256": "08462f901a091ee5420e235565a0cd4231d5c17e2f0d9302543fc211b4bf06cb"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_digest/service/receipt.json": {
+      "bytes": 2301,
+      "sha256": "bce0608e7eea19bc6b52b5a48634d5a1840ba6ab9b5bd9aa6f1951e95c7dad38"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_digest/stderr.log": {
+      "bytes": 835,
+      "sha256": "d986677f757c46c8435d0a39ec29855dfae89d7617d4e06b1e6699af760a0897"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_digest/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/execution.json": {
+      "bytes": 782,
+      "sha256": "bdc8a7eaf9da90eb3562e56e24b98ed46cbfb926ce715abdcd7614ad6d190a18"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/service/command.json": {
+      "bytes": 276,
+      "sha256": "728f45f07d5b6a745fb8900a730dcb5858bd507f257aed2755a03244353394c2"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/service/logs/motion-studio.log": {
+      "bytes": 114519,
+      "sha256": "63b43e50a5ecf6c7366aafa9df27e7d40aec851d3100b2834321fadc20eff558"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/service/receipt.json": {
+      "bytes": 2312,
+      "sha256": "b3b28a749afd53861e8a9672aa900a8b010597c00ae33a040ae5b31181a6c1f9"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/stderr.log": {
+      "bytes": 846,
+      "sha256": "12630ce4df1f7f6ef9ff130d51eda384fef46e79744627e17038211bd36e33df"
+    },
+    "depth75-live-mailbox-controls-v1/wrong_sequence/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/changed_execution/execution.json": {
+      "bytes": 787,
+      "sha256": "976efea10fcf0697d573fb7c0c719c2a026ad5522b72df50c6e578976db98cab"
+    },
+    "depth75-live-mailbox-controls-v2/changed_execution/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/changed_execution/service/logs/motion-studio.log": {
+      "bytes": 37931,
+      "sha256": "ca4287b20a28700b125708d6eca155d2e0b616711e8185ce769eebd64cfaef6e"
+    },
+    "depth75-live-mailbox-controls-v2/changed_execution/service/receipt.json": {
+      "bytes": 1146,
+      "sha256": "2c3215ef2f797bb8807db0a3ea9b448747761b32a35031268c3f57eca6f94a82"
+    },
+    "depth75-live-mailbox-controls-v2/changed_execution/stderr.log": {
+      "bytes": 822,
+      "sha256": "f0b166493566fa683fb2664fc7a323b0e1489d34494be6cb7d7e2bdc62cbae99"
+    },
+    "depth75-live-mailbox-controls-v2/changed_execution/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/changed_program/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/changed_program/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "2423a1b9a652aa4a600319d98e44ffb8012017ef07c48d75be6688f7ea604c98"
+    },
+    "depth75-live-mailbox-controls-v2/changed_program/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/changed_program/service/logs/motion-studio.log": {
+      "bytes": 114975,
+      "sha256": "a94d1f826976502a238da3e28800b837021025df6d28b406853e0939d6d643f4"
+    },
+    "depth75-live-mailbox-controls-v2/changed_program/service/receipt.json": {
+      "bytes": 2321,
+      "sha256": "43fda10d87ed0c08e818f6b605e3d1360c0e85ddc4752f4d54ab06a3028a7be5"
+    },
+    "depth75-live-mailbox-controls-v2/changed_program/stderr.log": {
+      "bytes": 850,
+      "sha256": "78923faf77151770c74620a7ce6b94e9be94ff3cf69e1c85a46d7a2b070e1724"
+    },
+    "depth75-live-mailbox-controls-v2/changed_program/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/controller.py": {
+      "bytes": 9859,
+      "sha256": "8c5ab5bc2e659f8f6cde111f68cde2539afbdb2896273b2d36bcea6f3efff082"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/service/command.json": {
+      "bytes": 239,
+      "sha256": "7f9c8c6fb988ca9103018acd88758c7c3d1b9a1220da7e4a4f64de92860400f9"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/service/logs/motion-studio.log": {
+      "bytes": 114791,
+      "sha256": "a1a8bbc15da55099b91d4e89f6099d3a6bea21a78d1f08b5239587179216ec7f"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/service/receipt.json": {
+      "bytes": 2339,
+      "sha256": "66d7d19f58ae602007e044e4e243f6450194974b4217dd2b29fbc4240637048d"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/stderr.log": {
+      "bytes": 868,
+      "sha256": "168b27a616aafdb7797674f8968c8bbb805eddf616ae9b34896f065e3a2289a3"
+    },
+    "depth75-live-mailbox-controls-v2/escaped_path/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/service/command.json": {
+      "bytes": 2,
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/service/logs/motion-studio.log": {
+      "bytes": 114670,
+      "sha256": "798118cd4c7b830e8d48a3621c0063cdc058b5ccb54c19d9b8fda14e03b38e92"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/service/receipt.json": {
+      "bytes": 2338,
+      "sha256": "f4babf7cdb9caed566f9da45ef8aeca923948f21c7374b69a32a1f3c1846c6bb"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/stderr.log": {
+      "bytes": 867,
+      "sha256": "2fbb0752e38321589b7a9041b8d12f8cb15777c560f177798224383043968645"
+    },
+    "depth75-live-mailbox-controls-v2/malformed/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/service/command.json": {
+      "bytes": 16385,
+      "sha256": "0a6f21fda2a49df0c6671aacfe31136e24b4880f334ee89182752f35c2f0cb3d"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/service/logs/motion-studio.log": {
+      "bytes": 114637,
+      "sha256": "9c1bef9416783cad9819ddbcf96c7e87745feb7e04057bd1ffc1929eff846a07"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/service/receipt.json": {
+      "bytes": 2305,
+      "sha256": "c8ac8b51431250f3b2b34095e9de855d78e7d96b9fb7db4e03ef9efefa023e00"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/stderr.log": {
+      "bytes": 834,
+      "sha256": "1a3f7b6c152e440daf75d10d3c6a9b93e9091981d97cab0f47acbd6b744309ff"
+    },
+    "depth75-live-mailbox-controls-v2/oversized/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/receipt.json": {
+      "bytes": 7618,
+      "sha256": "9fcd50b2400173c7d8fbca59e97ff4f3794291263b5db3f5b3ea1415f35be2bc"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/job/native/receipt.json": {
+      "bytes": 2202,
+      "sha256": "bbaf251a43bf9bba944e1d7c863a5ef45ad207b6277352a252e3b8defb074ca2"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/service/command.json": {
+      "bytes": 304,
+      "sha256": "3bc9574f4603757121f84c533ad9dd5cf0bb72e1128615bfe4f0d8231ac7d0e6"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/service/logs/motion-studio.log": {
+      "bytes": 169347,
+      "sha256": "e1334f5a306fc563a1786f682f5caf2d295392b7088047f62a1cb93303f4c031"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/service/receipt.json": {
+      "bytes": 2314,
+      "sha256": "6ce9320a19186b77393e69444ae0b562077792b50add168bfd78c4eea050b4fc"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/stderr.log": {
+      "bytes": 843,
+      "sha256": "2e3c6a7232b2f01e67c7692c0c2fb7900b9f07364c25c9f75f3b8ee4dc613048"
+    },
+    "depth75-live-mailbox-controls-v2/replay_after_completed_input/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/resolve.stderr.log": {
+      "bytes": 586,
+      "sha256": "1676198d769098160031d4b54efefaa3e9037f60af8791ce0fb6b21e75e3cf97"
+    },
+    "depth75-live-mailbox-controls-v2/resolve.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/resolved/logs/motion-studio.log": {
+      "bytes": 37679,
+      "sha256": "b41447635cf7f1955f86bc5c12c267543e259ce92536522b01364314776c5574"
+    },
+    "depth75-live-mailbox-controls-v2/resolved/receipt.json": {
+      "bytes": 2182,
+      "sha256": "f585bb9fab99783c7955defead4f5648126be0d5a71f525a8bc1b88ccd7e022d"
+    },
+    "depth75-live-mailbox-controls-v2/session-consumed.json": {
+      "bytes": 180,
+      "sha256": "29f7758a4d525a90ed073b477d7a0ac5e0746a89a9ba37d03dc899ef7d8e6261"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/service/command.json": {
+      "bytes": 289,
+      "sha256": "177a0e6d310e9bfbea591106ed5d13d2a3fb18cc525bb7856f40babeb6546f52"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/service/logs/motion-studio.log": {
+      "bytes": 114730,
+      "sha256": "08497464b49745f7a557905418e8f4ac8e61a6ad22051496924699352ede560c"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/service/receipt.json": {
+      "bytes": 2398,
+      "sha256": "8ae6f2be427ffd0b59b275076a6766ba3b8d05abef37cbb3431db789a4a98fbb"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/stderr.log": {
+      "bytes": 927,
+      "sha256": "9aa0d9b29462c25c830a7be162ce2fbbe72394837b76640bf4a534836fec1e78"
+    },
+    "depth75-live-mailbox-controls-v2/unknown_field/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_digest/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_digest/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "b8287fb677fcbc90743da899ceb6bdd5000d42f023de110c0ebb47ae2e77c0de"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_digest/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_digest/service/logs/motion-studio.log": {
+      "bytes": 114960,
+      "sha256": "d575a4db8cbbc9882092896af7f79f97e0fb54247ee14668d4eed312718f9940"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_digest/service/receipt.json": {
+      "bytes": 2306,
+      "sha256": "aea86b8da51f856525ab10f1c877cf653c255b8b9068a4cecf8cb20467fb2ec9"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_digest/stderr.log": {
+      "bytes": 835,
+      "sha256": "73e827a00270332bb8b51e3242df6d65cf74ef50d316f93b8eb5c36511b0cd43"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_digest/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/execution.json": {
+      "bytes": 787,
+      "sha256": "e40902dfef2ebdd16d23dd042e8555837a6b8681f151823b2f9fb7a24148d4a3"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/job/native-request.json": {
+      "bytes": 484,
+      "sha256": "15543dfcae8dec5d82d5f22d7936f5b067c5549c420b7c46b02f080d2fbcf05e"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/service/command.json": {
+      "bytes": 276,
+      "sha256": "947ed8859c4502d3338a1a9402c64b03ba342ebdaf6b79d4a13691702ed52f48"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/service/logs/motion-studio.log": {
+      "bytes": 114766,
+      "sha256": "6cdf1c3f0b19c20327fa6661901b4649013f4cb7ec7374031e130bf7fb0120af"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/service/receipt.json": {
+      "bytes": 2314,
+      "sha256": "698e0318d40b6690694883e0f61dc7ca4e0aa9b868b9deaa716659642c36a981"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/stderr.log": {
+      "bytes": 843,
+      "sha256": "d3b7f2221a2e782e846c463b5a63217917aec4235925b508fd8ed9f1288e8cae"
+    },
+    "depth75-live-mailbox-controls-v2/wrong_sequence/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-service-v1/actual-jobs.stderr.log": {
+      "bytes": 1676,
+      "sha256": "7bf13909b62a213152be540b7a10c48148ec8a69c88de633fe8ce001836e2072"
+    },
+    "depth75-live-service-v1/actual-jobs.stdout.log": {
+      "bytes": 7516,
+      "sha256": "3aa1b4178ed2bb564326c423fb13124736053ae0cb00d8a0cf73d119a87bfc42"
+    },
+    "depth75-live-service-v1/controller.py": {
+      "bytes": 6889,
+      "sha256": "b701ce66f1fc0b667306edc81a7b56887275e6f483c1c98c6200b152afc045e6"
+    },
+    "depth75-live-service-v1/fixture.json": {
+      "bytes": 984,
+      "sha256": "ec2e22ee0141e7572a0720883370b6e7562fea0beada5235d06942266309f12b"
+    },
+    "depth75-live-service-v1/host-memory-unit.stderr.log": {
+      "bytes": 1035,
+      "sha256": "1786156a57e139eb9a73757bc66db75ab2eb83ae472b971ada94b86efb76e804"
+    },
+    "depth75-live-service-v1/host-memory-unit.stdout.log": {
+      "bytes": 594,
+      "sha256": "9bff7b924dc5dd77a2dccb5546dbe3c41023a483090c0c04aa9b5808120b9f9f"
+    },
+    "depth75-live-service-v1/host-wgsl-unit.stderr.log": {
+      "bytes": 1442,
+      "sha256": "c68eeef10853cc5a40a8d07c05541167c95400cc3a834218c90ba3154c810a6f"
+    },
+    "depth75-live-service-v1/host-wgsl-unit.stdout.log": {
+      "bytes": 2495,
+      "sha256": "4c91837a7d343377270ee17695566add7bfb7820c59d255661aa7103ec261ca6"
+    },
+    "depth75-live-service-v1/logs/motion-studio.log": {
+      "bytes": 11821,
+      "sha256": "71e67100433827c7616eb0788dc74934bb581115a172e6c30c539aea2f96501c"
+    },
+    "depth75-live-service-v1/native-service.log": {
+      "bytes": 331071,
+      "sha256": "6eb5cf5b2bc8d0a079596c166ccb89f23ac6d22f615577de16081f12fb0db5a5"
+    },
+    "depth75-live-service-v1/receipt.json": {
+      "bytes": 6161,
+      "sha256": "46f08870af7da3f8f3ee029c66bdebbd69bd8e0e57c7ba82bbd824852a07922e"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 30198,
+      "sha256": "6a1fb4caff15dba955cd49b15efdb916837d709aa201ecdc1d2af3e102c6922d"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/crates/motion-host/src/depth/wgsl/identity.rs": {
+      "bytes": 12462,
+      "sha256": "16d06aa9aa71a439ba0439f5d22320ec1dcc5d1b39ee53279ab10911a67d617c"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/crates/motion-host/src/depth/wgsl/identity/tests.rs": {
+      "bytes": 10276,
+      "sha256": "cc22a4868f2d05a8364d74a003e8e94cb146619f773f0c11be2932710fd58329"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/crates/motion-host/src/depth/wgsl/service.rs": {
+      "bytes": 11010,
+      "sha256": "e019e0324881139b58ffb1bfcb217e5cc6870beaafcaf839b7238b4f278c5a2f"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/crates/motion-host/src/process_memory.rs": {
+      "bytes": 17964,
+      "sha256": "e32cfe16d351a1cdcdacb662da856782a0932de194a5524cdf2d39f9fa957e1d"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/crates/motion-host/tests/depth_wgsl_retained.rs": {
+      "bytes": 8367,
+      "sha256": "81747778ab1a67c7d51301f02a81a5aee7aaf7212fd195d7ce6053c2403c4bee"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/desktop/app/Cargo.toml": {
+      "bytes": 2773,
+      "sha256": "b195d476d90c8610599b451bb976d18a670d0f8cbfd935aa18376906d02b88ac"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/desktop/app/src/depth_worker/graph_runtime_impl.rs": {
+      "bytes": 30311,
+      "sha256": "659034ad31b4f4a66b0d1cb4c8e99710648453554424483258abd6abb4ea23c8"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/desktop/app/src/depth_worker/main.rs": {
+      "bytes": 8587,
+      "sha256": "dc1f7fa24241a48494f781f5007b632888aaeda445a9e2fb2df4e2d70c9761d9"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/desktop/app/src/depth_worker/service_admission.rs": {
+      "bytes": 2785,
+      "sha256": "4f4864c0517b17d5988ef7145a65168fc0426d9b615400c41de5f66c1840187d"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/desktop/app/src/depth_worker/service_runtime.rs": {
+      "bytes": 5074,
+      "sha256": "d8a6d294b92eaf97b89393f6628a5c00b9e8dce8935aa51b238a2ab536ff07ac"
+    },
+    "depth75-live-service-v1/reconstructed-frozen-source/desktop/app/src/depth_worker/tests/service_admission.rs": {
+      "bytes": 59,
+      "sha256": "8c76edc32e4ccdf33e156acafb6b0c648e0998694b2e49d01b9bfcfeebfc1adb"
+    },
+    "depth75-live-service-v1/session-consumed.json": {
+      "bytes": 312,
+      "sha256": "834e78383fae6d3c48c6b5facced6d649b0685241262283e6e74ce02ead9fa3f"
+    },
+    "depth75-live-service-v1/source-reconstruction.json": {
+      "bytes": 1705,
+      "sha256": "95c8c59d4f9936d78270ed790cd88d7794862cb00dd16220b9231355ff8800e9"
+    },
+    "depth75-live-service-v1/worker-admission.stderr.log": {
+      "bytes": 32439,
+      "sha256": "ec298ac12cf2e8c850fb366a27d1f8afa9ecb1ed9d5fddc0767d223a351af7c0"
+    },
+    "depth75-live-service-v1/worker-admission.stdout.log": {
+      "bytes": 3913,
+      "sha256": "a32090f9e062af57c1fbce0e77a1925eaed3b595cab86fbc8205c6916d6f6cc5"
+    },
+    "depth75-live-service-v1/worker-build.stderr.log": {
+      "bytes": 3815,
+      "sha256": "7baf79f12c7041e06eb6bd80acb24f5b3ce8dec3484e95473e6af2695a678cdd"
+    },
+    "depth75-live-service-v1/worker-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-service-v2/actual-jobs.stderr.log": {
+      "bytes": 1439,
+      "sha256": "1cac1e44481fb30e96816dd8df61a46cc0058013adfe75015be0edc7544cb713"
+    },
+    "depth75-live-service-v2/actual-jobs.stdout.log": {
+      "bytes": 197,
+      "sha256": "87f9c17c5298082ed33494fd5cab9be89aae40731dbe7a336e54d55b963546b3"
+    },
+    "depth75-live-service-v2/controller.py": {
+      "bytes": 7572,
+      "sha256": "f1848df6209261120509d7f046250d7dec61284c270d7e7d9b1caeee01f32a37"
+    },
+    "depth75-live-service-v2/fixture.json": {
+      "bytes": 984,
+      "sha256": "bcc1810268b80c4094f1fb4d76ad394c146def99c366e23532be17ada7f44d80"
+    },
+    "depth75-live-service-v2/frozen-source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 30745,
+      "sha256": "0a0c5960451dbdbcf049f7a6aabbb6eb1b1d09d8952d3efabe8aae4b1883c86b"
+    },
+    "depth75-live-service-v2/frozen-source/crates/motion-host/src/depth/wgsl/identity.rs": {
+      "bytes": 12462,
+      "sha256": "16d06aa9aa71a439ba0439f5d22320ec1dcc5d1b39ee53279ab10911a67d617c"
+    },
+    "depth75-live-service-v2/frozen-source/crates/motion-host/src/depth/wgsl/identity/tests.rs": {
+      "bytes": 10276,
+      "sha256": "cc22a4868f2d05a8364d74a003e8e94cb146619f773f0c11be2932710fd58329"
+    },
+    "depth75-live-service-v2/frozen-source/crates/motion-host/src/depth/wgsl/service.rs": {
+      "bytes": 11265,
+      "sha256": "4d1c5212a0f3f1d829c1241a4d38269d883244fff0c090731bfa0bc4682e97e9"
+    },
+    "depth75-live-service-v2/frozen-source/crates/motion-host/src/process_memory.rs": {
+      "bytes": 17964,
+      "sha256": "e32cfe16d351a1cdcdacb662da856782a0932de194a5524cdf2d39f9fa957e1d"
+    },
+    "depth75-live-service-v2/frozen-source/crates/motion-host/tests/depth_wgsl_retained.rs": {
+      "bytes": 8623,
+      "sha256": "862e0fc78cd712a884d3082d4923c01715d586185cbe867ae5f0ae6e906c77d1"
+    },
+    "depth75-live-service-v2/frozen-source/desktop/app/Cargo.toml": {
+      "bytes": 2773,
+      "sha256": "b195d476d90c8610599b451bb976d18a670d0f8cbfd935aa18376906d02b88ac"
+    },
+    "depth75-live-service-v2/frozen-source/desktop/app/src/depth_worker/graph_runtime_impl.rs": {
+      "bytes": 30311,
+      "sha256": "659034ad31b4f4a66b0d1cb4c8e99710648453554424483258abd6abb4ea23c8"
+    },
+    "depth75-live-service-v2/frozen-source/desktop/app/src/depth_worker/main.rs": {
+      "bytes": 8587,
+      "sha256": "dc1f7fa24241a48494f781f5007b632888aaeda445a9e2fb2df4e2d70c9761d9"
+    },
+    "depth75-live-service-v2/frozen-source/desktop/app/src/depth_worker/service_admission.rs": {
+      "bytes": 2785,
+      "sha256": "4f4864c0517b17d5988ef7145a65168fc0426d9b615400c41de5f66c1840187d"
+    },
+    "depth75-live-service-v2/frozen-source/desktop/app/src/depth_worker/service_runtime.rs": {
+      "bytes": 5074,
+      "sha256": "d8a6d294b92eaf97b89393f6628a5c00b9e8dce8935aa51b238a2ab536ff07ac"
+    },
+    "depth75-live-service-v2/frozen-source/desktop/app/src/depth_worker/tests/service_admission.rs": {
+      "bytes": 59,
+      "sha256": "8c76edc32e4ccdf33e156acafb6b0c648e0998694b2e49d01b9bfcfeebfc1adb"
+    },
+    "depth75-live-service-v2/host-memory-unit.stderr.log": {
+      "bytes": 1035,
+      "sha256": "20ddc0e292659dfe10405063df447adca5ec135baec0e4172e0a32330ade0b17"
+    },
+    "depth75-live-service-v2/host-memory-unit.stdout.log": {
+      "bytes": 594,
+      "sha256": "9bff7b924dc5dd77a2dccb5546dbe3c41023a483090c0c04aa9b5808120b9f9f"
+    },
+    "depth75-live-service-v2/host-wgsl-unit.stderr.log": {
+      "bytes": 1136,
+      "sha256": "b3da166e80301ea1efe89554c0038ab17d92465a916cf290b9f9dfe3093f77c3"
+    },
+    "depth75-live-service-v2/host-wgsl-unit.stdout.log": {
+      "bytes": 2495,
+      "sha256": "4c91837a7d343377270ee17695566add7bfb7820c59d255661aa7103ec261ca6"
+    },
+    "depth75-live-service-v2/jobs-evidence.json": {
+      "bytes": 19663,
+      "sha256": "43795276e59f2337b391b9bdefb3b850c33b3c585aa5f9566a99c4f4ac114e9a"
+    },
+    "depth75-live-service-v2/logs/motion-studio.log": {
+      "bytes": 7683,
+      "sha256": "c6661ec1de69303ab29f90ca688bffee2cd108d90adf5dbe0addb86a229aa441"
+    },
+    "depth75-live-service-v2/native-service.log": {
+      "bytes": 331071,
+      "sha256": "68e407e5344eb009b6ea3bb95318a11e9a9baaea579f144f8109272b741b20cc"
+    },
+    "depth75-live-service-v2/receipt.json": {
+      "bytes": 5535,
+      "sha256": "907a4f150e41911392f417411228d2d8664c2feededfd364841f3a6bd82f35bb"
+    },
+    "depth75-live-service-v2/session-consumed.json": {
+      "bytes": 151,
+      "sha256": "7d7208a80f4c93eb70f10b3ed37dfeaef1a9421e0650c95e298374addfe53183"
+    },
+    "depth75-live-service-v2/worker-admission.stderr.log": {
+      "bytes": 32439,
+      "sha256": "9d9599ed0b2d679778a690f0c13615a9c9f33ddb7f8fb846d91961b7b8711d92"
+    },
+    "depth75-live-service-v2/worker-admission.stdout.log": {
+      "bytes": 3913,
+      "sha256": "10749a255654fab5343af002ef1594fe0f7c8ed2bfaac9b6842590531fb0bae5"
+    },
+    "depth75-live-service-v2/worker-build.stderr.log": {
+      "bytes": 3815,
+      "sha256": "666caa9e111bfb3386f5cee01766085fed4354bb15bd94a2701b19533eed1d2c"
+    },
+    "depth75-live-service-v2/worker-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-service-v3/actual-jobs.stderr.log": {
+      "bytes": 1338,
+      "sha256": "0e6ee15409355491f000fe4b6b748c2375be5370392b45060e2f520ab2565291"
+    },
+    "depth75-live-service-v3/actual-jobs.stdout.log": {
+      "bytes": 197,
+      "sha256": "5604d53e57dbf0b8cb0fa8c4102256444c05d1333db8e79b3794ca7d294d25ed"
+    },
+    "depth75-live-service-v3/controller.py": {
+      "bytes": 7606,
+      "sha256": "9a8564147cacdf2000467bd8023d697c4e6da20696ff468d8da4c40812e22b57"
+    },
+    "depth75-live-service-v3/fixture.json": {
+      "bytes": 984,
+      "sha256": "e2fad5e5329b19d0174f1aa6fdb72740f4d491e388ff2358ec3a7eeba6bc6ae8"
+    },
+    "depth75-live-service-v3/frozen-source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 30745,
+      "sha256": "0a0c5960451dbdbcf049f7a6aabbb6eb1b1d09d8952d3efabe8aae4b1883c86b"
+    },
+    "depth75-live-service-v3/frozen-source/crates/motion-host/src/depth/wgsl/identity.rs": {
+      "bytes": 12462,
+      "sha256": "16d06aa9aa71a439ba0439f5d22320ec1dcc5d1b39ee53279ab10911a67d617c"
+    },
+    "depth75-live-service-v3/frozen-source/crates/motion-host/src/depth/wgsl/identity/tests.rs": {
+      "bytes": 10276,
+      "sha256": "cc22a4868f2d05a8364d74a003e8e94cb146619f773f0c11be2932710fd58329"
+    },
+    "depth75-live-service-v3/frozen-source/crates/motion-host/src/depth/wgsl/service.rs": {
+      "bytes": 11265,
+      "sha256": "4d1c5212a0f3f1d829c1241a4d38269d883244fff0c090731bfa0bc4682e97e9"
+    },
+    "depth75-live-service-v3/frozen-source/crates/motion-host/src/process_memory.rs": {
+      "bytes": 17964,
+      "sha256": "e32cfe16d351a1cdcdacb662da856782a0932de194a5524cdf2d39f9fa957e1d"
+    },
+    "depth75-live-service-v3/frozen-source/crates/motion-host/tests/depth_wgsl_retained.rs": {
+      "bytes": 8623,
+      "sha256": "862e0fc78cd712a884d3082d4923c01715d586185cbe867ae5f0ae6e906c77d1"
+    },
+    "depth75-live-service-v3/frozen-source/desktop/app/Cargo.toml": {
+      "bytes": 2773,
+      "sha256": "b195d476d90c8610599b451bb976d18a670d0f8cbfd935aa18376906d02b88ac"
+    },
+    "depth75-live-service-v3/frozen-source/desktop/app/src/depth_worker/graph_runtime_impl.rs": {
+      "bytes": 30311,
+      "sha256": "659034ad31b4f4a66b0d1cb4c8e99710648453554424483258abd6abb4ea23c8"
+    },
+    "depth75-live-service-v3/frozen-source/desktop/app/src/depth_worker/main.rs": {
+      "bytes": 8587,
+      "sha256": "dc1f7fa24241a48494f781f5007b632888aaeda445a9e2fb2df4e2d70c9761d9"
+    },
+    "depth75-live-service-v3/frozen-source/desktop/app/src/depth_worker/service_admission.rs": {
+      "bytes": 2785,
+      "sha256": "4f4864c0517b17d5988ef7145a65168fc0426d9b615400c41de5f66c1840187d"
+    },
+    "depth75-live-service-v3/frozen-source/desktop/app/src/depth_worker/service_runtime.rs": {
+      "bytes": 5692,
+      "sha256": "461162744d6adf4c6c1ceedc41898fb86394195874ab4f24ea888f8c7a4d44c8"
+    },
+    "depth75-live-service-v3/frozen-source/desktop/app/src/depth_worker/tests/service_admission.rs": {
+      "bytes": 59,
+      "sha256": "8c76edc32e4ccdf33e156acafb6b0c648e0998694b2e49d01b9bfcfeebfc1adb"
+    },
+    "depth75-live-service-v3/host-memory-unit.stderr.log": {
+      "bytes": 1035,
+      "sha256": "f07f0b1edc1c114a639e5a52062c8148001039a03d604026ef93b84099e7837c"
+    },
+    "depth75-live-service-v3/host-memory-unit.stdout.log": {
+      "bytes": 594,
+      "sha256": "0cb2a75cb73b1873bb61165bc487219f5183bbce32d23897890c9854015b0401"
+    },
+    "depth75-live-service-v3/host-wgsl-unit.stderr.log": {
+      "bytes": 1035,
+      "sha256": "1786156a57e139eb9a73757bc66db75ab2eb83ae472b971ada94b86efb76e804"
+    },
+    "depth75-live-service-v3/host-wgsl-unit.stdout.log": {
+      "bytes": 2495,
+      "sha256": "bb4b539bbf3a3c2713dd2b04d5eae22053c7a3b7283b9a44b99f2a99aca41d6e"
+    },
+    "depth75-live-service-v3/jobs-evidence.json": {
+      "bytes": 19697,
+      "sha256": "46ab146202b34d12e9f90b3eea1b5ce62800d16bd7a749a9aebfbd9d32acd34c"
+    },
+    "depth75-live-service-v3/logs/motion-studio.log": {
+      "bytes": 7683,
+      "sha256": "89361f13bc3ce11fbc6fad01e9001703a3cddc48acd7fe7b384517bff88e3eda"
+    },
+    "depth75-live-service-v3/native-service.log": {
+      "bytes": 332053,
+      "sha256": "cad4b4c3013b5c446f4f204ac35d91ea5972057531c545bf32d35d8fc49fb8b6"
+    },
+    "depth75-live-service-v3/receipt.json": {
+      "bytes": 5570,
+      "sha256": "9e7e1c385a837b6c92ee5513d48518c29902fc34025d3f741cf3ee3815a2f810"
+    },
+    "depth75-live-service-v3/session-consumed.json": {
+      "bytes": 151,
+      "sha256": "6590332c9da542dc232c72fecbcf54ec67c8c6006caa40041835bd06b0d4df37"
+    },
+    "depth75-live-service-v3/worker-admission.stderr.log": {
+      "bytes": 32207,
+      "sha256": "26c5a7022c9ef2ea83a1780eaa824650e7c81961158912f6c48656771f57c6da"
+    },
+    "depth75-live-service-v3/worker-admission.stdout.log": {
+      "bytes": 3913,
+      "sha256": "9a6397e9e598ba768cddc87ae031f90ec3472f602a381ef81cc6e4a4434416c6"
+    },
+    "depth75-live-service-v3/worker-build.stderr.log": {
+      "bytes": 3815,
+      "sha256": "b8d2fb3c548f8a26479c24da879b831834586f86bbfbcc5d96b4e5a36f573ec4"
+    },
+    "depth75-live-service-v3/worker-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "failed-source-reconstruction.py": {
+      "bytes": 3282,
+      "sha256": "bc7baeabeb9408909bcf580d65458c6beb152098af213010b3a52785a1c42024"
+    },
+    "summary.json": {
+      "bytes": 30282,
+      "sha256": "d65f2bcf328e79a000642c65b7bd5bef7c696284face2076e4b5e6539cb9ff83"
+    }
+  }
+}

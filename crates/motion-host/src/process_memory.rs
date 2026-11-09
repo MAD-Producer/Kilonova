@@ -40,6 +40,15 @@ pub enum Children {
         inference: Option<ProcessPeak>,
         remap: Option<ProcessPeak>,
     },
+    /// The resident worker overlaps transform children. Keep their individual
+    /// lifetime peaks; the sequential-child sum is inapplicable to this mode.
+    WgslRetained {
+        resolution_transform: Option<ProcessPeak>,
+        resolution_native: Option<ProcessPeak>,
+        prepare: Option<ProcessPeak>,
+        inference: Option<ProcessPeak>,
+        remap: Option<ProcessPeak>,
+    },
 }
 
 /// Queried lifetime peaks for a measured request's host and direct children.
@@ -66,6 +75,7 @@ impl Snapshot {
     /// Missing/unavailable/malformed counters and overflow remain unknown.
     pub fn observed_resident_sum(&self) -> Option<u64> {
         let (count, stages) = match &self.children {
+            Children::WgslRetained { .. } => return None,
             Children::Onnx {
                 resolution,
                 inference,
@@ -249,6 +259,25 @@ mod tests {
     }
 
     #[test]
+    fn resident_worker_overlap_cannot_use_the_sequential_child_sum() {
+        let snapshot = Snapshot {
+            host: observed(1, 1000),
+            children: Children::WgslRetained {
+                resolution_transform: Some(observed(2, 100)),
+                resolution_native: Some(observed(3, 200)),
+                prepare: Some(observed(4, 300)),
+                inference: Some(observed(5, 400)),
+                remap: Some(observed(6, 500)),
+            },
+        };
+        assert!(snapshot.observed_resident_sum().is_none());
+        let bytes = serde_json::to_vec(&snapshot).unwrap();
+        let restored: Snapshot = serde_json::from_slice(&bytes).unwrap();
+        assert!(restored.observed_resident_sum().is_none());
+        assert_eq!(serde_json::to_vec(&restored).unwrap(), bytes);
+    }
+
+    #[test]
     fn sequential_stages_keep_unknowns_and_do_not_sum_nonconcurrent_child_peaks() {
         for children in [
             Children::Onnx {
@@ -286,10 +315,12 @@ mod tests {
                 ] {
                     let mut invalid = value.clone();
                     invalid["children"][stage] = missing;
-                    assert!(serde_json::from_value::<Snapshot>(invalid)
-                        .unwrap()
-                        .observed_resident_sum()
-                        .is_none());
+                    assert!(
+                        serde_json::from_value::<Snapshot>(invalid)
+                            .unwrap()
+                            .observed_resident_sum()
+                            .is_none()
+                    );
                 }
             }
             let mut invalid = value;
@@ -381,9 +412,11 @@ mod tests {
             assert!(commits[1] >= 64 << 20 && commits[1] >= commits[0] && commits[2] >= commits[1]);
         }
         #[cfg(not(windows))]
-        assert!(values
-            .iter()
-            .all(|s| s["peak_private_commit_bytes"].is_null()));
+        assert!(
+            values
+                .iter()
+                .all(|s| s["peak_private_commit_bytes"].is_null())
+        );
     }
 
     #[test]
@@ -402,10 +435,12 @@ mod tests {
             for field in ["pid", "peak_resident_bytes"] {
                 let mut invalid = value.clone();
                 invalid[field] = json!(0);
-                assert!(serde_json::from_value::<ProcessPeak>(invalid)
-                    .unwrap()
-                    .validate()
-                    .is_err());
+                assert!(
+                    serde_json::from_value::<ProcessPeak>(invalid)
+                        .unwrap()
+                        .validate()
+                        .is_err()
+                );
             }
             let mut invalid = value;
             invalid["peak_private_commit_bytes"] = if method == "windows_process_memory_counters" {
@@ -413,10 +448,12 @@ mod tests {
             } else {
                 json!(0)
             };
-            assert!(serde_json::from_value::<ProcessPeak>(invalid)
-                .unwrap()
-                .validate()
-                .is_err());
+            assert!(
+                serde_json::from_value::<ProcessPeak>(invalid)
+                    .unwrap()
+                    .validate()
+                    .is_err()
+            );
         }
         for field in [
             json!({"status":"observed","pid":75,"method":"guessed","peak_resident_bytes":1}),
@@ -439,9 +476,11 @@ mod tests {
             "x".repeat(513),
             "original\nquery failure".to_string(),
         ] {
-            assert!(ProcessPeak::Unavailable { pid: 75, cause }
-                .validate()
-                .is_err());
+            assert!(
+                ProcessPeak::Unavailable { pid: 75, cause }
+                    .validate()
+                    .is_err()
+            );
         }
     }
 }

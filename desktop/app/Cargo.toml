@@ -37,6 +37,10 @@ name = "depth-worker-batch-admission"
 path = "src/depth_worker/tests/batch_admission.rs"
 
 [[test]]
+name = "depth-worker-service-admission"
+path = "src/depth_worker/tests/service_admission.rs"
+
+[[test]]
 name = "depth-worker-panic"
 path = "src/depth_worker/tests/panic.rs"
 

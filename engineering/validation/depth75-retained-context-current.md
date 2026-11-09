@@ -96,6 +96,9 @@ raw logs and the exact six frozen source/document files. No model, tensor, RGB,
 depth array, executable or runtime bytes are distributed.
 
 The two-image/three-input comparison proves the declared finite controls only.
+The subsequent [application backend milestone](depth75-live-service-current.md)
+records real Jobs reuse, cancellation and native failure controls separately;
+it does not expand this finite run's original scope.
 A live persistent application backend, cancellation/generation-aware lifetime,
 concurrent process/device memory admission, application quality qualification,
 accepted continuous-video cross-quality transitions and automatic tier selection
