@@ -86,3 +86,10 @@ The [original failed photographed acceptance](tracking88-photographed-prototype-
 and [earlier negative support evidence](tracking88-support-diagnostics-current.md)
 remain authoritative. No Android, panels, product source, native/Surface
 regression or full current-source CI acceptance is claimed by this record.
+
+The subsequent [independent mouse-pad measurement](tracking88-mousepad-current.md)
+consumed all6,946 original frames in two unchanged core modes. Corrected plane
+observations have no15px violation but retain6,375 lost frames; the point has
+five violations. Its selected first-loss observation preserves all decisions
+and rejects a stale RANSAC-mask explanation. These additional limits do not
+resolve or replace the original phone disagreement above.
