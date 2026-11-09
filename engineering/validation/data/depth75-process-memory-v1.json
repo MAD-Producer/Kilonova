@@ -1,0 +1,265 @@
+{
+  "schema": 1,
+  "head": "b65a016f34ca91786e24f05ef1da15bf51fb24c8",
+  "status": "supplementary_capability_session_actual_build_and_owned_inference_peaks_passed_prior_full_lib_failed",
+  "tools_tests": 149,
+  "native_totals": {
+    "targets": 2,
+    "passed": 71,
+    "failed": 0,
+    "original_ignored": 0,
+    "filtered": 0
+  },
+  "actual_observations": [
+    {
+      "method": "windows_process_memory_counters",
+      "peak_private_commit_bytes": 1113407488,
+      "peak_resident_bytes": 355684352,
+      "pid": 28120,
+      "status": "observed"
+    },
+    {
+      "method": "windows_process_memory_counters",
+      "peak_private_commit_bytes": 1113485312,
+      "peak_resident_bytes": 355770368,
+      "pid": 5828,
+      "status": "observed"
+    }
+  ],
+  "original_failure_preserved": true,
+  "prior_native_failure": {
+    "output": "depth75-process-memory-v2",
+    "passed": 275,
+    "failed": 1,
+    "cause": "tracking expression execution deadline; full host lib remains failed; no rerun or budget change"
+  },
+  "limits": [
+    "One own native/model workload, source frozen until original handle terminal and consumed",
+    "Existing assertions, ignores, budgets and timeouts unchanged; original failed outputs retained",
+    "Self inference-child OS peaks only; parent/resolver/WGSL/device memory and thermal acceptance remain unknown",
+    "Two repeated frozen RGB inputs test actual metadata propagation, not independent sensor quality or video acceptance",
+    "No Android, panel edits, new dependencies/assets/downloads, cleanup, retries or foreign processes"
+  ],
+  "members": [
+    {
+      "path": "actual-onnx266/logs/motion-studio.log",
+      "bytes": 1628,
+      "sha256": "60b3ff76ad86d2b398eed6dac4a9209e4d7e27c4488a7665d8822e399eb11d23"
+    },
+    {
+      "path": "actual-onnx266/measurements.json",
+      "bytes": 9687,
+      "sha256": "32b1fff5ca3510653bc7cbdfe4af3d0ccf9823de20b2f1ca91a98f940fca21c4"
+    },
+    {
+      "path": "native-lib-deadline-failure/controller.py",
+      "bytes": 8161,
+      "sha256": "d3b4a5dfa8b644ac843680b219c1b8919e405683925238341755194a7f17e5ad"
+    },
+    {
+      "path": "native-lib-deadline-failure/host-lib.stderr.log",
+      "bytes": 1187,
+      "sha256": "8cd89b54d24e102b7b2876d37c63216000797a96abb8b6e30afc026a37c9edce"
+    },
+    {
+      "path": "native-lib-deadline-failure/host-lib.stdout.log",
+      "bytes": 39310,
+      "sha256": "84e2fe58c0ebd208479bbacda59e96547810e0f20b312b3522f5fb2e231f8d89"
+    },
+    {
+      "path": "native-lib-deadline-failure/receipt.json",
+      "bytes": 876629,
+      "sha256": "877b6be4b19f5748a2e167292188a5c685effe8968e4b187b3a52ad86cef3b50"
+    },
+    {
+      "path": "native-lib-deadline-failure/session-consumed.json",
+      "bytes": 52,
+      "sha256": "5e6d5d5ac37234d78d2ce14ac83c8c63eb5b385992894e68fb5271e3fd721135"
+    },
+    {
+      "path": "original-invocation-failure/complete-tools.stderr.log",
+      "bytes": 27677,
+      "sha256": "59628f7919ce0e9e29aa373105ee04715438a046904c2d0ff1e370dc5175af80"
+    },
+    {
+      "path": "original-invocation-failure/complete-tools.stdout.log",
+      "bytes": 2095,
+      "sha256": "fa6889f6fb1072406d16ad4d1706f2ad83f79931d72e983ab4d5151eb9849eef"
+    },
+    {
+      "path": "original-invocation-failure/controller.py",
+      "bytes": 8230,
+      "sha256": "1116154adee5e23177ee2798a05b3b8903bf8a11c559ed3f7580003bdad25007"
+    },
+    {
+      "path": "original-invocation-failure/host-lib.stderr.log",
+      "bytes": 157,
+      "sha256": "560b5b9c527836affec68a6b231c1767985b9ebac5ec4dd554c793b06ca4cec1"
+    },
+    {
+      "path": "original-invocation-failure/host-lib.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-invocation-failure/inventory.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-invocation-failure/inventory.stdout.log",
+      "bytes": 105,
+      "sha256": "375d2c0052f60620e2028afa900113eec5c4d05efb2ff4559766945b124c47b0"
+    },
+    {
+      "path": "original-invocation-failure/provenance.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-invocation-failure/provenance.stdout.log",
+      "bytes": 46,
+      "sha256": "bd5d725dc5c7c061663630050ae3cb7036475b3ecf0be6d1a1f28d062f04a0b2"
+    },
+    {
+      "path": "original-invocation-failure/receipt.json",
+      "bytes": 876563,
+      "sha256": "a5cc0fd62ceab7530bfc0d122789218d0da625f66fdfe022a958950336e0a509"
+    },
+    {
+      "path": "original-invocation-failure/session-consumed.json",
+      "bytes": 52,
+      "sha256": "f2bf06295400d2dc577623f177fce04c09329038ca9c86b429d1da55ec9c2a18"
+    },
+    {
+      "path": "parent-ci/128755920374.log",
+      "bytes": 35063,
+      "sha256": "e78c7f67ff654dc79bb332f9a4d0bc5470cb5c81283acb3802ef6f42868d676e"
+    },
+    {
+      "path": "parent-ci/128755920479.log",
+      "bytes": 1052981,
+      "sha256": "1938d20aeddda2570bf03ff797097455b8b07930e2dca4f940b21cb54a576d6f"
+    },
+    {
+      "path": "parent-ci/128755920552.log",
+      "bytes": 708348,
+      "sha256": "bd2653b73c95627685091bf3056f297df4f2f3109ffb21e221d8bb77aae45b44"
+    },
+    {
+      "path": "parent-ci/128755920612.log",
+      "bytes": 1038858,
+      "sha256": "df8a442410d8bdc5fcf1d9cd194efdaa79a5258c2361f2899f324c711d13620d"
+    },
+    {
+      "path": "parent-ci/128755920643.log",
+      "bytes": 1003966,
+      "sha256": "d4be776f8b92266f68417c3a6a8b30e073a5b333fd5ad1ae89074a73aaa805f9"
+    },
+    {
+      "path": "parent-ci/128770397407.log",
+      "bytes": 281451,
+      "sha256": "5d91ee4846541bbe8aee968d7a06ac8abb098995e499a8bfce2320fca5c7f55c"
+    },
+    {
+      "path": "parent-ci/128770397424.log",
+      "bytes": 193884,
+      "sha256": "fde7c62bfc94333e54eed424edf7294002ed75e849f4c9b61d14cad6c9ea5874"
+    },
+    {
+      "path": "parent-ci/128770397608.log",
+      "bytes": 235327,
+      "sha256": "69403a85fa0a46d15e31bfeeffd6ea96edf508b08b86a5696024a3a091e9aef4"
+    },
+    {
+      "path": "parent-ci/receipt.json",
+      "bytes": 1543,
+      "sha256": "45bb60becf7b570d7fbaa19c633ce847653ef5ee3741de988ef848b7c59e123d"
+    },
+    {
+      "path": "parent-ci/run.json",
+      "bytes": 34425,
+      "sha256": "7561b3ab19c3516c880becad80913d6351283b183b2753594448b7c9dbc4a177"
+    },
+    {
+      "path": "source/commit.patch",
+      "bytes": 29502,
+      "sha256": "2b968c9815fbd9fcf49cfb6bf4002986d6b972659e317d6e2148fa9daf93a05f"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/capability/memory.rs",
+      "bytes": 4440,
+      "sha256": "03b490cb19974f901004bba3d7c1f2dc332287903ab1d6e35fcc8356931f953e"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/onnx.rs",
+      "bytes": 22268,
+      "sha256": "37c177d8f75b33fc6a2522d44b1ccbad958b200e54743570421d171b345da3fa"
+    },
+    {
+      "path": "source/crates/motion-host/tests/depth_capability.rs",
+      "bytes": 50290,
+      "sha256": "c1a58ca00eb8ac491523bb41eaa64264dd72065732d363d40904f4bf05f3b8a1"
+    },
+    {
+      "path": "source/tools/ai_depth_onnx.py",
+      "bytes": 19763,
+      "sha256": "70c06fc320f3ec0ae19bb9622723faab5d86d37fe067316dbe0287b96ba34cdd"
+    },
+    {
+      "path": "source/tools/test_ci_depth_process_memory.py",
+      "bytes": 3941,
+      "sha256": "47dfdd4a8f9f0ef96041391fb66c934e1cd7aa5f20c2fcccf1972ae288f83f48"
+    },
+    {
+      "path": "supplementary-native-and-inference/actual-onnx266.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "supplementary-native-and-inference/actual-onnx266.stdout.log",
+      "bytes": 4424,
+      "sha256": "9117d028001c2c248667cad92dcef93d9c6c4b90688f5aa163e646781c0aceef"
+    },
+    {
+      "path": "supplementary-native-and-inference/actual-product-build.stderr.log",
+      "bytes": 4112,
+      "sha256": "7b2dc060fde5103224fb2408cf6a21de61ff903ec12693bc262f48e59266ea69"
+    },
+    {
+      "path": "supplementary-native-and-inference/actual-product-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "supplementary-native-and-inference/controller.py",
+      "bytes": 8703,
+      "sha256": "66510a570f78645d6891e1650bbf660f52ee015ea105cd932bc37d06afcbc9a8"
+    },
+    {
+      "path": "supplementary-native-and-inference/host-capability-session.stderr.log",
+      "bytes": 1270,
+      "sha256": "843d8391df98d6800295f1ce09e9fc1f87e8aef39c96b8b6e89f5ffddd8c1c43"
+    },
+    {
+      "path": "supplementary-native-and-inference/host-capability-session.stdout.log",
+      "bytes": 7038,
+      "sha256": "32e1b1d305469d525dafb2931af1148d0eca6235d92eae0c6b6ad1aabdc0354b"
+    },
+    {
+      "path": "supplementary-native-and-inference/receipt.json",
+      "bytes": 879049,
+      "sha256": "c1cd5e8be360a410fe3bf5f3ae8acf61e4eec5b0897f217297d68a5d01d484ce"
+    },
+    {
+      "path": "supplementary-native-and-inference/session-consumed.json",
+      "bytes": 52,
+      "sha256": "f2b407c23a653532e19d8129827fc380cb57c8bafb5f6961699f7c5bbbcba279"
+    }
+  ],
+  "archive": {
+    "path": "depth75-process-memory-v1.zip",
+    "bytes": 1548349,
+    "sha256": "a8c94307902f8fa54321368c699eb7323891b6cd9d6d4781f8ba8001a0a6c9fb"
+  }
+}
