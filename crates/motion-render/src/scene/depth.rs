@@ -13,7 +13,7 @@ pub(super) struct BoundSurface {
     input: PreparedDepthInput,
     resource: DepthResourceIdentity,
     reference_resource: Option<DepthResourceIdentity>,
-    binding: RelativeDepthCalibration,
+    binding: Option<RelativeDepthCalibration>,
     mesh: Arc<DepthSurface>,
     image: Option<crate::DepthImage>,
 }
@@ -62,8 +62,10 @@ impl Scene {
                 current.asset
             ),
         )?;
-        let binding = calibration.rebind(resource, input)?;
-        self.attach_bound_calibrated_depth(object, current, resource, input, &binding, None)
+        calibration.validate_binding(resource, input)?;
+        let binding = if calibration.is_physical() { None }
+            else { Some(calibration.rebind(resource, input)?) };
+        self.attach_bound_calibrated_depth(object, current, resource, input, binding.as_ref(), None)
     }
 
     /// An inference owner supplies a qualified mapped calibration, retaining
@@ -114,7 +116,7 @@ impl Scene {
             current,
             candidate,
             input,
-            binding,
+            Some(binding),
             Some(reference.cache_identity()),
         )?;
         if let Some(surface) = self.depth_surfaces.get_mut(&object) {
@@ -129,7 +131,7 @@ impl Scene {
         current: &DepthSource,
         resource: &DepthResource,
         input: PreparedDepthInput,
-        binding: &RelativeDepthCalibration,
+        binding: Option<&RelativeDepthCalibration>,
         reference_resource: Option<DepthResourceIdentity>,
     ) -> Result<()> {
         let calibration = self.depth_required.get(&object).ok_or_else(|| {
@@ -144,14 +146,14 @@ impl Scene {
                 current.asset
             ),
         )?;
-        let depth = binding.bind(resource)?;
+        let depth = binding.map(|binding| binding.bind(resource)).transpose()?;
         let cached = self.depth_surfaces.get(&object).is_some_and(|surface| {
             surface.calibration == *calibration
                 && surface.source.same_sample(current)
                 && surface.input == input
                 && surface.resource == resource.cache_identity()
                 && surface.reference_resource == reference_resource
-                && surface.binding == *binding
+                && surface.binding.as_ref() == binding
         });
         if !cached {
             let reference = calibration.reference().ok_or_else(|| {
@@ -165,12 +167,13 @@ impl Scene {
                 .filter(|(id, _)| **id != object)
                 .map(|(_, s)| s.mesh.bytes())
                 .sum();
-            let mesh = Arc::new(DepthSurface::with_byte_budget(
-                &depth,
-                reference,
-                calibration.pixels_per_metre(),
-                MAX_DEPTH_RESOURCE_BYTES.saturating_sub(retained),
-            )?);
+            let budget = MAX_DEPTH_RESOURCE_BYTES.saturating_sub(retained);
+            let mesh = Arc::new(match depth {
+                Some(depth) => DepthSurface::with_byte_budget(&depth, reference,
+                    calibration.pixels_per_metre(), budget)?,
+                None => DepthSurface::from_camera_z(resource, reference,
+                    calibration.pixels_per_metre(), budget)?,
+            });
             self.depth_surfaces.insert(
                 object,
                 BoundSurface {
@@ -179,7 +182,7 @@ impl Scene {
                     input,
                     resource: resource.cache_identity(),
                     reference_resource,
-                    binding: binding.clone(),
+                    binding: binding.cloned(),
                     mesh,
                     image: None,
                 },

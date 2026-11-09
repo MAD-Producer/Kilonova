@@ -159,7 +159,7 @@ impl DepthSnapshot {
             if let Some(alignment) = &entry.alignment {
                 alignment.calibration(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
             } else {
-                entry.calibration.rebind(&entry.estimate.resource, entry.input)?;
+                entry.calibration.validate_binding(&entry.estimate.resource, entry.input)?;
             }
         }
         self.validate_videos(&objects)?;

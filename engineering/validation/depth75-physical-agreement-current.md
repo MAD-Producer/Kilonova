@@ -61,3 +61,8 @@ changed. No dependency, model, runtime or dataset was acquired; no panels or UI
 behavior changed. The published 687cfda6 CI is separate and does not cover this
 later increment. Original native failures, model/cross-resolution/thermal gates,
 physical estimator protocol and complete Session/export integration remain open.
+
+Subsequent work: [direct physical Session/export placement](depth75-physical-session-current.md)
+now has analytic live/frozen rendering controls. Physical aligned-transition
+placement, actual learned-model protocol and qualification still remain open.
+The new component evidence preserves the original complete-model native failure.

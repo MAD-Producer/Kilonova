@@ -23,6 +23,14 @@ resource, real-worker and frozen-proof controls pass, including the complete hos
 library. No actual metric model, physical Session integration, absolute/domain
 accuracy or automatic quality-tier qualification is claimed by this increment.
 
+The subsequent [direct physical Session/export integration](depth75-physical-session-current.md)
+preserves declared camera-Z metric/inverse-metric units without relative anchors.
+Actual analytic worker/Session, undo/redo, GPU occlusion and independent frozen
+render controls pass, including all five selected complete render/host targets.
+The complete-model command failed to compile with native Windows mapping error1455;
+separate model placement components pass but do not erase that full-command failure.
+Physical aligned transitions and actual learned-model qualification remain pending.
+
 ## Requirement-by-requirement state
 
 | Issue requirement | Current evidence | Remaining acceptance |

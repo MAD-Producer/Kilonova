@@ -153,7 +153,7 @@ impl CalibrationSample {
         {
             return Err(format!("depth calibration object={object} phase=prepare: current original source or composition changed").into());
         }
-        calibration.rebind(&self.estimate.resource, self.input)?;
+        calibration.validate_binding(&self.estimate.resource, self.input)?;
         Ok(())
     }
 }
@@ -236,7 +236,7 @@ impl Session {
                                     geometry: authored.calibration().geometry().clone(), model: authored.calibration().model().clone() };
                                 if let Some(sample) = store.lookup(&lookup)? {
                                     if sample.end_us == authored.end_us()
-                                        && authored.calibration().rebind_descriptor(&sample.plane.descriptor, sample.input).is_ok() {
+                                        && authored.calibration().validate_binding_descriptor(&sample.plane.descriptor, sample.input).is_ok() {
                                         let asset = project.video_assets.iter().find(|a| a.id == lookup.asset)
                                             .filter(|a| matches!(&layer.content, Content::Video { video } if video.asset == a.id))
                                             .ok_or("frozen depth video admission has no registered source")?;
@@ -255,7 +255,7 @@ impl Session {
                                 if matches!(&entry.binding.source, Source::Video { object, .. } if *object == layer.id)
                                     && entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval())?
                                     && entry.video_interval() == Some((authored.start_us(), authored.end_us()))
-                                    && authored.calibration().rebind(&entry.estimate.resource, entry.input).is_ok()
+                                    && authored.calibration().validate_binding(&entry.estimate.resource, entry.input).is_ok()
                                 {
                                     found = Some(entry);
                                     break;
@@ -363,7 +363,7 @@ impl Session {
         let sample = self
             .depth_calibration_sample()?
             .ok_or("depth calibration requires an installed current result")?;
-        let mut calibration = motion_model::depth::SavedDepthCalibration::new(
+        let calibration = motion_model::depth::SavedDepthCalibration::new(
             &sample.estimate.resource,
             sample.input,
             anchors,
@@ -371,6 +371,29 @@ impl Session {
             extrapolation,
             pixels_per_metre,
         )?;
+        self.finish_depth_placement(object, sample, calibration)
+    }
+
+    /// Author direct physical depth without relative anchors. The backend must
+    /// have independently declared metric/inverse-metric camera-Z samples.
+    pub fn physical_depth_placement_command(
+        &mut self, object: u64, pixels_per_metre: f32,
+    ) -> Result<motion_core::Command> {
+        self.sample()?;
+        let sample = self.depth_calibration_sample()?
+            .ok_or("physical depth placement requires an installed current result")?;
+        let calibration = motion_model::depth::SavedDepthCalibration::physical(
+            &sample.estimate.resource, sample.input, pixels_per_metre)?;
+        let (calibration, end) = self.finish_depth_placement(object, sample, calibration)?;
+        if end.is_some() {
+            return Err("physical image depth placement requires an image source".into());
+        }
+        Ok(motion_core::Command::DepthCalibration { object, calibration: Some(calibration) })
+    }
+
+    fn finish_depth_placement(&mut self, object: u64, sample: CalibrationSample,
+        mut calibration: motion_model::depth::SavedDepthCalibration,
+    ) -> Result<(motion_model::depth::SavedDepthCalibration, Option<u64>)> {
         // Observation views are editing aids, never the source photograph's
         // persisted camera. Reference geometry always uses the authored scene.
         // This scene supplies authored camera/world matrices, not rendered
