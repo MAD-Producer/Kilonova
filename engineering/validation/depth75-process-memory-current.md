@@ -90,7 +90,7 @@ logs retained separately in the same archive. Neither that older green run nor
 the supplementary 71 passes relabel the current complete host-library failure.
 The new-head CI run 42547547754 is a distinct pending validation.
 
-## Native WGSL extension (validation pending)
+## Native WGSL extension (Windows verified; other desktop OS checks pending)
 
 The shared Rust `process_memory` module exposes the same typed self-process
 query independently of the optional AI-depth feature. Existing depth APIs
@@ -103,7 +103,43 @@ The completed native WGSL worker adds its own observation immediately before
 the existing final receipt write. The backend validates and retains it through
 Costs and measured Jobs. It does not query other processes or add a per-node
 sampler. The real native-child control touches and releases 64 MiB and checks
-that OS high-water marks remain monotonic. Actual rebuilt GPU inference and
-cross-platform control execution remain to be verified; the earlier ONNX
-measurements do not prove this extension. Parent/resolution/transform processes,
+that OS high-water marks remain monotonic. Cross-platform control execution
+remains to be verified; the earlier ONNX measurements do not prove this
+extension. Parent/resolution/transform processes,
 physical device allocation and complete memory admission remain open.
+
+At `b388ada3`, the complete host library, capability and Session targets passed
+277, 39 and 32 tests: 348 passes, zero failures, ignores or filtering. This
+includes the actual native child allocation/release control and the unchanged
+report-validation controls. The host also checked without default features or
+AI-depth. All three actual probes and the WGSL worker then built successfully.
+
+Both actual routes completed two uncached requests on the same frozen 640x480
+reference RGB. Existing models, preprocessing, deadlines and assertions were
+preserved. Every distinct inference child reported OS counters through Costs,
+measured Jobs and the actual rebuilt capability probe:
+
+| Route | Inference PID | Peak resident bytes | Peak private commit bytes |
+| --- | --- | ---: | ---: |
+| CPU266 | 36808 | 355,844,096 | 1,113,554,944 |
+| CPU266 | 15940 | 355,688,448 | 1,113,362,432 |
+| WGSL518 | 34288 | 171,118,592 | 652,804,096 |
+| WGSL518 | 38796 | 171,106,304 | 653,156,352 |
+
+The WGSL observations remain separate from the validated 227,968,156-byte
+managed GPU buffer capacity. They do not measure device allocation, parent,
+identity-resolution or Python transform processes. Each query occurs before
+final receipt serialization/teardown, not after process exit. Repeated input
+probes do not establish video quality, numerical equivalence or thermal tiers.
+Default Info starts were present in the real file logs; intended JSON was the
+only CLI stdout. Original GPU loader diagnostics were retained, not filtered.
+
+Original session 9625 was consumed with exit 0. Every tracked source hash
+remained unchanged. The [manifest](data/depth75-native-process-memory-v1.json)
+and [archive](data/depth75-native-process-memory-v1.zip) preserve commands,
+native output, actual CPU/GPU observations, logs and source snapshots. All
+members were read back and SHA-256 verified: 402,078 bytes, archive SHA-256
+`c86761299961dd25c6961cc3069c3e5d9e384bd78ba00207f5aa88de3072a356`.
+The earlier complete library failure remains a distinct failed run; this new
+source's pass neither establishes its cause nor changes its result. This is
+not a full maintained-workspace pass or cross-platform acceptance for b388ada3.
