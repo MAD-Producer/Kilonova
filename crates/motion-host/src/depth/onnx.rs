@@ -491,6 +491,7 @@ fn drain(
     overflow: Arc<AtomicBool>,
 ) -> std::io::Result<Vec<u8>> {
     let mut kept = Vec::with_capacity(limit);
+    let mut head = Vec::new();
     let mut chunk = [0u8; 2048];
     let mut total = 0usize;
     loop {
@@ -503,25 +504,71 @@ fn drain(
             overflow.store(true, Ordering::Release);
         }
         if tail {
-            if n >= limit {
-                kept.clear();
-                kept.extend_from_slice(&chunk[n - limit..n]);
+            // Keep the fatal-stack header and the final original cause. A long
+            // extension-module list/backtrace must not displace either end.
+            let prefix = n.min((limit / 2).saturating_sub(head.len()));
+            head.extend_from_slice(&chunk[..prefix]);
+            let part = &chunk[prefix..n];
+            let tail_limit = limit - limit / 2;
+            if tail_limit == 0 {
                 continue;
             }
-            let excess = kept.len().saturating_add(n).saturating_sub(limit);
+            if part.len() >= tail_limit {
+                kept.clear();
+                kept.extend_from_slice(&part[part.len() - tail_limit..]);
+                continue;
+            }
+            let excess = kept
+                .len()
+                .saturating_add(part.len())
+                .saturating_sub(tail_limit);
             if excess > 0 {
                 kept.drain(..excess);
             }
-            kept.extend_from_slice(&chunk[..n]);
+            kept.extend_from_slice(part);
         } else {
             let take = n.min(limit.saturating_sub(kept.len()));
             kept.extend_from_slice(&chunk[..take]);
         }
     }
-    Ok(kept)
+    if tail {
+        if total > limit {
+            const OMITTED: &[u8] = b"\n[stderr middle omitted]\n";
+            let marker = &OMITTED[..OMITTED.len().min(head.len())];
+            head.truncate(head.len() - marker.len());
+            head.extend_from_slice(marker);
+        }
+        head.extend_from_slice(&kept);
+        Ok(head)
+    } else {
+        Ok(kept)
+    }
 }
 
-pub(super) fn capture(command: &mut Command, cancellation: &Cancellation) -> Result<(Vec<u8>, String)> {
+fn diagnostic_summary(text: &str) -> String {
+    const LIMIT: usize = 512;
+    const OMITTED: &str = "\n[stderr middle omitted]\n";
+    if text.chars().count() <= LIMIT {
+        return text.to_owned();
+    }
+    let prefix = LIMIT / 2;
+    let suffix = LIMIT - prefix - OMITTED.chars().count();
+    let head = text.chars().take(prefix).collect::<String>();
+    let tail = text
+        .chars()
+        .rev()
+        .take(suffix)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    format!("{head}{OMITTED}{tail}")
+}
+
+pub(super) fn capture(
+    command: &mut Command,
+    cancellation: &Cancellation,
+) -> Result<(Vec<u8>, String)> {
     let mut owner = ChildOwner {
         child: command.spawn()?,
         reaped: false,
@@ -572,24 +619,30 @@ pub(super) fn capture(command: &mut Command, cancellation: &Cancellation) -> Res
         .join()
         .map_err(|p| Error::Panic(super::panic_cause(p.as_ref())))??;
     let stderr = String::from_utf8_lossy(&stderr);
-    let stderr = stderr
-        .chars()
-        .skip(stderr.chars().count().saturating_sub(512))
-        .collect::<String>();
     cancellation.check()?;
     if overflow.load(Ordering::Acquire) {
         return Err(Error::Invalid("runtime stdout exceeds protocol budget"));
     }
     if !status.is_some_and(|status| status.success()) {
+        // Retain the bounded stack before temporary directories disappear.
+        // Stdout remains the protocol channel; it is never used for logging.
+        if !stderr.is_empty() {
+            log::error!(
+                "operation=depth_runtime phase=child_exit pid={} status={status:?} stderr={stderr}",
+                owner.child.id()
+            );
+            log::logger().flush();
+        }
         return Err(Error::Backend(format!(
-            "runtime exit={status:?} response={} stderr={stderr}",
+            "runtime exit={status:?} response={} stderr={}",
             String::from_utf8_lossy(&stdout)
                 .chars()
                 .take(2048)
-                .collect::<String>()
+                .collect::<String>(),
+            diagnostic_summary(&stderr)
         )));
     }
-    Ok((stdout, stderr))
+    Ok((stdout, diagnostic_summary(&stderr)))
 }
 
 #[cfg(test)]

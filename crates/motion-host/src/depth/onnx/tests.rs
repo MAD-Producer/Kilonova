@@ -55,9 +55,11 @@ fn actual_child_keeps_protocol_and_diagnostics_in_separate_pipes() {
 #[test]
 fn actual_failed_child_retains_exit_response_and_bounded_diagnostic_tail() {
     let directory = tempfile::tempdir().unwrap();
-    let mut command = child(directory.path(),
+    let mut command = child(
+        directory.path(),
         "[Console]::Out.Write('model load failed'); [Console]::Error.Write(('x' * 20000) + 'missing-model-sentinel'); exit 7",
-        "printf '%s' 'model load failed'; i=0; while [ $i -lt 20000 ]; do printf x >&2; i=$((i+1)); done; printf '%s' 'missing-model-sentinel' >&2; exit 7");
+        "printf '%s' 'model load failed'; i=0; while [ $i -lt 20000 ]; do printf x >&2; i=$((i+1)); done; printf '%s' 'missing-model-sentinel' >&2; exit 7",
+    );
     let error = capture(&mut command, &Cancellation::default()).unwrap_err();
     assert!(matches!(error, Error::Backend(_)));
     let message = error.to_string();
@@ -70,11 +72,48 @@ fn actual_failed_child_retains_exit_response_and_bounded_diagnostic_tail() {
 }
 
 #[test]
+fn actual_failed_child_preserves_fatal_header_and_final_cause_with_the_original_bound() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut command = child(
+        directory.path(),
+        "[Console]::Error.Write('Fatal owned-control stack at owned_source.py:37' + ('x' * 20000) + 'final-owned-cause'); exit 9",
+        "printf '%s' 'Fatal owned-control stack at owned_source.py:37' >&2; i=0; while [ $i -lt 20000 ]; do printf x >&2; i=$((i+1)); done; printf '%s' 'final-owned-cause' >&2; exit 9",
+    );
+    let error = capture(&mut command, &Cancellation::default())
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("Fatal owned-control stack at owned_source.py:37"));
+    assert!(error.contains("final-owned-cause"));
+    assert!(error.contains("stderr middle omitted"));
+    assert!(error.len() < 900);
+}
+
+#[test]
+fn diagnostic_retention_bounds_small_buffers_and_keeps_short_messages_exact() {
+    for limit in [0, 1, 2, 31, 64, 8192] {
+        let bytes = drain(
+            std::io::Cursor::new(vec![b'x'; 20000]),
+            limit,
+            true,
+            Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap();
+        assert!(bytes.len() <= limit);
+    }
+    assert_eq!(diagnostic_summary("original cause"), "original cause");
+    let summary = diagnostic_summary(&format!("head{}tail", "界".repeat(2000)));
+    assert_eq!(summary.chars().count(), 512);
+    assert!(summary.starts_with("head") && summary.ends_with("tail"));
+}
+
+#[test]
 fn actual_protocol_overflow_terminates_the_child_and_reaps_its_pipes() {
     let directory = tempfile::tempdir().unwrap();
-    let mut command = child(directory.path(),
+    let mut command = child(
+        directory.path(),
         "[Console]::Out.Write(('x' * 20000)); [Console]::Out.Flush(); while ($true) { Start-Sleep -Milliseconds 100 }",
-        "i=0; while [ $i -lt 20000 ]; do printf x; i=$((i+1)); done; while :; do :; done");
+        "i=0; while [ $i -lt 20000 ]; do printf x; i=$((i+1)); done; while :; do :; done",
+    );
     let (sender, receiver) = mpsc::channel();
     let worker = thread::spawn(move || {
         sender
@@ -97,9 +136,11 @@ fn actual_protocol_overflow_terminates_the_child_and_reaps_its_pipes() {
 fn cancellation_after_real_child_entry_reaps_the_process_before_returning() {
     let directory = tempfile::tempdir().unwrap();
     let entered = directory.path().join("entered");
-    let mut command = child(directory.path(),
+    let mut command = child(
+        directory.path(),
         "param([string]$directory)\n[IO.File]::WriteAllText((Join-Path $directory 'entered'), [string]$PID); while ($true) { Start-Sleep -Milliseconds 100 }",
-        "printf '%s' \"$$\" > \"$1/entered\"; while :; do :; done");
+        "printf '%s' \"$$\" > \"$1/entered\"; while :; do :; done",
+    );
     let cancellation = Cancellation::default();
     let child_cancellation = cancellation.clone();
     let (sender, receiver) = mpsc::channel();

@@ -1,0 +1,149 @@
+{
+  "schema": 1,
+  "archive": "depth75-child-diagnostics-v1.zip",
+  "bytes": 84131,
+  "sha256": "e6cdb7391b534f2f22f5c3ed7996817239c42c26d9ae881bf5906ab6a77c265d",
+  "scope": "Original full-host native failure and separate depth/Python/cache controls; no native-fault fix or full-source acceptance",
+  "members": {
+    "collector.py": {
+      "bytes": 3890,
+      "sha256": "2734f89efceb64f470a189694c58471e3709ec382a91fb0908cbc8d93420420f"
+    },
+    "depth75-child-diagnostics-v1/cache/fixture.json": {
+      "bytes": 984,
+      "sha256": "597deab1fe486bf7d00cd72a7a8a65f602d39fa2a318957deda8df33b4857836"
+    },
+    "depth75-child-diagnostics-v1/controller.py": {
+      "bytes": 6458,
+      "sha256": "cba8e67a94a3a253984ae1c962985f3bbe7f41228c31d94e4b9fbfc09792e968"
+    },
+    "depth75-child-diagnostics-v1/frozen-source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 24741,
+      "sha256": "dc81b1e3fa22f01358f4938b624ba53d56738fe1418426022a63c3afb2035af6"
+    },
+    "depth75-child-diagnostics-v1/frozen-source/crates/motion-host/src/depth/onnx/tests.rs": {
+      "bytes": 6356,
+      "sha256": "96eefc458f9d67af2a61c8c8b9dda57f06cc8eea59c2c37e8d6a0464f4d232d6"
+    },
+    "depth75-child-diagnostics-v1/frozen-source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 30765,
+      "sha256": "250c1b4d837106064ee1576aaae832bbe2cdc3833857ed2be1e960058a354ec6"
+    },
+    "depth75-child-diagnostics-v1/frozen-source/crates/motion-host/src/depth/wgsl/service.rs": {
+      "bytes": 13792,
+      "sha256": "54ba1753f2809dda0585dfdfa44af33006850472b912483735b2d7069e7273d9"
+    },
+    "depth75-child-diagnostics-v1/frozen-source/crates/motion-host/src/depth/wgsl/tests.rs": {
+      "bytes": 15828,
+      "sha256": "543cb9412922aa0c440910a2f4c8ef9ad8a257a3777b660f851e70c9b103f1f0"
+    },
+    "depth75-child-diagnostics-v1/host-lib.stderr.log": {
+      "bytes": 1486,
+      "sha256": "b9b6b37eb5e1e1c8d4df0ab8927ede1de83a8c48b2d36b998535ba157272213d"
+    },
+    "depth75-child-diagnostics-v1/host-lib.stdout.log": {
+      "bytes": 27677,
+      "sha256": "e077243c6ffa47b37d79260bb5753dd2f67d9049c63614f3c3efab5884cec4fa"
+    },
+    "depth75-child-diagnostics-v1/python-fixture.json": {
+      "bytes": 171,
+      "sha256": "2e65e426e41a9f1f7d2a1de8d3a8d25e0eae3964a1c6e22e29151af855910c2b"
+    },
+    "depth75-child-diagnostics-v1/receipt.json": {
+      "bytes": 2626,
+      "sha256": "0635bd7d22336b3d24ca7f59d8d66786c8a42d5599215467890e09cfb972f8fa"
+    },
+    "depth75-child-diagnostics-v1/session-consumed.json": {
+      "bytes": 297,
+      "sha256": "1366e96dddebb291b12fd29370fe75f39b224a90e1910ae4489069a9036c7789"
+    },
+    "depth75-child-diagnostics-v2/actual-cache.stderr.log": {
+      "bytes": 1415,
+      "sha256": "067681245624120efa115e2d9b438696f38d23f860ac77356451b09fb19b0d13"
+    },
+    "depth75-child-diagnostics-v2/actual-cache.stdout.log": {
+      "bytes": 201,
+      "sha256": "173393190f1d664db986c05aa25b7c20c78692d19a8a2490ba63a8a2a9c3a297"
+    },
+    "depth75-child-diagnostics-v2/cache/evidence.json": {
+      "bytes": 12907,
+      "sha256": "715d309b45d286505c6973b0dbd395c2cc709b216bfa9fe6aec3fed0ee1f1166"
+    },
+    "depth75-child-diagnostics-v2/cache/fixture.json": {
+      "bytes": 984,
+      "sha256": "4ae3485a58b32c3eeb48c2608a27126f58ecbd1d0fc5d2534f7f25df03a712c0"
+    },
+    "depth75-child-diagnostics-v2/cache/logs/motion-studio.log": {
+      "bytes": 13010,
+      "sha256": "18f3fe463e1797ddf4edec6f45bf388158f341668e708249714c61d9dbf54fa4"
+    },
+    "depth75-child-diagnostics-v2/controller.py": {
+      "bytes": 6889,
+      "sha256": "6e848a1b6ecf8f488cabdcd296634a20ea7885f48683b17151c0547eeb757310"
+    },
+    "depth75-child-diagnostics-v2/depth-components.stderr.log": {
+      "bytes": 1136,
+      "sha256": "52d61a38cb04805a1e0197ef461b7f3e2529947edb62c142197a1e54ba9d3bba"
+    },
+    "depth75-child-diagnostics-v2/depth-components.stdout.log": {
+      "bytes": 6697,
+      "sha256": "7fb3011a8f0f9a2bb04ec07c0320058f7782c9c7fb737a06a0a31861c4de8208"
+    },
+    "depth75-child-diagnostics-v2/frozen-source/crates/motion-host/src/depth/onnx.rs": {
+      "bytes": 24782,
+      "sha256": "7abc82877721aaea264dd6bb94d954deace9baaa5b7661d18be59ba5aed343ac"
+    },
+    "depth75-child-diagnostics-v2/frozen-source/crates/motion-host/src/depth/onnx/tests.rs": {
+      "bytes": 6356,
+      "sha256": "96eefc458f9d67af2a61c8c8b9dda57f06cc8eea59c2c37e8d6a0464f4d232d6"
+    },
+    "depth75-child-diagnostics-v2/frozen-source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 30765,
+      "sha256": "250c1b4d837106064ee1576aaae832bbe2cdc3833857ed2be1e960058a354ec6"
+    },
+    "depth75-child-diagnostics-v2/frozen-source/crates/motion-host/src/depth/wgsl/service.rs": {
+      "bytes": 13792,
+      "sha256": "54ba1753f2809dda0585dfdfa44af33006850472b912483735b2d7069e7273d9"
+    },
+    "depth75-child-diagnostics-v2/frozen-source/crates/motion-host/src/depth/wgsl/tests.rs": {
+      "bytes": 15828,
+      "sha256": "543cb9412922aa0c440910a2f4c8ef9ad8a257a3777b660f851e70c9b103f1f0"
+    },
+    "depth75-child-diagnostics-v2/python-fixture.json": {
+      "bytes": 171,
+      "sha256": "e92997ea828424c1105a7f4d88f0a8a33b98c30a6ae4d97aceb4211e18b81551"
+    },
+    "depth75-child-diagnostics-v2/python-probe.stderr.log": {
+      "bytes": 1035,
+      "sha256": "1dbed0815ef562a885b8f3de4f5cbebeef9128999fa346600513c6d6c6647123"
+    },
+    "depth75-child-diagnostics-v2/python-probe.stdout.log": {
+      "bytes": 225,
+      "sha256": "31e7aefa8d6b9bbab374e9c4bd056d194eecbf3fba3cb10111b6e3f6b712cdb3"
+    },
+    "depth75-child-diagnostics-v2/python-probe/depth_tensor.py": {
+      "bytes": 299,
+      "sha256": "f3b41d30ff8c2e2f1a65a402e660cc619f0083ef7c284c67965f6dc44df51331"
+    },
+    "depth75-child-diagnostics-v2/python-probe/receipt.json": {
+      "bytes": 2229,
+      "sha256": "2efa31948e52f33f922508618d51778b06b5d91b2ebe0cccc7b4194fd496d711"
+    },
+    "depth75-child-diagnostics-v2/receipt.json": {
+      "bytes": 3822,
+      "sha256": "3e83ed092d5a81e04ee27d5a42300e26f3cbf76e0b5305f2b5d60e439db42c0c"
+    },
+    "depth75-child-diagnostics-v2/session-consumed.json": {
+      "bytes": 347,
+      "sha256": "ef430a943168cd0f5f164910de75cd0661ec3cf7057a0eb8516be3e16eefd6f2"
+    },
+    "depth75-child-diagnostics-v2/worker-build.stderr.log": {
+      "bytes": 4130,
+      "sha256": "a4c3277372ece7e93d05bf57fffd6c6a47c013bc340b07b242dd4c1e332a986d"
+    },
+    "depth75-child-diagnostics-v2/worker-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

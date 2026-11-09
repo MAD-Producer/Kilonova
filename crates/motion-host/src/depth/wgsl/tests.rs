@@ -1,6 +1,61 @@
 use super::*;
 use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime};
 use std::sync::Arc;
+
+#[test]
+#[ignore = "requires an explicit installed Python diagnostic fixture"]
+fn actual_owned_python_enables_fault_observation_and_retains_stack_and_exit_cause() {
+    let fixture_path = std::env::var_os("MOTION_DEPTH_PYTHON_DIAGNOSTIC_FIXTURE")
+        .expect("explicit installed Python fixture required");
+    let fixture: serde_json::Value =
+        serde_json::from_slice(&fs::read(fixture_path).unwrap()).unwrap();
+    let python = Path::new(fixture["python"].as_str().unwrap());
+    let root = Path::new(fixture["output"].as_str().unwrap());
+    assert!(python.is_absolute() && root.is_absolute() && !root.exists());
+    fs::create_dir(root).unwrap();
+    fs::write(
+        root.join("depth_tensor.py"),
+        r#"import faulthandler, sys
+assert faulthandler.is_enabled(), 'owned Python fault observer was not enabled'
+sys.stderr.write('owned-stack-observation-control\n')
+sys.stderr.flush()
+faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+raise RuntimeError('original-owned-python-exit-sentinel')
+"#,
+    )
+    .unwrap();
+    let mut outcomes = Vec::new();
+    for (label, mode) in [
+        ("plain", TransformInvocation::Plain),
+        ("resolve", TransformInvocation::Resolve),
+        ("attest", TransformInvocation::Attest),
+    ] {
+        let mut command = python_transform(python, root, mode);
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+        }
+        let cause = super::super::onnx::capture(&mut command, &Cancellation::default())
+            .unwrap_err()
+            .to_string();
+        assert!(cause.contains("owned-stack-observation-control"));
+        assert!(cause.contains("depth_tensor.py"));
+        assert!(cause.contains("original-owned-python-exit-sentinel"));
+        assert!(
+            cause.contains("response= stderr="),
+            "stdout must remain empty"
+        );
+        outcomes.push(serde_json::json!({"mode":label,"original_cause":cause}));
+        fs::write(root.join("receipt.json"), serde_json::to_vec_pretty(&serde_json::json!({
+            "scope":"Actual owned Python observer enablement and explicit stack/nonzero exit; not an access-violation reproduction or fix",
+            "outcomes":outcomes})).unwrap()).unwrap();
+    }
+}
 fn input() -> Input {
     let mut hash = [0u8; 32];
     for (index, byte) in hash.iter_mut().enumerate() {

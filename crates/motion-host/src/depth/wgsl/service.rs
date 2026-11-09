@@ -55,6 +55,22 @@ fn drain(
     }
 }
 
+fn failure_context(primary: Error, root: &Path, diagnostic: &str) -> Error {
+    // An idle service did not cause a transform child to fail. Only use the
+    // native receipt as a primary cause when that service actually failed.
+    let native_failed = read_limited(&root.join("receipt.json"), 65536)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .is_some_and(|value| value["status"] == "failed_original_cause_retained");
+    let native_panic = completed_panic(root).is_some() || last_panic(diagnostic).is_some();
+    let child = Error::Backend(format!("{primary}; retained_child{diagnostic}"));
+    if native_failed || native_panic {
+        native_error(child, root)
+    } else {
+        child
+    }
+}
+
 impl Service {
     pub fn workspace(&self) -> &Path {
         self.directory.path()
@@ -287,8 +303,7 @@ impl Service {
                 }
                 primary
             } else {
-                let primary = native_error(primary, &self.output());
-                Error::Backend(format!("{primary}; retained_child{diagnostic}"))
+                failure_context(primary, &self.output(), &diagnostic)
             }
         } else {
             primary
@@ -300,6 +315,59 @@ impl Service {
                 cleanup,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn idle_service_does_not_displace_an_original_transform_failure() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("receipt.json"),
+            br#"{"status":"running","phase":"wait_retained_depth_request"}"#,
+        )
+        .unwrap();
+        let original = "WGSL phase=prepare elapsed_ms=42 cause=runtime exit=0xc0000005";
+        let error = failure_context(
+            Error::Backend(original.into()),
+            root.path(),
+            &"secondary".repeat(300),
+        )
+        .to_string();
+        assert!(error.starts_with(&format!(
+            "depth backend failed: depth backend failed: {original}"
+        )));
+        assert!(!error.contains("native_receipt"));
+        assert!(
+            error
+                .chars()
+                .take(512)
+                .collect::<String>()
+                .contains(original)
+        );
+        assert!(error.contains("secondary"));
+    }
+    #[test]
+    fn actual_service_failure_still_precedes_a_long_pipe_diagnostic() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("receipt.json"), br#"{"status":"failed_original_cause_retained","phase":"read_hash_finite_current_input","failure":"native-input-digest-sentinel"}"#).unwrap();
+        let error = failure_context(
+            Error::Backend("original child exit 1".into()),
+            root.path(),
+            &"backtrace".repeat(300),
+        )
+        .to_string();
+        assert!(
+            error
+                .chars()
+                .take(512)
+                .collect::<String>()
+                .contains("native-input-digest-sentinel")
+        );
+        assert!(error.contains("original child exit 1"));
+        assert!(error.contains("backtrace"));
     }
 }
 impl Drop for Service {

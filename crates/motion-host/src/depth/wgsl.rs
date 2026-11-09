@@ -528,7 +528,7 @@ enum TransformInvocation {
 }
 fn python_transform(python: &Path, root: &Path, mode: TransformInvocation) -> Command {
     let mut command = Command::new(python);
-    command.args(["-I","-B","-c","import runpy,sys; root=sys.argv.pop(1); sys.path.insert(0,root); sys.argv[0]=root+'/depth_tensor.py'; runpy.run_path(sys.argv[0],run_name='__main__')"])
+    command.args(["-I","-B","-X","faulthandler","-c","import runpy,sys; root=sys.argv.pop(1); sys.path.insert(0,root); sys.argv[0]=root+'/depth_tensor.py'; runpy.run_path(sys.argv[0],run_name='__main__')"])
         .arg(root).env("TMP",root).env("TEMP",root).env("PYTHONDONTWRITEBYTECODE","1");
     match mode {
         TransformInvocation::Plain => {
