@@ -17,6 +17,12 @@ The [instrumented parser controls](depth75-shader-parse-current.md) and complete
 host-library command passed; the original uninstrumented native WGSL parse
 failure remains unresolved. Neither result grants production qualification.
 
+The subsequent [physical agreement contract](depth75-physical-agreement-current.md)
+compares declared physical units without fitting away metric bias. Analytic
+resource, real-worker and frozen-proof controls pass, including the complete host
+library. No actual metric model, physical Session integration, absolute/domain
+accuracy or automatic quality-tier qualification is claimed by this increment.
+
 ## Requirement-by-requirement state
 
 | Issue requirement | Current evidence | Remaining acceptance |

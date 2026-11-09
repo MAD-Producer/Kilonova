@@ -1,6 +1,8 @@
 #![cfg(feature = "ai-depth")]
 
 use motion_host::depth::alignment::{Alignment, Limits, Rejection};
+#[path = "depth_alignment/physical.rs"]
+mod physical;
 use motion_model::depth::{
     DepthAxis, DepthDescriptor, DepthGeometry, DepthMeasure, DepthModel, DepthResource,
     DepthSource, DepthTime, NearDirection,

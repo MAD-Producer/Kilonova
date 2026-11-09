@@ -1,4 +1,4 @@
-//! Same-sample relative-depth alignment for an explicit quality transition.
+//! Same-sample depth agreement for an explicit quality transition.
 //!
 //! This module does not select a quality tier, infer capability from a backend,
 //! enable automatic switching, or establish model accuracy. Callers supply
@@ -7,7 +7,7 @@
 
 use motion_model::depth::{DepthMeasure, DepthResource, DepthResourceIdentity};
 
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 const MAX_FIT_PAIRS: usize = 4096;
 
 /// All limits are explicit; resolution and backend names imply no quality bound.
@@ -88,6 +88,7 @@ pub struct Statistics {
 pub struct Alignment {
     reference: DepthResourceIdentity,
     candidate: DepthResourceIdentity,
+    measure: DepthMeasure,
     scale: f64,
     offset: f64,
     statistics: Statistics,
@@ -210,7 +211,44 @@ impl Alignment {
         reference: &DepthResource,
         candidate: &DepthResource,
         limits: Limits,
+        canceled: impl FnMut() -> bool,
+    ) -> Result<Self> {
+        Self::build(reference, candidate, limits, canceled, false)
+    }
+
+    /// Compare physical values using declared units only. Never fit a scale or
+    /// offset that could conceal a model's metric bias. Axes and physical forms
+    /// must match; camera-Z is not ray distance and metres are not inverse metres.
+    /// The original paired coverage, confidence, residual and cancellation gates
+    /// still apply. Limits bound the actual unit conversion coefficient as well.
+    pub fn verify_metric(
+        reference: &DepthResource,
+        candidate: &DepthResource,
+        limits: Limits,
+        canceled: impl FnMut() -> bool,
+    ) -> Result<Self> {
+        Self::build(reference, candidate, limits, canceled, true)
+    }
+
+    pub(crate) fn for_transition(
+        reference: &DepthResource,
+        candidate: &DepthResource,
+        limits: Limits,
+        canceled: impl FnMut() -> bool,
+    ) -> Result<Self> {
+        if matches!(reference.descriptor().measure, DepthMeasure::Relative { .. }) {
+            Self::fit(reference, candidate, limits, canceled)
+        } else {
+            Self::verify_metric(reference, candidate, limits, canceled)
+        }
+    }
+
+    fn build(
+        reference: &DepthResource,
+        candidate: &DepthResource,
+        limits: Limits,
         mut canceled: impl FnMut() -> bool,
+        physical: bool,
     ) -> Result<Self> {
         limits.validate()?;
         if canceled() {
@@ -226,13 +264,25 @@ impl Alignment {
                 "source, PTS, geometry or scalar grid differs",
             ));
         }
-        if !matches!(first.measure, DepthMeasure::Relative { .. })
-            || first.measure != second.measure
-        {
-            return Err(Rejection::Incompatible(
-                "same relative-depth near direction required",
-            ));
-        }
+        let unit_scale = if physical {
+            let (reference_unit, candidate_unit) = match (first.measure, second.measure) {
+                (DepthMeasure::Metric { meters_per_unit: a, axis: x },
+                 DepthMeasure::Metric { meters_per_unit: b, axis: y }) if x == y => (a, b),
+                (DepthMeasure::InverseMetric { inverse_meters_per_unit: a, axis: x },
+                 DepthMeasure::InverseMetric { inverse_meters_per_unit: b, axis: y }) if x == y => (a, b),
+                _ => return Err(Rejection::Incompatible("same physical depth form and axis required")),
+            };
+            Some(candidate_unit / reference_unit)
+        } else {
+            if !matches!(first.measure, DepthMeasure::Relative { .. })
+                || first.measure != second.measure
+            {
+                return Err(Rejection::Incompatible(
+                    "same relative-depth near direction required",
+                ));
+            }
+            None
+        };
         if limits.minimum_confidence.is_some()
             && (reference.confidence().is_none() || candidate.confidence().is_none())
         {
@@ -269,8 +319,8 @@ impl Alignment {
                 "constant or numerically unstable population",
             ));
         }
-        let scale = moments.xy / moments.xx;
-        let offset = moments.y - scale * moments.x;
+        let scale = unit_scale.unwrap_or_else(|| moments.xy / moments.xx);
+        let offset = if physical { 0. } else { moments.y - scale * moments.x };
         if !scale.is_finite() || !offset.is_finite() {
             return Err(Rejection::Degenerate("nonfinite affine coefficients"));
         }
@@ -320,6 +370,7 @@ impl Alignment {
         Ok(Self {
             reference: reference.cache_identity(),
             candidate: candidate.cache_identity(),
+            measure: first.measure,
             scale,
             offset,
             statistics: Statistics {
@@ -368,6 +419,11 @@ pub struct Aligned<'a> {
     resource: &'a DepthResource,
 }
 impl Aligned<'_> {
+    /// Units and axis of the mapped sample, independent of the raw resource's
+    /// candidate descriptor. Physical conversion never changes its metadata.
+    pub fn sample_measure(&self) -> DepthMeasure {
+        self.proof.measure
+    }
     /// Original metadata, validity and confidence; scalar values are still raw.
     pub fn resource(&self) -> &DepthResource {
         self.resource

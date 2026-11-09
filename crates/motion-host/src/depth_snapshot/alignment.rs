@@ -10,6 +10,8 @@ use crate::{
 };
 use motion_model::depth::{PreparedDepthInput, RelativeDepthCalibration, SavedDepthCalibration};
 use std::{sync::Arc, time::Instant};
+#[cfg(test)]
+mod tests;
 
 /// Current wire policy only. No fallback or implicit model upgrade on export.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -108,7 +110,7 @@ impl Frozen {
         log::info!("start frozen_depth operation=restore_alignment source_request={request} object={object} source_id={} generation={} phase=fit_reconstructed_planes", key.source.asset, spec.generation);
         log::logger().flush();
         let mut canceled = None;
-        let fitted = Alignment::fit(
+        let fitted = Alignment::for_transition(
             &reference.resource,
             &candidate.resource,
             spec.limits,

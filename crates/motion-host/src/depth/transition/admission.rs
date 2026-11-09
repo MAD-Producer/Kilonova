@@ -115,7 +115,7 @@ impl Admission {
         log::logger().flush();
         let began = Instant::now();
         let alignment =
-            Alignment::fit(&reference, &candidate.estimate().resource, limits, canceled);
+            Alignment::for_transition(&reference, &candidate.estimate().resource, limits, canceled);
         log::debug!(
             "done depth_transition_align generation={} source_id={} elapsed_ms={}",
             ticket.generation(),
@@ -258,6 +258,10 @@ pub struct View<'a> {
 impl View<'_> {
     pub fn sample(&self, index: usize) -> Result<Option<f64>, Rejection> {
         self.aligned.sample(index)
+    }
+    /// Interpretation of mapped samples; descriptor() retains raw candidate metadata.
+    pub fn sample_measure(&self) -> motion_model::depth::DepthMeasure {
+        self.aligned.sample_measure()
     }
     pub fn descriptor(&self) -> &DepthDescriptor {
         self.aligned.resource().descriptor()
