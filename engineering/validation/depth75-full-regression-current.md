@@ -1,5 +1,9 @@
 # Original complete maintained-workspace regression
 
+The later complete command after retained Rust-remap integration is recorded in
+[the current-source follow-up](depth75-host-remap-full-regression-current.md).
+The original failed command below remains retained on its exact earlier source.
+
 Issue: #75. Source `ad799f2f634b5a3897c7df2e06053216db9e86a4` remained unchanged
 through the original command and its consumed terminal session. Its main
 baseline was `ac65d279c57626d7aa7e28061a1a7fdf7889c68a`. This is a record of a
