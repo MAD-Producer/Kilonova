@@ -9,6 +9,8 @@ use motion_model::depth::{
     DepthGeometry, DepthModel, DepthResource, DepthSource, PreparedDepthInput,
 };
 use sha2::{Digest, Sha256};
+mod adapter_memory;
+pub use adapter_memory::AdapterMemorySamples;
 pub(crate) mod image;
 pub mod cache;
 pub mod capability;
@@ -205,6 +207,9 @@ pub struct Costs {
     /// Owned inference child's lifetime OS high-water marks, when observed.
     /// Excludes the host, other phases/processes and physical device memory.
     pub inference_process_memory: Option<capability::memory::ProcessPeak>,
+    /// Owned native adapter observations before/after inference, not a peak,
+    /// physical capacity or an additional amount to sum with managed buffers.
+    pub adapter_memory_samples: Option<AdapterMemorySamples>,
     /// Fixed direct-child stages only. None means the backend did not observe them.
     pub child_process_memory: Option<crate::process_memory::Children>,
 }

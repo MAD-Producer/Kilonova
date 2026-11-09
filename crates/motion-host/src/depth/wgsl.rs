@@ -455,6 +455,7 @@ impl Wgsl {
                         }
                     }),
                     inference_process_memory: report.inference_process_memory,
+                    adapter_memory_samples: Some(report.adapter_memory_samples),
                     ..Costs::default()
                 },
             },
@@ -804,6 +805,8 @@ impl Transform {
 }
 #[derive(Deserialize)]
 struct Native {
+    pid: u32,
+    adapter_memory_samples: super::AdapterMemorySamples,
     inference_process_memory: Option<super::capability::memory::ProcessPeak>,
     status: String,
     phase: String,
@@ -827,6 +830,7 @@ struct Adapter {
 }
 impl Native {
     fn validate(&self, hardware: Hardware, request: &str) -> Result<()> {
+        self.adapter_memory_samples.validate(self.pid, &self.adapter.backend)?;
         if let Some(memory) = &self.inference_process_memory {
             memory.validate().map_err(Error::Invalid)?;
         }

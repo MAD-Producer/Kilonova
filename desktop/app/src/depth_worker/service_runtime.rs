@@ -13,6 +13,7 @@ fn service_ack(out: &Path, sequence: u64, execution: &Value) -> Result<()> {
 fn serve_graph(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
+    adapter_memory: &mut motion_render::AdapterMemoryPressure<'_>,
     graph: &Blueprint,
     compiled: &CompiledGraph,
     prepared: &PreparedGraph,
@@ -96,6 +97,8 @@ fn serve_graph(
             "verified_resources":282,"execution":execution,
             "service_mode":"retained_mailbox_v1","context_preparations":1});
         let began = Instant::now();
+        let memory_before = adapter_memory.snapshot();
+        frame["adapter_memory_before_inference"] = json!(&memory_before);
         checked_gpu(device, "retained_depth_inference", || {
             execute_prepared_graph(
                 device,
@@ -114,6 +117,9 @@ fn serve_graph(
         frame["in_flight"] = Value::Null;
         frame["inference_process_memory"] =
             json!(motion_host::process_memory::ProcessPeak::current());
+        frame["adapter_memory_samples"] = json!({
+            "pid":std::process::id(),"before":memory_before,
+            "after":adapter_memory.snapshot()});
         save(&command.output, &frame)?;
         report["completed_inputs"] = json!(command.sequence);
         phase(out, report, "retained_request_completed_before_reuse")?;

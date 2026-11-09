@@ -306,6 +306,7 @@ impl Onnx {
             resource,
             provider,
             costs: Costs {
+                adapter_memory_samples: None,
                 source_prepare: Duration::ZERO,
                 source_rgb_bytes: 0,
                 total: Duration::ZERO, // Filled after temporary cleanup in infer().

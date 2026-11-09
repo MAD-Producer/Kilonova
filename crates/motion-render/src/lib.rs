@@ -44,7 +44,7 @@ mod readback;
 pub use readback::{ImageReadbackInfo, TimestampReadbackInfo, ReadbackError};
 mod memory;
 mod memory_pressure;
-pub use memory_pressure::{MemoryPressureLogScope, MemoryPressurePool, MemoryPressureReading, MemoryPressureSnapshot,
+pub use memory_pressure::{AdapterMemoryPressure, MemoryPressureLogScope, MemoryPressurePool, MemoryPressureReading, MemoryPressureSnapshot,
     MemoryPressureSource, MemoryPressureUnavailable};
 mod resource_ledger;
 mod submission_ledger;

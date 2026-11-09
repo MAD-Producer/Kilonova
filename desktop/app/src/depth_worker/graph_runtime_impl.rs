@@ -564,6 +564,7 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
         ..Default::default()
     }))
     .map_err(|e| format!("graph device: {e}"))?;
+    let mut adapter_memory = motion_render::AdapterMemoryPressure::new(&adapter);
     report["program_sha256"] = PROGRAM.into();
     report["model_sha256"] = graph.model_sha256.clone().into();
     if matches!(
@@ -646,6 +647,7 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
             return serve_graph(
                 &device,
                 &queue,
+                &mut adapter_memory,
                 &graph,
                 &compiled,
                 &prepared,
@@ -694,6 +696,9 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
                 "input_index":index,"input_sha256":tensor.sha256,
                 "reused_context":index > 0,"research_batch":batch});
             let began = Instant::now();
+            let memory_before = adapter_memory.snapshot();
+            let output_report = if batch { &mut frame_report } else { &mut *report };
+            output_report["adapter_memory_before_inference"] = json!(&memory_before);
             checked_gpu(&device, "execute_retained_input", || {
                 execute_prepared_graph(
                     &device,
@@ -703,14 +708,13 @@ fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -
                     &prepared,
                     &input,
                     &frame_out,
-                    if batch {
-                        &mut frame_report
-                    } else {
-                        &mut *report
-                    },
+                    output_report,
                 )
             })
             .map_err(|cause| format!("input {index}: {cause}"))?;
+            output_report["adapter_memory_samples"] = json!({
+                "pid":std::process::id(),"before":memory_before,
+                "after":adapter_memory.snapshot()});
             if batch {
                 frame_report["input_execution_seconds"] = json!(began.elapsed().as_secs_f64());
                 frame_report["status"] = "actual_gpu_output_written_comparison_pending".into();

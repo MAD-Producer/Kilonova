@@ -212,6 +212,7 @@ fn samples(backend: impl Backend, model: DepthModel, input_root: &Path, root: &P
                 "retained_gpu_buffer_capacity_bytes":measurement.retained_gpu_buffer_capacity(),
                 "inference_process_memory":measurement.inference_process_memory(),
                 "process_memory":measurement.process_memory(),
+                "adapter_memory_samples":c.adapter_memory_samples,
                 "observed_resident_sum_bytes":measurement.process_memory().and_then(|m|m.observed_resident_sum()),
                 "caller_rgb_load_ns":caller_rgb_load.as_nanos(), "caller_output_ns":caller_output.as_nanos(),
                 "source_prepare_ns":c.source_prepare.as_nanos(), "source_rgb_bytes":c.source_rgb_bytes,

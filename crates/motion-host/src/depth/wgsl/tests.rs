@@ -90,7 +90,11 @@ fn input() -> Input {
     .unwrap()
 }
 fn native() -> serde_json::Value {
+    let sample = serde_json::json!({"version":1,"backend":"Vulkan","ageMs":0,
+        "minimumQueryIntervalMs":1000,"isPhysicalCapacity":false,"isFramePeak":false,
+        "reading":{"status":"unavailable","reason":"missing_budget_extension","cause":null}});
     serde_json::json!({
+        "pid":42,"adapter_memory_samples":{"pid":42,"before":sample,"after":sample},
         "status":"actual_complete_gpu_output_written_independent_comparison_pending","phase":"completed",
         "model_sha256":MODEL_SHA256,"program_sha256":PROGRAM_SHA256,"request_sha256":"a".repeat(64),
         "encoded_operations":429,"final_readbacks":1,"per_node_cpu_injection":false,"pool_retained_through_completion":true,
@@ -98,6 +102,65 @@ fn native() -> serde_json::Value {
         "adapter":{"backend":"Vulkan","name":"authored GPU","device_type":"DiscreteGpu"}
     })
 }
+
+#[test]
+fn native_adapter_memory_samples_preserve_unknown_and_refuse_wrong_identity_or_peak_claims() {
+    let digest = "a".repeat(64);
+    let valid = native();
+    let parsed: Native = serde_json::from_value(valid.clone()).unwrap();
+    parsed.validate(Hardware::Vulkan, &digest).unwrap();
+    assert!(matches!(parsed.adapter_memory_samples.after.reading,
+        motion_render::MemoryPressureReading::Unavailable { .. }));
+
+    for (pointer, value) in [
+        ("/pid", serde_json::json!(41)),
+        ("/adapter_memory_samples/pid", serde_json::json!(0)),
+        ("/adapter_memory_samples/after/backend", serde_json::json!("Dx12")),
+        ("/adapter_memory_samples/before/version", serde_json::json!(2)),
+        ("/adapter_memory_samples/before/isPhysicalCapacity", serde_json::json!(true)),
+        ("/adapter_memory_samples/after/isFramePeak", serde_json::json!(true)),
+        ("/adapter_memory_samples/after/minimumQueryIntervalMs", serde_json::json!(0)),
+        ("/adapter_memory_samples/after/reading/cause", serde_json::json!("x".repeat(513))),
+    ] {
+        let mut bad = valid.clone();
+        *bad.pointer_mut(pointer).unwrap() = value;
+        assert!(serde_json::from_value::<Native>(bad).unwrap()
+            .validate(Hardware::Vulkan, &digest).is_err(), "{pointer}");
+    }
+    let mut absent = valid;
+    absent.as_object_mut().unwrap().remove("adapter_memory_samples");
+    assert!(serde_json::from_value::<Native>(absent).is_err());
+}
+
+#[test]
+fn native_adapter_memory_pools_are_bounded_without_treating_over_budget_as_invalid_data() {
+    let digest = "a".repeat(64);
+    let mut valid = native();
+    // Native usage can exceed a changing advisory budget. Preserve the reading;
+    // do not turn pressure into a fabricated zero or an inference failure.
+    valid["adapter_memory_samples"]["after"]["reading"] = serde_json::json!({
+        "status":"available","source":"vulkan_device_local_heaps",
+        "pools":[{"index":0,"budgetBytes":100,"usageBytes":150}]});
+    serde_json::from_value::<Native>(valid.clone()).unwrap()
+        .validate(Hardware::Vulkan, &digest).unwrap();
+    for pools in [
+        serde_json::json!([]),
+        serde_json::json!([{"index":16,"budgetBytes":100,"usageBytes":150}]),
+        serde_json::json!([{"index":0,"budgetBytes":100,"usageBytes":150},
+                           {"index":0,"budgetBytes":100,"usageBytes":150}]),
+        serde_json::json!((0..17).map(|index| serde_json::json!({
+            "index":index,"budgetBytes":100,"usageBytes":150})).collect::<Vec<_>>()),
+    ] {
+        let mut bad = valid.clone();
+        bad["adapter_memory_samples"]["after"]["reading"]["pools"] = pools;
+        assert!(serde_json::from_value::<Native>(bad).unwrap()
+            .validate(Hardware::Vulkan, &digest).is_err());
+    }
+    valid["adapter_memory_samples"]["after"]["reading"]["source"] = "dxgi_local_segment".into();
+    assert!(serde_json::from_value::<Native>(valid).unwrap()
+        .validate(Hardware::Vulkan, &digest).is_err());
+}
+
 #[test]
 fn native_report_rejects_cpu_fallback_wrong_source_and_incomplete_ownership() {
     let valid = native();

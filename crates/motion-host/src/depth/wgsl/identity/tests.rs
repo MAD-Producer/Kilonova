@@ -207,7 +207,11 @@ fn actual_transform_receipt_requires_the_identity_when_attestation_was_requested
 #[test]
 fn actual_native_receipt_requires_verified_weights_and_the_same_execution() {
     let a = attestation();
+    let sample = json!({"version":1,"backend":"Vulkan","ageMs":0,
+        "minimumQueryIntervalMs":1000,"isPhysicalCapacity":false,"isFramePeak":false,
+        "reading":{"status":"unavailable","reason":"missing_budget_extension","cause":null}});
     let value = json!({"status":"actual_complete_gpu_output_written_independent_comparison_pending","phase":"completed",
+        "pid":42,"adapter_memory_samples":{"pid":42,"before":sample,"after":sample},
         "model_sha256":MODEL_SHA256,"program_sha256":PROGRAM_SHA256,"request_sha256":"a".repeat(64),
         "encoded_operations":429,"final_readbacks":1,"per_node_cpu_injection":false,"pool_retained_through_completion":true,
         "actual_retained_buffer_capacity_bytes":BUFFER_BYTES,"output_bytes":DEPTH_BYTES,"output_sha256":"b".repeat(64),
