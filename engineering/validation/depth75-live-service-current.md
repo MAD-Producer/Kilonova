@@ -101,7 +101,11 @@ receipt and raw-log members: 505,947 bytes, SHA-256
 Every member passed CRC, length and SHA-256 readback. No model, tensor, RGB,
 depth array, executable or installed runtime is distributed.
 
-Still pending are actual retained-mode persistent-cache reopening/isolation,
+Subsequent [persistent-cache controls](depth75-live-cache-current.md) separately
+record actual reopening/isolation and an unresolved Python child access violation;
+neither changes this milestone's original evidence or scope.
+
+Still pending at this milestone were actual retained-mode persistent-cache reopening/isolation,
 qualified Session installation/export, concurrent memory admission, sustained
 latency/thermal measurements, accepted cross-quality video alignment and
 automatic selection/recovery policy. The current source has not completed full

@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "archive": "depth75-live-cache-v1.zip",
+  "bytes": 33450,
+  "sha256": "15e9a2fd07468c331d0b5e7610b5cc13a00381ff44c673015389587ed6c29c22",
+  "members": {
+    "collector.py": {
+      "bytes": 2887,
+      "sha256": "2adff53604a32039f2a94e3eaf1eb1c087f8728eb107c86bebaafc3089c1fa88"
+    },
+    "depth75-live-cache-v1/controller.py": {
+      "bytes": 6470,
+      "sha256": "474728f37b2d139b545f7f86c4d689fe6fe5569022bbbbb5d9afe70c30ff3bb6"
+    },
+    "depth75-live-cache-v1/depth_wgsl_retained.rs": {
+      "bytes": 16639,
+      "sha256": "e2afa34ee02ec2e8903ae7bb988f07084742d3b0d97f58c2b2641fc49fe75566"
+    },
+    "depth75-live-cache-v1/jobs/evidence.json": {
+      "bytes": 5915,
+      "sha256": "79aefd0af61bc493cc07fa9b546bd8dbf4f45b17a04cc29584615375f60ab0f6"
+    },
+    "depth75-live-cache-v1/jobs/fixture.json": {
+      "bytes": 968,
+      "sha256": "51c3da26923eed2154c6ce88f5549b65569568015c6a4705905dc79d09ef44e4"
+    },
+    "depth75-live-cache-v1/jobs/logs/motion-studio.log": {
+      "bytes": 10376,
+      "sha256": "e2ad3f5900e133aa9652423043436180ac715dd740c84caf4f5360b9649b3f8b"
+    },
+    "depth75-live-cache-v1/jobs/stderr.log": {
+      "bytes": 2200,
+      "sha256": "e03f10f8003eab78ede5c26961a208c0ba751694b77f0a6ec2d6bb760bb1b78a"
+    },
+    "depth75-live-cache-v1/jobs/stdout.log": {
+      "bytes": 8925,
+      "sha256": "ac305700aec6a242211086e59d06ac5cbdc00712e32b1d25d88bb150eda8f9fe"
+    },
+    "depth75-live-cache-v1/receipt.json": {
+      "bytes": 3473,
+      "sha256": "8e0b2dd63215901d2b442c7c0142892786767ca3dc89409721a18f4eea7335a1"
+    },
+    "depth75-live-cache-v1/session-consumed.json": {
+      "bytes": 325,
+      "sha256": "a0780506a626f7a2f49965a5cb1106e59519159a1417b49fc9ec51c73e3d8039"
+    },
+    "depth75-live-cache-v2/cache/evidence.json": {
+      "bytes": 12935,
+      "sha256": "7ceb3d7c405a0df4e804ae6b2525ffb4e151d845420ae7e455690ba2de7e6565"
+    },
+    "depth75-live-cache-v2/cache/fixture.json": {
+      "bytes": 970,
+      "sha256": "3fdddd1f963b4f64fdd78aa834cac7d92268a89ffed99b1a8e0503ff38360721"
+    },
+    "depth75-live-cache-v2/cache/logs/motion-studio.log": {
+      "bytes": 13011,
+      "sha256": "2c80a08a2cbb7c2ce152aa515959e974842f1fcca1280924c7ba7a6c894f2860"
+    },
+    "depth75-live-cache-v2/cache/stderr.log": {
+      "bytes": 1315,
+      "sha256": "efdec9097832d6d38da124d6e2724cf94d11ee35383a817707af5243a8971b7f"
+    },
+    "depth75-live-cache-v2/cache/stdout.log": {
+      "bytes": 201,
+      "sha256": "2a7cd5e6573d16288b332a31b75f4f49afc2ba313d121679429dbdae7bafca8a"
+    },
+    "depth75-live-cache-v2/controller.py": {
+      "bytes": 6707,
+      "sha256": "917f8f391c18bcc0a413d1f3451a3eee828452811751d0c8083ddba3a5571f49"
+    },
+    "depth75-live-cache-v2/depth_wgsl_retained.rs": {
+      "bytes": 16639,
+      "sha256": "e2afa34ee02ec2e8903ae7bb988f07084742d3b0d97f58c2b2641fc49fe75566"
+    },
+    "depth75-live-cache-v2/receipt.json": {
+      "bytes": 3014,
+      "sha256": "461f829d91747bb53b9a52e1e151a2f2b482d49300d4f298ef2012287362807c"
+    },
+    "depth75-live-cache-v2/session-consumed.json": {
+      "bytes": 195,
+      "sha256": "f2a3ee88d7062de27875e0d043c124c94d35baa5a484a930f62f185307144be6"
+    }
+  }
+}
