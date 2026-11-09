@@ -1,0 +1,127 @@
+{
+  "archive": "tracking88-integrated-main-failures-v2.zip",
+  "bytes": 922173,
+  "sha256": "92bb5cd6fd789f9b84b93c3f61c7405da4d0ce195c69c138c6e4f4370891155e",
+  "members": 24,
+  "head": "365de8e7a4647d600af8d816850c9f944cf1a522",
+  "main": "ac65d279c57626d7aa7e28061a1a7fdf7889c68a",
+  "result": "Three original failures retained; no complete native regression or type-check pass",
+  "sessions": [
+    {
+      "scope": "python-prerequisite",
+      "session": 22089,
+      "original_chunk": "653466",
+      "exit_code": 1
+    },
+    {
+      "scope": "native",
+      "session": 85743,
+      "original_chunk": "13946e",
+      "exit_code": 1
+    },
+    {
+      "scope": "all-target-types",
+      "session": 6510,
+      "original_chunk": "52ef7f",
+      "exit_code": 1
+    }
+  ],
+  "files": {
+    "all-target-types/check.stderr.log": {
+      "bytes": 42661,
+      "sha256": "825b72c91e33c11d4c87d2ce42b0cac47dfc23a837052a7ce18aebbb7df1a927"
+    },
+    "all-target-types/check.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "all-target-types/controller.py": {
+      "bytes": 4308,
+      "sha256": "80f6362072c55d7819394196b5cec6ef34e3089ad5e189bf98cc29e5fe79a53c"
+    },
+    "all-target-types/receipt.json": {
+      "bytes": 869816,
+      "sha256": "caef45a47735b25d1bb84531938b28bd8ed10a3e0db5bbc0d91db45ef4ff7bcb"
+    },
+    "all-target-types/session-consumed.json": {
+      "bytes": 757,
+      "sha256": "52c4298aef43b2adf63f473a858f205c61e4d5506f496897eb972820c532eeb9"
+    },
+    "collector.py": {
+      "bytes": 2818,
+      "sha256": "be92e442a6b9ebe259e3d3285fa624c7955d395489560144dd10f4a2c4de9363"
+    },
+    "consumers/tracking88-all-target-types-consume-v1.py": {
+      "bytes": 2277,
+      "sha256": "2882b54c81a588555d6c5fe9433fa5f70e8883dc486f0ce4289278e36d43300c"
+    },
+    "consumers/tracking88-main-native-consume-v1.py": {
+      "bytes": 2359,
+      "sha256": "2c1c175551e5e1376b5d0fb6974e58f518c8899692c5f038f22922e91fce7679"
+    },
+    "consumers/tracking88-main-preflight-consume-v1.py": {
+      "bytes": 1935,
+      "sha256": "9a1fc98a82657a39841f35eb6aaa39a04289f3981ea86b54cb1b26aefc1b145b"
+    },
+    "native/cargo-metadata.json": {
+      "bytes": 156903,
+      "sha256": "c1fd456c8fefa6ce2c673c414337b90e88c8170e77af63f3b6777dfe5fff65bf"
+    },
+    "native/controller.py": {
+      "bytes": 10629,
+      "sha256": "d8fe3b284d201e4d98cc9018eedce5d07ff15219133184cf548f536eb97f4c74"
+    },
+    "native/desktop-check.stderr.log": {
+      "bytes": 19590,
+      "sha256": "583ba5286dc5e9377fa0342ebb49b8545a715f594e2a33b798c10cd6c5939a17"
+    },
+    "native/desktop-check.stdout.log": {
+      "bytes": 132,
+      "sha256": "ceac66ccff833ba36d3bf625ef236cbdcd734b2c4a783b247a8087abb35cb48b"
+    },
+    "native/optional-cv-controls.stderr.log": {
+      "bytes": 1944,
+      "sha256": "6651d49a7fc44c9697b1c838f7c7c18133401521cfb812c1dcd14069a8f14b8b"
+    },
+    "native/optional-cv-controls.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native/receipt.json": {
+      "bytes": 914093,
+      "sha256": "7f1a4a6c878219ea2d7078aae505f71d64b1d979ccd2096eaa326e874cd1643d"
+    },
+    "native/session-consumed.json": {
+      "bytes": 1414,
+      "sha256": "6e3843c2a2b378bae394ebf39f1d1d667a8338b292ac5f0df5a770f62ed4cfe9"
+    },
+    "native/workspace.stderr.log": {
+      "bytes": 4026,
+      "sha256": "fc9f6e4e57435551a7d0cbedd7ff3ab80e0448f199f589718d5f1195d0d89531"
+    },
+    "native/workspace.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "python-prerequisite/controller.py": {
+      "bytes": 10506,
+      "sha256": "89e86e04d99a7ad9baea88c26491e97157f64ddc90392e76166058cc4ae63505"
+    },
+    "python-prerequisite/python-ci-controls.stderr.log": {
+      "bytes": 21386,
+      "sha256": "f05b7e41757e5a78b86d1b81cfe3b17d9e5b57272a953876d0e02e719d11c74c"
+    },
+    "python-prerequisite/python-ci-controls.stdout.log": {
+      "bytes": 1837,
+      "sha256": "1111743a3a2612d5c0e18b094e4b9d26ecd1301c42546d8a52962a43e9b26e81"
+    },
+    "python-prerequisite/receipt.json": {
+      "bytes": 874688,
+      "sha256": "6b45ceb7d014d984f85283fa6054e1edb5e320ec6f9c4ea5a044f6ae075fd9b5"
+    },
+    "python-prerequisite/session-consumed.json": {
+      "bytes": 787,
+      "sha256": "409b01c56d2ec21be3c04208e45f4efb2edb9e6d8a49f806b775d87022815c12"
+    }
+  }
+}
