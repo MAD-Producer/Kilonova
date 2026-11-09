@@ -125,6 +125,51 @@ impl Scene {
         Ok(())
     }
 
+    /// Attach a physical candidate already qualified by the inference owner.
+    /// This renderer rechecks saved-reference identity and physical meaning; it
+    /// does not establish model accuracy or repeat the owner's held-out proof.
+    /// Candidate values retain their own declared units, so conversion is done
+    /// exactly once by camera-Z surface construction, without an affine remap.
+    pub fn attach_aligned_physical_depth(
+        &mut self,
+        object: u64,
+        current: &DepthSource,
+        reference: &DepthResource,
+        candidate: &DepthResource,
+        input: PreparedDepthInput,
+        image: Option<crate::DepthImage>,
+    ) -> Result<()> {
+        use motion_model::depth::{DepthAxis, DepthMeasure};
+        let saved = self.depth_required.get(&object).ok_or_else(|| {
+            motion_model::Error::Invalid(format!(
+                "depth surface object={object}: no sampled physical placement"))
+        })?;
+        ensure(saved.is_physical(), "aligned physical depth requires a physical placement")?;
+        saved.validate_binding(reference, input)?;
+        let first = reference.descriptor();
+        let second = candidate.descriptor();
+        ensure(current.same_sample(&first.source)
+            && first.source.same_sample(&second.source)
+            && first.geometry == second.geometry && first.size == second.size,
+            "aligned physical depth source or grid differs")?;
+        ensure(matches!((first.measure, second.measure),
+            (DepthMeasure::Metric { axis: DepthAxis::CameraZ, .. },
+             DepthMeasure::Metric { axis: DepthAxis::CameraZ, .. })
+            | (DepthMeasure::InverseMetric { axis: DepthAxis::CameraZ, .. },
+               DepthMeasure::InverseMetric { axis: DepthAxis::CameraZ, .. })),
+            "aligned physical depth representation or axis differs")?;
+        if let Some(image) = &image {
+            ensure(image.size() == second.geometry.source_size,
+                "aligned physical depth image dimensions differ from source geometry")?;
+        }
+        self.attach_bound_calibrated_depth(object, current, candidate, input,
+            None, Some(reference.cache_identity()))?;
+        if let Some(surface) = self.depth_surfaces.get_mut(&object) {
+            surface.image = image;
+        }
+        Ok(())
+    }
+
     fn attach_bound_calibrated_depth(
         &mut self,
         object: u64,

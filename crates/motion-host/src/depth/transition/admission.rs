@@ -299,6 +299,18 @@ impl View<'_> {
         )
     }
 
+    /// The view already holds the current worker's instance-bound unit proof.
+    /// A physical placement must bind the original saved reference; rendering
+    /// consumes the candidate in its own units, not mapped sample() values.
+    pub fn validate_physical_placement(
+        &self,
+        saved: &SavedDepthCalibration,
+    ) -> motion_model::Result<()> {
+        motion_model::ensure(saved.is_physical(),
+            "physical transition requires a saved physical placement")?;
+        saved.validate_binding(self.reference, self.input())
+    }
+
     pub(crate) fn reference_resource(&self) -> &DepthResource {
         self.reference
     }

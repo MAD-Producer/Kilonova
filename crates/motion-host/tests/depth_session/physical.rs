@@ -223,3 +223,6 @@ fn physical_image_session_and_frozen_export_preserve_units_ownership_and_real_oc
         assert!(weak.upgrade().is_none());
     }
 }
+
+#[path = "physical/transition.rs"]
+mod transition;

@@ -157,7 +157,7 @@ impl DepthSnapshot {
                 return Err("frozen depth resource differs from original request".into());
             }
             if let Some(alignment) = &entry.alignment {
-                alignment.calibration(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
+                alignment.validate_placement(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
             } else {
                 entry.calibration.validate_binding(&entry.estimate.resource, entry.input)?;
             }
@@ -389,11 +389,19 @@ impl DepthSnapshot {
                     .into());
                 }
                 if let Some(alignment) = &entry.alignment {
-                    let mapped = alignment.calibration(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
-                    prepared.attach_aligned_calibrated_depth(
-                        object, &entry.key.source, &alignment.reference().resource,
-                        &entry.estimate.resource, entry.input, &mapped, None,
-                    )?;
+                    if entry.calibration.is_physical() {
+                        alignment.validate_placement(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
+                        prepared.attach_aligned_physical_depth(
+                            object, &entry.key.source, &alignment.reference().resource,
+                            &entry.estimate.resource, entry.input, None,
+                        )?;
+                    } else {
+                        let mapped = alignment.calibration(&entry.estimate, &entry.key, &entry.calibration, entry.input)?;
+                        prepared.attach_aligned_calibrated_depth(
+                            object, &entry.key.source, &alignment.reference().resource,
+                            &entry.estimate.resource, entry.input, &mapped, None,
+                        )?;
+                    }
                 } else {
                     prepared.attach_calibrated_depth(
                         object, &entry.key.source, &entry.estimate.resource, entry.input,

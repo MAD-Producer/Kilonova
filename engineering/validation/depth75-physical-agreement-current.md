@@ -66,3 +66,9 @@ Subsequent work: [direct physical Session/export placement](depth75-physical-ses
 now has analytic live/frozen rendering controls. Physical aligned-transition
 placement, actual learned-model protocol and qualification still remain open.
 The new component evidence preserves the original complete-model native failure.
+
+Follow-up: [physical aligned Session/export placement](depth75-physical-transition-current.md)
+now has analytic metric/inverse-metric transition, actual rendering and frozen
+reconstruction controls. This later implementation supersedes only the earlier
+physical-alignment integration gap, not the unmet learned-model, complete-model
+regression or production-quality gates.

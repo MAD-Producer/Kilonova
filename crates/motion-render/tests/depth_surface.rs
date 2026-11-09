@@ -37,6 +37,8 @@ mod calibrated_materials;
 mod depth_of_field;
 #[path = "depth_surface/aligned.rs"]
 mod aligned;
+#[path = "depth_surface/physical_alignment.rs"]
+mod physical_alignment;
 
 // Explicit local acceptance output; CI and ordinary tests perform no extra IO.
 fn retain_fixture(name: &str, pixels: &[u8]) {

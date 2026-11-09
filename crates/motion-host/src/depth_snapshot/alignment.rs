@@ -107,7 +107,11 @@ impl Frozen {
         check()?;
         spec.validate(key)?;
         let began = Instant::now();
-        log::info!("start frozen_depth operation=restore_alignment source_request={request} object={object} source_id={} generation={} phase=fit_reconstructed_planes", key.source.asset, spec.generation);
+        let phase = if matches!(reference.resource.descriptor().measure,
+            motion_model::depth::DepthMeasure::Relative { .. }) {
+            "fit_reconstructed_planes"
+        } else { "verify_physical_units" };
+        log::info!("start frozen_depth operation=restore_alignment source_request={request} object={object} source_id={} generation={} phase={phase}", key.source.asset, spec.generation);
         log::logger().flush();
         let mut canceled = None;
         let fitted = Alignment::for_transition(
@@ -173,6 +177,21 @@ impl Frozen {
             .map_err(|cause| crate::Error::NativeSource {
                 cause: Box::new(cause),
             })?;
+        Ok(())
+    }
+
+    /// Metadata-only admission of an authored placement against the immutable
+    /// original reference and the current candidate's existing instance proof.
+    pub(crate) fn validate_placement(
+        &self, candidate: &Estimate, key: &Key,
+        saved: &SavedDepthCalibration, input: PreparedDepthInput,
+    ) -> Result<()> {
+        if saved.is_physical() {
+            self.validate(candidate, key)?;
+            saved.validate_binding(&self.reference.resource, input)?;
+        } else {
+            self.calibration(candidate, key, saved, input)?;
+        }
         Ok(())
     }
 

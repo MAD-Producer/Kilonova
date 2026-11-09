@@ -1,6 +1,6 @@
 //! Explicit Session ownership for a managed-image quality transition. This
-//! samples aligned relative depth; it does not relabel a saved calibration or
-//! implicitly install relative values as renderer hardware/camera depth.
+//! admits relative mappings or declared physical-unit agreement. Saved source
+//! identity and raw candidate interpretation remain separate and unchanged.
 use super::{Binding, Session, Source};
 use crate::depth::{
     self,
@@ -92,7 +92,7 @@ impl Session {
         let (estimate, input, alignment) = admission
             .freeze(&transition.controller, live, &transition.reference)?
             .ok_or_else(pending)?;
-        alignment.calibration(&estimate, live, saved, input)?;
+        alignment.validate_placement(&estimate, live, saved, input)?;
         Ok(Some(crate::depth_snapshot::Entry {
             object,
             asset: asset.clone(),
@@ -156,16 +156,18 @@ impl Session {
         let Some(view) = self.image_depth_transition()? else {
             return Ok(Some(false));
         };
-        let mapped = view.calibration(saved)?;
-        scene.attach_aligned_calibrated_depth(
-            object,
-            &current,
-            view.reference_resource(),
-            view.candidate_resource(),
-            view.input(),
-            &mapped,
-            view.image().cloned(),
-        )?;
+        if saved.is_physical() {
+            view.validate_physical_placement(saved)?;
+            scene.attach_aligned_physical_depth(object, &current,
+                view.reference_resource(), view.candidate_resource(),
+                view.input(), view.image().cloned())?;
+        } else {
+            let mapped = view.calibration(saved)?;
+            scene.attach_aligned_calibrated_depth(
+                object, &current, view.reference_resource(), view.candidate_resource(),
+                view.input(), &mapped, view.image().cloned(),
+            )?;
+        }
         Ok(Some(true))
     }
 

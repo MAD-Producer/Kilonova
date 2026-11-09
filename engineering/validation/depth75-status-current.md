@@ -29,7 +29,11 @@ Actual analytic worker/Session, undo/redo, GPU occlusion and independent frozen
 render controls pass, including all five selected complete render/host targets.
 The complete-model command failed to compile with native Windows mapping error1455;
 separate model placement components pass but do not erase that full-command failure.
-Physical aligned transitions and actual learned-model qualification remain pending.
+The [physical aligned Session/export path](depth75-physical-transition-current.md)
+now also passes authored metric/inverse-metric worker, rendering and frozen-proof
+controls. The five complete render/host targets establish 461 passes for unchanged
+product source; the failed checksum fixture and prior full-model memory failure
+remain recorded. Actual learned-model and cross-resolution qualification remain pending.
 
 ## Requirement-by-requirement state
 
@@ -133,3 +137,9 @@ remain intact.
 Issue #88 retains a separate photographed-tracking failure and is not resolved
 by this AI-depth work. No Android, panel, layout or interaction change is
 included in these observations.
+
+The published `687cfda6` source subsequently completed
+[run42619281230](depth75-ci687cfda6-current.md): all three desktop platforms and
+Rust/GPU checks passed, for eight applicable successes and two policy skips.
+This precedes the physical-unit/placement/transition commits and does not qualify
+their new source or clear the earlier local and actual-model failures.

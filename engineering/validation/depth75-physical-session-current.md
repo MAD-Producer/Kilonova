@@ -83,3 +83,9 @@ cover exact saved-identity rebind, decoded distances, incompatible metadata,
 invalid physical/relative field combinations, missing relative fields and
 ray-distance refusal. Its original direct exec returned 0; terminal 27f573 consumed.
 This component selection does not clear the failed complete-model invocation.
+
+Follow-up: [physical aligned Session/export placement](depth75-physical-transition-current.md)
+now has analytic metric/inverse-metric transition, actual rendering and frozen
+reconstruction controls. This later implementation supersedes only the earlier
+physical-alignment integration gap, not the unmet learned-model, complete-model
+regression or production-quality gates.
