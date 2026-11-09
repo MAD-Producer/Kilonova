@@ -9,6 +9,23 @@ pub struct PreparedNativeAuthoredProject {
     pub authored: AuthoredSceneSampler,
 }
 impl PreparedNativeAuthoredProject {
+    /// Reuse immutable programs and verified configuration, but give the next
+    /// composition an exclusive native sampler. Nothing is published here.
+    pub fn prepare_composition(
+        &self,
+        project: &Project,
+        observation: &Observation,
+    ) -> Result<Self, Error> {
+        observed_operation(observation, "prepare_color_composition", || {
+            let authored = self.authored.for_composition(project, &self.colors.config)
+                .map_err(motion_render::RenderError::from)
+                .map_err(|source| Error::Composition {
+                    composition: project.composition_id.clone(), source: Box::new(source.into()),
+                })?;
+            Ok(Self { colors: self.colors.clone(), authored })
+        })
+    }
+
     /// Prepare each referenced original static image once, then retain immutable
     /// working targets and sampling bindings. No partial set is published on
     /// failure or cancellation. Replacing a source requires a new explicit call.

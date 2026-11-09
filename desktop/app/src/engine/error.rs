@@ -5,12 +5,25 @@ use std::{fmt, sync::Arc, time::Duration};
 /// those causes in the command's own record, alongside its real request ID;
 /// the deferred phase record is additional evidence, not a replacement.
 pub(super) fn command_cause(error: &motion_host::Error) -> String {
-    if !matches!(
-        error,
-        motion_host::Error::ColorPreparation(_)
+    // Composition protocol/context wrappers preserve the typed error but their
+    // display text is only the envelope. Keep native causes alongside the real
+    // serial request ID as well as in the deferred preparation phase record.
+    let mut current = error;
+    let mut color = false;
+    for _ in 0..8 {
+        match current {
+            motion_host::Error::ColorPreparation(_)
             | motion_host::Error::NativeColor(_)
-            | motion_host::Error::Render(motion_render::RenderError::AuthoredScene(_))
-    ) {
+            | motion_host::Error::Render(motion_render::RenderError::AuthoredScene(_)) => {
+                color = true;
+                break;
+            }
+            motion_host::Error::Context { cause, .. }
+            | motion_host::Error::CompositionContext { cause, .. } => current = cause,
+            _ => break,
+        }
+    }
+    if !color {
         return crate::fallback_observation::error_cause(error);
     }
     struct Chain<'a>(&'a dyn std::error::Error);

@@ -22,6 +22,8 @@ mod roi;
 mod components;
 #[path = "authored_window_snapshots.rs"]
 mod snapshots;
+#[path = "authored_window_compositions.rs"]
+mod compositions;
 
 fn attach(session: &mut Session, events: &winit::event_loop::EventLoop<()>) {
     #[allow(deprecated)]

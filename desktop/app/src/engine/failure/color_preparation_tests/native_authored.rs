@@ -8,6 +8,8 @@ mod catalogue;
 mod images;
 #[path = "native_session.rs"]
 mod session;
+#[path = "native_compositions.rs"]
+mod compositions;
 #[path = "native_surface.rs"]
 mod surface;
 #[path = "native_png.rs"]

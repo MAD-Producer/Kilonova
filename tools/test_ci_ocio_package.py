@@ -145,6 +145,7 @@ class OcioPackageTest(unittest.TestCase):
         self.assertIn("cargo test -p motion-desktop-media --lib movie::frame::managed::tests --locked -- --ignored --nocapture --test-threads=1", commands)
         self.assertIn("cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::png::managed_png_worker_preserves_default_channels_and_publishes_before_native_work --locked -- --ignored --exact --nocapture --test-threads=1", commands)
         self.assertIn("cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::masks::managed_mask_budget_reaches_default_channels_and_recovers_frozen_png --locked -- --ignored --exact --nocapture --test-threads=1", commands)
+        self.assertIn("cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::compositions::managed_composition_worker_keeps_original_causes_and_default_error_channels --locked -- --ignored --exact --nocapture --test-threads=1", commands)
         self.assertEqual(qualify["env"]["MOTION_TEST_OCIO_RUNTIME"],
                          "${{ github.workspace }}/artifacts/ocio-native/prefix/ocio-runtime.json")
 

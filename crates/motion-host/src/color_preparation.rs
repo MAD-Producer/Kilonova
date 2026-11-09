@@ -65,6 +65,12 @@ pub enum Error {
     },
     #[error("color preparation phase=bind_working_images")]
     WorkingImages(#[source] Box<crate::Error>),
+    #[error("color preparation phase=composition composition={composition}")]
+    Composition {
+        composition: String,
+        #[source]
+        source: Box<crate::Error>,
+    },
     #[error("color preparation phase=surface_display")]
     SurfaceDisplay(#[source] Box<crate::Error>),
     #[error("color preparation phase=project")]
@@ -208,6 +214,7 @@ pub enum PreparedInput {
 
 /// All programs are prepared or no result is published. This object is not a
 /// rendering authorization: Session/Scene still require their full managed path.
+#[derive(Clone)]
 pub struct PreparedProjectColors {
     settings: Arc<ProjectColorManagement>,
     config: VerifiedColorConfig,

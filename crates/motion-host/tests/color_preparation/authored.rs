@@ -16,6 +16,8 @@ mod mask_composition;
 mod transfer;
 #[path = "authored_session.rs"]
 mod session_installation;
+#[path = "authored_compositions.rs"]
+mod compositions;
 #[path = "surface_contract.rs"]
 mod surface_contract;
 #[path = "authored_preview.rs"]

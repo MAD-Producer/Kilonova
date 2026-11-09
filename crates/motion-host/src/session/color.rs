@@ -134,7 +134,7 @@ pub(super) fn require_surface(prepared: &Option<PreparedNativeAuthoredProject>) 
     Ok(())
 }
 
-pub(super) fn sample(
+pub(crate) fn sample(
     prepared: &mut PreparedNativeAuthoredProject,
     project: &Project,
     frame: f64,

@@ -650,6 +650,12 @@ impl NativeColorRuntime {
     }
 }
 impl NativeColorProgram {
+    /// Retain the verified library owner for a new, independently owned program.
+    /// This never shares this program's mutable native processor handle.
+    pub fn runtime(&self) -> NativeColorRuntime {
+        NativeColorRuntime(self.api.clone())
+    }
+
     fn read_source(&mut self) -> Result<()> {
         let mut text = std::ptr::null();
         let mut size = 0;

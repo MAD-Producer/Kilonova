@@ -132,6 +132,25 @@ pub struct AuthoredSceneSampler {
     published: bool,
 }
 impl AuthoredSceneSampler {
+    /// Cold composition activation: prepare an independent sampler from retained
+    /// verified bytes. Failure cannot mutate the currently published scene.
+    pub fn for_composition(&self, project: &Project, config: &VerifiedColorConfig) -> Result<Self> {
+        self.validate_project(project)?;
+        let ProjectColorManagement::Ocio { settings } = self.settings.as_ref() else {
+            return Err(refuse("composition", None, "an explicit OCIO project is required"));
+        };
+        let mut selection = settings.selection.clone();
+        selection.input = settings.authored_input.space.clone();
+        let native = self.native.runtime().prepare(
+            config,
+            &selection,
+            ColorProcessorPhase::InputToWorking,
+            settings.authored_input.signal.alpha,
+            settings.working.alpha,
+        ).map_err(|source| AuthoredSceneError::Native { object: None, source })?;
+        Self::from_program(project, config, native)
+    }
+
     /// Called inside the host's observed preparation, using its exact retained
     /// program. No project clone with disabled color management is created.
     pub fn from_program(

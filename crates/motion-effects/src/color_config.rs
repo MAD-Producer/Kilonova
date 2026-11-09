@@ -288,6 +288,7 @@ impl ColorConfigManifest {
 
 /// Retains the exact verified resource bytes. Replacing a file on disk does not
 /// alter this object's identity. Construction is preparation, never a Present op.
+#[derive(Clone)]
 pub struct VerifiedColorConfig {
     manifest: ColorConfigManifest,
     key: [u8; 32],
