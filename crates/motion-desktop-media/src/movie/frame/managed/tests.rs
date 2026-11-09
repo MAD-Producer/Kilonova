@@ -5,6 +5,8 @@ use motion_effects::{
 };
 use motion_host::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 use serde::Deserialize;
+#[path = "tests/resources.rs"]
+mod resources;
 
 #[derive(Deserialize)]
 struct Reference {

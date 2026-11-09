@@ -5,6 +5,9 @@
 #include <cstring>
 #include <cstdlib>
 #include <memory>
+#include <cmath>
+#include <map>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -24,6 +27,14 @@ struct Table {
     const float *values;
     size_t count;
 };
+struct Resource {
+    const char *name;
+    uint32_t kind, size;
+    float min[3], max[3];
+    const float *values;
+    size_t count;
+};
+using Resources = std::map<std::string, const Resource *>;
 struct CatalogueEntry {
     uint32_t kind, reference, data;
     std::string name, value;
@@ -84,43 +95,136 @@ MOTION_EXPORT bool motion_ocio_initialize(LogFunction callback, Error *error) no
         logger.store(callback, std::memory_order_release);
     });
 }
-static void scan(const ocio::ConstTransformRcPtr &transform, unsigned depth, unsigned &nodes) {
-    if (!transform) return;
-    if (depth > 32 || ++nodes > 8192) throw Admission("configuration transform traversal exceeds capacity");
-    if (std::dynamic_pointer_cast<const ocio::FileTransform>(transform))
-        throw Admission("external FileTransform requires a separately admitted closed resource runtime");
-    if (auto group = std::dynamic_pointer_cast<const ocio::GroupTransform>(transform)) {
-        for (int i = 0; i < group->getNumTransforms(); ++i) scan(group->getTransform(i), depth+1, nodes);
+static Resources resources(const Resource *items, size_t count) {
+    if (count > 128 || (count && !items)) throw Admission("resource array exceeds admission capacity");
+    Resources result;
+    size_t retained = 0;
+    for (size_t i = 0; i < count; ++i) {
+        const auto &item = items[i];
+        const auto name_size = length(item.name, 256);
+        if (!name_size || !result.emplace(item.name, &item).second)
+            throw Admission("empty or duplicate resource name");
+        const size_t expected = item.kind == 1 ? item.size : size_t(item.size)*item.size*item.size;
+        if ((item.kind != 1 && item.kind != 3) || item.size < 2 ||
+            item.size > (item.kind == 1 ? 65536u : 64u) || item.count != expected || !item.values)
+            throw Admission("resource table shape exceeds admission capacity");
+        retained += item.count * 3 * sizeof(float);
+        if (retained > 64*1024*1024) throw Admission("numeric resource bundle exceeds admission capacity");
+        for (unsigned c=0; c<3; ++c) {
+            const float span = item.max[c]-item.min[c];
+            if (!std::isfinite(item.min[c]) || !std::isfinite(item.max[c]) ||
+                !std::isfinite(span) || span < std::numeric_limits<float>::min())
+                throw Admission("resource domain requires finite increasing normal-width intervals");
+        }
+        for (size_t v=0; v<item.count*3; ++v)
+            if (!std::isfinite(item.values[v])) throw Admission("nonfinite numeric resource sample");
     }
+    return result;
 }
-static void closed(const ocio::ConstConfigRcPtr &config) {
+static ocio::TransformRcPtr file_transform(const ocio::ConstFileTransformRcPtr &file, const Resources &items, size_t &expanded) {
+    const std::string name(file->getSrc(), length(file->getSrc(), 256));
+    const auto found = items.find(name);
+    if (found == items.end()) throw Admission("external FileTransform has no verified resource: " + name);
+    if (length(file->getCCCId(), 256) || file->getCDLStyle() != ocio::CDL_NO_CLAMP)
+        throw Admission("Cube FileTransform cannot select CDL options: " + name);
+    const auto &item = *found->second;
+    const auto bytes = item.count * 3 * sizeof(float);
+    if (bytes > 64*1024*1024 - expanded)
+        throw Admission("expanded resource transforms exceed numeric byte capacity: " + name);
+    expanded += bytes;
+    const auto interpolation = file->getInterpolation();
+    // OCIO 2.6 normalizes NEAREST to linear/trilinear for file LUTs. Do not
+    // accept a declared nearest operation and quietly produce different math.
+    if (interpolation == ocio::INTERP_NEAREST)
+        throw Admission("native OCIO does not preserve nearest resource interpolation: " + name);
+    if (interpolation != ocio::INTERP_DEFAULT && interpolation != ocio::INTERP_BEST &&
+        interpolation != ocio::INTERP_LINEAR &&
+        !(item.kind == 3 && interpolation == ocio::INTERP_TETRAHEDRAL))
+        throw Admission("unsupported explicit resource interpolation: " + name);
+    auto group = ocio::GroupTransform::Create();
+    group->setDirection(file->getDirection());
+    auto domain = ocio::MatrixTransform::Create();
+    double matrix[16] = {}, offset[4] = {};
+    matrix[15] = 1;
+    for (unsigned c=0; c<3; ++c) {
+        matrix[c*5] = 1.0 / (double(item.max[c])-double(item.min[c]));
+        offset[c] = -double(item.min[c]) * matrix[c*5];
+    }
+    domain->setMatrix(matrix); domain->setOffset(offset);
+    group->appendTransform(domain);
+    if (item.kind == 1) {
+        auto lut = ocio::Lut1DTransform::Create(item.size, false);
+        lut->setInterpolation(interpolation);
+        for (unsigned i=0; i<item.size; ++i)
+            lut->setValue(i, item.values[i*3], item.values[i*3+1], item.values[i*3+2]);
+        group->appendTransform(lut);
+    } else {
+        auto lut = ocio::Lut3DTransform::Create(item.size);
+        lut->setInterpolation(interpolation);
+        for (unsigned b=0; b<item.size; ++b) for (unsigned g=0; g<item.size; ++g) for (unsigned r=0; r<item.size; ++r) {
+            const auto index = size_t(r+item.size*(g+item.size*b))*3;
+            lut->setValue(r,g,b,item.values[index],item.values[index+1],item.values[index+2]);
+        }
+        group->appendTransform(lut);
+    }
+    return group;
+}
+static ocio::TransformRcPtr scan(const ocio::ConstTransformRcPtr &transform, const Resources &items, unsigned depth, unsigned &nodes, size_t &expanded) {
+    if (!transform) return {};
+    if (depth > 32 || ++nodes > 8192) throw Admission("configuration transform traversal exceeds capacity");
+    if (auto file = std::dynamic_pointer_cast<const ocio::FileTransform>(transform))
+        return file_transform(file, items, expanded);
+    auto copy = transform->createEditableCopy();
+    if (auto group = std::dynamic_pointer_cast<ocio::GroupTransform>(copy)) {
+        for (int i = 0; i < group->getNumTransforms(); ++i)
+            group->getTransform(i) = scan(group->getTransform(i), items, depth+1, nodes, expanded);
+    }
+    return copy;
+}
+static ocio::ConfigRcPtr closed(const ocio::ConstConfigRcPtr &config, const Resources &items) {
     if (config->getNumEnvironmentVars() || config->getCurrentContext()->getNumStringVars())
         throw Admission("ambient configuration context is not an admitted closed program");
+    if (!items.empty()) for (int i=0; i<config->getNumSearchPaths(); ++i)
+        if (length(config->getSearchPath(i), 256))
+            throw Admission("resource configuration search paths are not admitted");
+    auto result = config->createEditableCopy();
     unsigned nodes = 0;
+    size_t expanded = 0;
     int count = config->getNumColorSpaces(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL);
     if (count > 512 || config->getNumLooks() > 512 || config->getNumViewTransforms() > 512 ||
         config->getNumNamedTransforms(ocio::NAMEDTRANSFORM_ALL) > 512)
         throw Admission("configuration catalogue exceeds traversal capacity");
     for (int i = 0; i < count; ++i) {
         auto space = config->getColorSpace(config->getColorSpaceNameByIndex(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL, i));
-        scan(space->getTransform(ocio::COLORSPACE_DIR_TO_REFERENCE), 0, nodes);
-        scan(space->getTransform(ocio::COLORSPACE_DIR_FROM_REFERENCE), 0, nodes);
+        auto edited = space->createEditableCopy();
+        edited->setTransform(scan(space->getTransform(ocio::COLORSPACE_DIR_TO_REFERENCE), items, 0, nodes, expanded), ocio::COLORSPACE_DIR_TO_REFERENCE);
+        edited->setTransform(scan(space->getTransform(ocio::COLORSPACE_DIR_FROM_REFERENCE), items, 0, nodes, expanded), ocio::COLORSPACE_DIR_FROM_REFERENCE);
+        result->addColorSpace(edited);
     }
     for (int i = 0; i < config->getNumLooks(); ++i) {
         auto look = config->getLook(config->getLookNameByIndex(i));
-        scan(look->getTransform(), 0, nodes);
-        scan(look->getInverseTransform(), 0, nodes);
+        auto edited = look->createEditableCopy();
+        // OCIO Look setters require a non-null transform, unlike ColorSpace
+        // and NamedTransform. Keep absent directions absent in the copy.
+        if (auto transform = scan(look->getTransform(), items, 0, nodes, expanded)) edited->setTransform(transform);
+        if (auto transform = scan(look->getInverseTransform(), items, 0, nodes, expanded)) edited->setInverseTransform(transform);
+        result->addLook(edited);
     }
     for (int i = 0; i < config->getNumViewTransforms(); ++i) {
         auto view = config->getViewTransform(config->getViewTransformNameByIndex(i));
-        scan(view->getTransform(ocio::VIEWTRANSFORM_DIR_TO_REFERENCE), 0, nodes);
-        scan(view->getTransform(ocio::VIEWTRANSFORM_DIR_FROM_REFERENCE), 0, nodes);
+        auto edited = view->createEditableCopy();
+        edited->setTransform(scan(view->getTransform(ocio::VIEWTRANSFORM_DIR_TO_REFERENCE), items, 0, nodes, expanded), ocio::VIEWTRANSFORM_DIR_TO_REFERENCE);
+        edited->setTransform(scan(view->getTransform(ocio::VIEWTRANSFORM_DIR_FROM_REFERENCE), items, 0, nodes, expanded), ocio::VIEWTRANSFORM_DIR_FROM_REFERENCE);
+        result->addViewTransform(edited);
     }
     for (int i = 0; i < config->getNumNamedTransforms(ocio::NAMEDTRANSFORM_ALL); ++i) {
         auto named = config->getNamedTransform(config->getNamedTransformNameByIndex(ocio::NAMEDTRANSFORM_ALL, i));
-        scan(named->getTransform(ocio::TRANSFORM_DIR_FORWARD), 0, nodes);
-        scan(named->getTransform(ocio::TRANSFORM_DIR_INVERSE), 0, nodes);
+        auto edited = named->createEditableCopy();
+        edited->setTransform(scan(named->getTransform(ocio::TRANSFORM_DIR_FORWARD), items, 0, nodes, expanded), ocio::TRANSFORM_DIR_FORWARD);
+        edited->setTransform(scan(named->getTransform(ocio::TRANSFORM_DIR_INVERSE), items, 0, nodes, expanded), ocio::TRANSFORM_DIR_INVERSE);
+        result->addNamedTransform(edited);
     }
+    return result;
 }
 static void table(const Program *program, uint32_t index, Table *out) {
     if (!program || !program->gpu) throw Admission("table program is missing");
@@ -198,7 +302,7 @@ static std::vector<CatalogueEntry> catalogue(const ocio::ConstConfigRcPtr &confi
     return rows;
 }
 MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const char *from,
-    const char *to, const char *view, Program **output, Error *error) noexcept {
+    const char *to, const char *view, const Resource *items, size_t count, Program **output, Error *error) noexcept {
     *output = nullptr;
     return checked(error, [&] {
         if (!size || size > 8*1024*1024) throw Admission("configuration bytes exceed capacity");
@@ -208,8 +312,9 @@ MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const cha
         for (const char *name : {"OCIO_ACTIVE_DISPLAYS", "OCIO_ACTIVE_VIEWS", "OCIO_INACTIVE_COLORSPACES"})
             if (std::getenv(name)) throw Admission("ambient OCIO catalogue override must be removed before preparing a closed program");
         std::istringstream stream(std::string(bytes, size));
-        auto config = ocio::Config::CreateFromStream(stream);
-        closed(config); // Before validate/getProcessor may resolve external files.
+        auto config = closed(ocio::Config::CreateFromStream(stream), resources(items, count));
+        // All FileTransforms are replaced from verified numeric resources before
+        // validate/getProcessor. OCIO never resolves a path or caches a file.
         config->validate();
         auto declared = catalogue(config);
         auto input = config->getColorSpace(from);

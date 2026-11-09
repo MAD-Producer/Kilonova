@@ -22,7 +22,7 @@ struct Cube {
     expected: Vec<[f32; 4]>,
 }
 
-fn image(
+pub(super) fn image(
     renderer: &mut Renderer,
     source: &ColorProcessorSource,
     config: &VerifiedColorConfig,

@@ -175,6 +175,38 @@ class OcioRecipeTest(unittest.TestCase):
             self.assertFalse((root / "prefix/ocio-runtime.json").exists())
 
 
+class OcioResourceQualificationTest(unittest.TestCase):
+    def test_resource_child_failure_preserves_cause_and_prevents_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            build = ocio.Build(root, "windows-x86_64", "unused", "unused", 1)
+            original = build.run
+            phases = []
+            def child(component, phase, command):
+                phases.append(phase)
+                code = "import sys; sys.stderr.write('controlled resource qualification cause'); sys.exit(9)" if phase == "resource-boundaries" else "pass"
+                return original(component, phase, [sys.executable, "-c", code])
+            stderr, stdout = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(stdout):
+                with patch.object(build, "run", side_effect=child):
+                    with self.assertRaises(subprocess.CalledProcessError) as failure:
+                        build.qualify_bridge()
+            self.assertEqual(failure.exception.returncode, 9)
+            self.assertEqual(phases, ["exception-boundaries", "cube-boundaries", "resource-boundaries"])
+            self.assertFalse(build.bridge_qualified)
+            self.assertFalse(json.loads((root / "in-flight.json").read_text())["running"])
+            events = [json.loads(line) for line in (root / "events.jsonl").read_text().splitlines()]
+            resource = [event for event in events if event["phase"] == "resource-boundaries"]
+            self.assertEqual([(event["level"], event["operation"]) for event in resource], [("info", "start"), ("error", "done")])
+            self.assertEqual(resource[-1]["exit_code"], 9)
+            self.assertIn("controlled resource qualification cause", (root / "logs/motion-ocio-bridge-resource-boundaries.stderr.txt").read_text())
+            self.assertIn("phase=resource-boundaries", stderr.getvalue())
+            self.assertEqual(stdout.getvalue(), "")
+            with self.assertRaisesRegex(ValueError, "exception boundary qualification is missing"):
+                ocio.publish(build, [], {})
+            self.assertFalse((root / "prefix/ocio-runtime.json").exists())
+
+
 class OcioSourceStageTest(unittest.TestCase):
     @staticmethod
     def events(root):

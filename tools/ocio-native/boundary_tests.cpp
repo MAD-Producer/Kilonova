@@ -38,6 +38,14 @@ static bool require(bool value, const char *description) {
 }
 int main() {
     Error error{};
+    bool unwound = false;
+    struct Scope {
+        bool &unwound;
+        ~Scope() { unwound = true; }
+    };
+    if (!require(!checked(&error, [&] { Scope scope{unwound}; throw Admission("controlled owned preparation failure"); }), "owned preparation must fail") ||
+        !require(unwound && error.kind == 1, "exception must unwind owned preparation resources")) return 1;
+    std::puts("exception owned_scope_unwound=true original_category=preserved");
     // Before any successful registration, failures must leave the callback
     // unpublished and preserve their category/cause instead of terminating.
     const uint32_t categories[] = {0, 1, 2, 3, 4, 5, 4};

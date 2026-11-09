@@ -14,6 +14,8 @@ mod initialization_fixture;
 mod program_equivalence;
 #[path = "support/native_color_transfer.rs"]
 mod transfer;
+#[path = "support/native_resource_tests.rs"]
+mod resources;
 
 #[derive(Deserialize)]
 struct Config {

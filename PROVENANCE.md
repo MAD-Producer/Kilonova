@@ -170,8 +170,15 @@ interpolation. Qualification constructs independently authored inline tables,
 compares the actual generated GLSL/table ABI with native CPU output, and does
 not install those generated fixtures or copy upstream implementation code.
 The recipe separately qualifies the cube ABI before publishing its manifest.
-This table support does not remove the closed resource-free configuration
-restriction or authorize arbitrary FileTransform resources.
+Standalone table descriptor support does not authorize arbitrary FileTransform
+resources. The subsequent closed resource adapter accepts only already verified,
+strict single-table Cube bytes through the existing independently authored
+parser. It constructs in-memory OCIO transforms using the public API, preserves
+domain, direction and supported interpolation, and never resolves or caches a
+file. The native file-reader oracle is confined to qualification executables.
+Context expansion, configured search paths, other file formats and nearest
+requests that OCIO would normalize to linear remain explicit refusals. No new
+dependency, copied implementation or upstream patch is introduced.
 
 # 显式 PNG 色彩元数据编码
 

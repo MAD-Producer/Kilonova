@@ -168,6 +168,7 @@ class Build:
                          (Path(__file__), LOCK, Path(__file__).with_name("ocio-native") / "bridge.cpp",
                           Path(__file__).with_name("ocio-native") / "boundary_tests.cpp",
                           Path(__file__).with_name("ocio-native") / "cube_tests.cpp",
+                          Path(__file__).with_name("ocio-native") / "resource_tests.cpp",
                           Path(__file__).with_name("ocio-native") / "initialization_failure.cpp",
                           Path(__file__).with_name("ocio-native") / "CMakeLists.txt")}
         (output / "logs").mkdir()
@@ -325,6 +326,8 @@ class Build:
         self.run("motion-ocio-bridge", "exception-boundaries", [str(executable)])
         cubes = executable.with_name("motion_ocio_cube_tests.exe" if self.platform == "windows-x86_64" else "motion_ocio_cube_tests")
         self.run("motion-ocio-bridge", "cube-boundaries", [str(cubes), str(executable.parent / "native-cubes.json")])
+        resources = executable.with_name("motion_ocio_resource_tests.exe" if self.platform == "windows-x86_64" else "motion_ocio_resource_tests")
+        self.run("motion-ocio-bridge", "resource-boundaries", [str(resources), str(executable.parent / "native-resources.json")])
         self.bridge_qualified = True
 
 

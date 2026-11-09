@@ -8,6 +8,8 @@ use std::{
 use wgpu::util::DeviceExt;
 #[path = "color_processor/cubes.rs"]
 mod cubes;
+#[path = "color_processor/resources.rs"]
+mod resources;
 
 #[derive(Deserialize)]
 struct Reference {

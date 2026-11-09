@@ -20,6 +20,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 mod catalogue;
+mod resources;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -52,6 +53,14 @@ pub enum Error {
     },
     #[error(transparent)]
     Config(#[from] ColorConfigError),
+    #[error("native OCIO resource={name:?}: {reason}")]
+    Resource { name: String, reason: &'static str },
+    #[error("native OCIO resource={name:?}: {source}")]
+    ResourceLut {
+        name: String,
+        #[source]
+        source: crate::color_lut::LutError,
+    },
     #[error("native OCIO phase={phase} category={category}: {cause}")]
     Native {
         phase: &'static str,
@@ -136,6 +145,8 @@ type Prepare = unsafe extern "C" fn(
     *const c_char,
     *const c_char,
     *const c_char,
+    *const resources::Resource,
+    usize,
     *mut *mut c_void,
     *mut NativeError,
 ) -> bool;
@@ -563,11 +574,13 @@ impl NativeColorRuntime {
         input_alpha: AlphaMode,
         output_alpha: AlphaMode,
     ) -> Result<NativeColorProgram> {
-        if !config.manifest().resources.is_empty() || !config.manifest().context.is_empty() {
+        if !config.manifest().context.is_empty() {
             return Err(Error::Admission(
-                "requires a closed resource-free catalogue",
+                "requires a closed catalogue without ambient context",
             ));
         }
+        let resources = resources::Resources::new(config)?;
+        let native_resources = resources.native();
         let resolved = config.resolve(selection)?;
         let (from, to, view) = match phase {
             ColorProcessorPhase::InputToWorking => {
@@ -602,6 +615,8 @@ impl NativeColorRuntime {
                 from.as_ptr(),
                 to.as_ptr(),
                 view.as_ref().map_or(std::ptr::null(), |s| s.as_ptr()),
+                native_resources.as_ptr(),
+                native_resources.len(),
                 &mut raw,
                 &mut error,
             )

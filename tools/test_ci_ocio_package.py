@@ -176,6 +176,18 @@ class OcioPackageTest(unittest.TestCase):
         self.assertEqual(window["env"]["MOTION_TEST_OCIO_RUNTIME"], native["env"]["MOTION_TEST_OCIO_RUNTIME"])
         self.assertEqual(window["env"]["MOTION_COLOR_TEST_EVIDENCE"], native["env"]["MOTION_COLOR_TEST_EVIDENCE"])
 
+    def test_native_file_resources_gate_packaging_with_fresh_cpu_oracle(self):
+        workflow = release_tests.yaml.load((desktop.ROOT / ".github/workflows/ci.yml").read_text(), Loader=release_tests.yaml.BaseLoader)
+        steps = workflow["jobs"]["desktop"]["steps"]
+        qualify = next(s for s in steps if s.get("name") == "Qualify native OCIO against independent references")
+        package = next(s for s in steps if s.get("name") == "Package desktop release archive")
+        self.assertNotIn("if", qualify)
+        self.assertNotIn("continue-on-error", qualify)
+        self.assertLess(steps.index(qualify), steps.index(package))
+        self.assertIn("cargo test -p motion-render --test color_processor resources::native_file_resources_match_cpu_in_compute_and_float_image_paths --locked -- --ignored --exact --nocapture --test-threads=1", qualify["run"].splitlines())
+        self.assertIn("cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_resources::resource_failures_reach_default_channels_and_preserve_the_complete_edit_state --locked -- --ignored --exact --nocapture --test-threads=1", qualify["run"].splitlines())
+        self.assertEqual(qualify["env"]["MOTION_TEST_OCIO_FAILURE_LIBRARY_DIR"], "${{ github.workspace }}/artifacts/ocio-native/build/motion-ocio-bridge")
+
 
 if __name__ == "__main__":
     unittest.main()

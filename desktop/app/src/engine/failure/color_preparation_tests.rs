@@ -8,6 +8,8 @@ mod fixture;
 mod native_initialization;
 #[path = "color_preparation_tests/native_authored.rs"]
 mod native_authored;
+#[path = "color_preparation_tests/native_resources.rs"]
+mod native_resources;
 
 #[test]
 fn unrepresentable_color_range_preserves_default_error_channels_and_primary_cause() {
