@@ -14,11 +14,11 @@ are added to the product or evidence archives.
 | Issue requirement | Current evidence | Remaining acceptance |
 | --- | --- | --- |
 | Explicitly licensed candidate; operators, shapes, dtype, weights, activation and workgroup/storage limits | The attributed Depth Anything V2 Small revision and export are pinned. All 598 nodes and 23 operator kinds are inventoried; the fixed-shape Float32 plan has no unknown shapes. Original weights and resource estimates are documented in [candidate research](depth75-wgsl-candidate-current.md). | The candidate remains an external research input. Its name and numerical equivalence do not qualify a production domain, quality tier or default distribution. |
-| Same-weight WGSL/ONNX comparison and measured full-chain cost/thermal behavior | Per-operator and end-to-end controls, original 32-source-coordinate backend comparison, and actual ordered pipeline timing exist. A cold-path 128-request sustained observation retains its original thermal flags. The explicitly changed Rust-remap route completed 32 original inputs with full Float32 byte equality against the sealed cold outputs. | The new retained host-remap path still requires its own one-service sustained observation. Original cold/Python-path crashes and thermal signals remain failures/limits. No realtime or cross-device performance claim is admitted. |
+| Same-weight WGSL/ONNX comparison and measured full-chain cost/thermal behavior | Per-operator/end-to-end controls and the original 32-source-coordinate comparison exist. The new retained Rust-remap route completed its first fixed one-service run:25 complete cohorts,800 requests,1,835.03 seconds, all full Float32 outputs byte-identical to their sealed cold references. | Peak temperature90°C and hardware/software thermal flags remain observed. Original cold/Python-path crashes remain failures. This is neither realtime nor thermal, domain or cross-device qualification. |
 | Shared DepthResource/job interface; quality determined by model/resolution rather than backend name | ONNX and WGSL implement the shared Backend/Jobs route. Measured jobs, persistent cache, Session installation, source preparation, calibration and immutable export are integrated. Model/geometry and actual execution identities are independently checked. | These are explicit host APIs and examples. The desktop application does not configure an automatically qualified inference route merely because these APIs exist. |
 | Measured fast/standard/high selection, requested/resolved visibility and explicit precomputed fallback | Capability policy retains requested limits, actual profiles, refusal reasons and admitted bindings. Missing/changed execution identity refuses before cache or inference. Missing qualification returns PrecomputedRequired rather than inventing inference success. | No actual learned candidate has complete independent domain-quality, conservative memory and sustained qualification for automatic selection. Controlled policy fixtures cannot supply that qualification. |
 | Aligned, versioned, hysteretic and generation-checked interactive/settled transition; explicit frozen export strategy | Worker/Session transitions, stale-generation and runtime refusals, retained input ownership, calibration and frozen restore have controls. Same-weight CPU518/WGSL518 alignment accepted all 32 original coordinates. | CPU266 and CPU392 each failed all 32 original cross-resolution fits. The unchanged research ceilings are retained. An accepted actual continuous-video cross-quality transition is not established by same-quality backend equivalence or synthetic fixtures. |
-| Versioned compute/weight resource plan and capability negotiation with non-inference fallback | Explicit independently identified plans/runtime/weights, adapter/backend/shape admission, bounded retained-resource protocol and versioned cache identity exist. Frozen non-inference depth can be restored and rendered after the worker exits. | Verify the intended maintained-desktop resource/consumer negotiation boundary against the final packaging contract; no inference model is silently added to a normal effect package. Retired Android compatibility is outside scope. |
+| Versioned compute/weight resource plan and capability negotiation with non-inference fallback | The [resource/consumer boundary](depth75-resource-negotiation-current.md) now records the strict version1 research plan, separate resources, exact execution admission and retained-command protocol. Normal image-effect packages do not accept model/weight resources; frozen depth can be restored/rendered after the worker exits. Nine original admission controls are verified in the full log. | This is the explicit research route and its planned boundary, not a generic distributed model-package installer or default application configuration. Production distribution and qualification remain pending. Retired Android compatibility is outside scope. |
 
 ## Current implementation and measurements
 
@@ -46,9 +46,13 @@ lifetime peaks are not summed as simultaneous resident memory.
 The [one-service scheduling and host counter controls](depth75-sustained-host-controls-current.md)
 now pass: all four complete example tests and its build, plus an independent
 three-process Windows job committed-memory peak control. These are prerequisites,
-not an actual learned-model sustained, memory or thermal qualification. The
-[fixed sustained protocol](depth75-sustained-host-remap-protocol.md) remains
-unexecuted at this record's publication.
+not a learned-model qualification. The subsequent
+[first actual one-service run](depth75-sustained-host-remap-current.md) completed
+all800 requests with exact outputs under the fixed pre-run protocol. It recorded
+1,522,769,920 bytes whole-owned-job committed peak, not RSS or device memory.
+All1,721 sensor readings remain: maximum90°C,16 software-thermal Active readings
+and one hardware-thermal Active reading. Complete device allocation is unknown;
+no production qualification is constructed from these observations.
 
 ## Regression and publication
 
@@ -56,7 +60,10 @@ Publication `dc17b0071e79e5485882c8cce5f0be2fe8e50757` is draft PR #651.
 The exact prior published source `53c3280d` completed CI run42573859294 with
 eight applicable jobs successful and two policy skips. It does not cover the
 later three retained-cohort/Rust-remap/cache-Session commits. Current-source
-CI is run42582989141; its final outcome must be inspected before admission.
+CI [run42582989141](depth75-ci-dc17b007-current.md) is terminal success: eight
+applicable jobs passed and two policy skips. All seven new remap/memory controls
+appear exactly once in each native desktop test log. This precedes the later
+one-service example at27906e82 and does not replace the local full-command failure.
 
 The original complete workspace command at `dc17b007` was session82855. It
 finished with Cargo101 and consumed controller exit1. All452 expected invocations
@@ -83,9 +90,10 @@ remain intact.
 
 1. Diagnose the retained original full-command failures. Inspect current-source
    CI separately; the original local command remains failed.
-2. Execute the prepared, bounded one-service sustained workload on the actual
-   host-remap path, retaining every output and sensor observation. Verify any
-   new counter independently before using it; unknown metrics remain unknown.
+2. Evaluate the retained actual one-service outcome without waiving its thermal
+   signals or treating committed memory/managed buffers as device allocation.
+   Complete conservative device memory evidence is still missing; no rerun to
+   obtain cooler samples or changed qualification threshold is authorized here.
 3. Establish actual independently referenced application/domain quality and
    conservative memory evidence before creating production quality bindings.
 4. Establish an accepted continuous cross-quality transition under explicit
