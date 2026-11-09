@@ -11,6 +11,7 @@ use motion_effects::{
     image_contract::ImageMeaning,
     AlphaMode,
 };
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     path::Path,
@@ -98,10 +99,12 @@ pub enum Error {
         phase: ColorProcessorPhase,
         reason: &'static str,
     },
-    #[error("color preparation target={target:?} phase={phase:?}: compilation failed")]
+    #[error("color preparation target={target:?} phase={phase:?} shader_sha256={shader_sha256} shader_bytes={shader_bytes}: compilation failed")]
     Compile {
         target: Target,
         phase: ColorProcessorPhase,
+        shader_sha256: String,
+        shader_bytes: usize,
         #[source]
         source: ColorProcessorError,
     },
@@ -358,7 +361,11 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
                 reason: "provider phase/alpha differs from the request",
             });
         }
-        color_log!(Info, "color preparation request={} operation=prepare_project_colors target={target:?} phase=compile transform={phase:?}", self.observation.request);
+        // Cold preparation only: identify the exact provider shader before a
+        // compiler can fail or stop returning. Never log shader/user contents.
+        let shader_sha256 = format!("{:x}", Sha256::digest(source.shader.as_bytes()));
+        let shader_bytes = source.shader.len();
+        color_log!(Info, "color preparation request={} operation=prepare_project_colors target={target:?} phase=compile transform={phase:?} config_key={:02x?} selection_key={:02x?} shader_sha256={shader_sha256} shader_bytes={shader_bytes}", self.observation.request, self.config.key(), source.selection_key);
         let program = if opaque_display {
             source.compile_display_over_black(self.config, selection)
         } else {
@@ -367,6 +374,8 @@ impl<F: FnMut(Request<'_>) -> crate::Result<ColorProcessorSource>> Programs<'_, 
         .map_err(|source| Error::Compile {
             target,
             phase,
+            shader_sha256,
+            shader_bytes,
             source,
         })?;
         let requested = self

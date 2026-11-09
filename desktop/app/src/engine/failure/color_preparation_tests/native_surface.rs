@@ -218,4 +218,33 @@ fn surface_preparation_publishes_before_blocking_and_preserves_default_failure_c
     assert!(!stderr.contains("phase=start") && !stderr.contains("phase=provider"));
     assert!(!stdout.contains("phase=start") && !stdout.contains("phase=provider"));
     assert!(!file.contains("phase=abandoned"));
+    let fingerprint =
+        "shader_sha256=c9125f1ffde5481767d9a579257f32c8cfc894444a343d29270792c982f70f2d";
+    let compile = file
+        .lines()
+        .find(|line| {
+            line.contains("request=9602")
+                && line.contains("phase=compile ")
+                && line.contains("target=SurfaceDisplay")
+        })
+        .unwrap();
+    for context in [
+        fingerprint,
+        "shader_bytes=29",
+        "config_key=",
+        "selection_key=",
+    ] {
+        assert!(compile.contains(context), "{compile}");
+    }
+    let failed = errors
+        .iter()
+        .find(|line| line.contains("request=9602"))
+        .unwrap();
+    for context in [fingerprint, "shader_bytes=29", "phase=glsl-parse"] {
+        assert!(failed.contains(context), "{failed}");
+        assert!(stderr.contains(context), "{stderr}");
+        assert!(!stdout.contains(context), "{stdout}");
+    }
+    assert!(!file.contains("invalid original surface GLSL"));
+    assert!(!stderr.contains("invalid original surface GLSL"));
 }

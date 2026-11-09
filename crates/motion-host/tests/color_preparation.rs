@@ -486,6 +486,59 @@ fn distinct_authored_and_source_spaces_do_not_inherit_the_default_input() {
 }
 
 #[test]
+fn compilation_failure_identifies_exact_shader_without_replacing_typed_parse_cause() {
+    let reference = reference();
+    let root = tempfile::tempdir().unwrap();
+    let project = project(&reference.configs[0], AlphaMode::Straight, root.path());
+    let before = project.clone();
+    for (shader, expected_hash, expected_bytes) in [
+        (
+            "invalid original GLSL",
+            "9d8a52ec6ce812d4f58fef978744b2518c9d98cdd2ca7a11658206f0c9701391",
+            21,
+        ),
+        (
+            "different invalid GLSL",
+            "5165ee8115edd29b909538538e78c47f17ba87ed45e8cb8ef9ad261e03cbd801",
+            22,
+        ),
+    ] {
+        let observation = Observation::new(302);
+        let error = prep::prepare_project_colors(
+            &project,
+            root.path(),
+            |request| {
+                let mut source = provider(&reference, request)?;
+                source.shader = shader.into();
+                Ok(source)
+            },
+            &observation,
+        )
+        .err()
+        .unwrap();
+        let prep::Error::Compile {
+            target,
+            phase,
+            shader_sha256,
+            shader_bytes,
+            source,
+        } = &error
+        else {
+            panic!("original compilation failure must survive: {error:?}");
+        };
+        assert_eq!(*target, Target::DefaultInput);
+        assert_eq!(*phase, ColorProcessorPhase::InputToWorking);
+        assert_eq!(shader_sha256, expected_hash);
+        assert_eq!(*shader_bytes, expected_bytes);
+        assert!(matches!(source, ColorProcessorError::Parse(_)));
+        assert!(error.source().unwrap().is::<ColorProcessorError>());
+        assert!(!error.to_string().contains(shader));
+        assert!(!observation.running());
+        assert_eq!(project, before);
+    }
+}
+
+#[test]
 fn wrong_phase_alpha_identity_shader_and_provider_causes_refuse_without_partial_result() {
     let reference = reference();
     let root = tempfile::tempdir().unwrap();
