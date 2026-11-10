@@ -98,6 +98,11 @@ Actual domain quality, independent WGSL/resource qualification for this shape,
 qualified cross-resolution/video transitions, conservative complete memory and
 thermal qualification remain pending. #75 and the full3D route remain incomplete.
 
+The subsequent [static operator/resource inventory](depth75-metric-static-current.md)
+now resolves all607 node output sizes and independently checks the171,880,128-byte
+naive activation peak. This supplies static metadata only; actual device memory,
+WGSL execution, domain and sustained qualification remain pending.
+
 
 The subsequent exact-source717fe10c complete Python discovery includes the new
 profile, helper and admission tests:157 tests,156 passes and one original skip,

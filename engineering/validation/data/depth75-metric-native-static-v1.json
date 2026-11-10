@@ -1,0 +1,33 @@
+{
+  "scope": "Authored static observer and shape/resource metadata only; no model, weights, upstream implementation, tensors, images or sensor payloads",
+  "sourceHead": "757af4e6",
+  "archive": "depth75-metric-native-static-v1.zip",
+  "bytes": 14664,
+  "sha256": "6c73719c369538ee4e19fe35cfa3d8e0e7147c94e71ec7ddfd326837a590a588",
+  "originalTerminal": "9cc1b6",
+  "exitCode": 0,
+  "inferenceExecuted": false,
+  "qualified": false,
+  "members": [
+    {
+      "name": "controller.py",
+      "bytes": 14489,
+      "sha256": "9843020376d6eb4c16cfbb9dc44aae0ef18c2b3730345d72a77dbb38d79f590a"
+    },
+    {
+      "name": "phases.log",
+      "bytes": 379,
+      "sha256": "48fa092e8751276975640420400a363a5594f3ec9d31e7bc4929c5ef15f64528"
+    },
+    {
+      "name": "receipt.json",
+      "bytes": 16574,
+      "sha256": "2cbebe8451deaf2ca3fcc32515b3577a164b0d9193e8e23b202a41366502206b"
+    },
+    {
+      "name": "tensor-inventory.json",
+      "bytes": 185983,
+      "sha256": "d03c51bffbda41f58a18145c51e7ea6676749887b855deeb4783428d4e67e746"
+    }
+  ]
+}

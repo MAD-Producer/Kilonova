@@ -17,6 +17,16 @@ The [instrumented parser controls](depth75-shader-parse-current.md) and complete
 host-library command passed; the original uninstrumented native WGSL parse
 failure remains unresolved. Neither result grants production qualification.
 
+The subsequent authorized [indoor metric evaluation](depth75-metric-native-aspect-current.md)
+now has verified weights, an isolated CPU environment, actual reference/ONNX
+numerical export and all32 original sensor-input measurements. Official-aspect
+preprocessing matches the unmodified reference exactly. Primary RMS0.16983065
+and maximum1.30505095 inverse metres still exceed the original0.01/0.05 gates.
+The [new graph/resource inventory](depth75-metric-static-current.md) has607 nodes
+and no unknown tensor sizes; it does not qualify metric WGSL execution or device
+memory. Neither the square nor native-aspect metric candidate is registered as
+a default inference route. #75 remains incomplete.
+
 The subsequent [physical agreement contract](depth75-physical-agreement-current.md)
 compares declared physical units without fitting away metric bias. Analytic
 resource, real-worker and frozen-proof controls pass, including the complete host
