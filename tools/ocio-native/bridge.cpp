@@ -268,12 +268,39 @@ static void table(const Program *program, uint32_t index, Table *out) {
 // Snapshot the configuration's declared canonical spaces and active display/view
 // catalogue. Active lists are part of the admitted config bytes; environment
 // overrides were refused above. Ordering is not a colour-space identity.
-static std::vector<CatalogueEntry> catalogue(const ocio::ConstConfigRcPtr &config) {
+static std::string builtin_identity(const ocio::ConstConfigRcPtr &config) {
+    const auto &registry = ocio::BuiltinConfigRegistry::Get();
+    if (registry.getNumBuiltinConfigs() > 64)
+        throw Admission("native builtin registry exceeds capacity");
+    for (size_t i = 0; i < registry.getNumBuiltinConfigs(); ++i) {
+        const char *id = registry.getBuiltinConfigName(i);
+        length(id, 256);
+        // Only exact, versioned registry names; no default/latest URI aliases.
+        if (std::strcmp(config->getName(), id) != 0) continue;
+        auto builtin = ocio::Config::CreateFromBuiltinConfig(id);
+        builtin->validate();
+        std::ostringstream actual, expected;
+        // A failed serialization must preserve its exception, never compare
+        // equal partial strings and accidentally publish a builtin identity.
+        actual.exceptions(std::ios::badbit | std::ios::failbit);
+        expected.exceptions(std::ios::badbit | std::ios::failbit);
+        config->serialize(actual);
+        builtin->serialize(expected);
+        if (actual.tellp() > 8*1024*1024 || expected.tellp() > 8*1024*1024)
+            throw Admission("native builtin serialization exceeds capacity");
+        // The name alone and the currently selected processor are insufficient:
+        // compare the entire canonical configuration before resource rewriting.
+        return actual.str() == expected.str() ? std::string(id) : std::string{};
+    }
+    return {};
+}
+static std::vector<CatalogueEntry> catalogue(const ocio::ConstConfigRcPtr &config,
+    const std::string &builtin = {}) {
     std::vector<CatalogueEntry> rows;
     auto add = [&](uint32_t kind, const char *name, const char *value, uint32_t reference = 0, uint32_t data = 0) {
         if (!length(name, 256)) throw Admission("native catalogue name is empty");
         length(value, 256);
-        if (rows.size() >= 2720) throw Admission("native catalogue row capacity exceeded");
+        if (rows.size() >= 2721) throw Admission("native catalogue row capacity exceeded");
         rows.push_back({kind, reference, data, name, value});
     };
     const int spaces = config->getNumColorSpaces(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL);
@@ -299,6 +326,7 @@ static std::vector<CatalogueEntry> catalogue(const ocio::ConstConfigRcPtr &confi
         if (views < 1 || views > 64) throw Admission("native catalogue views exceed capacity");
         for (int j = 0; j < views; ++j) add(3, display, config->getView(display, j));
     }
+    if (!builtin.empty()) add(4, "builtin", builtin.c_str());
     return rows;
 }
 MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const char *from,
@@ -312,11 +340,13 @@ MOTION_EXPORT bool motion_ocio_prepare(const char *bytes, size_t size, const cha
         for (const char *name : {"OCIO_ACTIVE_DISPLAYS", "OCIO_ACTIVE_VIEWS", "OCIO_INACTIVE_COLORSPACES"})
             if (std::getenv(name)) throw Admission("ambient OCIO catalogue override must be removed before preparing a closed program");
         std::istringstream stream(std::string(bytes, size));
-        auto config = closed(ocio::Config::CreateFromStream(stream), resources(items, count));
+        auto parsed = ocio::Config::CreateFromStream(stream);
+        const auto builtin = builtin_identity(parsed);
+        auto config = closed(parsed, resources(items, count));
         // All FileTransforms are replaced from verified numeric resources before
         // validate/getProcessor. OCIO never resolves a path or caches a file.
         config->validate();
-        auto declared = catalogue(config);
+        auto declared = catalogue(config, builtin);
         auto input = config->getColorSpace(from);
         auto outputSpace = view ? ocio::ConstColorSpaceRcPtr{} : config->getColorSpace(to);
         if ((input && input->isData()) || (outputSpace && outputSpace->isData()))

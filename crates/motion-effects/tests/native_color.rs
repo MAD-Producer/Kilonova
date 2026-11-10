@@ -8,6 +8,8 @@ use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 #[path = "support/native_catalogue.rs"]
 mod catalogue;
+#[path = "support/native_origin.rs"]
+mod origin;
 #[path = "support/native_color_failure.rs"]
 mod initialization_fixture;
 #[path = "support/native_program_equivalence.rs"]

@@ -1,7 +1,7 @@
 //! Compare native declarations before publishing shader/CPU programs. This is
 //! metadata agreement, not mathematical proof of transfer functions/primaries.
 use super::*;
-use crate::color_config::{ColorConfigManifest, ConfigColorSpace, ReferenceSpace};
+use crate::color_config::{ColorConfigManifest, ConfigColorSpace, ConfigOrigin, ReferenceSpace};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[repr(C)]
@@ -66,6 +66,7 @@ pub(super) fn verify(program: &NativeColorProgram, manifest: &ColorConfigManifes
     let mut spaces = BTreeMap::new();
     let mut roles = BTreeMap::new();
     let mut displays: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut builtin = None;
     let mut count = 1;
     let mut index = 0;
     while index < count {
@@ -82,7 +83,7 @@ pub(super) fn verify(program: &NativeColorProgram, manifest: &ColorConfigManifes
             )
         };
         error.check(ok, "catalogue")?;
-        if total == 0 || total > 2720 || (index > 0 && total != count) {
+        if total == 0 || total > 2721 || (index > 0 && total != count) {
             return Err(Error::Admission(
                 "native catalogue count is invalid or changed",
             ));
@@ -122,6 +123,9 @@ pub(super) fn verify(program: &NativeColorProgram, manifest: &ColorConfigManifes
                 .get_mut(&name)
                 .ok_or(Error::Admission("native catalogue view has no display"))?
                 .insert(value),
+            4 if row.reference == 0 && row.data == 0 && name == "builtin" && !value.is_empty() => {
+                builtin.replace(value).is_some()
+            }
             _ => {
                 return Err(Error::Admission(
                     "native catalogue row kind or flags are invalid",
@@ -174,6 +178,32 @@ pub(super) fn verify(program: &NativeColorProgram, manifest: &ColorConfigManifes
             if !expected.contains(view) {
                 return Err(mismatch("views", display, "absent", view));
             }
+        }
+    }
+    if let ConfigOrigin::Builtin { id, aces } = &manifest.origin {
+        let actual = builtin.as_deref().unwrap_or("unverified");
+        if id != actual {
+            return Err(mismatch("builtin_id", id, id, actual));
+        }
+        // OCIO's exact versioned registry IDs declare ACES as major.minor.
+        // The native proof above must already match the full configuration.
+        let version = actual
+            .split_once("_aces-v")
+            .and_then(|(_, suffix)| suffix.split_once("_ocio-v"))
+            .and_then(|(aces, _)| aces.split_once('.'))
+            .and_then(|(major, minor)| {
+                Some(ColorVersion {
+                    major: major.parse().ok()?,
+                    minor: minor.parse().ok()?,
+                    patch: 0,
+                })
+            })
+            .ok_or(Error::Admission(
+                "native builtin ACES version is not explicit",
+            ))?;
+        if *aces != version {
+            let text = |v: ColorVersion| format!("{}.{}.{}", v.major, v.minor, v.patch);
+            return Err(mismatch("aces_version", id, text(*aces), text(version)));
         }
     }
     Ok(())
