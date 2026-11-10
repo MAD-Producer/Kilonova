@@ -11,6 +11,7 @@ use motion_effects::{
 };
 use motion_model::color_management::{ColorTransfer, ProjectColorManagement, SignalRange};
 use std::sync::Arc;
+mod pick;
 mod vectors;
 
 #[derive(Debug, thiserror::Error)]
@@ -58,6 +59,12 @@ pub enum AuthoredSceneError {
         #[source]
         source: native_color::Error,
     },
+    #[error("authored color phase={phase}: native pick processor failed: {source}")]
+    PickNative {
+        phase: &'static str,
+        #[source]
+        source: Arc<native_color::Error>,
+    },
 }
 type Result<T> = std::result::Result<T, AuthoredSceneError>;
 fn refuse(phase: &'static str, object: Option<u64>, reason: &'static str) -> AuthoredSceneError {
@@ -95,9 +102,13 @@ impl AuthoredSceneFrame {
     /// native color processor, decoder or file provider is run again.
     pub fn fork_view(&self, view: ViewCamera<'_>) -> Result<Self> {
         Ok(Self {
-            scene: self.scene.fork_view(view).map_err(|source| {
-                AuthoredSceneError::Model { phase: "view", source }
-            })?,
+            scene: self
+                .scene
+                .fork_view(view)
+                .map_err(|source| AuthoredSceneError::Model {
+                    phase: "view",
+                    source,
+                })?,
             contract: self.contract,
             assets: self.assets.clone(),
         })
@@ -105,13 +116,22 @@ impl AuthoredSceneFrame {
     /// A complete one-, two- or four-cell group. Invalid cameras reject the
     /// group rather than exposing partially prepared or unmanaged contexts.
     pub fn fork_views(&self, views: &[ViewCamera<'_>]) -> Result<Vec<Self>> {
-        self.scene.fork_views(views)
-            .map(|scenes| scenes.into_iter().map(|scene| Self {
-                scene,
-                contract: self.contract,
-                assets: self.assets.clone(),
-            }).collect())
-            .map_err(|source| AuthoredSceneError::Model { phase: "view_group", source })
+        self.scene
+            .fork_views(views)
+            .map(|scenes| {
+                scenes
+                    .into_iter()
+                    .map(|scene| Self {
+                        scene,
+                        contract: self.contract,
+                        assets: self.assets.clone(),
+                    })
+                    .collect()
+            })
+            .map_err(|source| AuthoredSceneError::Model {
+                phase: "view_group",
+                source,
+            })
     }
     pub(crate) fn source(&self, id: u64) -> Option<&motion_model::Asset> {
         self.assets.iter().find(|asset| asset.id == id)
@@ -125,6 +145,7 @@ pub struct AuthoredSceneSampler {
     vectors: vectors::WorkingVectors,
     settings: Arc<ProjectColorManagement>,
     native: NativeColorProgram,
+    pick: pick::Program,
     input_range: CodeValueRange,
     input_alpha: AlphaMode,
     current: AuthoredSceneFrame,
@@ -137,17 +158,28 @@ impl AuthoredSceneSampler {
     pub fn for_composition(&self, project: &Project, config: &VerifiedColorConfig) -> Result<Self> {
         self.validate_project(project)?;
         let ProjectColorManagement::Ocio { settings } = self.settings.as_ref() else {
-            return Err(refuse("composition", None, "an explicit OCIO project is required"));
+            return Err(refuse(
+                "composition",
+                None,
+                "an explicit OCIO project is required",
+            ));
         };
         let mut selection = settings.selection.clone();
         selection.input = settings.authored_input.space.clone();
-        let native = self.native.runtime().prepare(
-            config,
-            &selection,
-            ColorProcessorPhase::InputToWorking,
-            settings.authored_input.signal.alpha,
-            settings.working.alpha,
-        ).map_err(|source| AuthoredSceneError::Native { object: None, source })?;
+        let native = self
+            .native
+            .runtime()
+            .prepare(
+                config,
+                &selection,
+                ColorProcessorPhase::InputToWorking,
+                settings.authored_input.signal.alpha,
+                settings.working.alpha,
+            )
+            .map_err(|source| AuthoredSceneError::Native {
+                object: None,
+                source,
+            })?;
         Self::from_program(project, config, native)
     }
 
@@ -238,6 +270,7 @@ impl AuthoredSceneSampler {
             vectors: Default::default(),
             settings: project.color_management.clone(),
             native,
+            pick: Default::default(),
             input_range,
             input_alpha: settings.authored_input.signal.alpha,
             current: AuthoredSceneFrame {

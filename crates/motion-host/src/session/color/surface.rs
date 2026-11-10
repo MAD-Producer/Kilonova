@@ -227,21 +227,54 @@ impl State {
     pub(crate) fn published(&self) -> Option<&Key> {
         self.published.as_ref()
     }
-    pub(crate) fn validate_comparisons(&self,renderer:&Renderer,inspections:&[motion_render::multiview::ViewInspection<'_>])
-        ->std::result::Result<(),RenderError> {
+    pub(crate) fn sample_working_pixel(
+        &self,
+        renderer: &Renderer,
+        index: usize,
+        point: [f64; 2],
+    ) -> std::result::Result<Option<(motion_render::ColorImageContract, [f32; 4])>, RenderError>
+    {
+        let Some(cell) = self
+            .front
+            .as_ref()
+            .filter(|_| self.published.is_some())
+            .and_then(|cells| cells.get(index))
+        else {
+            return Ok(None);
+        };
+        let source = &cell.working;
+        let pixel = [
+            (point[0] * f64::from(source.image().width())).floor() as u32,
+            (point[1] * f64::from(source.image().height())).floor() as u32,
+        ];
+        renderer.sample_color_image_pixel(source, pixel).map(Some)
+    }
+    pub(crate) fn validate_comparisons(
+        &self,
+        renderer: &Renderer,
+        inspections: &[motion_render::multiview::ViewInspection<'_>],
+    ) -> std::result::Result<(), RenderError> {
         for inspection in inspections {
-            if let Some((snapshot,_))=inspection.managed_comparison {
-                self.prototype.presenter.check_snapshot(renderer,snapshot)?;
+            if let Some((snapshot, _)) = inspection.managed_comparison {
+                self.prototype
+                    .presenter
+                    .check_snapshot(renderer, snapshot)?;
             }
         }
         Ok(())
     }
-    pub(crate) fn snapshot(&self,renderer:&Renderer,index:usize)
-        ->std::result::Result<motion_render::ManagedDisplaySnapshot,RenderError> {
-        let cell=self.front.as_ref().filter(|_|self.published.is_some())
-            .and_then(|cells|cells.get(index))
-            .ok_or_else(||refuse("surface_snapshot","completed cell is unavailable"))?;
-        cell.presenter.capture_snapshot(renderer,&cell.display)
+    pub(crate) fn snapshot(
+        &self,
+        renderer: &Renderer,
+        index: usize,
+    ) -> std::result::Result<motion_render::ManagedDisplaySnapshot, RenderError> {
+        let cell = self
+            .front
+            .as_ref()
+            .filter(|_| self.published.is_some())
+            .and_then(|cells| cells.get(index))
+            .ok_or_else(|| refuse("surface_snapshot", "completed cell is unavailable"))?;
+        cell.presenter.capture_snapshot(renderer, &cell.display)
     }
     pub(crate) fn capture_presenters(
         &self,
@@ -409,7 +442,9 @@ impl State {
         if cells.len() != placements.len() || cells.len() != inspections.len() {
             return Err(refuse("surface_present", "layout and group counts differ"));
         }
-        for (index, ((cell, placement), inspection)) in cells.iter().zip(placements).zip(inspections).enumerate() {
+        for (index, ((cell, placement), inspection)) in
+            cells.iter().zip(placements).zip(inspections).enumerate()
+        {
             cell.presenter.encode_compared_region_view_load(
                 renderer,
                 encoder,
@@ -419,7 +454,9 @@ impl State {
                 [0., 0., 0., 1.],
                 inspection.channel,
                 inspection.region,
-                inspection.managed_comparison.map(|(source,split)|(source,index,split)),
+                inspection
+                    .managed_comparison
+                    .map(|(source, split)| (source, index, split)),
                 index != 0,
             )?;
         }

@@ -84,6 +84,19 @@ impl ColorImageTarget {
     }
 }
 impl Renderer {
+    /// Read one uninspected texel, preserving the exact OCIO endpoint identity.
+    /// This explicit user operation does not apply a display transform.
+    pub fn sample_color_image_pixel(
+        &self,
+        target: &ColorImageTarget,
+        point: [u32; 2],
+    ) -> Result<(ColorImageContract, [f32; 4]), RenderError> {
+        Ok((
+            target.contract,
+            self.sample_image_pixel_f32(&target.image, point)?,
+        ))
+    }
+
     /// Adopt an existing native Float32 target, preserving its allocation and pixels.
     /// The producer must ensure its pixels belong to `space`. This declaration
     /// neither transforms values nor makes the legacy Scene path color managed.
@@ -312,11 +325,29 @@ impl ColorProcessorOutput {
     /// Reuse a prepared device pipeline and numeric tables with another exact
     /// input contract. This creates a source binding, never a shader or table.
     /// Source dimensions may change; the eventual destination must match them.
-    pub fn rebind(&self, renderer: &Renderer, source: &ColorImageTarget) -> Result<Self, RenderError> {
-        range_matches(self.phase, "source", self.input.range, source.contract.range)?;
-        matches(self.phase, "source", self.input.space, source.contract.space)?;
-        if source.contract.alpha != self.input.alpha || source.contract.precision != self.input.precision {
-            return Err(RenderError::Invalid("OCIO rebound source alpha or precision differs from prepared input".into()));
+    pub fn rebind(
+        &self,
+        renderer: &Renderer,
+        source: &ColorImageTarget,
+    ) -> Result<Self, RenderError> {
+        range_matches(
+            self.phase,
+            "source",
+            self.input.range,
+            source.contract.range,
+        )?;
+        matches(
+            self.phase,
+            "source",
+            self.input.space,
+            source.contract.space,
+        )?;
+        if source.contract.alpha != self.input.alpha
+            || source.contract.precision != self.input.precision
+        {
+            return Err(RenderError::Invalid(
+                "OCIO rebound source alpha or precision differs from prepared input".into(),
+            ));
         }
         Ok(Self {
             raw: self.raw.rebind(renderer, &source.image)?,

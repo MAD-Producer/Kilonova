@@ -20,6 +20,8 @@ mod compositions;
 mod display_capture;
 #[path = "authored_window_images.rs"]
 mod images;
+#[path = "authored_window_pick.rs"]
+mod pick;
 #[path = "authored_window_recording.rs"]
 mod recording;
 #[path = "authored_window_roi.rs"]

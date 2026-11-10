@@ -10,8 +10,8 @@ use motion_render::{
     ExposureFrame, ExposurePoll, RenderError, TextureResourceLedger, ViewCamera,
 };
 use std::time::Duration;
-pub(super) mod preparation;
 mod managed;
+pub(super) mod preparation;
 pub use managed::ManagedViewCapture;
 
 #[derive(Clone, Copy)]
@@ -61,13 +61,22 @@ pub(crate) struct State {
 }
 impl State {
     pub(crate) fn with_colors(colors: Option<super::color::surface::State>) -> Self {
-        Self { colors, ..Self::default() }
+        Self {
+            colors,
+            ..Self::default()
+        }
     }
     pub(crate) fn texture_bytes(&self) -> u64 {
-        self.targets.texture_bytes() + self.colors.as_ref().map_or(0, super::color::surface::State::bytes)
+        self.targets.texture_bytes()
+            + self
+                .colors
+                .as_ref()
+                .map_or(0, super::color::surface::State::bytes)
     }
     pub(crate) fn collect(&self, ledger: &mut TextureResourceLedger) {
-        if let Some(colors) = &self.colors { colors.collect(ledger); }
+        if let Some(colors) = &self.colors {
+            colors.collect(ledger);
+        }
         self.targets.collect_texture_resources(ledger);
         self.presenter.collect_texture_resources(ledger);
         if let Some(request) = &self.request {
@@ -81,12 +90,18 @@ impl State {
         self.presenter.clear();
         self.request = None;
         self.published = None;
-        if let Some(colors) = &mut self.colors { colors.clear_group(); }
+        if let Some(colors) = &mut self.colors {
+            colors.clear_group();
+        }
     }
     pub(crate) fn invalidate_content(&mut self) {
-        self.targets.clear(); self.presenter.clear();
-        self.request = None; self.published = None;
-        if let Some(colors) = &mut self.colors { colors.discard_candidate(); }
+        self.targets.clear();
+        self.presenter.clear();
+        self.request = None;
+        self.published = None;
+        if let Some(colors) = &mut self.colors {
+            colors.discard_candidate();
+        }
     }
     fn poll(
         &mut self,
@@ -132,18 +147,37 @@ impl State {
                 for (index, task) in request.tasks.iter_mut().enumerate() {
                     if matches!(
                         task.poll_prepared(renderer, slice, |renderer, scene, size| {
-                            if !media.prepare(renderer, scene)? { return Ok(false); }
+                            if !media.prepare(renderer, scene)? {
+                                return Ok(false);
+                            }
                             let mut key = preparation::key(&request.key, project, Some(index));
-                            key.width = size[0]; key.height = size[1];
+                            key.width = size[0];
+                            key.height = size[1];
                             key.exposure = Some(pipeline_preparation::ExposureScope {
-                                composition: scene.composition_id.clone(), frame: scene.frame.to_bits(),
+                                composition: scene.composition_id.clone(),
+                                frame: scene.frame.to_bits(),
                                 layers: scene.layers.iter().map(|layer| layer.id).collect(),
                             });
-                            match preparation.ensure(renderer,
-                                request.document.as_ref().ok_or_else(|| RenderError::Invalid("multiview exposure document missing".into()))?.source(),
-                                scene, None, key) {
+                            match preparation.ensure(
+                                renderer,
+                                request
+                                    .document
+                                    .as_ref()
+                                    .ok_or_else(|| {
+                                        RenderError::Invalid(
+                                            "multiview exposure document missing".into(),
+                                        )
+                                    })?
+                                    .source(),
+                                scene,
+                                None,
+                                key,
+                            ) {
                                 Ok(ready) => Ok(ready),
-                                Err(error) => { preparation_failure = Some(error); Ok(false) }
+                                Err(error) => {
+                                    preparation_failure = Some(error);
+                                    Ok(false)
+                                }
                             }
                         })?,
                         ExposurePoll::Pending(_)
@@ -164,9 +198,12 @@ impl State {
                 let key = preparation::key(&request.key, project, None);
                 let variants = preparation::views(views, &request.key.sizes);
                 match preparation.ensure_views(renderer, project, base, key, &variants) {
-                    Ok(true) => {},
+                    Ok(true) => {}
                     Ok(false) => return Ok(false),
-                    Err(error) => { preparation_failure = Some(error); return Ok(false); }
+                    Err(error) => {
+                        preparation_failure = Some(error);
+                        return Ok(false);
+                    }
                 }
             }
             let updated = self.targets.update_with_reserved(
@@ -207,7 +244,9 @@ impl State {
             }
             Ok(updated)
         })();
-        if let Some(error) = preparation_failure { return Err(error); }
+        if let Some(error) = preparation_failure {
+            return Err(error);
+        }
         result.map_err(|error: RenderError| {
             let cause = Arc::new(error);
             request.failure = Some(cause.clone());
@@ -311,10 +350,17 @@ impl Session {
         };
         let g = self.graphics.as_ref().ok_or("multiview graphics missing")?;
         if self.colors.is_some() {
-            let Some(published) = g.views.colors.as_ref().and_then(|colors| colors.published()) else {
+            let Some(published) = g
+                .views
+                .colors
+                .as_ref()
+                .and_then(|colors| colors.published())
+            else {
                 return Ok(false);
             };
-            if frozen { key.frame = published.frame; }
+            if frozen {
+                key.frame = published.frame;
+            }
             return Ok(key == *published);
         }
         let Some(published) = &g.views.published else {
@@ -508,6 +554,8 @@ impl Session {
 
     /// Preview eyedropper source: an exact completed cell, before channel/ROI
     /// inspection overlays. A superseded frame is a normal unavailable preview.
+    /// Managed values return in the project's authored input space/range/alpha.
+    /// Call only for an explicit observed non-Present operation, never hover.
     pub fn sample_view_cell(
         &self,
         owner: u64,
@@ -515,7 +563,6 @@ impl Session {
         camera: ViewCamera<'_>,
         point: [f64; 2],
     ) -> Result<Option<[f32; 4]>> {
-        super::color::require_surface(&self.colors)?;
         self.check_thread()?;
         if !point.iter().all(|v| v.is_finite() && *v >= 0. && *v < 1.) {
             return Err("view color pick is outside the composition".into());
@@ -532,6 +579,9 @@ impl Session {
                     .map(f32::to_bits),
             ),
         };
+        if self.colors.is_some() {
+            return self.sample_color_view_cell(owner, index, camera, point);
+        }
         let Some(g) = self.graphics.as_ref() else {
             return Ok(None);
         };
@@ -759,7 +809,8 @@ impl Session {
             self.last_presented_revision = self.engine.revision();
             self.last_presented_view_revision = self.view_revision;
             g.actual_preview_quality = Some(quality);
-            self.pipeline_preparation.frame_presented(&mut g.renderer, preparation::context(&key))?;
+            self.pipeline_preparation
+                .frame_presented(&mut g.renderer, preparation::context(&key))?;
         }
         Ok(complete)
     }

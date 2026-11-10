@@ -98,7 +98,8 @@ pub(super) fn apply(
                     // can never read the legacy global scratch image.
                     let legacy = ticket.view.as_ref().is_none_or(|(_, _, view)| {
                         view.mode == crate::viewer_views::Mode::Composition
-                    }) && !s.observing;
+                    }) && !s.observing
+                        && s.color_programs().is_none();
                     let Some(graphics) = s
                         .graphics
                         .as_ref()

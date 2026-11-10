@@ -3,6 +3,7 @@
 use super::*;
 use crate::session::color::surface::refuse;
 mod capture;
+mod pick;
 mod snapshot;
 pub use capture::ManagedViewCapture;
 

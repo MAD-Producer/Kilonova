@@ -6,22 +6,24 @@ use motion_effects::image_contract::ChannelPrecision;
 use motion_render::{
     AuthoredSceneError, ColorImageContract, ColorImageTarget, ColorProcessorOutput, Renderer,
 };
-#[path = "authored_images.rs"]
-mod image_composition;
-#[path = "authored_vectors.rs"]
-mod vector_composition;
-#[path = "authored_masks.rs"]
-mod mask_composition;
-#[path = "authored_transfer.rs"]
-mod transfer;
-#[path = "authored_session.rs"]
-mod session_installation;
 #[path = "authored_compositions.rs"]
 mod compositions;
-#[path = "surface_contract.rs"]
-mod surface_contract;
+#[path = "authored_images.rs"]
+mod image_composition;
+#[path = "authored_masks.rs"]
+mod mask_composition;
+#[path = "authored_pick.rs"]
+mod pick;
 #[path = "authored_preview.rs"]
 mod preview;
+#[path = "authored_session.rs"]
+mod session_installation;
+#[path = "surface_contract.rs"]
+mod surface_contract;
+#[path = "authored_transfer.rs"]
+mod transfer;
+#[path = "authored_vectors.rs"]
+mod vector_composition;
 #[cfg(target_os = "windows")]
 #[path = "authored_window.rs"]
 mod window;
