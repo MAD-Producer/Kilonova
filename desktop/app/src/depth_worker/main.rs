@@ -1,11 +1,14 @@
 //! Explicit optional depth worker. Model resources are installed separately.
 mod admission;
+mod batch_admission;
 mod convolution_admission;
+mod execution_identity;
 mod graph_admission;
 mod index_admission;
-mod panic_context;
 #[path = "../logging/sink.rs"]
 mod logging;
+mod panic_context;
+mod service_admission;
 
 use admission::{Result, Tensor};
 use serde_json::{Value, json};
@@ -141,16 +144,49 @@ fn phase(out: &Path, report: &mut Value, name: &str) -> Result<()> {
     save(out, report)
 }
 include!("graph_runtime_impl.rs");
+include!("service_runtime.rs");
+enum Invocation {
+    Infer,
+    ResearchBatch,
+    Resolve,
+    Attest(PathBuf),
+    Serve(PathBuf),
+}
 fn main() {
     let args: Vec<_> = std::env::args_os().collect();
-    if args.len() != 3 {
-        eprintln!(
-            "usage: motion-depth-wgsl <absolute-request.json> <new-absolute-output-directory>"
-        );
-        std::process::exit(2);
-    }
-    let request = PathBuf::from(&args[1]);
-    let out = PathBuf::from(&args[2]);
+    let (mode, request, out) = match args.as_slice() {
+        [_, request, out] => (
+            Invocation::Infer,
+            PathBuf::from(request),
+            PathBuf::from(out),
+        ),
+        [_, flag, request, out] if flag == "--research-batch" => (
+            Invocation::ResearchBatch,
+            PathBuf::from(request),
+            PathBuf::from(out),
+        ),
+        [_, flag, request, out] if flag == "--resolve" => (
+            Invocation::Resolve,
+            PathBuf::from(request),
+            PathBuf::from(out),
+        ),
+        [_, flag, expected, request, out] if flag == "--attest" => (
+            Invocation::Attest(PathBuf::from(expected)),
+            PathBuf::from(request),
+            PathBuf::from(out),
+        ),
+        [_, flag, expected, request, out] if flag == "--serve" => (
+            Invocation::Serve(PathBuf::from(expected)),
+            PathBuf::from(request),
+            PathBuf::from(out),
+        ),
+        _ => {
+            eprintln!(
+                "usage: motion-depth-wgsl [--resolve | --attest <absolute-execution.json> | --research-batch] <absolute-request.json> <new-absolute-output-directory>"
+            );
+            std::process::exit(2);
+        }
+    };
     if !request.is_absolute() || !out.is_absolute() {
         eprintln!("absolute input/output paths required");
         std::process::exit(2);
@@ -175,17 +211,30 @@ fn main() {
             "Software adapters and implicit backend/precision fallback refused",
             "Logical buffer admission is not measured process/device memory",
             "External fixture identities are verified, not leased against concurrent filesystem mutation"]});
-    let _flight = engine::enter(0, "complete_model_probe");
-    log::info!("start #0 complete_model_probe");
+    let operation = if matches!(mode, Invocation::Serve(_)) {
+        "retained_depth_service"
+    } else if matches!(mode, Invocation::Resolve) {
+        "resolve_cache_execution"
+    } else if matches!(mode, Invocation::ResearchBatch) {
+        "research_retained_graph_batch"
+    } else {
+        "complete_model_probe"
+    };
+    report["operation"] = operation.into();
+    let _flight = engine::enter(0, operation);
+    log::info!("start #0 {operation}");
     logging::flush();
     let began = Instant::now();
-    if let Err(cause) =
-        phase(&out, &mut report, "read_request").and_then(|()| run(&request, &out, &mut report))
+    if let Err(cause) = phase(&out, &mut report, "read_request")
+        .and_then(|()| run(&request, &out, &mut report, &mode))
     {
         log::error!(
-            "composed GPU research failed phase={} case={} elapsed_ms={} cause={cause}",
+            "composed GPU research failed request={} operation={} phase={} case={} input_index={} elapsed_ms={} cause={cause}",
+            report["request"],
+            report["operation"],
             report["phase"],
             report["case"],
+            report["input_index"],
             began.elapsed().as_millis()
         );
         report["status"] = "failed_original_cause_retained".into();

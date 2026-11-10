@@ -1,0 +1,20 @@
+{
+  "status": "actual_workspace_product_cache_qualification_archived",
+  "head": "4729ab6d1c7c0c535c9715a53bc79497a78970b4",
+  "archive": "depth75-wgsl-workspace-product-v1.zip",
+  "bytes": 1402248,
+  "sha256": "0f25c398f44ba1e79c58fc56a492f390cb621b4cc8c09a7f8e5ec4be9e7dcf29",
+  "members_readback_verified": 41,
+  "limits": [
+    "Real root-workspace dependency graph and pinned lockfile; no standalone fixture manifest",
+    "Previous standalone rustc crash retained with unresolved cause; not an unchanged retry",
+    "All original model/cache/numerical/publication assertions and deadlines retained; extra ownership guards added",
+    "One synthetic 12x8 RGB input; not video quality, measured automatic profile selection, sustained load or thermal qualification",
+    "One own heavy workload; E-only runtime/cache/output; no Android, panels, cache deletion, process memory or global changes",
+    "Previous complete174 changed-crate gate remains source-bound to d853; current complete workspace and cross-platform CI remain separate",
+    "Complete174 changed-crate pass belongs to earlier d853 source, not the later example commit",
+    "Failed standalone fixture compilation and unresolved native-crash cause are included",
+    "Archive contains no model weights, program resource payloads, executable, DLL, RGB image or depth tensor",
+    "Complete maintained-workspace/desktop and exact-final-head remote CI are not qualified by this archive"
+  ]
+}

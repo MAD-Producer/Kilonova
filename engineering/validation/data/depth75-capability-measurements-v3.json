@@ -1,0 +1,72 @@
+{
+  "status": "corrected_authored_metadata_and_actual_video_probes_passed",
+  "archive": "depth75-capability-measurements-v3.zip",
+  "bytes": 1013241,
+  "sha256": "535063525d321463f6c1f1ef2339909063c13b1b4a9e15f9be1f9f01a0a2370e",
+  "members_readback_verified": 63,
+  "heads": {
+    "original_regression": "26b9156d6294c72b87263a804fc3306ab92b45fc",
+    "targeted_policy_video": "8fdb718b5af88132821d829275fba4962ecdced6"
+  },
+  "original_statuses": {
+    "v1": "failed_original_outputs_retained",
+    "v2": "failed_original_outputs_retained",
+    "v3": "corrected_authored_metadata_and_actual_video_probes_passed"
+  },
+  "native_targets": 175,
+  "native_totals": {
+    "passed": 1628,
+    "failed": 0,
+    "original_ignored": 3,
+    "filtered": 0
+  },
+  "native_controls": 103,
+  "policy_totals": {
+    "passed": 28,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0
+  },
+  "independently_recomputed_video_comparisons": [
+    {
+      "index": 0,
+      "values": 3072,
+      "original_maximum_bound": 0.0002,
+      "original_mean_bound": 2e-05,
+      "normalized_maximum": 9.605497299993227e-06,
+      "normalized_mean": 1.5510078460288092e-06
+    },
+    {
+      "index": 1,
+      "values": 3072,
+      "original_maximum_bound": 0.0002,
+      "original_mean_bound": 2e-05,
+      "normalized_maximum": 3.1940974971052012e-06,
+      "normalized_mean": 3.551115218648194e-07
+    }
+  ],
+  "metadata_fixture": {
+    "original": "E:\\Dev\\aem\\artifacts\\pr-queue\\depth75-measured-capability-v1\\authored-video.mp4",
+    "original_sha256": "01bc6b7d4b0e4deb77a3c02da39a625db97a2afbcb43ab04987f2d685733f18c",
+    "ffmpeg_sha256": "9ceaafb0b026463d1050001cf60945ddb020e27c32c9ce47492e4d0e4adf3e45",
+    "ffprobe_sha256": "20954d7e0036b2d1ca49f2f507f4a884492cfb4513564ae30ba65e8653ced39a",
+    "scope": "Authored fixture VUI declarations only; codec payload decoded YUV and exact PTS independently compared; product colour gate unchanged",
+    "decoded_yuv_and_pts_identical": true,
+    "decoded_frame_rows": [
+      "0,          0,          0,        1,     4608, c10e4638f912924cf525fdf9be019b5f",
+      "0,          1,          1,        1,     4608, 21d7f7af995b1c4bfc60af61efc46abf",
+      "0,          2,          2,        1,     4608, e9f08225cb43d5a7049bb961c3a23364"
+    ],
+    "declared_sha256": "6af90c3aa8f759f9617f73dc41efe03388c26bfd702c39d20f73396c9181c05b"
+  },
+  "limits": [
+    "Original v1/v2 controllers remain failed; only their completed stages are qualified",
+    "175 target1628 pass scope is26b;28 target controls and real video scope is8fdb; no new full-workspace claim",
+    "Two actual uncached observations per CPU/WGSL backend; no warm/cold trimming or altered numeric bounds",
+    "Authored source declares intended BT709/sRGB explicitly; decoded YUV and exact PTS unchanged, original undeclared source still rejected",
+    "CPU/WGSL equivalence is not independent photographic quality, whole-memory, sustained/thermal or transition acceptance",
+    "Policy external-report controls are explicit fixtures, not real device qualifications",
+    "Bounded text only; no video, RGB, tensors, weights, plans or executable binaries redistributed",
+    "No Android, panels, foreign PR review, cleanup, debugger, process stops or overlapping own heavy workload"
+  ]
+}

@@ -102,7 +102,7 @@ impl DepthSnapshot {
             entry
                 .sample
                 .calibration()
-                .rebind_descriptor(descriptor, entry.input)?;
+                .validate_binding_descriptor(descriptor, entry.input)?;
             let (asset, track) = tracks
                 .entry(entry.object)
                 .or_insert_with(|| (entry.asset.clone(), VideoDepthTrack::default()));

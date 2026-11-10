@@ -15,6 +15,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 mod legacy_select;
 
+/// Fingerprint the exact module handed to Naga, only on a parse failure.
+/// Never retain or log an additional copy of a user's complete shader source.
+fn parse_module(source: &str, compilation: &'static str) -> Result<naga::Module> {
+    use sha2::{Digest, Sha256};
+    naga::front::wgsl::parse_str(source).map_err(|cause| Error::ShaderParse {
+        message: format!(
+            "compilation={compilation} module_bytes={} module_sha256={:x}\n{}",
+            source.len(), Sha256::digest(source.as_bytes()), cause.emit_to_string(source),
+        ),
+        cause: Box::new(cause),
+    })
+}
+
 pub const UNIFORM_BYTES: usize = 7 * 16 + 32 * 16;
 /// Numeric LUT reads use explicit interpolation, independent of F32 filtering.
 pub const CURVE_LUT_ABI_VERSION: u32 = 2;
@@ -310,10 +323,10 @@ fn compile_internal(
         format!("{HEADER}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;return sdk_store(mix(sample_source(p),{entry}(p),fx.output_mode.z));}}\n")
     };
     let wgsl = legacy_select::normalize(&wgsl).into_owned();
-    let module = naga::front::wgsl::parse_str(&wgsl).map_err(|cause| Error::ShaderParse {
-        message: cause.emit_to_string(&wgsl),
-        cause: Box::new(cause),
-    })?;
+    let compilation = if sprite { "sprite" } else if coverage_mix { "spatial_coverage" }
+        else if finite_source { "spatial" } else if convert_output { "rectangle" }
+        else { "image" };
+    let module = parse_module(&wgsl, compilation)?;
     ensure(
         module.global_variables.len() == 15,
         "plugin shaders cannot declare additional global bindings",
@@ -342,9 +355,7 @@ fn compile_internal(
 /// Host-owned geometry programs use the same Naga reflection and ES compiler.
 /// Package shaders still pass through the SDK binding and instruction checks.
 pub fn compile_host_program(source: &str, vertex: &str, fragment: &str) -> Result<GlslShader> {
-    let module=naga::front::wgsl::parse_str(source).map_err(|cause|Error::ShaderParse {
-        message: cause.emit_to_string(source), cause: Box::new(cause),
-    })?;
+    let module = parse_module(source, "host_program")?;
     let info=Validator::new(ValidationFlags::all(),Capabilities::empty()).validate(&module)
         .map_err(|cause|Error::ShaderValidation {
             context: "host WGSL validation", cause: Box::new(cause),

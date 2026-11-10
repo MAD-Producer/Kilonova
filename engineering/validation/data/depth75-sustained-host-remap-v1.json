@@ -1,0 +1,181 @@
+{
+  "archive": "depth75-sustained-host-remap-v1.zip",
+  "bytes": 856128,
+  "sha256": "95e1a4499c2cdff9a18ad2034e0649032cea0ecde9f726484b1618e2e47a5ada",
+  "members": {
+    "actual-sustained.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual-sustained.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "collection-controller.py": {
+      "bytes": 7578,
+      "sha256": "54979901ea5c3b486402443d070f18d084d9f6c6e2dcbafd86e90220e4bd90ac"
+    },
+    "collection.json": {
+      "bytes": 8218,
+      "sha256": "9ed9729fc1a4db2e22cdde4cadd1adb7a8d6db455acd69b869b36beee82120b3"
+    },
+    "consume-controller.py": {
+      "bytes": 2615,
+      "sha256": "2028d148c5df3a703c766c6d2ff6bbbb8df165d0908ff69c64b2b904b64c5214"
+    },
+    "controller.py": {
+      "bytes": 18892,
+      "sha256": "9fb3e373f14933d7a6caf9c0f19f4447a9e4fa44ae44b52ccd4d186664d3ef22"
+    },
+    "example-build.stderr.log": {
+      "bytes": 908,
+      "sha256": "0ee94cc7bc31bc0e489becb30fb0dec64828dd8deeafb21b1745a35d6855b948"
+    },
+    "example-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "output-identities.json": {
+      "bytes": 1503927,
+      "sha256": "89825f486c3d69bd13652d895e0fca2e467db6a586b69ca984f4bcdd15c97f81"
+    },
+    "owned-job-counter-control.json": {
+      "bytes": 1498,
+      "sha256": "69eb603b487287affa6f161e2ed232e203973a42be7d6a2a870171c794f65194"
+    },
+    "protocol.md": {
+      "bytes": 3116,
+      "sha256": "6203306f373b9d2cb92c68c27aecfac582bc5b7272b24a1f67adf5a29096edb7"
+    },
+    "readings.jsonl": {
+      "bytes": 1093330,
+      "sha256": "1123767efef0e266d96abf6364c5c7306f4a2e2f86a38eaee1bb5dfbaa510cb8"
+    },
+    "receipt.json": {
+      "bytes": 888508,
+      "sha256": "0d4fa3c797f4f2e4925a4996f1c0ac373385ea2a63fb5bd5d9e60d3ec5008955"
+    },
+    "session-consumed.json": {
+      "bytes": 413,
+      "sha256": "6c30030c84129b7de593b0a2bf8d29f6c5bfa96cdad01caa9586832129496de9"
+    },
+    "source/crates/motion-host/examples/depth_reference/sustained.rs": {
+      "bytes": 10936,
+      "sha256": "c39c5362e59d977aae6fef55675a95f5380139ae6fb58d83a19a63bddbdc1bba"
+    },
+    "source/crates/motion-host/examples/depth_reference.rs": {
+      "bytes": 19667,
+      "sha256": "8a6dcdae15b610442687e9f768ec4201ca6f53690591a1993c0bebe2d2d31100"
+    },
+    "workload/cohort-00/measurements.json": {
+      "bytes": 185911,
+      "sha256": "78477cc47b7e44a5fb56c34238f56df164889f74049d05b475dd9976421dcfde"
+    },
+    "workload/cohort-01/measurements.json": {
+      "bytes": 185916,
+      "sha256": "720563f8da12c40df49c857e0ff6025a30d76455649c54d1840c959c4d40d3b0"
+    },
+    "workload/cohort-02/measurements.json": {
+      "bytes": 185923,
+      "sha256": "a9296d7329b51fc58a097bb39be25bf7c86de886267b257afb98761b4c02b031"
+    },
+    "workload/cohort-03/measurements.json": {
+      "bytes": 185946,
+      "sha256": "01164139dd472ca09d9d7c89b5ceb9f4f3339aebc0f5e2eb2ff765ab5d99113c"
+    },
+    "workload/cohort-04/measurements.json": {
+      "bytes": 185945,
+      "sha256": "4333d25618737ace7885e619cbc44e584781cc4c98bbd80264723b2299d6c8c8"
+    },
+    "workload/cohort-05/measurements.json": {
+      "bytes": 185948,
+      "sha256": "ead35e67d1379e96c4ac01c008161b0a3a28c52d39d010e4c325b26b4ec37027"
+    },
+    "workload/cohort-06/measurements.json": {
+      "bytes": 185942,
+      "sha256": "f7ffbc82723f976039e060bc778f979097f7a870da1a5fb9b94e746982cf1e9a"
+    },
+    "workload/cohort-07/measurements.json": {
+      "bytes": 185947,
+      "sha256": "c37692b22c4a360576b7a64bf1b02fb40aa8a0c4a0f1fa239f1866aca7793831"
+    },
+    "workload/cohort-08/measurements.json": {
+      "bytes": 185947,
+      "sha256": "3e149767de08922d6abd7bee8d1eabd9bc6269ca694a76bafd2de6e4c6693224"
+    },
+    "workload/cohort-09/measurements.json": {
+      "bytes": 185949,
+      "sha256": "544e49d1d464f92c77c24f61f218bb51fd7efc1ffaab3be236fc978dc42ce536"
+    },
+    "workload/cohort-10/measurements.json": {
+      "bytes": 185981,
+      "sha256": "0f0699478b41ddefa8c5ab60a68aa649fbcd5482c1d046c96bc0009aa697e198"
+    },
+    "workload/cohort-11/measurements.json": {
+      "bytes": 185980,
+      "sha256": "f5a2c6e70fc34eb0f7e7aac96b4869b5d73e507395ce0f76deb9f779d7aecb16"
+    },
+    "workload/cohort-12/measurements.json": {
+      "bytes": 185979,
+      "sha256": "ef1b6120438c74e78ad2d7be9e2d2a7157471365b0a58dfd8c4b504e81337959"
+    },
+    "workload/cohort-13/measurements.json": {
+      "bytes": 185982,
+      "sha256": "82bcaf634a02e947c944b034cc62cd9728fb208026e78daef150618165b7ca35"
+    },
+    "workload/cohort-14/measurements.json": {
+      "bytes": 185980,
+      "sha256": "8e987b2c3534dff90d8ea9f7a3e1d4f18e2efdbd7bbdc62bb384d6640d57fc9b"
+    },
+    "workload/cohort-15/measurements.json": {
+      "bytes": 185976,
+      "sha256": "24e779762f8962c0d92dcb91d124dc3a4795900a030befe781211b4485b37887"
+    },
+    "workload/cohort-16/measurements.json": {
+      "bytes": 185982,
+      "sha256": "f475ea387f71d5ab8caa07b5e7d955955f2e7e91cbd0c99a636f106b7ea86dae"
+    },
+    "workload/cohort-17/measurements.json": {
+      "bytes": 185979,
+      "sha256": "7d73c1eecd11573b9d0982f8ad1de84d16e80018fcf4839e3352fa7f4973e5fe"
+    },
+    "workload/cohort-18/measurements.json": {
+      "bytes": 185979,
+      "sha256": "322f02d71e4ec9ae36194b74e7d0756412fbf7ca39b418a81f70729718e8bf3e"
+    },
+    "workload/cohort-19/measurements.json": {
+      "bytes": 185982,
+      "sha256": "1a99b07d54661912aee3c7cc644c481fefab4e8a54a73f51641b4245c956a296"
+    },
+    "workload/cohort-20/measurements.json": {
+      "bytes": 185982,
+      "sha256": "0f976d39226485713ac8b0db397ec8db1e01dc44c89bc01b554c13ba562274e2"
+    },
+    "workload/cohort-21/measurements.json": {
+      "bytes": 185980,
+      "sha256": "029ec3defd601211bde53f7b03d0f3f40aa767320a392bca0fa44ba8f8778ee4"
+    },
+    "workload/cohort-22/measurements.json": {
+      "bytes": 185980,
+      "sha256": "6ac92be5d5e9db157d7e2aefdd26aa63efa7ad8e4f5357c26ad0416095e18e95"
+    },
+    "workload/cohort-23/measurements.json": {
+      "bytes": 185979,
+      "sha256": "a7189fd36a5aac92b0e82101e8c19d9a262704710ca0999a310d376b1ac7e847"
+    },
+    "workload/cohort-24/measurements.json": {
+      "bytes": 185976,
+      "sha256": "fbd9f95944fc6607b7c4173358afe6e63c526ebbd5f705b0bafe8847ac535762"
+    },
+    "workload/logs/motion-studio.log": {
+      "bytes": 1452820,
+      "sha256": "a63da0f55e40331c4d54c62919e072f435c84ace3cb80140754d41a27cefc589"
+    },
+    "workload/sustained.json": {
+      "bytes": 62314,
+      "sha256": "c87a5789379933672870d4a4c47a164d88cb255dfc790c90bc035303ecdfdcb4"
+    }
+  },
+  "readback": "Every member CRC, byte length and SHA-256 verified",
+  "qualified": false
+}

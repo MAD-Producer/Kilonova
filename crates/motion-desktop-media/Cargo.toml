@@ -8,6 +8,10 @@ description = "Desktop media backend for the shared editing host"
 [lib]
 crate-type = ["rlib"]
 
+[[example]]
+name = "depth_video_capability"
+required-features = ["ai-depth", "ffmpeg"]
+
 [features]
 default = ["gpu-tests"]
 # Test selection only; product rendering is always compiled.

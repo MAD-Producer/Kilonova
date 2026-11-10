@@ -1,6 +1,31 @@
 {
   "version": 1,
   "tools": {
+    "tools/test_ci_depth_process_memory.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Exercise platform peak-memory units, bounded query failure and actual owned-child high-water marks before and after releasing touched memory, including optimized Python; no inference runtime or model."
+    },
+    "tools/depth_reference_inputs.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_depth_reference_inputs.py",
+      "reason": "Independent fixed sensor-reference analytic controls; no dataset, optional decoder or model inference required"
+    },
+    "tools/test_ci_depth_reference_inputs.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Run fixed sensor-reference controls through existing test_ci_*.py discovery without optional runtimes or downloaded data"
+    },
+    "tools/depth_reference_metrics.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_depth_reference_metrics.py",
+      "reason": "Independent fixed sensor-reference analytic controls; no dataset, optional decoder or model inference required"
+    },
+    "tools/test_ci_depth_reference_metrics.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Run fixed sensor-reference controls through existing test_ci_*.py discovery without optional runtimes or downloaded data"
+    },
     "tools/color-management/export_processor.py": {
       "mode": "manual",
       "command": "python tools/color-management/export_processor.py --config-directory <verified-bundle> --selection <explicit-selection.json> --phase <phase> --input-alpha <alpha> --output-alpha <alpha> --output <new-file.json>",
@@ -30,6 +55,11 @@
       "command": "python tools/depth_tensor.py <host-generated-transform-directory>",
       "requires": ["Exact bounded transform request and RGB/scalar files", "Separately installed NumPy/OpenCV; no ONNX runtime or model required for transforms"],
       "reason": "The optional WGSL backend owns each transform child directly; learned inference runs in a separate directly owned native child. No weights are downloaded by CI."
+    },
+    "tools/test_ci_depth_tensor_identity.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by test_ci_*.py discovery; verifies bounded WGSL transform execution identity, independent package sites, input-free resolution, and actual child protocol refusal without ONNX Runtime or learned inference."
     },
     "tools/test_ci_depth_tensor.py": {
       "mode": "ci",
@@ -81,6 +111,11 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Validate explicit export resolution admission, processing identity isolation and non-overwrite behavior, including actual invalid CLI subprocesses under optimized Python; no model execution or quality claim"
+    },
+    "tools/test_ci_metric_depth_export.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Validate separate pinned metric export admission, refusal before IO, non-overwrite and default file/Error stderr/stdout boundaries, including preservation of the primary failure after a secondary persistence failure; no model execution or quality claim"
     },
     "tools/build_android.py": {
       "mode": "manual",

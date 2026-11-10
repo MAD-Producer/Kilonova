@@ -1,0 +1,101 @@
+{
+  "archive": "depth75-retained-contract-v1.zip",
+  "bytes": 47956,
+  "sha256": "6459aa2c04425b604ed0ba39eae83fd4694f05319964db1ddf971ebb7b595be8",
+  "members": {
+    "actual/attest-0/logs/motion-studio.log": {
+      "bytes": 168339,
+      "sha256": "ecebced09cd6d346a23cde93e54b9a2f0343bde15cd9c7909c122b092fc1716b"
+    },
+    "actual/attest-0/receipt.json": {
+      "bytes": 2706,
+      "sha256": "d58e395aa34ed9b896f13fe923d2bab96d7664ed53279cd4edc97d9e6ce6cc99"
+    },
+    "actual/attest-0.stderr.log": {
+      "bytes": 586,
+      "sha256": "181a7fede51c68132515faeff108412dc7686ca203b49472b0e41f10674f7150"
+    },
+    "actual/attest-0.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual/attest-1/logs/motion-studio.log": {
+      "bytes": 168339,
+      "sha256": "cb68d9c4055882e0624fe36f93af223cdc0348821ddb8351e7002fd9317a9975"
+    },
+    "actual/attest-1/receipt.json": {
+      "bytes": 2715,
+      "sha256": "0f6b9bd0ff6dec86c531e1c64ac79f9417a882240ddb17ccf81198f356353433"
+    },
+    "actual/attest-1.stderr.log": {
+      "bytes": 586,
+      "sha256": "193ade7f6e431a0e1cb260f3e13562fa0530d5814e9493b9cf080a6534f02725"
+    },
+    "actual/attest-1.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual/changed-execution.json": {
+      "bytes": 787,
+      "sha256": "95da0e8c45b738fe696a46eaba0af7cafd9c88da58c5e53585c37fde7b494c19"
+    },
+    "actual/controller.py": {
+      "bytes": 7618,
+      "sha256": "b24ef9d18460392c703948edbbdf1d6b65e04d5872b4799fc5f23d03ff5b9214"
+    },
+    "actual/execution.json": {
+      "bytes": 787,
+      "sha256": "c1044c54d113ae1f9109d1e4b29a8e9f7629af771dc8e70b95e32ccd959e8fb6"
+    },
+    "actual/receipt.json": {
+      "bytes": 5712,
+      "sha256": "de1ea29476a4e30b5729de1676d65127d99e3a0c4b32b26f46ec8df8b7de3d01"
+    },
+    "actual/reject-changed-execution/logs/motion-studio.log": {
+      "bytes": 38028,
+      "sha256": "d21e7179a8c07a8a185915aad1dac4dced470dc234da7e2de60dd4a3caa59c09"
+    },
+    "actual/reject-changed-execution/receipt.json": {
+      "bytes": 1140,
+      "sha256": "526a1afbc26d00aa126daee9d63241e96e41c55a7825000b1c628618b71749b1"
+    },
+    "actual/reject-changed-execution.stderr.log": {
+      "bytes": 817,
+      "sha256": "d55e346c741f1f5c4ecdc79a30afe0aad7f53e3cf7e0aece784b6883c87bf8c4"
+    },
+    "actual/reject-changed-execution.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual/resolve/logs/motion-studio.log": {
+      "bytes": 37679,
+      "sha256": "9ede1d6c2c5bd6d35c5ef25bea086027a04b4635071a81093da34499feda9160"
+    },
+    "actual/resolve/receipt.json": {
+      "bytes": 2182,
+      "sha256": "dc0e7189ad887d785633af54d2bce987803a8c38da81fea81035df33e6d14e16"
+    },
+    "actual/resolve.json": {
+      "bytes": 243,
+      "sha256": "28ee29fb3fd63752f365c0fbed1e837cb4ef543053e1f70b894213d618f4fc53"
+    },
+    "actual/resolve.stderr.log": {
+      "bytes": 586,
+      "sha256": "081a6e70eba6cb6699a62bfd43d932be3b24a7c391a5896fdcff5c331d57a544"
+    },
+    "actual/resolve.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual/session-consumed.json": {
+      "bytes": 225,
+      "sha256": "77c2ae3d8b5651c06ec25c258ee9c0a5a11dd25400aa553efbb30b3f0c44c6ca"
+    },
+    "collection-controller.py": {
+      "bytes": 5254,
+      "sha256": "57f93a2affc032c6e0f4906e2de1aaa353da3f02038f4a80a0cb410f98004709"
+    }
+  },
+  "readback": "Every member CRC, length and SHA-256 verified",
+  "limits": "Existing native CLI contract only; not an actual Rust Jobs/Session call, live service or broad regression pass"
+}

@@ -39,6 +39,7 @@ pub mod video_frame;
 pub mod preview_video;
 pub mod video_frames;
 pub mod resource_memory;
+pub mod process_memory;
 pub mod render_sampling;
 pub mod tracking;
 

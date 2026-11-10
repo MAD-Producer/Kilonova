@@ -1,0 +1,32 @@
+{
+  "scope": "Exact-source complete Python CI discovery; no model/native/footage qualification",
+  "bytes": 11187,
+  "sha256": "a6b68494a255f4b837a9cc3d5774152947d50376b7dbd737d1c397b9fc788488",
+  "source": "717fe10c",
+  "tests": 157,
+  "passed": 156,
+  "skipped": 1,
+  "terminal": "session16443 terminale59913 exit0 consumed",
+  "members": [
+    {
+      "name": "receipt.json",
+      "sha256": "8453e83ca82494fd96b7fe67d73a13e5bec62b0d7e335c36b238fa6ad71cabdb",
+      "bytes": 8720
+    },
+    {
+      "name": "stderr.log",
+      "sha256": "91ca50b12800b51cc09d8ba9a51182a59c8325e9cc64cf0f619b845f12c3733b",
+      "bytes": 29357
+    },
+    {
+      "name": "stdout.log",
+      "sha256": "b40a5fbb4d1757c31273fb2c9d9cc48716f898e4bab1edd8806f5c43734b84dc",
+      "bytes": 2158
+    },
+    {
+      "name": "controller.py",
+      "sha256": "ffab8029a6b62651bffc9e3b3b0a37b1d925651d73be42a47cc8226d111a9ae5",
+      "bytes": 1623
+    }
+  ]
+}

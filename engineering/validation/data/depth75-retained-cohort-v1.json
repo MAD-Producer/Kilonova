@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "archive": "depth75-retained-cohort-v1.zip",
+  "bytes": 33424,
+  "sha256": "d790a43898aee42af623580856b3b56a125733d7cfdb328820b91571941f24a9",
+  "scope": "Failed fixed32 retained run, actual access-violation stack and 27 exact completed outputs; no retry or complete-cohort acceptance",
+  "members": {
+    "actual-cohort.stderr.log": {
+      "bytes": 8835,
+      "sha256": "07ee88e9c42f07bbdd4a4b305867082f4393cefe6d4c0050e53e7c1910e52af1"
+    },
+    "actual-cohort.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "cohort/logs/motion-studio.log": {
+      "bytes": 52730,
+      "sha256": "90ae79e23d9e023544e27425c804ab4198b9feb9e62dd73397d33b497210789d"
+    },
+    "cohort/measurements.json": {
+      "bytes": 155629,
+      "sha256": "b65b0b445797ca0ed5a6b2ed263f0887b50f5af1a3ecbfaaf852771d92502b10"
+    },
+    "collector.py": {
+      "bytes": 2178,
+      "sha256": "b1ecfd8b7a00b1677b984b35898748c92ceb74f1cbb9f398f2f4263f25c55798"
+    },
+    "completed-prefix-audit.json": {
+      "bytes": 5212,
+      "sha256": "6eca112243bb3860c1afb6f895f1c2159e1c801aaa41a0daa4090147e1a5a839"
+    },
+    "consumer.py": {
+      "bytes": 3647,
+      "sha256": "201e1d7f042b2db985706fcc7bb52bf7f1e77530b9ddd57b6dbff63cd027968c"
+    },
+    "controller.py": {
+      "bytes": 7678,
+      "sha256": "9b3ea7e0150aa7f82afb33166df61cb9067f830fd5c9fc5d50eb702535059b7d"
+    },
+    "example-build.stderr.log": {
+      "bytes": 1008,
+      "sha256": "703a682e821b0a81b80ff719ef4328f2ae3242cdc597b776067a227aa33e69a0"
+    },
+    "example-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "example-tests.stderr.log": {
+      "bytes": 1160,
+      "sha256": "6fa82212785c1f49e15e5d19489a1fda9c87059d735ffffe3806cf5be19ce5fe"
+    },
+    "example-tests.stdout.log": {
+      "bytes": 359,
+      "sha256": "8acfa43dcda52f476761fe42c6441b99880d08ed87123c5443a5306cc7e8f549"
+    },
+    "frozen-source/crates/motion-host/examples/depth_reference.rs": {
+      "bytes": 19103,
+      "sha256": "a68d3ac305d006032f8d3e8709adac922640aec9639580b5ac8dd8a6f777289a"
+    },
+    "receipt.json": {
+      "bytes": 4531,
+      "sha256": "551b32bc51528c53d351881d28bbdb5c9968a4cf254417a4cc150cc27f57b364"
+    },
+    "session-consumed.json": {
+      "bytes": 342,
+      "sha256": "8f64ebde40427df71f34fb07b5882d1aa986c2be0af197724ed8d8e9fad12a3d"
+    }
+  }
+}

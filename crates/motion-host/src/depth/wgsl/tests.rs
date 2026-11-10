@@ -1,6 +1,61 @@
 use super::*;
 use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime};
 use std::sync::Arc;
+
+#[test]
+#[ignore = "requires an explicit installed Python diagnostic fixture"]
+fn actual_owned_python_enables_fault_observation_and_retains_stack_and_exit_cause() {
+    let fixture_path = std::env::var_os("MOTION_DEPTH_PYTHON_DIAGNOSTIC_FIXTURE")
+        .expect("explicit installed Python fixture required");
+    let fixture: serde_json::Value =
+        serde_json::from_slice(&fs::read(fixture_path).unwrap()).unwrap();
+    let python = Path::new(fixture["python"].as_str().unwrap());
+    let root = Path::new(fixture["output"].as_str().unwrap());
+    assert!(python.is_absolute() && root.is_absolute() && !root.exists());
+    fs::create_dir(root).unwrap();
+    fs::write(
+        root.join("depth_tensor.py"),
+        r#"import faulthandler, sys
+assert faulthandler.is_enabled(), 'owned Python fault observer was not enabled'
+sys.stderr.write('owned-stack-observation-control\n')
+sys.stderr.flush()
+faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+raise RuntimeError('original-owned-python-exit-sentinel')
+"#,
+    )
+    .unwrap();
+    let mut outcomes = Vec::new();
+    for (label, mode) in [
+        ("plain", TransformInvocation::Plain),
+        ("resolve", TransformInvocation::Resolve),
+        ("attest", TransformInvocation::Attest),
+    ] {
+        let mut command = python_transform(python, root, mode);
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+        }
+        let cause = super::super::onnx::capture(&mut command, &Cancellation::default())
+            .unwrap_err()
+            .to_string();
+        assert!(cause.contains("owned-stack-observation-control"));
+        assert!(cause.contains("depth_tensor.py"));
+        assert!(cause.contains("original-owned-python-exit-sentinel"));
+        assert!(
+            cause.contains("response= stderr="),
+            "stdout must remain empty"
+        );
+        outcomes.push(serde_json::json!({"mode":label,"original_cause":cause}));
+        fs::write(root.join("receipt.json"), serde_json::to_vec_pretty(&serde_json::json!({
+            "scope":"Actual owned Python observer enablement and explicit stack/nonzero exit; not an access-violation reproduction or fix",
+            "outcomes":outcomes})).unwrap()).unwrap();
+    }
+}
 fn input() -> Input {
     let mut hash = [0u8; 32];
     for (index, byte) in hash.iter_mut().enumerate() {
@@ -35,7 +90,11 @@ fn input() -> Input {
     .unwrap()
 }
 fn native() -> serde_json::Value {
+    let sample = serde_json::json!({"version":1,"backend":"Vulkan","ageMs":0,
+        "minimumQueryIntervalMs":1000,"isPhysicalCapacity":false,"isFramePeak":false,
+        "reading":{"status":"unavailable","reason":"missing_budget_extension","cause":null}});
     serde_json::json!({
+        "pid":42,"adapter_memory_samples":{"pid":42,"before":sample,"after":sample},
         "status":"actual_complete_gpu_output_written_independent_comparison_pending","phase":"completed",
         "model_sha256":MODEL_SHA256,"program_sha256":PROGRAM_SHA256,"request_sha256":"a".repeat(64),
         "encoded_operations":429,"final_readbacks":1,"per_node_cpu_injection":false,"pool_retained_through_completion":true,
@@ -43,6 +102,65 @@ fn native() -> serde_json::Value {
         "adapter":{"backend":"Vulkan","name":"authored GPU","device_type":"DiscreteGpu"}
     })
 }
+
+#[test]
+fn native_adapter_memory_samples_preserve_unknown_and_refuse_wrong_identity_or_peak_claims() {
+    let digest = "a".repeat(64);
+    let valid = native();
+    let parsed: Native = serde_json::from_value(valid.clone()).unwrap();
+    parsed.validate(Hardware::Vulkan, &digest).unwrap();
+    assert!(matches!(parsed.adapter_memory_samples.after.reading,
+        motion_render::MemoryPressureReading::Unavailable { .. }));
+
+    for (pointer, value) in [
+        ("/pid", serde_json::json!(41)),
+        ("/adapter_memory_samples/pid", serde_json::json!(0)),
+        ("/adapter_memory_samples/after/backend", serde_json::json!("Dx12")),
+        ("/adapter_memory_samples/before/version", serde_json::json!(2)),
+        ("/adapter_memory_samples/before/isPhysicalCapacity", serde_json::json!(true)),
+        ("/adapter_memory_samples/after/isFramePeak", serde_json::json!(true)),
+        ("/adapter_memory_samples/after/minimumQueryIntervalMs", serde_json::json!(0)),
+        ("/adapter_memory_samples/after/reading/cause", serde_json::json!("x".repeat(513))),
+    ] {
+        let mut bad = valid.clone();
+        *bad.pointer_mut(pointer).unwrap() = value;
+        assert!(serde_json::from_value::<Native>(bad).unwrap()
+            .validate(Hardware::Vulkan, &digest).is_err(), "{pointer}");
+    }
+    let mut absent = valid;
+    absent.as_object_mut().unwrap().remove("adapter_memory_samples");
+    assert!(serde_json::from_value::<Native>(absent).is_err());
+}
+
+#[test]
+fn native_adapter_memory_pools_are_bounded_without_treating_over_budget_as_invalid_data() {
+    let digest = "a".repeat(64);
+    let mut valid = native();
+    // Native usage can exceed a changing advisory budget. Preserve the reading;
+    // do not turn pressure into a fabricated zero or an inference failure.
+    valid["adapter_memory_samples"]["after"]["reading"] = serde_json::json!({
+        "status":"available","source":"vulkan_device_local_heaps",
+        "pools":[{"index":0,"budgetBytes":100,"usageBytes":150}]});
+    serde_json::from_value::<Native>(valid.clone()).unwrap()
+        .validate(Hardware::Vulkan, &digest).unwrap();
+    for pools in [
+        serde_json::json!([]),
+        serde_json::json!([{"index":16,"budgetBytes":100,"usageBytes":150}]),
+        serde_json::json!([{"index":0,"budgetBytes":100,"usageBytes":150},
+                           {"index":0,"budgetBytes":100,"usageBytes":150}]),
+        serde_json::json!((0..17).map(|index| serde_json::json!({
+            "index":index,"budgetBytes":100,"usageBytes":150})).collect::<Vec<_>>()),
+    ] {
+        let mut bad = valid.clone();
+        bad["adapter_memory_samples"]["after"]["reading"]["pools"] = pools;
+        assert!(serde_json::from_value::<Native>(bad).unwrap()
+            .validate(Hardware::Vulkan, &digest).is_err());
+    }
+    valid["adapter_memory_samples"]["after"]["reading"]["source"] = "dxgi_local_segment".into();
+    assert!(serde_json::from_value::<Native>(valid).unwrap()
+        .validate(Hardware::Vulkan, &digest).is_err());
+}
+
 #[test]
 fn native_report_rejects_cpu_fallback_wrong_source_and_incomplete_ownership() {
     let valid = native();
@@ -155,6 +273,34 @@ fn canceled_backend_creates_no_scratch_and_starts_no_child() {
         backend.infer(&input(), &canceled),
         Err(Error::Canceled)
     ));
+    assert!(!scratch.exists());
+}
+
+#[test]
+fn retained_capacity_is_key_bound_and_cleared_before_cancelled_work() {
+    let directory = tempfile::tempdir().unwrap();
+    let scratch = directory.path().join("absent");
+    let mut backend = Wgsl::new(Config {
+        python: directory.path().join("no-python"),
+        worker: directory.path().join("no-worker"),
+        program: directory.path().join("no-program"),
+        scratch: scratch.clone(), hardware: Hardware::Vulkan,
+    }).unwrap();
+    let sample = input();
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), None);
+    backend.retained_gpu_buffers = Some((sample.key().clone(), BUFFER_BYTES));
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), Some(BUFFER_BYTES));
+    let mut foreign_key = sample.key().clone();
+    foreign_key.source.revision += 1;
+    let foreign = Input::new(foreign_key, sample.size(), Arc::from(sample.rgb())).unwrap();
+    assert_eq!(backend.retained_gpu_buffer_capacity(&foreign), None);
+    let canceled = Cancellation::default();
+    canceled.cancel();
+    assert!(matches!(backend.infer(&sample, &canceled), Err(Error::Canceled)));
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), None);
+    backend.retained_gpu_buffers = Some((sample.key().clone(), BUFFER_BYTES));
+    assert!(matches!(backend.execution_identity(&sample, &canceled), Err(Error::Canceled)));
+    assert_eq!(backend.retained_gpu_buffer_capacity(&sample), None);
     assert!(!scratch.exists());
 }
 #[test]

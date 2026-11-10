@@ -11,6 +11,14 @@ struct GraphRequest {
     requested_backend: String,
     input: Tensor,
 }
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ResolveRequest {
+    version: u32,
+    program: String,
+    program_sha256: String,
+    requested_backend: String,
+}
 fn finite(bytes: &[u8]) -> bool {
     bytes.len() % 4 == 0
         && bytes
@@ -70,16 +78,62 @@ fn upload(
     }
     Ok(())
 }
-fn execute_graph(
+// Consume nested GPU errors before another frame can reuse the pool, preserving
+// the primary failure when scope collection also supplies a cause.
+fn checked_gpu<T>(
+    device: &wgpu::Device,
+    operation: &str,
+    execute: impl FnOnce() -> Result<T>,
+) -> Result<T> {
+    let oom = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
+    let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
+    let result = execute();
+    let request = engine::current_command()
+        .map(|(request, _, _)| request)
+        .unwrap_or(0);
+    let _flight = engine::enter(request, "collect_graph_gpu_scopes");
+    let began = Instant::now();
+    log::info!("start #{request} collect_graph_gpu_scopes operation={operation}");
+    logging::flush();
+    let validation_cause = pollster::block_on(validation.pop());
+    let oom_cause = pollster::block_on(oom.pop());
+    log::debug!(
+        "done #{request} collect_graph_gpu_scopes {}ms",
+        began.elapsed().as_millis()
+    );
+    match result {
+        Err(primary) => Err(format!(
+            "{operation}: {primary}; validation={validation_cause:?}; allocation={oom_cause:?}"
+        )),
+        Ok(value) => {
+            require(
+                validation_cause.is_none() && oom_cause.is_none(),
+                &format!("{operation}: validation={validation_cause:?}; allocation={oom_cause:?}"),
+            )?;
+            Ok(value)
+        }
+    }
+}
+// One finite invocation retains weights, pipelines, bindings and fixed buffer
+// capacities. Pool contents change; readback is unmapped before its next reuse.
+struct PreparedGraph {
+    buffers: Vec<wgpu::Buffer>,
+    staging: wgpu::Buffer,
+    readback: wgpu::Buffer,
+    _uniforms: wgpu::Buffer,
+    pipelines: HashMap<&'static str, wgpu::ComputePipeline>,
+    bindings: Vec<wgpu::BindGroup>,
+    actual_capacity: u64,
+}
+fn prepare_graph(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     graph: &Blueprint,
     compiled: &CompiledGraph,
     root: &Path,
-    input: &[u8],
     out: &Path,
     report: &mut Value,
-) -> Result<()> {
+) -> Result<PreparedGraph> {
     phase(out, report, "allocate_fixed_pool_and_upload_resources")?;
     let mut buffers = Vec::new();
     let storage =
@@ -181,14 +235,6 @@ fn execute_graph(
         )?;
     }
     report["resource"] = Value::Null;
-    upload(
-        device,
-        queue,
-        &staging,
-        &buffers[compiled.pool_buffer_base + graph.owner_slots["rgb"]],
-        input,
-        graph.upload_staging_bytes as usize,
-    )?;
     report["request"] = 0.into();
     report["operation"] = "complete_model_probe".into();
     phase(out, report, "compile_required_wgsl_pipelines")?;
@@ -290,6 +336,45 @@ fn execute_graph(
     }
     report["request"] = 0.into();
     report["operation"] = "complete_model_probe".into();
+    Ok(PreparedGraph {
+        buffers,
+        staging,
+        readback,
+        _uniforms: uniforms,
+        pipelines,
+        bindings,
+        actual_capacity,
+    })
+}
+fn execute_prepared_graph(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    graph: &Blueprint,
+    compiled: &CompiledGraph,
+    prepared: &PreparedGraph,
+    input: &[u8],
+    out: &Path,
+    report: &mut Value,
+) -> Result<()> {
+    let PreparedGraph {
+        buffers,
+        staging,
+        readback,
+        pipelines,
+        bindings,
+        ..
+    } = prepared;
+    report["actual_retained_buffer_capacity_bytes"] = json!(prepared.actual_capacity);
+    report["buffer_count"] = json!(buffers.len() + 3);
+    phase(out, report, "upload_current_input_to_retained_pool")?;
+    upload(
+        device,
+        queue,
+        staging,
+        &buffers[compiled.pool_buffer_base + graph.owner_slots["rgb"]],
+        input,
+        graph.upload_staging_bytes as usize,
+    )?;
     phase(out, report, "encode_separate_ordered_compute_passes")?;
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("depth entire learned graph"),
@@ -356,24 +441,64 @@ fn execute_graph(
     report["pool_retained_through_completion"] = true.into();
     Ok(())
 }
-fn run(request_path: &Path, out: &Path, report: &mut Value) -> Result<()> {
+fn run(request_path: &Path, out: &Path, report: &mut Value, mode: &Invocation) -> Result<()> {
     require(
         cfg!(target_endian = "little"),
         "explicit little endian F32 required",
     )?;
-    let raw = limited_read(request_path, 16 * 1024)?;
-    let request: GraphRequest =
-        serde_json::from_slice(&raw).map_err(|e| format!("graph request schema: {e}"))?;
+    let raw = limited_read(
+        request_path,
+        if matches!(mode, Invocation::ResearchBatch) {
+            batch_admission::MAX_MANIFEST_BYTES
+        } else {
+            16 * 1024
+        },
+    )?;
+    let (version, program, program_sha256, requested_backend, inputs) =
+        if matches!(mode, Invocation::Resolve | Invocation::Serve(_)) {
+            let request: ResolveRequest = serde_json::from_slice(&raw)
+                .map_err(|e| format!("graph resolve request schema: {e}"))?;
+            (
+                request.version,
+                request.program,
+                request.program_sha256,
+                request.requested_backend,
+                Vec::new(),
+            )
+        } else if matches!(mode, Invocation::ResearchBatch) {
+            let request: batch_admission::BatchRequest = serde_json::from_slice(&raw)
+                .map_err(|e| format!("graph research batch schema: {e}"))?;
+            request.validate(PROGRAM)?;
+            (
+                request.version,
+                request.program,
+                request.program_sha256,
+                request.requested_backend,
+                request.inputs,
+            )
+        } else {
+            let request: GraphRequest =
+                serde_json::from_slice(&raw).map_err(|e| format!("graph request schema: {e}"))?;
+            (
+                request.version,
+                request.program,
+                request.program_sha256,
+                request.requested_backend,
+                vec![request.input],
+            )
+        };
     require(
-        request.version == 1 && request.program_sha256 == PROGRAM,
+        version == 1 && program_sha256 == PROGRAM,
         "unqualified graph request identity/version",
     )?;
-    require(
-        request.input.name == "rgb" && request.input.shape == [1, 3, 518, 518],
-        "graph input name/shape differs",
-    )?;
+    for input in &inputs {
+        require(
+            input.name == "rgb" && input.shape == [1, 3, 518, 518],
+            "graph input name/shape differs",
+        )?;
+    }
     report["request_sha256"] = digest(&raw).into();
-    let program_path = Path::new(&request.program);
+    let program_path = Path::new(&program);
     require(program_path.is_absolute(), "absolute program path required")?;
     let program_raw = limited_read(program_path, 4 << 20)?;
     require(
@@ -392,8 +517,16 @@ fn run(request_path: &Path, out: &Path, report: &mut Value) -> Result<()> {
         .ok_or("request root missing")?
         .canonicalize()
         .map_err(|e| e.to_string())?;
-    let input = tensor_bytes(&request_root, &request.input)?;
-    let backend = match request.requested_backend.as_str() {
+    // Admit every immutable input before any GPU execution; at most one tensor
+    // allocation is retained. Re-read/hash immediately before each request too.
+    for (index, input) in inputs.iter().enumerate() {
+        let _flight = engine::enter(index as u64 + 1, "admit_graph_input");
+        report["request"] = json!(index + 1);
+        report["operation"] = "admit_graph_input".into();
+        phase(out, report, "read_hash_finite_input_before_gpu")?;
+        tensor_bytes(&request_root, input).map_err(|cause| format!("input {index}: {cause}"))?;
+    }
+    let backend = match requested_backend.as_str() {
         "vulkan" => wgpu::Backends::VULKAN,
         "dx12" => wgpu::Backends::DX12,
         "metal" => wgpu::Backends::METAL,
@@ -431,13 +564,173 @@ fn run(request_path: &Path, out: &Path, report: &mut Value) -> Result<()> {
         ..Default::default()
     }))
     .map_err(|e| format!("graph device: {e}"))?;
+    let mut adapter_memory = motion_render::AdapterMemoryPressure::new(&adapter);
     report["program_sha256"] = PROGRAM.into();
     report["model_sha256"] = graph.model_sha256.clone().into();
+    if matches!(
+        mode,
+        Invocation::Resolve | Invocation::Attest(_) | Invocation::Serve(_)
+    ) {
+        phase(out, report, "verify_cache_model_resources")?;
+        for (index, name) in compiled.persistent_names.iter().enumerate() {
+            let _flight = engine::enter(index as u64 + 1, "verify_model_resource");
+            let resource = &graph.resources[name];
+            log::info!(
+                "start #{} verify_model_resource name={name} bytes={}",
+                index + 1,
+                resource.bytes
+            );
+            logging::flush();
+            let path = root
+                .join(&resource.file)
+                .canonicalize()
+                .map_err(|e| format!("resource {name}: {e}"))?;
+            require(
+                path.starts_with(&root),
+                "canonical model resource escapes program root",
+            )?;
+            let bytes = limited_read(&path, resource.bytes)?;
+            require(
+                bytes.len() as u64 == resource.bytes
+                    && digest(&bytes) == resource.sha256
+                    && finite(&bytes),
+                &format!("resource {name} length, digest or finite-value check failed"),
+            )?;
+            report["verified_resources"] = json!(index + 1);
+        }
+        phase(out, report, "resolve_actual_native_execution")?;
+        let execution = execution_identity::resolve(
+            PROGRAM,
+            &std::env::current_exe().map_err(|e| e.to_string())?,
+            &info,
+            &device.limits(),
+        )?;
+        if let Invocation::Attest(expected) | Invocation::Serve(expected) = mode {
+            require(
+                expected.is_absolute(),
+                "absolute expected native execution path required",
+            )?;
+            let expected: execution_identity::Execution =
+                serde_json::from_slice(&limited_read(expected, 65536)?)
+                    .map_err(|e| format!("expected native execution schema: {e}"))?;
+            require(
+                expected == execution,
+                "native execution changed since cache resolution",
+            )?;
+        }
+        report["execution"] = serde_json::to_value(execution).map_err(|e| e.to_string())?;
+        if matches!(mode, Invocation::Resolve) {
+            report["status"] = "actual_execution_identity_resolved_without_inference".into();
+            report["process_memory"] = json!(motion_host::process_memory::ProcessPeak::current());
+            report["phase"] = "completed".into();
+            report["final_readbacks"] = 0.into();
+            report["in_flight"] = Value::Null;
+            if let Some((_, _, elapsed)) = engine::current_command() {
+                report["elapsed_ms"] = json!(elapsed.as_millis());
+                log::debug!("done #0 resolve_cache_execution {}ms", elapsed.as_millis());
+            }
+            return save(out, report);
+        }
+    }
     let oom = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
     let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
-    let executed = execute_graph(
-        &device, &queue, &graph, &compiled, &root, &input, out, report,
-    );
+    let executed = (|| -> Result<()> {
+        let setup_began = Instant::now();
+        let prepared = checked_gpu(&device, "prepare_retained_context", || {
+            prepare_graph(&device, &queue, &graph, &compiled, &root, out, report)
+        })?;
+        report["prepare_context_seconds"] = json!(setup_began.elapsed().as_secs_f64());
+        report["context_preparations"] = 1.into();
+        report["requested_inputs"] = json!(inputs.len());
+        report["completed_inputs"] = 0.into();
+        if matches!(mode, Invocation::Serve(_)) {
+            return serve_graph(
+                &device,
+                &queue,
+                &mut adapter_memory,
+                &graph,
+                &compiled,
+                &prepared,
+                &program,
+                &requested_backend,
+                out,
+                report,
+            );
+        }
+        let batch = matches!(mode, Invocation::ResearchBatch);
+        if batch {
+            report["research_batch"] = true.into();
+            report["product_cache_eligibility"] = false.into();
+            report["execution"] = serde_json::to_value(execution_identity::resolve(
+                PROGRAM,
+                &std::env::current_exe().map_err(|e| e.to_string())?,
+                &info,
+                &device.limits(),
+            )?)
+            .map_err(|e| e.to_string())?;
+        }
+        for (index, tensor) in inputs.iter().enumerate() {
+            let request = index as u64 + 1;
+            let _flight = engine::enter(request, "execute_retained_graph_input");
+            log::info!("start #{request} execute_retained_graph_input index={index}");
+            logging::flush();
+            report["request"] = json!(request);
+            report["operation"] = "execute_retained_graph_input".into();
+            report["input_index"] = json!(index);
+            phase(out, report, "read_hash_finite_current_input")?;
+            let input = tensor_bytes(&request_root, tensor)
+                .map_err(|cause| format!("input {index}: {cause}"))?;
+            let frame_out = if batch {
+                out.join(format!("input-{index:02}"))
+            } else {
+                out.to_path_buf()
+            };
+            if batch {
+                fs::create_dir(&frame_out)
+                    .map_err(|e| format!("create batch output {index}: {e}"))?;
+                report["active_input_receipt"] = json!(frame_out.join("receipt.json"));
+                phase(out, report, "execute_retained_input_observe_active_receipt")?;
+            }
+            let mut frame_report = json!({"status":"running","request":request,
+                "pid":std::process::id(),"operation":"execute_retained_graph_input",
+                "input_index":index,"input_sha256":tensor.sha256,
+                "reused_context":index > 0,"research_batch":batch});
+            let began = Instant::now();
+            let memory_before = adapter_memory.snapshot();
+            let output_report = if batch { &mut frame_report } else { &mut *report };
+            output_report["adapter_memory_before_inference"] = json!(&memory_before);
+            checked_gpu(&device, "execute_retained_input", || {
+                execute_prepared_graph(
+                    &device,
+                    &queue,
+                    &graph,
+                    &compiled,
+                    &prepared,
+                    &input,
+                    &frame_out,
+                    output_report,
+                )
+            })
+            .map_err(|cause| format!("input {index}: {cause}"))?;
+            output_report["adapter_memory_samples"] = json!({
+                "pid":std::process::id(),"before":memory_before,
+                "after":adapter_memory.snapshot()});
+            if batch {
+                frame_report["input_execution_seconds"] = json!(began.elapsed().as_secs_f64());
+                frame_report["status"] = "actual_gpu_output_written_comparison_pending".into();
+                frame_report["process_memory"] =
+                    json!(motion_host::process_memory::ProcessPeak::current());
+                save(&frame_out, &frame_report)?;
+            }
+            report["completed_inputs"] = json!(index + 1);
+            phase(out, report, "input_completed_before_pool_reuse")?;
+            log::debug!(
+                "done #{request} execute_retained_graph_input {}ms",
+                began.elapsed().as_millis()
+            );
+        }
+        Ok(())
+    })();
     let validation_cause = pollster::block_on(validation.pop());
     let oom_cause = pollster::block_on(oom.pop());
     match executed {
@@ -451,12 +744,13 @@ fn run(request_path: &Path, out: &Path, report: &mut Value) -> Result<()> {
             &format!("whole graph validation={validation_cause:?}; allocation={oom_cause:?}"),
         )?,
     }
+    report["inference_process_memory"] = json!(motion_host::process_memory::ProcessPeak::current());
     report["status"] = "actual_complete_gpu_output_written_independent_comparison_pending".into();
     report["phase"] = "completed".into();
     report["in_flight"] = Value::Null;
-    if let Some((_, _, elapsed)) = engine::current_command() {
+    if let Some((request, operation, elapsed)) = engine::current_command() {
         report["elapsed_ms"] = json!(elapsed.as_millis());
-        log::debug!("done #0 complete_model_probe {}ms", elapsed.as_millis());
+        log::debug!("done #{request} {operation} {}ms", elapsed.as_millis());
     }
     save(out, report)
 }

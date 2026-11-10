@@ -1,0 +1,79 @@
+{
+  "archive": "depth75-host-remap-workspace-v1.zip",
+  "bytes": 551807,
+  "sha256": "bddadc9cf00d67f71aba6d99b15e77dc41bd9462244150186ff1cd6f49aa0366",
+  "members": {
+    "cargo-metadata.json": {
+      "bytes": 164578,
+      "sha256": "5d60f3daa310a4970f67bafc5484b78bc489244bc370f7cdaf262f942c8ff274"
+    },
+    "collection-controller.py": {
+      "bytes": 5550,
+      "sha256": "a873d59eee4e15be4fe3bb8845d9ff68dfb14f1df1472e9b54f53c0096d90aa2"
+    },
+    "collection.json": {
+      "bytes": 3152,
+      "sha256": "2d8a857a31ab355a08740eb4973b20ee2308a7aa50864ca9ca6ff27da7252ded"
+    },
+    "consume-controller.py": {
+      "bytes": 3316,
+      "sha256": "4a17c40d81ffe9daeddc967e109a734c3d5664859f3d8d39c00c43dbf6bc4265"
+    },
+    "controller.py": {
+      "bytes": 10076,
+      "sha256": "7dafbea2460b50c37f0e3b21ce492a9ddfce75261500fb8b569cd89a5b3b3dda"
+    },
+    "desktop-failure-interim.json": {
+      "bytes": 9722,
+      "sha256": "2ef4a5a64f7415f40643ab9cab96881f94b3244050eb5a1f1b82f7d173cf7c47"
+    },
+    "receipt.json": {
+      "bytes": 1046242,
+      "sha256": "650a8a64c8f64414e3e02dd0656c81dbbbd7327c43039ab40cc23176141fb19b"
+    },
+    "session-consumed.json": {
+      "bytes": 1460,
+      "sha256": "1e77b714c50829a201a67052fa0bb51f1d60bf8056acd13741ae4642846f064a"
+    },
+    "source/crates/motion-graph/tests/editable_data.rs": {
+      "bytes": 13904,
+      "sha256": "bef35009aeba5f478dbad2aeb148674302e375748acfc30a922a13232f877686"
+    },
+    "source/crates/motion-host/src/depth/wgsl/rust_remap.rs": {
+      "bytes": 14645,
+      "sha256": "1ce62ff65a713f3b99242a6c9b26dcb1d744a573fe270f1d9de4f5f8d52b4129"
+    },
+    "source/crates/motion-host/tests/depth_wgsl_retained/session.rs": {
+      "bytes": 13226,
+      "sha256": "f171f38ae5adae2540eaa8c08b11f167b086e9d13e71a2ca8da1c451eec11cfa"
+    },
+    "source/crates/motion-host/tests/depth_wgsl_retained.rs": {
+      "bytes": 18370,
+      "sha256": "6a77d7f0e338ccd14b54170770f05d59b33283857d0f8224539c05d8e1444446"
+    },
+    "source/crates/motion-render/tests/layer_rasters.rs": {
+      "bytes": 33536,
+      "sha256": "87d1b4478824fa616f38977087c568235a90e22ab84bf5a481a1b180c2375c8d"
+    },
+    "source/crates/motion-render/tests/magnified_effect_density.rs": {
+      "bytes": 7933,
+      "sha256": "194b141f510bc31655b8a512a555f8742c9ba8c11b4c8b582bcea110cbfab2b4"
+    },
+    "source/desktop/app/src/engine/sampling_playback_tests.rs": {
+      "bytes": 12167,
+      "sha256": "099694cd80e5e277dca9e76323c02c955fb5c7d8a0c8f9727eb0cd7267b1d942"
+    },
+    "workspace.stderr.log": {
+      "bytes": 156479,
+      "sha256": "5d965024385207fe3d28de4a1d9b54ca21797f96c2abd42a358e9abdbfd37efe"
+    },
+    "workspace.stdout.log": {
+      "bytes": 619738,
+      "sha256": "2a760978b58a9ecf32bb9f0ad2d45cce965c33dcdd74ced2211f893ebcbc03f9"
+    }
+  },
+  "source_head": "dc17b0071e79e5485882c8cce5f0be2fe8e50757",
+  "original_status": "failed_original_outputs_retained",
+  "readback": "Every member CRC, byte length and SHA-256 verified",
+  "qualified": false
+}

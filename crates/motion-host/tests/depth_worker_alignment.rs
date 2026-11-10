@@ -1,4 +1,6 @@
 #![cfg(feature = "ai-depth")]
+#[path = "depth_worker_alignment/physical.rs"]
+mod physical;
 
 use motion_host::depth::{
     alignment::{Limits, Rejection},

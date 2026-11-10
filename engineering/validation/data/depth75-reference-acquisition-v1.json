@@ -1,0 +1,70 @@
+{
+  "archive": "depth75-reference-acquisition-v1.zip",
+  "bytes": 298599,
+  "sha256": "06ad545a672773839c538fec352e2ebb1916a5c5e918b7fe8d807c1ecaa8f158",
+  "members": [
+    {
+      "path": "archive-controller.py",
+      "bytes": 3187,
+      "sha256": "b95600f3000ec9436ebf041a5deacd68dac3b3b50d30372f559b08aa9a64cb96"
+    },
+    {
+      "path": "native/controller.py",
+      "bytes": 6730,
+      "sha256": "e96722b95604c111e6ead85cb2d4d4bdcfbb6447c70809cc56df4a72f0006d5c"
+    },
+    {
+      "path": "native/receipt.json",
+      "bytes": 871651,
+      "sha256": "4d5ee63cf8e764c7108da6435b4ae733b1fe15d25b89dea18a844dfbb41ebd94"
+    },
+    {
+      "path": "native/session-consumed.json",
+      "bytes": 49,
+      "sha256": "e666030df30009aaeeae815d51e6fe66cdc5751e93bd69f7db2f6d13c13565fd"
+    },
+    {
+      "path": "source/engineering/validation/depth75-independent-reference-protocol.md",
+      "bytes": 3563,
+      "sha256": "527bf0784f26ea5a0355a3f061f3b84f84a37fdcae3dd7a858fd6eac05dd71b3"
+    },
+    {
+      "path": "source/tools/depth_reference_metrics.py",
+      "bytes": 6503,
+      "sha256": "27f4442fa5ce1f4108544ced9566df4ad518972a78a14c4608d396577341a774"
+    },
+    {
+      "path": "source/tools/test_depth_reference_metrics.py",
+      "bytes": 1989,
+      "sha256": "ecce42ca41870cbb663b72a9a30c3f61a258b0756e0f9e44e02894ac92baf356"
+    }
+  ],
+  "head": "2fea6a3e77a0cef9fabb765a60409bc2416cedde",
+  "source_unchanged": true,
+  "acquisition": {
+    "url": "https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_desk.tgz",
+    "final_url": "https://webshare.cvg.cit.tum.de/g/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_desk.tgz",
+    "downloaded_bytes": 344011403,
+    "sha256": "e983d6830916e66dc4a46a71368046b149b283de87769690e7aa4e0b9483530c",
+    "archive_members": 1215,
+    "declared_uncompressed_bytes": 367285514,
+    "timestamp_lists": {
+      "depth.txt": {
+        "bytes": 27446,
+        "sha256": "e56f037046113192151abebded5513709d03a57b46624b8343eb4efd4419f14c"
+      },
+      "rgb.txt": {
+        "bytes": 27050,
+        "sha256": "d1bc510ecca08540e03be8df55af8857753b614d8a5c38526bc669ce6c802284"
+      }
+    },
+    "sequence_notice_files": []
+  },
+  "review": "No sequence-specific notice entries in the structurally checked archive; official benchmark CC BY4.0 default applies",
+  "license_source": "https://cvg.cit.tum.de/data/datasets/rgbd-dataset#license",
+  "limits": [
+    "One successful acquisition; no image decode, predictions or quality result",
+    "No archive data, upstream timestamp lists, notices, source code, model or binary redistributed",
+    "Authored protocol and analytic controls remain distinct from actual independent-model measurements"
+  ]
+}

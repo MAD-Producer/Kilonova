@@ -1,5 +1,5 @@
 //! Read-only budgets for the renderer's actual adapter, not machine-wide VRAM.
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 const QUERY_INTERVAL: Duration = Duration::from_secs(1);
@@ -7,7 +7,7 @@ const MAX_CAUSE_CHARS: usize = 512;
 mod observation;
 pub use observation::MemoryPressureLogScope;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryPressureSource {
     DxgiLocalSegment,
@@ -15,7 +15,7 @@ pub enum MemoryPressureSource {
     MetalWorkingSet,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemoryPressurePool {
     pub index: u32,
@@ -23,7 +23,7 @@ pub struct MemoryPressurePool {
     pub usage_bytes: u64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryPressureUnavailable {
     NoActiveRenderer,
@@ -36,7 +36,7 @@ pub enum MemoryPressureUnavailable {
     InvalidNativeResult,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum MemoryPressureReading {
     Available {
@@ -67,7 +67,7 @@ impl MemoryPressureReading {
 /// Native budgets/usage concern this process or Metal device. They are advisory,
 /// may change independently of our allocations, and are not free system VRAM.
 /// Unknown readings contain no fabricated zero budget or successful fallback.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemoryPressureSnapshot {
     /// Process-local sample identity; cached callers retain it. Never serialized
@@ -105,6 +105,30 @@ impl MemoryPressureSnapshot {
 pub(crate) struct MemoryPressureProbe {
     cached: Option<(Instant, MemoryPressureSnapshot)>,
     consecutive_query_failures: u8,
+}
+
+/// A read-only observer bound to one actual adapter for its entire lifetime.
+/// Cached observations cannot accidentally be reused for a different adapter.
+/// Samples retain native pool semantics; they are neither allocation peaks nor
+/// physical capacity and must not be added to process or managed-buffer bytes.
+pub struct AdapterMemoryPressure<'a> {
+    adapter: &'a wgpu::Adapter,
+    probe: MemoryPressureProbe,
+}
+
+impl<'a> AdapterMemoryPressure<'a> {
+    pub fn new(adapter: &'a wgpu::Adapter) -> Self {
+        Self {
+            adapter,
+            probe: MemoryPressureProbe::default(),
+        }
+    }
+
+    /// Queries at most once per second, preserving sample age on cached calls.
+    /// An unavailable query remains explicit; it is never a zero-byte success.
+    pub fn snapshot(&mut self) -> MemoryPressureSnapshot {
+        self.probe.query(self.adapter)
+    }
 }
 
 impl MemoryPressureProbe {

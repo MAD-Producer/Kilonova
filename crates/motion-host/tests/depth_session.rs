@@ -10,6 +10,9 @@ mod playback;
 #[path = "depth_session/transitions.rs"]
 mod transitions;
 
+#[path = "depth_session/physical.rs"]
+mod physical;
+
 use motion_core::{Asset, Command, Engine, Project};
 use motion_host::{
     depth::{Backend, Cancellation, Costs, Estimate, Input, Key},

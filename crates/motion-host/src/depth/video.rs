@@ -10,7 +10,10 @@ use motion_core::VideoAsset;
 use motion_model::depth::{DepthSource, DepthTime};
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
-pub(crate) struct VideoInput {
+/// An already registered, indexed original SDR video request. No probing,
+/// decoder or media bytes are created on the caller thread. Paths and metadata
+/// are independently checked on the worker before any backend receives pixels.
+pub struct VideoInput {
     pub key: VideoKey,
     pub root: PathBuf,
     pub asset: VideoAsset,
@@ -18,10 +21,10 @@ pub(crate) struct VideoInput {
     pub budget: u64,
 }
 impl VideoInput {
-    pub fn decode(self, cancellation: &Cancellation) -> Result<Input> {
+    pub(crate) fn decode(self, cancellation: &Cancellation) -> Result<Input> {
         self.decode_checked(cancellation, &|| Ok(()))
     }
-    pub fn decode_checked(
+    pub(crate) fn decode_checked(
         self,
         cancellation: &Cancellation,
         check: &dyn Fn() -> crate::Result<()>,

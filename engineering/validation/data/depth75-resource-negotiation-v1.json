@@ -1,0 +1,38 @@
+{
+  "status": "existing_admission_controls_and_current_resource_boundary_audited",
+  "current_source": "27906e8245acc20643fc3bf80d6e2b9142bd8aab",
+  "original_full_source": "dc17b0071e79e5485882c8cce5f0be2fe8e50757",
+  "original_full_session": 82855,
+  "original_full_remains_failed": true,
+  "original_stdout_sha256": "2a760978b58a9ecf32bb9f0ad2d45cce965c33dcdd74ced2211f893ebcbc03f9",
+  "named_original_pass_occurrences": {
+    "a_later_alias_read_prevents_intermediate_slot_reuse": 1,
+    "accounting_and_single_byte_budget_difference_are_refused": 1,
+    "alias_cycles_extent_changes_and_missing_owners_are_refused": 1,
+    "current_read_write_alias_and_unproduced_source_are_refused": 1,
+    "device_buffer_and_alignment_limits_are_checked_without_division_by_zero": 1,
+    "identity_unknown_fields_and_unqualified_contracts_are_refused": 1,
+    "reusable_slots_preserve_alias_reads_and_final_output_lifetime": 1,
+    "service_admission::tests::admits_only_the_next_sequence_in_a_fresh_owned_request_directory": 1,
+    "service_admission::tests::refuses_unknown_fields_and_relative_paths": 1
+  },
+  "source_sha256": {
+    "desktop/app/src/depth_worker/main.rs": "dc1f7fa24241a48494f781f5007b632888aaeda445a9e2fb2df4e2d70c9761d9",
+    "desktop/app/src/depth_worker/graph_admission.rs": "e246b54ddf71c60cc49b3d09da71ce43fda01a21d8fb85925692a80b12db0e42",
+    "desktop/app/src/depth_worker/graph_runtime_impl.rs": "659034ad31b4f4a66b0d1cb4c8e99710648453554424483258abd6abb4ea23c8",
+    "desktop/app/src/depth_worker/service_admission.rs": "4f4864c0517b17d5988ef7145a65168fc0426d9b615400c41de5f66c1840187d",
+    "crates/motion-host/src/depth/wgsl.rs": "184ce98b21605296dac86d7801de3b9ea942a19745e4e99493b723e4311a6773",
+    "crates/motion-host/src/depth/wgsl/service.rs": "54ba1753f2809dda0585dfdfa44af33006850472b912483735b2d7069e7273d9",
+    "crates/motion-host/src/depth/wgsl/identity.rs": "2f095c57cfa7c978866d7d8ae93e9ed8b692af6fe6622ebe5a092fe1010dc5ec",
+    "crates/motion-host/src/depth/capability/policy.rs": "c9709cae5188b7c2511d98497701ab6ce05743d217c7f62e63a12c863bd481c0",
+    "crates/motion-host/src/depth/storage.rs": "5f7cb04c15088bb22e240340c9f144807baa71cbef0d17308924def4465ebea2",
+    "crates/motion-effects/src/package.rs": "3c60011a277d244c4ee1276d6918bb8a194dea848b39e881534f12d3274972a9",
+    "crates/motion-effects/src/shader.rs": "71a9f83d80f9dd9aec75799f49688d2e4ec60eefb01eb43e69301cb97d63e23d",
+    "tools/package_desktop.py": "6934ada26f67ccba67b8e2f4acd97460a24e4db41c93e8b342fecbd0e03babbc"
+  },
+  "limits": [
+    "This is static source review plus verification of original output, not a new execution",
+    "The current research plan is separate from generic image-effect package capabilities",
+    "No installed model, quality admission, distribution or compatibility claim follows"
+  ]
+}

@@ -4,6 +4,7 @@
 use super::{Backend, Cancellation, Costs, Error, Estimate, Input, Result};
 use motion_model::depth::{DepthDescriptor, DepthMeasure, DepthResource, NearDirection};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::{
     fs,
     io::Read,
@@ -67,6 +68,22 @@ mod profile_tests {
                 "inference":1,"output_copy":1,"postprocess":1}
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn memory_report_retains_unavailable_and_rejects_inconsistent_counters() {
+        use super::super::capability::memory::{Method, ProcessPeak};
+        let mut observed = report(PROCESSING, 3_219_888, 1_073_296);
+        observed.inference_process_memory = Some(ProcessPeak::Unavailable {
+            pid: 75, cause: "original OS query failure".into(),
+        });
+        let digest = "a".repeat(64);
+        observed.validate_identity(PROCESSING, &digest, [12, 8]).unwrap();
+        observed.inference_process_memory = Some(ProcessPeak::Observed {
+            pid: 75, method: Method::GetrusageLinux,
+            peak_resident_bytes: 4096, peak_private_commit_bytes: Some(4096),
+        });
+        assert!(observed.validate_identity(PROCESSING, &digest, [12, 8]).is_err());
     }
 
     #[test]
@@ -145,6 +162,8 @@ pub struct Onnx {
     config: Config,
     last_provider: Option<String>,
     last_diagnostic: Option<String>,
+    execution: Option<super::cache::Execution>,
+    resolution_memory: Option<crate::process_memory::ProcessPeak>,
 }
 impl Onnx {
     /// Construction does not load a model or runtime on the caller's thread.
@@ -161,6 +180,8 @@ impl Onnx {
             config,
             last_provider: None,
             last_diagnostic: None,
+            execution: None,
+            resolution_memory: None,
         })
     }
 
@@ -169,6 +190,7 @@ impl Onnx {
         input: &Input,
         cancellation: &Cancellation,
         directory: &std::path::Path,
+        execution: Option<&super::cache::Execution>,
     ) -> Result<Estimate> {
         let transport_began = Instant::now();
         cancellation.check()?;
@@ -207,6 +229,7 @@ impl Onnx {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        if execution.is_some() { command.arg("--attest"); }
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -217,6 +240,11 @@ impl Onnx {
         let output_transport_began = Instant::now();
         let report: Report = serde_json::from_slice(&stdout)?;
         report.validate_identity(processing, &digest, input.size())?;
+        if let Some(expected) = execution {
+            if report.execution.as_ref() != Some(expected) {
+                return Err(Error::Invalid("executing runtime differs from pre-lookup cache identity"));
+            }
+        }
         if report.providers.is_empty()
             || report.providers.len() > 4
             || report
@@ -278,6 +306,7 @@ impl Onnx {
             resource,
             provider,
             costs: Costs {
+                adapter_memory_samples: None,
                 source_prepare: Duration::ZERO,
                 source_rgb_bytes: 0,
                 total: Duration::ZERO, // Filled after temporary cleanup in infer().
@@ -291,12 +320,67 @@ impl Onnx {
                 alignment: Duration::ZERO,
                 input_bytes: report.input_host_copy_bytes,
                 output_bytes: report.output_host_copy_bytes,
+                child_process_memory: Some(crate::process_memory::Children::Onnx {
+                    resolution: if execution.is_some() { self.resolution_memory.take() } else { None },
+                    inference: report.inference_process_memory.clone(),
+                }),
+                inference_process_memory: report.inference_process_memory,
             },
         })
     }
 }
 
 impl Backend for Onnx {
+    fn execution_identity(&mut self, input: &Input, cancellation: &Cancellation)
+        -> Result<Option<super::cache::Execution>> {
+        self.execution = None;
+        self.resolution_memory = None;
+        cancellation.check()?;
+        if !matches!(self.config.provider, Provider::Cpu) { return Ok(None); }
+        fs::create_dir_all(&self.config.scratch)?;
+        let temporary = tempfile::Builder::new().prefix("motion-depth-resolve-").tempdir_in(&self.config.scratch)?;
+        let result = (|| {
+            let directory = temporary.path();
+            fs::write(directory.join("worker.py"), WORKER)?;
+            let digest: String = input.key().model.sha256.iter().map(|b| format!("{b:02x}")).collect();
+            let [width, height] = input.size();
+            fs::write(directory.join("request.json"), serde_json::to_vec(&serde_json::json!({
+                "schema":1,"model":self.config.model,"sha256":digest,"processing":input.key().model.processing,
+                "width":width,"height":height,"provider":self.config.provider.name()}))?)?;
+            let mut command = Command::new(&self.config.python);
+            command.arg("-I").arg("-B").arg(directory.join("worker.py")).arg(directory).arg("--resolve")
+                .env("TMP",directory).env("TEMP",directory).env("PYTHONDONTWRITEBYTECODE","1")
+                .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+            #[cfg(windows)] {
+                use std::os::windows::process::CommandExt;
+                command.creation_flags(0x08000000);
+            }
+            let (stdout, stderr) = capture(&mut command, cancellation)?;
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Resolved { schema: u32, execution: super::cache::Execution, process_memory: Option<crate::process_memory::ProcessPeak> }
+            let resolved: Resolved = serde_json::from_slice(&stdout)?;
+            if let Some(memory) = &resolved.process_memory { memory.validate().map_err(Error::Invalid)?; }
+            resolved.execution.validate()?;
+            if resolved.schema != 1 || resolved.execution.backend != "onnx"
+                || resolved.execution.provider != "CPUExecutionProvider" || resolved.execution.precision != "float32"
+                || resolved.execution.plan_sha256 != <[u8;32]>::from(Sha256::digest(WORKER.as_bytes())) {
+                return Err(Error::Invalid("unqualified CPU cache execution attestation"));
+            }
+            if !stderr.is_empty() && self.last_diagnostic.as_ref() != Some(&stderr) {
+                log::warn!("operation=depth_runtime asset={} phase=cache_resolve cause={}", input.key().source.asset, stderr);
+                self.last_diagnostic = Some(stderr);
+            }
+            cancellation.check()?;
+            Ok((resolved.execution, resolved.process_memory))
+        })();
+        match (result, temporary.close()) {
+            (Ok((execution, memory)), Ok(())) => { self.execution = Some(execution.clone()); self.resolution_memory = memory; Ok(Some(execution)) },
+            (Err(primary), Ok(())) => Err(primary),
+            (Err(primary), Err(cleanup)) => Err(Error::Cleanup { primary: Box::new(primary), cleanup }),
+            (Ok(_), Err(cleanup)) => Err(cleanup.into()),
+        }
+    }
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate> {
         let began = Instant::now();
         cancellation.check()?;
@@ -304,7 +388,8 @@ impl Backend for Onnx {
         let temporary = tempfile::Builder::new()
             .prefix("motion-depth-")
             .tempdir_in(&self.config.scratch)?;
-        let result = self.infer_in(input, cancellation, temporary.path());
+        let execution = self.execution.take();
+        let result = self.infer_in(input, cancellation, temporary.path(), execution.as_ref());
         match (result, temporary.close()) {
             (Ok(mut estimate), Ok(())) => {
                 estimate.costs.total = began.elapsed();
@@ -331,6 +416,8 @@ struct CostsNs {
 }
 #[derive(Deserialize)]
 struct Report {
+    inference_process_memory: Option<super::capability::memory::ProcessPeak>,
+    execution: Option<super::cache::Execution>,
     schema: u32,
     sha256: String,
     processing: String,
@@ -347,6 +434,7 @@ struct Report {
 
 impl Report {
     fn validate_identity(&self, processing: &str, digest: &str, size: [u32; 2]) -> Result<()> {
+        if let Some(memory) = &self.inference_process_memory { memory.validate().map_err(Error::Invalid)?; }
         let side = processing_side(processing).map(u64::from);
         if self.schema != 1
             || self.sha256 != digest
@@ -404,6 +492,7 @@ fn drain(
     overflow: Arc<AtomicBool>,
 ) -> std::io::Result<Vec<u8>> {
     let mut kept = Vec::with_capacity(limit);
+    let mut head = Vec::new();
     let mut chunk = [0u8; 2048];
     let mut total = 0usize;
     loop {
@@ -416,25 +505,71 @@ fn drain(
             overflow.store(true, Ordering::Release);
         }
         if tail {
-            if n >= limit {
-                kept.clear();
-                kept.extend_from_slice(&chunk[n - limit..n]);
+            // Keep the fatal-stack header and the final original cause. A long
+            // extension-module list/backtrace must not displace either end.
+            let prefix = n.min((limit / 2).saturating_sub(head.len()));
+            head.extend_from_slice(&chunk[..prefix]);
+            let part = &chunk[prefix..n];
+            let tail_limit = limit - limit / 2;
+            if tail_limit == 0 {
                 continue;
             }
-            let excess = kept.len().saturating_add(n).saturating_sub(limit);
+            if part.len() >= tail_limit {
+                kept.clear();
+                kept.extend_from_slice(&part[part.len() - tail_limit..]);
+                continue;
+            }
+            let excess = kept
+                .len()
+                .saturating_add(part.len())
+                .saturating_sub(tail_limit);
             if excess > 0 {
                 kept.drain(..excess);
             }
-            kept.extend_from_slice(&chunk[..n]);
+            kept.extend_from_slice(part);
         } else {
             let take = n.min(limit.saturating_sub(kept.len()));
             kept.extend_from_slice(&chunk[..take]);
         }
     }
-    Ok(kept)
+    if tail {
+        if total > limit {
+            const OMITTED: &[u8] = b"\n[stderr middle omitted]\n";
+            let marker = &OMITTED[..OMITTED.len().min(head.len())];
+            head.truncate(head.len() - marker.len());
+            head.extend_from_slice(marker);
+        }
+        head.extend_from_slice(&kept);
+        Ok(head)
+    } else {
+        Ok(kept)
+    }
 }
 
-pub(super) fn capture(command: &mut Command, cancellation: &Cancellation) -> Result<(Vec<u8>, String)> {
+fn diagnostic_summary(text: &str) -> String {
+    const LIMIT: usize = 512;
+    const OMITTED: &str = "\n[stderr middle omitted]\n";
+    if text.chars().count() <= LIMIT {
+        return text.to_owned();
+    }
+    let prefix = LIMIT / 2;
+    let suffix = LIMIT - prefix - OMITTED.chars().count();
+    let head = text.chars().take(prefix).collect::<String>();
+    let tail = text
+        .chars()
+        .rev()
+        .take(suffix)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    format!("{head}{OMITTED}{tail}")
+}
+
+pub(super) fn capture(
+    command: &mut Command,
+    cancellation: &Cancellation,
+) -> Result<(Vec<u8>, String)> {
     let mut owner = ChildOwner {
         child: command.spawn()?,
         reaped: false,
@@ -485,24 +620,30 @@ pub(super) fn capture(command: &mut Command, cancellation: &Cancellation) -> Res
         .join()
         .map_err(|p| Error::Panic(super::panic_cause(p.as_ref())))??;
     let stderr = String::from_utf8_lossy(&stderr);
-    let stderr = stderr
-        .chars()
-        .skip(stderr.chars().count().saturating_sub(512))
-        .collect::<String>();
     cancellation.check()?;
     if overflow.load(Ordering::Acquire) {
         return Err(Error::Invalid("runtime stdout exceeds protocol budget"));
     }
     if !status.is_some_and(|status| status.success()) {
+        // Retain the bounded stack before temporary directories disappear.
+        // Stdout remains the protocol channel; it is never used for logging.
+        if !stderr.is_empty() {
+            log::error!(
+                "operation=depth_runtime phase=child_exit pid={} status={status:?} stderr={stderr}",
+                owner.child.id()
+            );
+            log::logger().flush();
+        }
         return Err(Error::Backend(format!(
-            "runtime exit={status:?} response={} stderr={stderr}",
+            "runtime exit={status:?} response={} stderr={}",
             String::from_utf8_lossy(&stdout)
                 .chars()
                 .take(2048)
-                .collect::<String>()
+                .collect::<String>(),
+            diagnostic_summary(&stderr)
         )));
     }
-    Ok((stdout, stderr))
+    Ok((stdout, diagnostic_summary(&stderr)))
 }
 
 #[cfg(test)]

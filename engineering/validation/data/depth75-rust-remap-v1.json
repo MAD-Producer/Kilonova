@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "archive": "depth75-rust-remap-v1.zip",
+  "bytes": 56741,
+  "sha256": "cc48e37dfc76a07cf0d4ad6f603f19e96656ec5b1bdd0c08188d26e83d58bb27",
+  "scope": "Explicit Rust host remap, component controls and32 exact complete outputs; original Python fault remains; not device qualification",
+  "members": {
+    "actual-cohort.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual-cohort.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "cohort/logs/motion-studio.log": {
+      "bytes": 60085,
+      "sha256": "5c45d9c887120bbe28b0f06e93385d96ce4f85bc5cbd1b223baa5ad29031ab9c"
+    },
+    "cohort/measurements.json": {
+      "bytes": 185363,
+      "sha256": "809ccf627fed7f9e24dd8aec3006b7f2c39debf11c32fb9647898128327df780"
+    },
+    "collector.py": {
+      "bytes": 2060,
+      "sha256": "35e83fb7055b6f9738eff45361fc3828718126cfc6af9092f184cc80cc8a2999"
+    },
+    "consumer.py": {
+      "bytes": 2030,
+      "sha256": "5768fbedfde6890cb4e4de9cf64d641911c768e10c29fa73c5f3885d69fdcb4c"
+    },
+    "controller.py": {
+      "bytes": 8423,
+      "sha256": "22902fd9f4fc6cf6af21a3c6b52cf8e957ff8005373a1251acaf05998ee34f59"
+    },
+    "example-build.stderr.log": {
+      "bytes": 1008,
+      "sha256": "854eef30a3295e07f42aac60f300d49ce583e0369cf15f051e0d69dc825c69eb"
+    },
+    "example-build.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "example-tests.stderr.log": {
+      "bytes": 1161,
+      "sha256": "54c37ea1a9dcc5c27ffa4ae7ca10dd33a55555cbe11810aaf2f02c04885bffa2"
+    },
+    "example-tests.stdout.log": {
+      "bytes": 359,
+      "sha256": "8acfa43dcda52f476761fe42c6441b99880d08ed87123c5443a5306cc7e8f549"
+    },
+    "frozen-source/crates/motion-host/examples/depth_reference.rs": {
+      "bytes": 19310,
+      "sha256": "8a752ff4e68b3a936cdb7c5846939678703a598cc05364341fff0744561e3531"
+    },
+    "frozen-source/crates/motion-host/src/depth/wgsl.rs": {
+      "bytes": 33335,
+      "sha256": "184ce98b21605296dac86d7801de3b9ea942a19745e4e99493b723e4311a6773"
+    },
+    "frozen-source/crates/motion-host/src/depth/wgsl/identity.rs": {
+      "bytes": 12473,
+      "sha256": "2f095c57cfa7c978866d7d8ae93e9ed8b692af6fe6622ebe5a092fe1010dc5ec"
+    },
+    "frozen-source/crates/motion-host/src/depth/wgsl/rust_remap.rs": {
+      "bytes": 14645,
+      "sha256": "1ce62ff65a713f3b99242a6c9b26dcb1d744a573fe270f1d9de4f5f8d52b4129"
+    },
+    "frozen-source/crates/motion-host/src/process_memory.rs": {
+      "bytes": 19386,
+      "sha256": "60f33edeb12449e4c4a05fafc57f8bd72d5b2055ef90f79eefba625f2bb029b3"
+    },
+    "memory-components.stderr.log": {
+      "bytes": 1035,
+      "sha256": "522106b5a1dc56cac12a74f31b0055f21072eee82d54af163f70a5fc89daf59b"
+    },
+    "memory-components.stdout.log": {
+      "bytes": 693,
+      "sha256": "98871dcf92cc5b2162bc759de09bb1c0fe59b1cccc1637e06e545c74f8a376e6"
+    },
+    "receipt.json": {
+      "bytes": 9575,
+      "sha256": "c4de303741c02bdcf25bf38e222396bbccec4db59be517ff2ca9de7fb2300cbd"
+    },
+    "session-consumed.json": {
+      "bytes": 300,
+      "sha256": "1c86702335fcf5414a13330c5e25905739a82b81eb2417ef31a00ac42941ceaf"
+    },
+    "wgsl-components.stderr.log": {
+      "bytes": 1136,
+      "sha256": "f1609e7beba2ed08f109afea008468b911e056e95bf566efd6d14fb461b7bfd9"
+    },
+    "wgsl-components.stdout.log": {
+      "bytes": 3535,
+      "sha256": "2d3f54c3fec9061db424d22e93b2accde362889593e237d158234ad252dc4d25"
+    }
+  }
+}

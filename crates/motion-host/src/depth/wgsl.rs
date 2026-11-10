@@ -2,7 +2,7 @@
 //! All three child phases are owned/reaped directly by this backend. The render
 //! session and its device are never passed to the inference worker. Quality and
 //! model processing identity stay independent of the execution backend.
-use super::{Backend, Cancellation, Costs, Error, Estimate, Input, Result};
+use super::{Backend, Cancellation, Costs, Error, Estimate, Input, Key, Result, cache::Execution};
 use motion_model::depth::{DepthDescriptor, DepthMeasure, DepthResource, NearDirection};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -22,6 +22,10 @@ const SIDE: u64 = 518;
 const TENSOR_BYTES: u64 = 3 * SIDE * SIDE * 4;
 const DEPTH_BYTES: u64 = SIDE * SIDE * 4;
 const BUFFER_BYTES: u64 = 227_968_156;
+mod identity;
+mod service;
+mod rust_remap;
+use identity::Attestation;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Hardware {
@@ -60,6 +64,14 @@ pub struct Wgsl {
     config: Config,
     last_diagnostic: Option<String>,
     last_provider: Option<String>,
+    attestation: Option<Attestation>,
+    retained_gpu_buffers: Option<(Key, u64)>,
+    retained: bool,
+    service: Option<service::Service>,
+    service_attestation: Option<Attestation>,
+    service_failed: bool,
+    rust_remap: bool,
+    rust_remap_execution: Option<Execution>,
 }
 impl Wgsl {
     pub fn new(config: Config) -> Result<Self> {
@@ -80,7 +92,66 @@ impl Wgsl {
             config,
             last_diagnostic: None,
             last_provider: None,
+            attestation: None,
+            retained_gpu_buffers: None,
+            retained: false,
+            service: None,
+            service_attestation: None,
+            service_failed: false,
+            rust_remap: false,
+            rust_remap_execution: None,
         })
+    }
+    /// Explicit retained-process mode. Cancellation or a protocol/GPU failure
+    /// closes this backend permanently; construct a new backend deliberately
+    /// to start another process. No automatic restart, retry or fallback.
+    pub fn new_retained(config: Config) -> Result<Self> {
+        let mut backend = Self::new(config)?;
+        backend.retained = true;
+        Ok(backend)
+    }
+    /// Explicit retained GPU mode with independently authored host remapping.
+    /// Python/NumPy/OpenCV still perform RGB preparation and attestation. This
+    /// eliminates only the separate remap child, not all Python/native faults.
+    /// Cache/profile identity includes the host executable and remap procedure.
+    pub fn new_retained_rust_remap(config: Config) -> Result<Self> {
+        let mut backend = Self::new_retained(config)?;
+        backend.rust_remap = true;
+        Ok(backend)
+    }
+    fn ensure_service(
+        &mut self,
+        input: &Input,
+        cancellation: &Cancellation,
+    ) -> Result<Attestation> {
+        if self.service_failed {
+            return Err(Error::Invalid(
+                "retained WGSL backend has closed; no implicit restart",
+            ));
+        }
+        if let Some(attestation) = self.service_attestation.clone() {
+            identity::worker_unchanged(
+                &self.config.worker,
+                input,
+                cancellation,
+                attestation.worker_sha256,
+            )?;
+            return Ok(attestation);
+        }
+        let attestation = self.resolve_cache_identity(input, cancellation)?;
+        let service = service::Service::start(&self.config, &attestation, input, cancellation)?;
+        self.service = Some(service);
+        self.service_attestation = Some(attestation.clone());
+        Ok(attestation)
+    }
+    fn close_failed_service(&mut self, primary: Error) -> Error {
+        self.service_failed = true;
+        self.service_attestation = None;
+        self.rust_remap_execution = None;
+        match self.service.take() {
+            Some(mut service) => service.failure(primary),
+            None => primary,
+        }
     }
     fn child(
         &mut self,
@@ -103,6 +174,7 @@ impl Wgsl {
             "operation=depth_wgsl asset={} phase={phase} start",
             input.key().source.asset
         );
+        log::logger().flush();
         let began = Instant::now();
         let (stdout, stderr) =
             super::onnx::capture(&mut command, cancellation).map_err(|error| {
@@ -136,6 +208,7 @@ impl Wgsl {
         );
         Ok(stdout)
     }
+    #[allow(clippy::too_many_arguments)]
     fn transform(
         &mut self,
         root: &Path,
@@ -144,16 +217,27 @@ impl Wgsl {
         rgb: &str,
         depth: Option<&str>,
         cancellation: &Cancellation,
+        expected: Option<&Execution>,
     ) -> Result<Transform> {
+        if self.rust_remap && stage == "remap" {
+            let report = rust_remap::run(root, input, rgb, depth, cancellation)?;
+            report.validate(input, stage, rgb, depth)?;
+            return Ok(report);
+        }
         let [width, height] = input.size();
         let request = serde_json::json!({"schema":1,"stage":stage,"processing":super::onnx::PROCESSING,
             "width":width,"height":height,"rgb_sha256":rgb,"depth_sha256":depth});
         fs::write(root.join("transform.json"), serde_json::to_vec(&request)?)?;
         // Isolated Python deliberately omits the script directory from sys.path.
         // The tiny -c loader admits exactly our generated, owned module root.
-        let command = python_transform(&self.config.python, root);
+        let mode = if expected.is_some() {
+            TransformInvocation::Attest
+        } else {
+            TransformInvocation::Plain
+        };
+        let command = python_transform(&self.config.python, root, mode);
         let stdout = self.child(command, input, stage, cancellation)?;
-        let report: Transform = serde_json::from_slice(&stdout)?;
+        let report = Transform::decode(&stdout, expected)?;
         report.validate(input, stage, rgb, depth)?;
         Ok(report)
     }
@@ -162,7 +246,8 @@ impl Wgsl {
         root: &Path,
         input: &Input,
         cancellation: &Cancellation,
-    ) -> Result<Estimate> {
+        attestation: Option<&Attestation>,
+    ) -> Result<(Estimate, u64)> {
         cancellation.check()?;
         let model = input
             .key()
@@ -178,10 +263,24 @@ impl Wgsl {
         }
         fs::write(root.join("depth_tensor.py"), TRANSFORM)?;
         fs::write(root.join("ai_depth_onnx.py"), SHARED)?;
+        if let Some(expected) = attestation {
+            fs::write(
+                root.join("transform-execution.json"),
+                serde_json::to_vec(&expected.transform)?,
+            )?;
+        }
         fs::write(root.join("input.rgb"), input.rgb())?;
         let rgb = digest(input.rgb());
         let pre_began = Instant::now();
-        let prepared = self.transform(root, input, "prepare", &rgb, None, cancellation)?;
+        let prepared = self.transform(
+            root,
+            input,
+            "prepare",
+            &rgb,
+            None,
+            cancellation,
+            attestation.map(|a| &a.transform),
+        )?;
         let pre = pre_began.elapsed();
         let tensor = read_owned(
             &root.join("tensor.f32"),
@@ -198,17 +297,40 @@ impl Wgsl {
         fs::write(&native_path, &native_request)?;
         let native_root = root.join("native");
         let mut command = Command::new(&self.config.worker);
+        if let Some(expected) = attestation {
+            identity::worker_unchanged(
+                &self.config.worker,
+                input,
+                cancellation,
+                expected.worker_sha256,
+            )?;
+            let path = root.join("native-execution.json");
+            fs::write(&path, serde_json::to_vec(&expected.native)?)?;
+            command.arg("--attest").arg(path);
+        }
         command
             .arg(&native_path)
             .arg(&native_root)
             .env("TMP", root)
             .env("TEMP", root);
         let gpu_began = Instant::now();
-        let stdout = match self.child(command, input, "native_inference", cancellation) {
+        let invocation = if self.retained {
+            self.service
+                .as_mut()
+                .ok_or(Error::Invalid("retained WGSL service missing"))?
+                .infer(&native_path, &native_root, cancellation)
+                .map(|()| Vec::new())
+        } else {
+            self.child(command, input, "native_inference", cancellation)
+        };
+        let stdout = match invocation {
             Ok(result) => result,
             Err(Error::Canceled) => {
                 if let Some(cause) = completed_panic(&native_root) {
-                    log::error!("operation=depth_wgsl asset={} phase=native_panic_during_cancellation cause={cause}", input.key().source.asset);
+                    log::error!(
+                        "operation=depth_wgsl asset={} phase=native_panic_during_cancellation cause={cause}",
+                        input.key().source.asset
+                    );
                 }
                 return Err(Error::Canceled);
             }
@@ -231,9 +353,12 @@ impl Wgsl {
         if !stdout.is_empty() {
             return Err(Error::Invalid("native WGSL worker wrote to stdout"));
         }
-        let report: Native =
-            serde_json::from_slice(&read_limited(&native_root.join("receipt.json"), 65536)?)?;
+        let receipt = read_limited(&native_root.join("receipt.json"), 65536)?;
+        let report: Native = serde_json::from_slice(&receipt)?;
         report.validate(self.config.hardware, &digest(&native_request))?;
+        if let Some(expected) = attestation {
+            expected.validate_native_result(&serde_json::from_slice(&receipt)?, &report)?;
+        }
         let depth = read_owned(
             &native_root.join("relative_inverse_depth.f32"),
             DEPTH_BYTES,
@@ -249,6 +374,7 @@ impl Wgsl {
             &rgb,
             Some(&report.output_sha256),
             cancellation,
+            attestation.map(|a| &a.transform),
         )?;
         let post = post_began.elapsed();
         let bytes = read_owned(
@@ -281,41 +407,159 @@ impl Wgsl {
         )?;
         let provider = format!("WGSL:{}:{}", report.adapter.backend, report.adapter.name);
         if self.last_provider.as_ref() != Some(&provider) {
-            log::info!("operation=depth_wgsl asset={} requested_backend={} resolved_backend={} adapter={} model={} retained_buffer_bytes={BUFFER_BYTES}",
-                key.source.asset,self.config.hardware.requested(),report.adapter.backend,report.adapter.name,model);
+            log::info!(
+                "operation=depth_wgsl asset={} requested_backend={} resolved_backend={} adapter={} model={} retained_buffer_bytes={BUFFER_BYTES}",
+                key.source.asset,
+                self.config.hardware.requested(),
+                report.adapter.backend,
+                report.adapter.name,
+                model
+            );
             self.last_provider = Some(provider.clone());
         }
-        Ok(Estimate {
-            resource,
-            provider,
-            costs: Costs {
-                preprocess: pre,
-                inference: gpu,
-                postprocess: post,
-                input_bytes: TENSOR_BYTES,
-                output_bytes: DEPTH_BYTES,
-                ..Costs::default()
+        Ok((
+            Estimate {
+                resource,
+                provider,
+                costs: Costs {
+                    preprocess: pre,
+                    inference: gpu,
+                    postprocess: post,
+                    input_bytes: TENSOR_BYTES,
+                    output_bytes: DEPTH_BYTES,
+                    child_process_memory: Some(if self.rust_remap {
+                        crate::process_memory::Children::WgslRetainedHostRemap {
+                            resolution_transform: attestation.and_then(|a| a.transform_memory.clone()),
+                            resolution_native: attestation.and_then(|a| a.native_memory.clone()),
+                            prepare: prepared.process_memory,
+                            inference: report.inference_process_memory.clone(),
+                            host_remap: remapped.process_memory,
+                        }
+                    } else if self.retained {
+                        crate::process_memory::Children::WgslRetained {
+                            resolution_transform: attestation
+                                .and_then(|a| a.transform_memory.clone()),
+                            resolution_native: attestation.and_then(|a| a.native_memory.clone()),
+                            prepare: prepared.process_memory,
+                            inference: report.inference_process_memory.clone(),
+                            remap: remapped.process_memory,
+                        }
+                    } else {
+                        crate::process_memory::Children::Wgsl {
+                            resolution_transform: attestation
+                                .and_then(|a| a.transform_memory.clone()),
+                            resolution_native: attestation.and_then(|a| a.native_memory.clone()),
+                            prepare: prepared.process_memory,
+                            inference: report.inference_process_memory.clone(),
+                            remap: remapped.process_memory,
+                        }
+                    }),
+                    inference_process_memory: report.inference_process_memory,
+                    adapter_memory_samples: Some(report.adapter_memory_samples),
+                    ..Costs::default()
+                },
             },
-        })
+            report.actual_retained_buffer_capacity_bytes,
+        ))
     }
 }
 impl Backend for Wgsl {
+    fn retained_gpu_buffer_capacity(&self, input: &Input) -> Option<u64> {
+        self.retained_gpu_buffers
+            .as_ref()
+            .filter(|(key, _)| key.same_sample(input.key()))
+            .map(|(_, capacity)| *capacity)
+    }
+    fn execution_identity(
+        &mut self,
+        input: &Input,
+        cancellation: &Cancellation,
+    ) -> Result<Option<Execution>> {
+        self.attestation = None;
+        self.retained_gpu_buffers = None;
+        let attestation = if self.retained {
+            match self.ensure_service(input, cancellation) {
+                Ok(value) => value,
+                Err(error) => return Err(self.close_failed_service(error)),
+            }
+        } else {
+            self.resolve_cache_identity(input, cancellation)?
+        };
+        let mut execution = if self.retained {
+            attestation.combined_retained()?
+        } else {
+            attestation.combined()?
+        };
+        if self.rust_remap {
+            let local = match rust_remap::resolve(input, cancellation) {
+                Ok(local) => local,
+                Err(primary) => return Err(self.close_failed_service(primary)),
+            };
+            execution = match rust_remap::combine(&execution, &local) {
+                Ok(execution) => execution,
+                Err(primary) => return Err(self.close_failed_service(primary)),
+            };
+            self.rust_remap_execution = Some(local);
+        }
+        self.attestation = Some(attestation);
+        Ok(Some(execution))
+    }
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate> {
+        self.retained_gpu_buffers = None;
         let began = Instant::now();
         cancellation.check()?;
         fs::create_dir_all(&self.config.scratch)?;
+        if self.retained {
+            match self.ensure_service(input, cancellation) {
+                Ok(attestation) => self.attestation = Some(attestation),
+                Err(error) => return Err(self.close_failed_service(error)),
+            }
+        }
+        if self.rust_remap {
+            let checked = rust_remap::resolve(input, cancellation).and_then(|actual| {
+                if self.rust_remap_execution.as_ref().is_some_and(|expected| expected != &actual) {
+                    return Err(Error::Invalid("host remap execution changed since cache resolution"));
+                }
+                self.rust_remap_execution = Some(actual);
+                Ok(())
+            });
+            if let Err(primary) = checked {
+                return Err(self.close_failed_service(primary));
+            }
+        }
+        let scratch = self
+            .service
+            .as_ref()
+            .map(|s| s.workspace())
+            .unwrap_or(&self.config.scratch);
         let directory = tempfile::Builder::new()
             .prefix("motion-depth-wgsl-")
-            .tempdir_in(&self.config.scratch)?;
-        let result = self.infer_in(directory.path(), input, cancellation);
-        match (result, directory.close()) {
-            (Ok(mut estimate), Ok(())) => {
+            .tempdir_in(scratch)?;
+        let attestation = self.attestation.take();
+        let result = self.infer_in(directory.path(), input, cancellation, attestation.as_ref());
+        // Stop/reap the worker first, but retain its owning workspace until the
+        // nested request directory is closed. Dropping Service here would
+        // delete the nested directory and turn cancellation into Cleanup error.
+        let mut failed_service = if self.retained && result.is_err() {
+            self.service_failed = true;
+            self.service_attestation = None;
+            self.service.take()
+        } else {
+            None
+        };
+        let result = result.map_err(|primary| match failed_service.as_mut() {
+            Some(service) => service.failure(primary),
+            None => primary,
+        });
+        let result = match (result, directory.close()) {
+            (Ok((mut estimate, capacity)), Ok(())) => {
                 estimate.costs.total = began.elapsed();
                 estimate.costs.host_transport = estimate.costs.total.saturating_sub(
                     estimate.costs.preprocess
                         + estimate.costs.inference
                         + estimate.costs.postprocess,
                 );
+                self.retained_gpu_buffers = Some((input.key().clone(), capacity));
                 Ok(estimate)
             }
             (Err(primary), Err(cleanup)) => Err(Error::Cleanup {
@@ -324,13 +568,31 @@ impl Backend for Wgsl {
             }),
             (Err(error), Ok(())) => Err(error),
             (Ok(_), Err(error)) => Err(error.into()),
-        }
+        };
+        drop(failed_service);
+        result
     }
 }
-fn python_transform(python: &Path, root: &Path) -> Command {
+enum TransformInvocation {
+    Plain,
+    Resolve,
+    Attest,
+}
+fn python_transform(python: &Path, root: &Path, mode: TransformInvocation) -> Command {
     let mut command = Command::new(python);
-    command.args(["-I","-B","-c","import runpy,sys; sys.path.insert(0,sys.argv[1]); sys.argv=[sys.argv[1]+'/depth_tensor.py',sys.argv[1]]; runpy.run_path(sys.argv[0],run_name='__main__')"])
+    command.args(["-I","-B","-X","faulthandler","-c","import runpy,sys; root=sys.argv.pop(1); sys.path.insert(0,root); sys.argv[0]=root+'/depth_tensor.py'; runpy.run_path(sys.argv[0],run_name='__main__')"])
         .arg(root).env("TMP",root).env("TEMP",root).env("PYTHONDONTWRITEBYTECODE","1");
+    match mode {
+        TransformInvocation::Plain => {
+            command.arg(root);
+        }
+        TransformInvocation::Resolve => {
+            command.arg("--resolve");
+        }
+        TransformInvocation::Attest => {
+            command.arg("--attest").arg(root);
+        }
+    }
     command
 }
 fn digest(bytes: &[u8]) -> String {
@@ -427,7 +689,9 @@ fn native_error(primary: Error, root: &Path) -> Error {
         if let Some(final_panic) = last_panic(&child) {
             // The first panic may have been caught internally. The final hook
             // summary retains the later fatal cause and its actual location.
-            return Error::Backend(format!("native_panic final_cause={final_panic}; first_observation={retained}; child_failure={child}"));
+            return Error::Backend(format!(
+                "native_panic final_cause={final_panic}; first_observation={retained}; child_failure={child}"
+            ));
         }
     }
     Error::Backend(format!("{retained}; child_failure={child}"))
@@ -479,6 +743,7 @@ fn read_owned(path: &Path, length: u64, hash: &str) -> Result<Vec<u8>> {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Transform {
+    process_memory: Option<crate::process_memory::ProcessPeak>,
     schema: u32,
     stage: String,
     processing: String,
@@ -491,7 +756,31 @@ struct Transform {
     elapsed_ns: u64,
 }
 impl Transform {
+    fn decode(bytes: &[u8], expected: Option<&Execution>) -> Result<Self> {
+        if let Some(expected) = expected {
+            let mut value: serde_json::Value = serde_json::from_slice(bytes)?;
+            let actual = value
+                .as_object_mut()
+                .and_then(|v| v.remove("execution"))
+                .ok_or(Error::Invalid(
+                    "WGSL transform omitted its execution attestation",
+                ))?;
+            let actual: Execution = serde_json::from_value(actual)?;
+            actual.validate()?;
+            if &actual != expected {
+                return Err(Error::Invalid(
+                    "WGSL transform execution differs from cache resolution",
+                ));
+            }
+            Ok(serde_json::from_value(value)?)
+        } else {
+            Ok(serde_json::from_slice(bytes)?)
+        }
+    }
     fn validate(&self, input: &Input, stage: &str, rgb: &str, depth: Option<&str>) -> Result<()> {
+        if let Some(memory) = &self.process_memory {
+            memory.validate().map_err(Error::Invalid)?;
+        }
         let bytes = if stage == "prepare" {
             TENSOR_BYTES
         } else {
@@ -516,6 +805,9 @@ impl Transform {
 }
 #[derive(Deserialize)]
 struct Native {
+    pid: u32,
+    adapter_memory_samples: super::AdapterMemorySamples,
+    inference_process_memory: Option<super::capability::memory::ProcessPeak>,
     status: String,
     phase: String,
     model_sha256: String,
@@ -538,6 +830,10 @@ struct Adapter {
 }
 impl Native {
     fn validate(&self, hardware: Hardware, request: &str) -> Result<()> {
+        self.adapter_memory_samples.validate(self.pid, &self.adapter.backend)?;
+        if let Some(memory) = &self.inference_process_memory {
+            memory.validate().map_err(Error::Invalid)?;
+        }
         if self.status != "actual_complete_gpu_output_written_independent_comparison_pending"
             || self.phase != "completed"
             || self.model_sha256 != MODEL_SHA256

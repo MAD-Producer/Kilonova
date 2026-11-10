@@ -9,7 +9,11 @@ use motion_model::depth::{
     DepthGeometry, DepthModel, DepthResource, DepthSource, PreparedDepthInput,
 };
 use sha2::{Digest, Sha256};
+mod adapter_memory;
+pub use adapter_memory::AdapterMemorySamples;
 pub(crate) mod image;
+pub mod cache;
+pub mod capability;
 pub mod alignment;
 pub mod transition;
 pub mod routing;
@@ -17,6 +21,7 @@ pub mod onnx;
 pub mod wgsl;
 pub(crate) mod storage;
 pub(crate) mod video;
+pub use video::VideoInput;
 use std::{
     any::Any,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -199,6 +204,14 @@ pub struct Costs {
     pub alignment: Duration,
     pub input_bytes: u64,
     pub output_bytes: u64,
+    /// Owned inference child's lifetime OS high-water marks, when observed.
+    /// Excludes the host, other phases/processes and physical device memory.
+    pub inference_process_memory: Option<capability::memory::ProcessPeak>,
+    /// Owned native adapter observations before/after inference, not a peak,
+    /// physical capacity or an additional amount to sum with managed buffers.
+    pub adapter_memory_samples: Option<AdapterMemorySamples>,
+    /// Fixed direct-child stages only. None means the backend did not observe them.
+    pub child_process_memory: Option<crate::process_memory::Children>,
 }
 
 #[derive(Clone, Debug)]
@@ -217,6 +230,7 @@ pub struct PreparedEstimate {
     input: PreparedDepthInput,
     image: Option<motion_render::DepthImage>,
     video_end_us: Option<u64>,
+    measurement: Option<capability::Measurement>,
 }
 impl PreparedEstimate {
     pub fn estimate(&self) -> &Estimate {
@@ -225,6 +239,15 @@ impl PreparedEstimate {
     pub fn input(&self) -> PreparedDepthInput {
         self.input
     }
+    /// Present only for a successful, uncached `Jobs::start_measured` request.
+    /// Ordinary inference and cached/restored results do not qualify a device.
+    pub fn measurement(&self) -> Option<&capability::Measurement> {
+        self.measurement.as_ref()
+    }
+    /// Exclusive source interval end, established by managed-index/decoder
+    /// agreement. None for direct RGB or still-image requests. The descriptor's
+    /// source PTS is its start; the requested timeline coordinate is not a PTS.
+    pub fn video_end_us(&self) -> Option<u64> { self.video_end_us }
     pub(crate) fn into_owned_parts(
         self,
     ) -> (
@@ -283,6 +306,18 @@ impl Cancellation {
 /// implicit retries, requested-provider reports or synthetic depth are allowed.
 pub trait Backend: Send + 'static {
     fn infer(&mut self, input: &Input, cancellation: &Cancellation) -> Result<Estimate>;
+    /// Metadata from the immediately preceding successful inference for this
+    /// input. Implementations must not do IO or new work here. This is retained
+    /// managed GPU buffer capacity, not driver/process/device peak memory.
+    /// None means unobserved; zero must not stand in for an unknown value.
+    fn retained_gpu_buffer_capacity(&self, _input: &Input) -> Option<u64> { None }
+    /// Establish the actual execution environment before persistent lookup.
+    /// None means this backend cannot currently attest it, not a cache miss.
+    fn execution_identity(&mut self, _input: &Input, cancellation: &Cancellation)
+        -> Result<Option<cache::Execution>> {
+        cancellation.check()?;
+        Ok(None)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -296,6 +331,9 @@ pub struct Counts {
     pub stale: u64,
     /// Completed jobs restored from verified scalar spill data, without inference.
     pub restored: u64,
+    /// Verified persistent raw restores, separate from session video spill.
+    pub cache_hits: u64,
+    pub cache_misses: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -312,7 +350,7 @@ pub struct InFlight {
 
 /// A requested video timeline coordinate, distinct from the decoded frame PTS.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct VideoKey {
+pub struct VideoKey {
     pub object: u64,
     pub asset: u64,
     pub revision: u64,
@@ -489,18 +527,56 @@ type Shared = Arc<(Mutex<State>, Condvar)>;
 
 pub struct Jobs {
     shared: Shared,
+    bindings: Option<Arc<capability::policy::Bindings>>,
     worker: Option<JoinHandle<()>>,
 }
 
 impl Jobs {
     pub fn start(backend: impl Backend) -> Result<Self> {
+        Self::start_configured(backend, None, false, None)
+    }
+
+    /// Explicit capability probe on the same bounded serial worker. Resolve the
+    /// actual runtime before every inference, validate its returned provider,
+    /// and retain worker-owned timing. Never restore or write reusable results.
+    /// Source preparation is included; queueing and caller-side IO are not.
+    /// This does not certify quality, peak memory, or sustained performance.
+    pub fn start_measured(backend: impl Backend) -> Result<Self> {
+        Self::start_configured(backend, None, true, None)
+    }
+
+    /// Explicit, strict persistent cache. Unsupported execution identities and
+    /// corrupt entries are failures; neither silently launches inference.
+    pub fn start_cached(backend: impl Backend, cache: cache::Config) -> Result<Self> {
+        cache.validate()?;
+        Self::start_configured(backend, Some(cache), false, None)
+    }
+
+    /// Execute only explicitly admitted configurations. Actual runtime identity
+    /// is resolved before either cache/spill reuse or inference. An unknown or
+    /// changed execution is an error, never a fallback to another binding.
+    pub fn start_qualified(backend: impl Backend, bindings: capability::policy::Bindings,
+        cache: Option<cache::Config>) -> Result<Self> {
+        if let Some(cache) = &cache { cache.validate()?; }
+        Self::start_configured(backend, cache, false, Some(bindings))
+    }
+
+    pub fn qualified_bindings(&self) -> Option<&capability::policy::Bindings> {
+        self.bindings.as_deref()
+    }
+
+    fn start_configured(backend: impl Backend, cache: Option<cache::Config>, measured: bool,
+        bindings: Option<capability::policy::Bindings>) -> Result<Self> {
         let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
         let worker_shared = shared.clone();
+        let bindings = bindings.map(Arc::new);
+        let worker_bindings = bindings.clone();
         let worker = thread::Builder::new()
             .name("motion-depth".into())
-            .spawn(move || run(backend, worker_shared))?;
+            .spawn(move || run(backend, worker_shared, cache, measured, worker_bindings))?;
         Ok(Self {
             shared,
+            bindings,
             worker: Some(worker),
         })
     }
@@ -518,6 +594,15 @@ impl Jobs {
     pub(crate) fn request_video(&mut self, input: video::VideoInput,
         store: Option<Arc<storage::Store>>) -> Result<u64> {
         self.submit(Work::Video(input, store))
+    }
+
+    /// Prepare an already registered original video on this serial worker.
+    /// Index validation, decoder creation/use/drop, transfer conversion and RGB
+    /// fingerprinting all precede inference on the worker, with no Session/GPU
+    /// handle crossing threads. No session spill is restored or written here.
+    /// With start_measured, these preparation costs are part of the observation.
+    pub fn request_video_sample(&mut self, input: VideoInput) -> Result<u64> {
+        self.request_video(input, None)
     }
 
     fn submit(&mut self, input: Work) -> Result<u64> {
@@ -590,6 +675,13 @@ impl Jobs {
         current: &VideoKey,
     ) -> Result<Option<PreparedEstimate>> {
         self.take_raw(&Identity::Video(current.clone()))
+    }
+
+    /// Independently provide the live original-video request. Object, source,
+    /// revision, requested time, geometry and model must still match. The result
+    /// retains the decoder's actual source PTS/interval and prepared RGB hash.
+    pub fn take_video_sample(&mut self, current: &VideoKey) -> Result<Option<PreparedEstimate>> {
+        self.take_video_prepared_ready(current)
     }
 
     fn take_raw(&mut self, current: &Identity) -> Result<Option<PreparedEstimate>> {
@@ -687,7 +779,11 @@ fn panic_cause(payload: &(dyn Any + Send)) -> String {
     message.chars().take(512).collect()
 }
 
-fn run(mut backend: impl Backend, shared: Shared) {
+fn run(mut backend: impl Backend, shared: Shared, cache: Option<cache::Config>, measured: bool,
+    bindings: Option<Arc<capability::policy::Bindings>>) {
+    // Measurements retain this private identity, so a future profile consumer
+    // can distinguish equal request numbers from different worker instances.
+    let measurement_scope = Arc::new(());
     loop {
         let job = {
             let Ok(mut state) = lock_state(&shared) else {
@@ -733,6 +829,8 @@ fn run(mut backend: impl Backend, shared: Shared) {
         let store = job.input.store();
         let store_root = job.input.store_root();
         let mut restored = false;
+        let mut cache_hit = false;
+        let mut cache_miss = false;
         let result = catch_unwind(AssertUnwindSafe(|| {
             job.cancellation.check()?;
             let prepare_began = Instant::now();
@@ -752,8 +850,33 @@ fn run(mut backend: impl Backend, shared: Shared) {
                 log::info!("request={} operation=depth_infer asset={} revision={} phase=source_ready pts={}/{} source_prepare_ms={}",
                     job.request,asset,revision,input.key().source.pts.ticks,input.key().source.pts.timescale,source_prepare.as_millis());
             }
+            // Resolve before *either* reusable result path. Session-local spill
+            // must not bypass a changed actual runtime/provider/plan identity.
+            let resolve_began = Instant::now();
+            let required = bindings.as_ref().map(|bindings| bindings.execution(input.key())).transpose()?;
+            let execution = if cache.is_some() || measured || required.is_some() {
+                stage = if required.is_some() { "qualified_resolve" }
+                    else if measured { "capability_resolve" } else { "cache_resolve" };
+                if required.is_some() { qualification_phase(&shared, job.request, asset, stage)?; }
+                else if measured { capability_phase(&shared, job.request, asset, stage)?; }
+                else { cache_phase(&shared, job.request, asset, stage)?; }
+                let execution = backend.execution_identity(&input, &job.cancellation)?
+                    .ok_or(Error::Invalid(if required.is_some() {
+                        "qualified inference requires an attested execution identity"
+                    } else if measured {
+                        "capability measurement requires an attested execution identity"
+                    } else { "persistent cache requires an attested execution identity" }))?;
+                execution.validate()?;
+                if let Some(required) = required {
+                    validate_qualified_execution(required, &execution)?;
+                }
+                Some(execution)
+            } else { None };
+            let resolve_elapsed = resolve_began.elapsed();
+            job.cancellation.check()?;
             let cached = match (&store, &identity) {
-                (Some(store), Identity::Video(key)) => store.lookup(key)?,
+                (Some(store), Identity::Video(key)) if !measured => store.lookup(key)?
+                    .filter(|sample| execution.is_none() || sample.execution == execution),
                 _ => None,
             };
             let mut estimate = if let Some(sample) = cached {
@@ -767,13 +890,57 @@ fn run(mut backend: impl Backend, shared: Shared) {
                 estimate.costs = Costs::default();
                 restored = true;
                 estimate
-            } else { backend.infer(&input, &job.cancellation)? };
+            } else if let Some(cache) = &cache {
+                let execution = execution.as_ref().ok_or(Error::State)?;
+                stage = "cache_read";
+                cache_phase(&shared, job.request, asset, stage)?;
+                if let Some(estimate) = cache.read(&input, prepared_input, &execution, &job.cancellation)? {
+                    cache_hit = true;
+                    estimate
+                } else {
+                    cache_miss = true;
+                    stage = "backend";
+                    cache_phase(&shared, job.request, asset, stage)?;
+                    let estimate = backend.infer(&input, &job.cancellation)?;
+                    job.cancellation.check()?;
+                    estimate.validate(input.key())?;
+                    execution.validate_result(&estimate)?;
+                    stage = "cache_write";
+                    cache_phase(&shared, job.request, asset, stage)?;
+                    cache.write(&input, prepared_input, &execution, &estimate, &job.cancellation)?;
+                    estimate
+                }
+            } else {
+                if required.is_some() {
+                    stage = "backend";
+                    qualification_phase(&shared, job.request, asset, stage)?;
+                } else if measured {
+                    stage = "backend";
+                    capability_phase(&shared, job.request, asset, stage)?;
+                }
+                backend.infer(&input, &job.cancellation)?
+            };
             job.cancellation.check()?;
             estimate.validate(input.key())?;
+            if measured || required.is_some() {
+                execution.as_ref().ok_or(Error::State)?.validate_result(&estimate)?;
+            }
+            let retained_gpu_buffers = if measured {
+                stage = "capability_metadata";
+                capability_phase(&shared, job.request, asset, stage)?;
+                let capacity = backend.retained_gpu_buffer_capacity(&input);
+                if capacity.is_some_and(|bytes| bytes == 0 || bytes > (512 << 20)) {
+                    return Err(Error::Invalid("measured GPU buffer capacity must be nonzero and at most 512 MiB"));
+                }
+                capacity
+            } else { None };
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
+            let process_memory = if measured {
+                estimate.costs.child_process_memory.clone().map(crate::process_memory::Snapshot::capture)
+            } else { None };
             estimate.costs.total = began.elapsed();
-            if !restored {
+            if !restored && !measured {
                 if let (Some(store), Identity::Video(key)) = (&store, &identity) {
                     stage = "archive_write";
                     set_phase(&shared, stage)?;
@@ -782,12 +949,24 @@ fn run(mut backend: impl Backend, shared: Shared) {
                     log::logger().flush();
                     // The root is captured with the job; no Session or GPU
                     // state is accessed on this worker.
-                    store.append(store_root.as_deref().ok_or(Error::State)?, job.request,
-                        key.object, &input, prepared_input, &estimate, &job.cancellation)?;
+                    let root = store_root.as_deref().ok_or(Error::State)?;
+                    if let Some(execution) = execution.as_ref() {
+                        store.append_qualified(root, job.request, key.object, &input, prepared_input,
+                            &estimate, Some(execution), &job.cancellation)?;
+                    } else {
+                        store.append(root, job.request, key.object, &input, prepared_input,
+                            &estimate, &job.cancellation)?;
+                    }
                 }
             }
             estimate.costs.total = began.elapsed();
-            let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image, video_end_us: input.video_end_us };
+            let measurement = if measured {
+                Some(capability::Measurement::new(measurement_scope.clone(), job.request,
+                    execution.ok_or(Error::State)?, resolve_elapsed, estimate.costs.total, retained_gpu_buffers,
+                    estimate.costs.inference_process_memory.clone(), process_memory))
+            } else { None };
+            let prepared = PreparedEstimate { estimate, input: prepared_input, image: input.image,
+                video_end_us: input.video_end_us, measurement };
             if let Some(alignment) = job.alignment {
                 stage = "alignment";
                 set_phase(&shared, stage)?;
@@ -834,6 +1013,8 @@ fn run(mut backend: impl Backend, shared: Shared) {
             return;
         };
         state.flight = None;
+        if cache_hit { state.counts.cache_hits = state.counts.cache_hits.saturating_add(1); }
+        if cache_miss { state.counts.cache_misses = state.counts.cache_misses.saturating_add(1); }
         match &result {
             Ok(_) => {
                 state.counts.completed = state.counts.completed.saturating_add(1);
@@ -869,5 +1050,53 @@ fn lock_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>> {
 
 fn set_phase(shared: &Shared, phase: &'static str) -> Result<()> {
     lock_state(shared)?.flight.as_mut().ok_or(Error::State)?.phase = phase;
+    Ok(())
+}
+
+fn cache_phase(shared: &Shared, request: u64, asset: u64, phase: &'static str) -> Result<()> {
+    set_phase(shared, phase)?;
+    log::info!("start #{} depth_cache asset={} phase={}", request, asset, phase);
+    log::logger().flush();
+    Ok(())
+}
+
+fn capability_phase(shared: &Shared, request: u64, asset: u64, phase: &'static str) -> Result<()> {
+    set_phase(shared, phase)?;
+    log::info!("start #{} depth_capability asset={} phase={}", request, asset, phase);
+    log::logger().flush();
+    Ok(())
+}
+
+fn qualification_phase(shared: &Shared, request: u64, asset: u64, phase: &'static str) -> Result<()> {
+    set_phase(shared, phase)?;
+    log::info!("start #{} depth_qualification asset={} phase={}", request, asset, phase);
+    log::logger().flush();
+    Ok(())
+}
+
+fn validate_qualified_execution(required: &cache::Execution, actual: &cache::Execution) -> Result<()> {
+    // Report the first changed field rather than two complete identities. Both
+    // sides then fit the worker's bounded Error cause, including both digests.
+    for (field, expected, resolved) in [
+        ("backend", &required.backend, &actual.backend),
+        ("provider", &required.provider, &actual.provider),
+        ("precision", &required.precision, &actual.precision),
+    ] {
+        if expected != resolved {
+            return Err(Error::Backend(format!(
+                "qualified execution differs field={field} required={expected:?} resolved={resolved:?}"
+            )));
+        }
+    }
+    for (field, expected, resolved) in [
+        ("runtime_sha256", &required.runtime_sha256, &actual.runtime_sha256),
+        ("plan_sha256", &required.plan_sha256, &actual.plan_sha256),
+    ] {
+        if expected != resolved {
+            return Err(Error::Backend(format!(
+                "qualified execution differs field={field} required={expected:?} resolved={resolved:?}"
+            )));
+        }
+    }
     Ok(())
 }

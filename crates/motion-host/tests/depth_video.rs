@@ -1,6 +1,8 @@
 #![cfg(feature = "ai-depth")]
 #[path = "depth_video/timeline.rs"]
 mod timeline;
+#[path = "depth_video/physical.rs"]
+mod physical;
 use motion_core::{Content, Layer, Project, VideoAsset, VideoClip};
 use motion_host::{
     depth::{Backend, Cancellation, Costs, Estimate, Input, Key},
@@ -1040,4 +1042,204 @@ fn video_with_unknown_transfer_is_rejected_before_inference_and_keeps_cause() {
     assert!(matches!(f.seen.try_recv(), Err(mpsc::TryRecvError::Empty)));
     assert_eq!(f.session.depth_status().unwrap().unwrap().counts.failed, 1);
     assert!(f.session.poll_depth().unwrap().is_none());
+}
+
+struct AttestedEcho(Echo);
+impl Backend for AttestedEcho {
+    fn execution_identity(
+        &mut self,
+        _: &Input,
+        cancel: &Cancellation,
+    ) -> motion_host::depth::Result<Option<motion_host::depth::cache::Execution>> {
+        cancel.check()?;
+        Ok(Some(motion_host::depth::cache::Execution {
+            backend: "controlled-video".into(),
+            provider: "controlled_cpu".into(),
+            runtime_sha256: [71; 32],
+            plan_sha256: [72; 32],
+            precision: "float32".into(),
+        }))
+    }
+    fn infer(
+        &mut self,
+        input: &Input,
+        cancel: &Cancellation,
+    ) -> motion_host::depth::Result<Estimate> {
+        self.0.infer(input, cancel)
+    }
+}
+fn probe_key(f: &Fixture) -> motion_host::depth::VideoKey {
+    motion_host::depth::VideoKey {
+        object: 1,
+        asset: 74,
+        revision: 8,
+        target_us: 50_000,
+        geometry: geometry(&f.session),
+        model: model(),
+    }
+}
+fn probe_input(f: &Fixture, key: motion_host::depth::VideoKey) -> motion_host::depth::VideoInput {
+    motion_host::depth::VideoInput {
+        key,
+        root: f.dir.path().into(),
+        asset: f.session.engine.project().video_assets[0].clone(),
+        platform: f.platform.clone(),
+        budget: 1 << 20,
+    }
+}
+fn probe_worker() -> (motion_host::depth::Jobs, mpsc::Receiver<Seen>) {
+    let (seen, received) = mpsc::channel();
+    let jobs = motion_host::depth::Jobs::start_measured(AttestedEcho(Echo {
+        seen,
+        release: None,
+    }))
+    .unwrap();
+    (jobs, received)
+}
+fn probe_done(jobs: &motion_host::depth::Jobs, count: u64) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let counts = jobs.counts().unwrap();
+        if counts.completed + counts.failed + counts.canceled >= count {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "controlled original-video probe did not complete"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+struct ProbeRelease(mpsc::Sender<()>);
+impl Drop for ProbeRelease {
+    fn drop(&mut self) {
+        let _ = self.0.send(());
+    }
+}
+
+#[test]
+fn measured_original_video_publishes_before_decode_and_includes_preparation_without_reuse() {
+    let f = fixture(Mode::BlockOpen);
+    let (mut jobs, seen) = probe_worker();
+    let key = probe_key(&f);
+    let release = ProbeRelease(f.release.clone());
+    let request = jobs
+        .request_video_sample(probe_input(&f, key.clone()))
+        .unwrap();
+    let Event::Open(owner) = f.events.recv_timeout(Duration::from_secs(5)).unwrap() else {
+        panic!("expected decoder open");
+    };
+    assert_ne!(owner, std::thread::current().id());
+    let flight = jobs.in_flight().unwrap().unwrap();
+    assert_eq!(flight.request, request);
+    assert_eq!(flight.phase, "source_prepare");
+    assert_eq!(flight.target_time_us, Some(50_000));
+    assert!(flight.source.is_none());
+    assert!(jobs.take_video_sample(&key).unwrap().is_none());
+    let began = Instant::now();
+    std::thread::sleep(Duration::from_millis(10));
+    let held = began.elapsed();
+    drop(release);
+    probe_done(&jobs, 1);
+    let ready = jobs.take_video_sample(&key).unwrap().unwrap();
+    let actual = seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert_eq!(
+        ready.estimate().resource.descriptor().source,
+        actual.key.source
+    );
+    assert_eq!(actual.key.source.pts.ticks, 40_000);
+    assert_eq!(actual.key.source.pts.timescale, 1_000_000);
+    assert_eq!(ready.video_end_us(), Some(110_000));
+    assert_eq!(ready.input().rgb_size, actual.size);
+    assert_eq!(
+        ready.estimate().costs.source_rgb_bytes,
+        actual.rgb.len() as u64
+    );
+    assert!(ready.estimate().costs.source_prepare >= held);
+    assert!(ready.measurement().unwrap().total() >= ready.estimate().costs.source_prepare);
+    assert_eq!(ready.measurement().unwrap().request(), request);
+    assert!(
+        matches!(f.events.recv_timeout(Duration::from_secs(5)).unwrap(), Event::Frame(50_000, id) if id == owner)
+    );
+    assert!(
+        matches!(f.events.recv_timeout(Duration::from_secs(5)).unwrap(), Event::Drop(id) if id == owner)
+    );
+    let mut profile = motion_host::depth::capability::Profile::new(2).unwrap();
+    profile.record(&ready).unwrap();
+    let mut next = key;
+    next.target_us = 60_000;
+    jobs.request_video_sample(probe_input(&f, next.clone()))
+        .unwrap();
+    probe_done(&jobs, 2);
+    let second = jobs.take_video_sample(&next).unwrap().unwrap();
+    assert_eq!(
+        second.estimate().resource.descriptor().source,
+        actual.key.source
+    );
+    assert_eq!(second.video_end_us(), Some(110_000));
+    assert!(!second
+        .measurement()
+        .unwrap()
+        .same_observation(ready.measurement().unwrap()));
+    profile.record(&second).unwrap();
+    assert_eq!(profile.summary().unwrap().samples(), 2);
+    assert_eq!(f.platform.opens.load(Ordering::SeqCst), 2);
+    assert_eq!(jobs.counts().unwrap().cache_hits, 0);
+    assert_eq!(jobs.counts().unwrap().restored, 0);
+    assert!(jobs.in_flight().unwrap().is_none());
+    assert_eq!(jobs.queue_depth().unwrap(), 0);
+}
+
+#[test]
+fn measured_original_video_refuses_mismatched_decoding_before_backend_or_measurement() {
+    for mode in [
+        Mode::WrongPts,
+        Mode::WrongEnd,
+        Mode::WrongSize,
+        Mode::UnknownEncoding,
+    ] {
+        let f = fixture(mode);
+        let (mut jobs, seen) = probe_worker();
+        let key = probe_key(&f);
+        jobs.request_video_sample(probe_input(&f, key.clone()))
+            .unwrap();
+        probe_done(&jobs, 1);
+        assert!(jobs.take_video_sample(&key).is_err());
+        assert!(seen.try_recv().is_err());
+        assert_eq!(jobs.counts().unwrap().failed, 1);
+        assert_eq!(jobs.counts().unwrap().completed, 0);
+        assert!(jobs.in_flight().unwrap().is_none());
+    }
+}
+
+#[test]
+fn measured_original_video_requires_the_live_request_even_inside_the_same_pts_interval() {
+    let f = fixture(Mode::Rgba);
+    let (mut jobs, _seen) = probe_worker();
+    let key = probe_key(&f);
+    for field in 0..5 {
+        jobs.request_video_sample(probe_input(&f, key.clone()))
+            .unwrap();
+        probe_done(&jobs, field + 1);
+        let mut stale = key.clone();
+        match field {
+            0 => stale.object += 1,
+            1 => stale.revision += 1,
+            2 => stale.target_us += 1,
+            3 => stale.geometry.mirror_x = true,
+            _ => stale.model.processing.push_str("-other"),
+        }
+        assert!(jobs.take_video_sample(&stale).unwrap().is_none());
+        assert!(jobs.take_video_sample(&key).unwrap().is_none());
+        assert_eq!(jobs.counts().unwrap().stale, field + 1);
+    }
+    jobs.request_video_sample(probe_input(&f, key.clone()))
+        .unwrap();
+    probe_done(&jobs, 6);
+    assert!(jobs
+        .take_video_sample(&key)
+        .unwrap()
+        .unwrap()
+        .measurement()
+        .is_some());
 }

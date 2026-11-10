@@ -5,14 +5,18 @@ use motion_host::depth::{
 };
 #[path = "transitions/frozen.rs"]
 mod frozen;
+#[path = "transitions/cached.rs"]
+mod cached;
+#[path = "transitions/qualified.rs"]
+mod qualified;
 
-fn policy() -> Policy {
+pub(super) fn policy() -> Policy {
     Policy {
         idle_delay: Duration::from_millis(100),
         minimum_interactive_residence: Duration::from_millis(300),
     }
 }
-fn limits() -> Limits {
+pub(super) fn limits() -> Limits {
     Limits {
         minimum_fit_pairs: 3,
         minimum_validation_pairs: 3,
@@ -24,7 +28,7 @@ fn limits() -> Limits {
         maximum_normalized_error: 1e-8,
     }
 }
-fn settled() -> DepthModel {
+pub(super) fn settled() -> DepthModel {
     let mut value = model();
     value.processing = "settled".into();
     value

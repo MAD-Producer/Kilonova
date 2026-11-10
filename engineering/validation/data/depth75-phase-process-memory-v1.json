@@ -1,0 +1,425 @@
+{
+  "schema": 1,
+  "head": "54a4707de22ee4801e60623201c80e957b0bfa40",
+  "status": "host_and_all_direct_child_phases_controls_and_actual_cpu_gpu_observations_passed",
+  "native_totals": {
+    "targets": 3,
+    "passed": 351,
+    "failed": 0,
+    "original_ignored": 0,
+    "filtered": 0
+  },
+  "actual_observations": {
+    "onnx266": [
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 1113387008,
+        "peak_resident_bytes": 355766272,
+        "pid": 38656,
+        "status": "observed"
+      },
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 1113460736,
+        "peak_resident_bytes": 355827712,
+        "pid": 42440,
+        "status": "observed"
+      }
+    ],
+    "wgsl518": [
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 653971456,
+        "peak_resident_bytes": 171491328,
+        "pid": 37200,
+        "status": "observed"
+      },
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 653365248,
+        "peak_resident_bytes": 171343872,
+        "pid": 44072,
+        "status": "observed"
+      }
+    ]
+  },
+  "phase_observations": {
+    "onnx266": [
+      {
+        "snapshot": {
+          "children": {
+            "backend": "onnx",
+            "inference": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 1113387008,
+              "peak_resident_bytes": 355766272,
+              "pid": 38656,
+              "status": "observed"
+            },
+            "resolution": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 1113395200,
+              "peak_resident_bytes": 355774464,
+              "pid": 40984,
+              "status": "observed"
+            }
+          },
+          "host": {
+            "method": "windows_process_memory_counters",
+            "peak_private_commit_bytes": 5660672,
+            "peak_resident_bytes": 11272192,
+            "pid": 41464,
+            "status": "observed"
+          }
+        },
+        "observed_resident_sum_bytes": 367046656
+      },
+      {
+        "snapshot": {
+          "children": {
+            "backend": "onnx",
+            "inference": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 1113460736,
+              "peak_resident_bytes": 355827712,
+              "pid": 42440,
+              "status": "observed"
+            },
+            "resolution": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 1113374720,
+              "peak_resident_bytes": 355721216,
+              "pid": 5100,
+              "status": "observed"
+            }
+          },
+          "host": {
+            "method": "windows_process_memory_counters",
+            "peak_private_commit_bytes": 5660672,
+            "peak_resident_bytes": 11366400,
+            "pid": 41464,
+            "status": "observed"
+          }
+        },
+        "observed_resident_sum_bytes": 367194112
+      }
+    ],
+    "wgsl518": [
+      {
+        "snapshot": {
+          "children": {
+            "backend": "wgsl",
+            "inference": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 653971456,
+              "peak_resident_bytes": 171491328,
+              "pid": 37200,
+              "status": "observed"
+            },
+            "prepare": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 814776320,
+              "peak_resident_bytes": 52436992,
+              "pid": 2576,
+              "status": "observed"
+            },
+            "remap": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 803110912,
+              "peak_resident_bytes": 40247296,
+              "pid": 15164,
+              "status": "observed"
+            },
+            "resolution_native": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 291553280,
+              "peak_resident_bytes": 137129984,
+              "pid": 18304,
+              "status": "observed"
+            },
+            "resolution_transform": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 798904320,
+              "peak_resident_bytes": 36061184,
+              "pid": 41500,
+              "status": "observed"
+            }
+          },
+          "host": {
+            "method": "windows_process_memory_counters",
+            "peak_private_commit_bytes": 9564160,
+            "peak_resident_bytes": 13295616,
+            "pid": 736,
+            "status": "observed"
+          }
+        },
+        "observed_resident_sum_bytes": 184786944
+      },
+      {
+        "snapshot": {
+          "children": {
+            "backend": "wgsl",
+            "inference": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 653365248,
+              "peak_resident_bytes": 171343872,
+              "pid": 44072,
+              "status": "observed"
+            },
+            "prepare": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 814616576,
+              "peak_resident_bytes": 52383744,
+              "pid": 35128,
+              "status": "observed"
+            },
+            "remap": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 803409920,
+              "peak_resident_bytes": 40337408,
+              "pid": 44672,
+              "status": "observed"
+            },
+            "resolution_native": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 289988608,
+              "peak_resident_bytes": 141160448,
+              "pid": 7504,
+              "status": "observed"
+            },
+            "resolution_transform": {
+              "method": "windows_process_memory_counters",
+              "peak_private_commit_bytes": 799010816,
+              "peak_resident_bytes": 36143104,
+              "pid": 10472,
+              "status": "observed"
+            }
+          },
+          "host": {
+            "method": "windows_process_memory_counters",
+            "peak_private_commit_bytes": 9564160,
+            "peak_resident_bytes": 13295616,
+            "pid": 736,
+            "status": "observed"
+          }
+        },
+        "observed_resident_sum_bytes": 184639488
+      }
+    ]
+  },
+  "tools_discovered": 150,
+  "limits": [
+    "One owned heavy native/model/GPU workload; original handle must terminate and be consumed before source edits",
+    "No assertions, ignores, budgets or timeouts changed; earlier275/1 host-library result remains failed",
+    "Actual self-process lifetime peaks only, not whole-process-tree or physical device memory",
+    "Two repeated frozen frames per actual route establish metadata propagation, not domain/transition/thermal qualification",
+    "No Android, panels, downloads, retries, cleanup or foreign process inspection/stops"
+  ],
+  "members": [
+    {
+      "path": "onnx266/logs/motion-studio.log",
+      "bytes": 1628,
+      "sha256": "82f68c8c40dbdb0f7ef07309b5c42bb17efe665d30770f01d213b2f0dfea2274"
+    },
+    {
+      "path": "onnx266/measurements.json",
+      "bytes": 11432,
+      "sha256": "451d49402da665714b81a2be7aa542996c3724d5da542a0da9124c1194be3455"
+    },
+    {
+      "path": "original/actual-onnx266.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/actual-onnx266.stdout.log",
+      "bytes": 5531,
+      "sha256": "784cd7a96c76434cf6e580c201e1ee33d99ee233c0ead0346b095cbb1ebd9f78"
+    },
+    {
+      "path": "original/actual-product-build.stderr.log",
+      "bytes": 4112,
+      "sha256": "cfceb1c27b7213e3c697d8c01b7f774cd3a4a66433fc7c3a40c85a00b4019073"
+    },
+    {
+      "path": "original/actual-product-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/actual-wgsl518.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/actual-wgsl518.stdout.log",
+      "bytes": 6565,
+      "sha256": "c4dc3b335a2899c1e6dac19bb9604a95c826150b55fe59832634a74960bbce2f"
+    },
+    {
+      "path": "original/complete-host-lib-capability-session.stderr.log",
+      "bytes": 1396,
+      "sha256": "ae2c48eacb96f18f5d5e738d339f236c1c89cac15408d1f1535fad5bb77390cc"
+    },
+    {
+      "path": "original/complete-host-lib-capability-session.stdout.log",
+      "bytes": 39136,
+      "sha256": "09aff6133439e865f2df999ab55c2fb19a082780654468feaecffb44e7b18532"
+    },
+    {
+      "path": "original/complete-tools.stderr.log",
+      "bytes": 27887,
+      "sha256": "bf6bffc491f7da2de32baf060402d272b337493504e60d0b0d476534ba13aea2"
+    },
+    {
+      "path": "original/complete-tools.stdout.log",
+      "bytes": 2095,
+      "sha256": "6a7065ab185f0d96839e791a9ffbf85a6d4ca95b07b7e9a1c37ccdcc014c96e1"
+    },
+    {
+      "path": "original/controller.py",
+      "bytes": 8736,
+      "sha256": "ce22e8982100413db69e0e2f7602e0e82fbabaae0651a73d429f7ea2f1a92af8"
+    },
+    {
+      "path": "original/host-without-ai-feature.stderr.log",
+      "bytes": 1417,
+      "sha256": "822d2d04ef5ccfae86d822fe7ac0dbcd17768d37040bb32cb2f3b2b0ee320413"
+    },
+    {
+      "path": "original/host-without-ai-feature.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/inventory.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/inventory.stdout.log",
+      "bytes": 105,
+      "sha256": "375d2c0052f60620e2028afa900113eec5c4d05efb2ff4559766945b124c47b0"
+    },
+    {
+      "path": "original/provenance.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/provenance.stdout.log",
+      "bytes": 46,
+      "sha256": "323b6cf1afae1924a69c9117360a5ad3e672df72c36164a5dc729ea7ebc3c2ee"
+    },
+    {
+      "path": "original/receipt.json",
+      "bytes": 886788,
+      "sha256": "b8206f00658d0c71aefaf999af4c666d933be0fef7a69f7e5e10cb4c95631507"
+    },
+    {
+      "path": "original/session-consumed.json",
+      "bytes": 52,
+      "sha256": "4c49d8819b845e7c1cbdcf875491d9a3b758ba43dff255d35bfb1eedcfce105f"
+    },
+    {
+      "path": "source/ATTRIBUTION.md",
+      "bytes": 38857,
+      "sha256": "f66aea149f353383d742d124f60e2339cfa983d0b6c0eb14bbb3b200cabe5c51"
+    },
+    {
+      "path": "source/Cargo.lock",
+      "bytes": 147918,
+      "sha256": "7620f092e84b9ab36b707f4b8f6072231d125bd367bc28d32ca005853a5e9afc"
+    },
+    {
+      "path": "source/NOTICE",
+      "bytes": 15362,
+      "sha256": "a718e928c6f9e7e5f637c170fb369719e4bb2b0325afc9cf37779e73d7e6a983"
+    },
+    {
+      "path": "source/commit.patch",
+      "bytes": 31748,
+      "sha256": "f181dd44d3b586ecc7c01ecac17c449e918387df4935b759483b159b5e341b1f"
+    },
+    {
+      "path": "source/crates/motion-host/Cargo.toml",
+      "bytes": 2247,
+      "sha256": "35d5694771ec2aad4e795fbd61b7701a6abd4c20c87b42ee164846fdbc99dfe5"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/capability.rs",
+      "bytes": 8873,
+      "sha256": "2cffd2dc3d0c7584251a137bbf2cbfe034dd48fa67fddf9464abd1780c62cbdf"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/capability/memory.rs",
+      "bytes": 126,
+      "sha256": "e89e5fe466c77e35faff80fb4b85a984e7075a612cc30c42d60f9d3088d94ddf"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/onnx.rs",
+      "bytes": 22951,
+      "sha256": "0348bc4a136d0c92ddcd0fdd19ea24f1b726f8fc3fb2a8d737dc5633885d4516"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/wgsl.rs",
+      "bytes": 26059,
+      "sha256": "d11f6b1bad8606d99af13fd997dd509f3a741027c75877154db35ce23d6403d5"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/wgsl/identity.rs",
+      "bytes": 11917,
+      "sha256": "0a336be0a5e120a8f329f3a386edf2c658d1de718e222ebcc7ea6a2ca0042e8d"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/wgsl/identity/tests.rs",
+      "bytes": 9671,
+      "sha256": "646318bdf60804494d076294ad6efbdb234579f382606e3d421497961dd12a45"
+    },
+    {
+      "path": "source/crates/motion-host/src/process_memory.rs",
+      "bytes": 16466,
+      "sha256": "11a355ffb634bfa10e1b9ef211af3d5ccc25f2fa6b56ad94afba2e6edfd23ee8"
+    },
+    {
+      "path": "source/crates/motion-host/tests/depth_capability.rs",
+      "bytes": 51965,
+      "sha256": "0bf31b49e642fa8910c9031417eef47a90cc2073dd1266296309d3ba5c060014"
+    },
+    {
+      "path": "source/desktop/app/src/depth_worker/graph_runtime_impl.rs",
+      "bytes": 22567,
+      "sha256": "2e582bea8a24fea58066486eb7a31f49fc5cf6b88723709f81381c7c6b23254e"
+    },
+    {
+      "path": "source/tools/ai_depth_onnx.py",
+      "bytes": 19797,
+      "sha256": "3c8670ffd9f9db4e5b56264c321c65d5eb1110c4c1bcbf2992533626eb5b9ff0"
+    },
+    {
+      "path": "source/tools/depth_tensor.py",
+      "bytes": 7545,
+      "sha256": "becf0aa9bed70e797179850961ce04fe5e0c2011cd6c36bda6adda8c7f8d4232"
+    },
+    {
+      "path": "source/tools/test_ci_depth_tensor_identity.py",
+      "bytes": 10865,
+      "sha256": "85703fc11a5c3d132b078ed2e8362efc93c41600f655a286f0240a7de7806e21"
+    },
+    {
+      "path": "wgsl518/logs/motion-studio.log",
+      "bytes": 6265,
+      "sha256": "06f28af4da7c5c9f9fcb2f21498c42481e70a5c86dca937fab2642a3ac606d21"
+    },
+    {
+      "path": "wgsl518/measurements.json",
+      "bytes": 13024,
+      "sha256": "9384eb3d803c3350be31d24562135805b3d7c0594d5a51b62cbe3890527f418e"
+    }
+  ],
+  "archive": {
+    "path": "depth75-phase-process-memory-v1.zip",
+    "bytes": 450562,
+    "sha256": "0b41f2daf0f660bb1839d2487a05763410e832943a9c384956501eba69e72492"
+  }
+}

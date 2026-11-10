@@ -115,7 +115,7 @@ impl Admission {
         log::logger().flush();
         let began = Instant::now();
         let alignment =
-            Alignment::fit(&reference, &candidate.estimate().resource, limits, canceled);
+            Alignment::for_transition(&reference, &candidate.estimate().resource, limits, canceled);
         log::debug!(
             "done depth_transition_align generation={} source_id={} elapsed_ms={}",
             ticket.generation(),
@@ -259,6 +259,10 @@ impl View<'_> {
     pub fn sample(&self, index: usize) -> Result<Option<f64>, Rejection> {
         self.aligned.sample(index)
     }
+    /// Interpretation of mapped samples; descriptor() retains raw candidate metadata.
+    pub fn sample_measure(&self) -> motion_model::depth::DepthMeasure {
+        self.aligned.sample_measure()
+    }
     pub fn descriptor(&self) -> &DepthDescriptor {
         self.aligned.resource().descriptor()
     }
@@ -293,6 +297,18 @@ impl View<'_> {
             reference.curve(),
             reference.extrapolation(),
         )
+    }
+
+    /// The view already holds the current worker's instance-bound unit proof.
+    /// A physical placement must bind the original saved reference; rendering
+    /// consumes the candidate in its own units, not mapped sample() values.
+    pub fn validate_physical_placement(
+        &self,
+        saved: &SavedDepthCalibration,
+    ) -> motion_model::Result<()> {
+        motion_model::ensure(saved.is_physical(),
+            "physical transition requires a saved physical placement")?;
+        saved.validate_binding(self.reference, self.input())
     }
 
     pub(crate) fn reference_resource(&self) -> &DepthResource {

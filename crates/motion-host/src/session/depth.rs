@@ -153,7 +153,7 @@ impl CalibrationSample {
         {
             return Err(format!("depth calibration object={object} phase=prepare: current original source or composition changed").into());
         }
-        calibration.rebind(&self.estimate.resource, self.input)?;
+        calibration.validate_binding(&self.estimate.resource, self.input)?;
         Ok(())
     }
 }
@@ -236,7 +236,7 @@ impl Session {
                                     geometry: authored.calibration().geometry().clone(), model: authored.calibration().model().clone() };
                                 if let Some(sample) = store.lookup(&lookup)? {
                                     if sample.end_us == authored.end_us()
-                                        && authored.calibration().rebind_descriptor(&sample.plane.descriptor, sample.input).is_ok() {
+                                        && authored.calibration().validate_binding_descriptor(&sample.plane.descriptor, sample.input).is_ok() {
                                         let asset = project.video_assets.iter().find(|a| a.id == lookup.asset)
                                             .filter(|a| matches!(&layer.content, Content::Video { video } if video.asset == a.id))
                                             .ok_or("frozen depth video admission has no registered source")?;
@@ -255,7 +255,7 @@ impl Session {
                                 if matches!(&entry.binding.source, Source::Video { object, .. } if *object == layer.id)
                                     && entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval())?
                                     && entry.video_interval() == Some((authored.start_us(), authored.end_us()))
-                                    && authored.calibration().rebind(&entry.estimate.resource, entry.input).is_ok()
+                                    && authored.calibration().validate_binding(&entry.estimate.resource, entry.input).is_ok()
                                 {
                                     found = Some(entry);
                                     break;
@@ -363,7 +363,7 @@ impl Session {
         let sample = self
             .depth_calibration_sample()?
             .ok_or("depth calibration requires an installed current result")?;
-        let mut calibration = motion_model::depth::SavedDepthCalibration::new(
+        let calibration = motion_model::depth::SavedDepthCalibration::new(
             &sample.estimate.resource,
             sample.input,
             anchors,
@@ -371,6 +371,49 @@ impl Session {
             extrapolation,
             pixels_per_metre,
         )?;
+        self.finish_depth_placement(object, sample, calibration)
+    }
+
+    /// Author direct physical depth without relative anchors. The backend must
+    /// have independently declared metric/inverse-metric camera-Z samples.
+    pub fn physical_depth_placement_command(
+        &mut self, object: u64, pixels_per_metre: f32,
+    ) -> Result<motion_core::Command> {
+        self.sample()?;
+        let (calibration, end) = self.prepare_physical_depth_placement(object, pixels_per_metre)?;
+        if end.is_some() {
+            return Err("physical image depth placement requires an image source".into());
+        }
+        Ok(motion_core::Command::DepthCalibration { object, calibration: Some(calibration) })
+    }
+
+    /// Author physical camera-Z placement for exactly the staged video interval.
+    /// The decoder owns its PTS/end and prepared RGB identity. Other indexed
+    /// samples remain unchanged; no relative anchors or temporal interpolation
+    /// are fabricated. As with relative video authoring, an uncovered interval
+    /// must remain authorable before the next render sample can succeed.
+    pub fn physical_video_depth_placement_command(
+        &mut self, object: u64, pixels_per_metre: f32,
+    ) -> Result<motion_core::Command> {
+        let (calibration, end) = self.prepare_physical_depth_placement(object, pixels_per_metre)?;
+        let end = end.ok_or("physical video depth placement requires a staged video result")?;
+        let sample = motion_model::depth::VideoDepthSample::new(calibration, end)?;
+        Ok(motion_core::Command::VideoDepthCalibration { object, sample })
+    }
+
+    fn prepare_physical_depth_placement(
+        &mut self, object: u64, pixels_per_metre: f32,
+    ) -> Result<(motion_model::depth::SavedDepthCalibration, Option<u64>)> {
+        let sample = self.depth_calibration_sample()?
+            .ok_or("physical depth placement requires an installed current result")?;
+        let calibration = motion_model::depth::SavedDepthCalibration::physical(
+            &sample.estimate.resource, sample.input, pixels_per_metre)?;
+        self.finish_depth_placement(object, sample, calibration)
+    }
+
+    fn finish_depth_placement(&mut self, object: u64, sample: CalibrationSample,
+        mut calibration: motion_model::depth::SavedDepthCalibration,
+    ) -> Result<(motion_model::depth::SavedDepthCalibration, Option<u64>)> {
         // Observation views are editing aids, never the source photograph's
         // persisted camera. Reference geometry always uses the authored scene.
         // This scene supplies authored camera/world matrices, not rendered
@@ -572,6 +615,35 @@ impl Session {
     /// destinations. The directory is trusted application cache configuration;
     /// creating files is deferred to the worker and obeys the existing quota.
     pub fn configure_depth_in(&mut self, backend: impl Backend, directory: PathBuf) -> Result<()> {
+        self.configure_depth_worker(backend, directory, None, None)
+    }
+
+    /// Opt in to strict cross-session inference reuse in a separate, dedicated
+    /// cache directory. Unsupported attestation is a request failure, not a
+    /// silent uncached run. Existing Session spill and export quotas stay intact.
+    pub fn configure_depth_cached_in(&mut self, backend: impl Backend, directory: PathBuf,
+        cache: depth::cache::Config) -> Result<()> {
+        cache.validate()?;
+        self.configure_depth_worker(backend, directory, Some(cache), None)
+    }
+
+    /// Configure the existing Session worker with caller-verified capability
+    /// choices. Current model/geometry and actual execution remain mandatory
+    /// for ordinary inference, transitions, persistent reuse and frozen export.
+    /// No automatic tier mapping or new source/domain certification is implied.
+    pub fn configure_qualified_depth_in(&mut self, backend: impl Backend, directory: PathBuf,
+        bindings: depth::capability::policy::Bindings, cache: Option<depth::cache::Config>) -> Result<()> {
+        if let Some(cache) = &cache { cache.validate()?; }
+        self.configure_depth_worker(backend, directory, cache, Some(bindings))
+    }
+
+    pub fn depth_qualified_bindings(&self) -> Result<Option<&depth::capability::policy::Bindings>> {
+        self.check_thread()?;
+        Ok(self.depth.as_ref().and_then(|state| state.jobs.qualified_bindings()))
+    }
+
+    fn configure_depth_worker(&mut self, backend: impl Backend, directory: PathBuf,
+        cache: Option<depth::cache::Config>, bindings: Option<depth::capability::policy::Bindings>) -> Result<()> {
         self.check_thread()?;
         if self.depth.is_some() {
             return Err(
@@ -579,7 +651,10 @@ impl Session {
             );
         }
         self.depth = Some(State {
-            jobs: Jobs::start(backend)?,
+            jobs: match bindings {
+                Some(bindings) => Jobs::start_qualified(backend, bindings, cache)?,
+                None => match cache { Some(cache) => Jobs::start_cached(backend, cache)?, None => Jobs::start(backend)? },
+            },
             binding: None,
             installed: None,
             prepared: None,

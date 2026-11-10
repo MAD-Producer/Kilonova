@@ -49,9 +49,14 @@ struct Parameters {
     pts: DepthTime,
     input: PreparedDepthInput,
     interpretation: Interpretation,
-    anchors: [DepthAnchor; 2],
-    curve: CalibrationCurve,
-    extrapolation: CalibrationExtrapolation,
+    // Relative-only observations. Physical descriptors already supply units;
+    // they must never acquire fabricated anchors or an extra affine calibration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    anchors: Option<[DepthAnchor; 2]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    curve: Option<CalibrationCurve>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extrapolation: Option<CalibrationExtrapolation>,
     pixels_per_metre: f32,
     /// None denotes algebra-only calibration, without a placement for rendering.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,12 +93,38 @@ impl SavedDepthCalibration {
             pts: descriptor.source.pts,
             input,
             interpretation: Interpretation::from_descriptor(descriptor),
-            anchors,
-            curve,
-            extrapolation,
+            anchors: Some(anchors),
+            curve: Some(curve),
+            extrapolation: Some(extrapolation),
             pixels_per_metre,
             reference: None,
         })
+    }
+    /// Preserve declared metric/inverse-metric camera-Z units as authoring data.
+    /// This establishes identity and placement, not learned-model accuracy.
+    /// Ray distance needs an explicit camera-ray conversion before this API.
+    pub fn physical(
+        resource: &DepthResource,
+        input: PreparedDepthInput,
+        pixels_per_metre: f32,
+    ) -> Result<Self> {
+        let descriptor = resource.descriptor();
+        ensure(!matches!(descriptor.measure, DepthMeasure::Relative { .. }),
+            "physical depth placement requires declared physical units")?;
+        Self::try_from(Parameters {
+            asset: descriptor.source.asset,
+            pts: descriptor.source.pts,
+            input,
+            interpretation: Interpretation::from_descriptor(descriptor),
+            anchors: None,
+            curve: None,
+            extrapolation: None,
+            pixels_per_metre,
+            reference: None,
+        })
+    }
+    pub fn is_physical(&self) -> bool {
+        !matches!(self.0.interpretation.measure, DepthMeasure::Relative { .. })
     }
     pub fn validate(&self) -> Result<()> {
         let p = &self.0;
@@ -103,12 +134,18 @@ impl SavedDepthCalibration {
         )?;
         p.input.validate(&p.interpretation.geometry)?;
         if let Some(reference) = &p.reference { reference.validate()?; }
-        RelativeDepthCalibration::new(
-            p.interpretation.descriptor(p.asset, p.pts),
-            p.anchors,
-            p.curve,
-            p.extrapolation,
-        )?;
+        let descriptor = p.interpretation.descriptor(p.asset, p.pts);
+        descriptor.validate()?;
+        if self.is_physical() {
+            ensure(matches!(descriptor.measure,
+                DepthMeasure::Metric { axis: DepthAxis::CameraZ, .. }
+                | DepthMeasure::InverseMetric { axis: DepthAxis::CameraZ, .. }),
+                "physical depth placement requires camera-Z units")?;
+            ensure(p.anchors.is_none() && p.curve.is_none() && p.extrapolation.is_none(),
+                "physical depth placement cannot contain relative calibration")?;
+        } else {
+            self.rebind_descriptor(&descriptor, p.input)?;
+        }
         Ok(())
     }
     pub fn asset(&self) -> u64 {
@@ -147,15 +184,32 @@ impl SavedDepthCalibration {
         self.rebind_descriptor(resource.descriptor(), actual_input)
     }
 
-    /// Metadata-only binding for a validated immutable file-backed resource.
-    /// Plane integrity is independently checked when its values are read.
-    pub fn rebind_descriptor(&self, actual: &DepthDescriptor,
-        actual_input: PreparedDepthInput) -> Result<RelativeDepthCalibration> {
+    pub fn validate_binding(&self, resource: &DepthResource,
+        actual_input: PreparedDepthInput) -> Result<()> {
+        self.validate_binding_descriptor(resource.descriptor(), actual_input)
+    }
+
+    /// Validate the exact saved interpretation without inventing a relative
+    /// calibration for metric data. Immutable file planes are checked on read.
+    pub fn validate_binding_descriptor(&self, actual: &DepthDescriptor,
+        actual_input: PreparedDepthInput) -> Result<()> {
         let p = &self.0;
         ensure(actual.source.asset == p.asset && actual.source.pts.same_instant(p.pts)
             && actual_input == p.input && Interpretation::from_descriptor(actual) == p.interpretation,
             &format!("saved_depth_calibration source={} phase=rebind: actual source pixels, time, model or interpretation differ", p.asset))?;
+        actual.validate().map(|_| ())
+    }
+
+    /// Metadata-only binding for a validated immutable file-backed resource.
+    /// Plane integrity is independently checked when its values are read.
+    pub fn rebind_descriptor(&self, actual: &DepthDescriptor,
+        actual_input: PreparedDepthInput) -> Result<RelativeDepthCalibration> {
+        self.validate_binding_descriptor(actual, actual_input)?;
+        let p = &self.0;
         // This new immutable live binding keeps the exact current source revision.
-        RelativeDepthCalibration::new(actual.clone(), p.anchors, p.curve, p.extrapolation)
+        RelativeDepthCalibration::new(actual.clone(),
+            p.anchors.ok_or_else(|| Error::Invalid("relative depth calibration anchors are missing".into()))?,
+            p.curve.ok_or_else(|| Error::Invalid("relative depth calibration curve is missing".into()))?,
+            p.extrapolation.ok_or_else(|| Error::Invalid("relative depth calibration extrapolation is missing".into()))?)
     }
 }

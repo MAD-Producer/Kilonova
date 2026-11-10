@@ -1,0 +1,119 @@
+{
+  "archive": "depth75-reference-probe-native-v1.zip",
+  "bytes": 594724,
+  "sha256": "28d259f73a03b9611b2c83addd3d9141ca36e9f9a1d182119ce75f497f064504",
+  "members": [
+    {
+      "path": "archive-controller.py",
+      "bytes": 3895,
+      "sha256": "5d5e2d26226e6ec2b5ff709bb90e98f9ebd8adf0dfc8f9d1e2a84cca72b10f50"
+    },
+    {
+      "path": "cli-v2/changed-rgb.stderr.log",
+      "bytes": 123,
+      "sha256": "546bc13d0ba8ce5379d4d61dd0ead5208df51da699dbed5351fda45adcaa043e"
+    },
+    {
+      "path": "cli-v2/changed-rgb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cli-v2/controller.py",
+      "bytes": 4636,
+      "sha256": "64a384c07a20044fc5597fb32398e07c1e59ca42edbc81c7a500105556908b91"
+    },
+    {
+      "path": "cli-v2/exec-completed.json",
+      "bytes": 56,
+      "sha256": "718466a0f99dbb63635835f9a4abb9514ce8215e325dcab621dc0ccbf1800c32"
+    },
+    {
+      "path": "cli-v2/receipt.json",
+      "bytes": 872758,
+      "sha256": "dd779f8be395baf1048ff951da58c2f24b107358337e841c74d0e5d224e6f517"
+    },
+    {
+      "path": "cli-v2/refused/logs/motion-studio.log",
+      "bytes": 323,
+      "sha256": "f6b1b81f98cd86da2286573ae984664576f72574b7bb927e3f2512a6018130e2"
+    },
+    {
+      "path": "cli-v2/refused/measurements.json",
+      "bytes": 302,
+      "sha256": "d601554695ba6cfdeb68c44130cd1f2124e2bddc804bdb0b79f5d7d36dc7d689"
+    },
+    {
+      "path": "native-v1/controller.py",
+      "bytes": 6689,
+      "sha256": "5997a0b809a31858d11fa3d2b980fa7c574a1b5a79f209024ae23fe6f55957aa"
+    },
+    {
+      "path": "native-v1/probe-product-build.stderr.log",
+      "bytes": 1002,
+      "sha256": "8301fd845cebdb52659933fbe50f45b5bcea24316095cb6f609af1fb5aa84a73"
+    },
+    {
+      "path": "native-v1/probe-product-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-v1/probe-unit-tests.stderr.log",
+      "bytes": 1253,
+      "sha256": "634a8ab7a285b31b89371d2d2bc80177a4a1fc09aa599aaec8e2c1653f8c4c8a"
+    },
+    {
+      "path": "native-v1/probe-unit-tests.stdout.log",
+      "bytes": 272,
+      "sha256": "c779360edee256805ce11b726b0e27764f7f200c03baaa0307ffcf3e92ae3f28"
+    },
+    {
+      "path": "native-v1/receipt.json",
+      "bytes": 872856,
+      "sha256": "411dcbcae96604f127aef4ff08df06cb11d0c651d15e49bff1b11b8dad4f23f7"
+    },
+    {
+      "path": "native-v1/session-consumed.json",
+      "bytes": 48,
+      "sha256": "8031074e3328a69b9a03d5b5a625d85b8979b100091398a230224feb55788c3c"
+    },
+    {
+      "path": "source/crates/motion-host/Cargo.toml",
+      "bytes": 1976,
+      "sha256": "b062a69084279d2b0639f25ea9b24208720e4b3efc607642da4a4916aacb1834"
+    },
+    {
+      "path": "source/crates/motion-host/examples/depth_reference.rs",
+      "bytes": 14637,
+      "sha256": "4616835e2e8203ed30556b5c90430526c980025b2d7efc0499aaf6df8e2d5155"
+    }
+  ],
+  "head": "47540f1c680d23411e54845459008327578bdd18",
+  "source_unchanged": true,
+  "unit_tests": {
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0
+  },
+  "actual_product_build": "passed",
+  "original_driver_status": "failed_original_outputs_retained",
+  "original_driver_cause": "Python Path.with_file_name typo after completed tests/build, before any CLI invocation",
+  "followup_status": "actual_default_cli_source_refusal_passed_no_inference",
+  "actual_failure": {
+    "cause": "reference RGB differs from frozen preparation identity",
+    "file": true,
+    "stderr": true,
+    "stdout_bytes": 0,
+    "samples": 0,
+    "submitted_worker_start_records": 0
+  },
+  "driver_sha256": "ef340b43bf150d698e276c06323d293add7edfd4b16aeeb88b05f51925732fb3",
+  "limits": [
+    "First controller remains failed; only Path API spelling corrected in external second driver",
+    "No native/test rerun, product/fixture/assertion change, inference retry or hidden success",
+    "Actual first CLI invocation proves source refusal and default file/stderr/empty-stdout isolation; no learned-model inference",
+    "No executable, input RGB, sensor or learned-depth array is redistributed"
+  ]
+}

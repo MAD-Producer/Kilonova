@@ -1,0 +1,87 @@
+{
+  "archive": "depth75-reference-inputs-v1.zip",
+  "bytes": 308103,
+  "sha256": "2cb317ac2ef61bbfc4571d20274ca4dc3713f9fba0779cfe39556fb9695c01a6",
+  "members": [
+    {
+      "path": "archive-controller.py",
+      "bytes": 3846,
+      "sha256": "1115b39a7c8917c0a094cfddbde29c45c04f35dfc6e7896dfb191168484f8ef7"
+    },
+    {
+      "path": "identities/inputs.json",
+      "bytes": 29440,
+      "sha256": "5d04789d924786b1b6513a97cad2bd10957a3245aa6fb934ef6f209b4a82679a"
+    },
+    {
+      "path": "identities/selection.json",
+      "bytes": 7936,
+      "sha256": "82984dc568387b038c5a88aa73ec1eaebe804e6b079d8418a37e5c989d66f9e5"
+    },
+    {
+      "path": "native/controller.py",
+      "bytes": 7415,
+      "sha256": "9cdb5a7db6f27e655a3689afee649beed3d95552561dc1ab33bf542a55fe31cc"
+    },
+    {
+      "path": "native/receipt.json",
+      "bytes": 871909,
+      "sha256": "47cc1cc8898428fcf87cdedf6e084e5e587eeeb3875f23a6449f7a205cb84f53"
+    },
+    {
+      "path": "native/session-consumed.json",
+      "bytes": 49,
+      "sha256": "11c4d85fa0bf2ea9345a06f1c0816ef4c8411b99fd2a856e110071fc41a684c2"
+    },
+    {
+      "path": "source/tools/depth_reference_inputs.py",
+      "bytes": 3592,
+      "sha256": "3f955b74de8ce7e74b07c1bc055fda319d36664aa37121c65adf8c2cdb928c3e"
+    },
+    {
+      "path": "source/tools/depth_reference_metrics.py",
+      "bytes": 6503,
+      "sha256": "27f4442fa5ce1f4108544ced9566df4ad518972a78a14c4608d396577341a774"
+    },
+    {
+      "path": "source/tools/test_depth_reference_inputs.py",
+      "bytes": 2825,
+      "sha256": "96f7fcff26aed381e2605380e94a53e2c13d668c62462842390a4527388e7229"
+    },
+    {
+      "path": "source/tools/test_depth_reference_metrics.py",
+      "bytes": 1989,
+      "sha256": "ecce42ca41870cbb663b72a9a30c3f61a258b0756e0f9e44e02894ac92baf356"
+    }
+  ],
+  "preparation": {
+    "head": "4ddb2e2480b541b5950fb1bad026775b9a4c5552",
+    "status": "complete32_registered_pairs_frozen_no_model_predictions",
+    "source_unchanged": true,
+    "selected_pairs": 32,
+    "calibration_pairs": 8,
+    "evaluation_pairs": 24,
+    "maximum_association_difference_ns": 14617000,
+    "decoded_pngs": 64,
+    "decoder": {
+      "opencv": "5.0.0",
+      "numpy": "2.4.6",
+      "opencl": false,
+      "threads": 1
+    },
+    "valid_sensor_pixels": 7657585,
+    "missing_sensor_pixels": 2172815,
+    "selection_sha256": "82984dc568387b038c5a88aa73ec1eaebe804e6b079d8418a37e5c989d66f9e5",
+    "inputs_sha256": "5d04789d924786b1b6513a97cad2bd10957a3245aa6fb934ef6f209b4a82679a"
+  },
+  "limits": [
+    "Exact first32 timestamp-selected pairs; no image-based selection, retry or replacement",
+    "No learned-model predictions, quality tier or temporal-stability result",
+    "Full registered source640x480 retained; no crop, undistortion or extra sensor-scale correction",
+    "Source RGB decoded bytes used directly; no ICC or display conversion. Model RGB8 encoding assumption remains explicit",
+    "Private raw RGB and sensor arrays are local inputs, never evidence-archive members",
+    "All64 retained local input hashes independently read back before archiving",
+    "Only authored code and factual timestamp/content identities are public; no image or sensor payloads",
+    "This is deterministic input preparation, not model inference or measured quality"
+  ]
+}

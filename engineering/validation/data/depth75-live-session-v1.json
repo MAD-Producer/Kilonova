@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "archive": "depth75-live-session-v1.zip",
+  "bytes": 39192,
+  "sha256": "9b27207899954713256e08e69b72c197c736f1e46470b1675e05165c127a3321",
+  "members": {
+    "collector.py": {
+      "bytes": 3076,
+      "sha256": "d224a0f8122489e23450f93940dc4ece453976c07ae59dd3877dc7f0d137f801"
+    },
+    "depth75-live-session-v1/actual-session.stderr.log": {
+      "bytes": 1129,
+      "sha256": "439d2ad28dcceebd6d2049b7539d73889ad7fb004ec970f0b5a0185fc9912efe"
+    },
+    "depth75-live-session-v1/actual-session.stdout.log": {
+      "bytes": 8051,
+      "sha256": "8f25deb73796c141a7aa913a783bdaa8dd1acd81c00c869ba37194603e7cf86b"
+    },
+    "depth75-live-session-v1/compile.stderr.log": {
+      "bytes": 1151,
+      "sha256": "0bc4a1941300e4ec80ba7bf0989a1bf0698b4ae5941513c7dc6bc3eaf715854b"
+    },
+    "depth75-live-session-v1/compile.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-session-v1/controller.py": {
+      "bytes": 5248,
+      "sha256": "88f07e94b91ce263f6319868d7b78ba7fc6da30dd05d93929847d210e4fe9788"
+    },
+    "depth75-live-session-v1/fixture.json": {
+      "bytes": 960,
+      "sha256": "e1a1e34634d80c2a68eb486cf1d9a03d31ca8385140843de34d667fb75a90f36"
+    },
+    "depth75-live-session-v1/frozen-source/crates/motion-host/tests/depth_wgsl_retained.rs": {
+      "bytes": 16695,
+      "sha256": "58fa25e418d42d152b2bf85583de29ba9dcd66fcc14c7d5fc0f81aa35decd225"
+    },
+    "depth75-live-session-v1/frozen-source/crates/motion-host/tests/depth_wgsl_retained/session.rs": {
+      "bytes": 11587,
+      "sha256": "554f51b04caec51559be0e12f7b015e237a2a71a68cfb75d58d88d55b3abdc5a"
+    },
+    "depth75-live-session-v1/logs/motion-studio.log": {
+      "bytes": 9927,
+      "sha256": "fa25574342298dd9ba225c01b25f327da3e0bbaefcd71c1befd5224b4517fcbc"
+    },
+    "depth75-live-session-v1/receipt.json": {
+      "bytes": 2914,
+      "sha256": "30c45c7dc3d3910483461558ea5c1b55fd63c601a9c3ba5b18bcc39077ca42be"
+    },
+    "depth75-live-session-v1/session-consumed.json": {
+      "bytes": 348,
+      "sha256": "66d46713a5ee74d005e506fc4335b29d5b2e088454db4d9dbc4414ff72b000fb"
+    },
+    "depth75-live-session-v2/actual-session.stderr.log": {
+      "bytes": 1637,
+      "sha256": "44e5e75b797bcd68b16e670d3ba4525458340566efd027daf6661e8cca8f00af"
+    },
+    "depth75-live-session-v2/actual-session.stdout.log": {
+      "bytes": 203,
+      "sha256": "f36beb6154b416f15a6e9397b9ad7a4d4734361abb7fb8b4bcf93a1229ceb503"
+    },
+    "depth75-live-session-v2/compile.stderr.log": {
+      "bytes": 1151,
+      "sha256": "05c2be949ad1d4950d6eed9b961394dcc94b1d839f2bf26e87837d93647d0089"
+    },
+    "depth75-live-session-v2/compile.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "depth75-live-session-v2/controller.py": {
+      "bytes": 5457,
+      "sha256": "a518d9602e05fee028d8abe5a2c01c9428079ea192b71162f91b28bf8eb52c1b"
+    },
+    "depth75-live-session-v2/evidence.json": {
+      "bytes": 5887,
+      "sha256": "ed9b4bc751eabc5714d8cc24d6a99415cca99bdb6ff801dc6a9052a655c8b06b"
+    },
+    "depth75-live-session-v2/fixture.json": {
+      "bytes": 960,
+      "sha256": "55016d9d0a92521765df17d147d08b7822abce4e778b44cb5cfc362d92547ec9"
+    },
+    "depth75-live-session-v2/frozen-source/crates/motion-host/tests/depth_wgsl_retained.rs": {
+      "bytes": 16695,
+      "sha256": "58fa25e418d42d152b2bf85583de29ba9dcd66fcc14c7d5fc0f81aa35decd225"
+    },
+    "depth75-live-session-v2/frozen-source/crates/motion-host/tests/depth_wgsl_retained/session.rs": {
+      "bytes": 12757,
+      "sha256": "c0badcad1c6e7e302d4cc1d5ab044bfbd638c45403e3d0f68fe1201413c9ef73"
+    },
+    "depth75-live-session-v2/logs/motion-studio.log": {
+      "bytes": 8333,
+      "sha256": "ba419d10cb988d8cd0fb5efa6fe44c449a1f65837eefe46e6ea7e31daa4c3f56"
+    },
+    "depth75-live-session-v2/receipt.json": {
+      "bytes": 1994,
+      "sha256": "4694d7926b8d62d24f06039a2a3cf8f32009af172338f759b589a9a29a8af35c"
+    },
+    "depth75-live-session-v2/session-consumed.json": {
+      "bytes": 305,
+      "sha256": "2ba898d7a7708fda442b392f23ed5d1301348a7a6a153bf5714ec7d4e0ddb649"
+    }
+  }
+}

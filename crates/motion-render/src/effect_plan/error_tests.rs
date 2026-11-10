@@ -43,6 +43,22 @@ fn shader_failure_retains_native_effect_error_and_source() {
 }
 
 #[test]
+fn actual_sdk_utilities_compile_and_reparse_before_native_pipeline_preparation() {
+    use sha2::{Digest, Sha256};
+    let builder = PlanBuilder::new(Registry::default()).unwrap();
+    assert_eq!(builder.programs.len(), 3);
+    for program in &builder.programs {
+        let source = &program.shader.wgsl;
+        eprintln!("utility={} module_bytes={} module_sha256={:x}",
+            program.key, source.len(), Sha256::digest(source.as_bytes()));
+        let reparsed = shader::compile_host_program(source, "sdk_vertex", "sdk_fragment")
+            .unwrap_or_else(|error| panic!("{}: {error:?}", program.key));
+        assert_eq!(reparsed.vertex, program.shader.glsl.vertex);
+        assert_eq!(reparsed.fragment, program.shader.glsl.fragment);
+    }
+}
+
+#[test]
 fn cached_resolution_failure_retains_same_native_error_and_recovers() {
     let project = project();
     let mut scene = Scene::new(&project).unwrap();

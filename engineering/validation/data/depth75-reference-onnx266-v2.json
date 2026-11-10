@@ -1,0 +1,279 @@
+{
+  "archive": "depth75-reference-onnx266-v2.zip",
+  "bytes": 614872,
+  "sha256": "f46cbb60aec7dbc527d815a416dc4e3df131962bba5f0f1ca7532f1d2550a88c",
+  "head": "08dddbb9931ef54297751ff6d4c2c87da35d4b9f",
+  "native_tests": {
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0
+  },
+  "actual_product_build": "passed",
+  "actual_cohort": {
+    "samples": 32,
+    "calibration_frames": 8,
+    "evaluation_frames": 24,
+    "summary": {
+      "cache_hits": 0,
+      "cache_misses": 0,
+      "canceled": 0,
+      "completed": 32,
+      "execution": {
+        "backend": "onnx",
+        "plan_sha256": [
+          44,
+          214,
+          29,
+          2,
+          160,
+          213,
+          29,
+          137,
+          89,
+          237,
+          181,
+          24,
+          13,
+          114,
+          166,
+          91,
+          43,
+          111,
+          100,
+          243,
+          237,
+          83,
+          210,
+          199,
+          12,
+          129,
+          11,
+          135,
+          40,
+          217,
+          59,
+          240
+        ],
+        "precision": "float32",
+        "provider": "CPUExecutionProvider",
+        "runtime_sha256": [
+          177,
+          132,
+          56,
+          238,
+          248,
+          142,
+          5,
+          220,
+          225,
+          13,
+          70,
+          176,
+          69,
+          162,
+          22,
+          236,
+          4,
+          110,
+          72,
+          244,
+          45,
+          114,
+          156,
+          175,
+          217,
+          107,
+          40,
+          126,
+          109,
+          127,
+          194,
+          156
+        ]
+      },
+      "failed": 0,
+      "fastest_ns": 2432145800,
+      "median_ns": 2873060300,
+      "model": {
+        "id": "depth-anything-v2-small",
+        "processing": "dav2-small-rgb8-letterbox266-align-corners-relative-v1",
+        "revision": "a561b849ebae10a6f5ef49e26c83cbbcd36c71bf",
+        "sha256": [
+          7,
+          235,
+          122,
+          235,
+          70,
+          167,
+          85,
+          150,
+          30,
+          125,
+          238,
+          37,
+          205,
+          113,
+          192,
+          6,
+          123,
+          18,
+          99,
+          109,
+          91,
+          15,
+          179,
+          185,
+          110,
+          32,
+          204,
+          64,
+          254,
+          92,
+          18,
+          161
+        ]
+      },
+      "restored": 0,
+      "samples": 32,
+      "slowest_ns": 6093627200,
+      "submitted": 32
+    },
+    "quality": {
+      "frames": 24,
+      "valid": 5637354,
+      "missing": 1735446,
+      "mean_absolute_inverse_metres": 0.11466807898351689,
+      "rms_inverse_metres": 0.13330743961888267,
+      "maximum_inverse_metres": 1.0977689458419422,
+      "normalized_rms": 0.13330743961888267,
+      "normalized_maximum": 1.0977689458419422
+    },
+    "calibration": {
+      "slope": 0.20058113727943536,
+      "offset": 0.3929613881077111,
+      "reference_scale_inverse_metres": 1.0,
+      "samples": 2020231,
+      "missing": 437369
+    }
+  },
+  "limits": [
+    "One independently sensed indoor sequence, not domain certification or quality-tier admission",
+    "Original native-v1 driver and model-cohort-v1 failures remain failed in separate archives",
+    "Cold worker wall times include resolution/inference/transport and all32 observations; not real-time claims",
+    "Transition jump remains unknown; complete memory/long thermal qualification remains pending",
+    "No model, RGB/sensor image, learned prediction array or executable redistributed"
+  ],
+  "members": [
+    {
+      "path": "archive-controller.py",
+      "bytes": 3963,
+      "sha256": "2f46438ee6a0d1685f0b6f5c42865034d7249674e0c00eb0e258e1b07dc6d8cf"
+    },
+    {
+      "path": "native-v2/changed-rgb-before-inference.stderr.log",
+      "bytes": 123,
+      "sha256": "546bc13d0ba8ce5379d4d61dd0ead5208df51da699dbed5351fda45adcaa043e"
+    },
+    {
+      "path": "native-v2/changed-rgb-before-inference.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-v2/controller.py",
+      "bytes": 6945,
+      "sha256": "4a6e89695c5e55309f59eec9669f533754b1b97944c552d44f6aec00d7bc0b3e"
+    },
+    {
+      "path": "native-v2/probe-product-build.stderr.log",
+      "bytes": 1002,
+      "sha256": "6b93aeddd5093bfa7e589465d6f76519e81fc4ee832200c676ce2a69b804ae1e"
+    },
+    {
+      "path": "native-v2/probe-product-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-v2/probe-unit-tests.stderr.log",
+      "bytes": 1155,
+      "sha256": "e07e0bafc19729174e337d58c86c7973f7ad4d8bd6b25e1a1bec5063f7930e53"
+    },
+    {
+      "path": "native-v2/probe-unit-tests.stdout.log",
+      "bytes": 359,
+      "sha256": "3dce6eba196263261188177353e0ec665a1684b09cd6af7e740288e2bd8eace3"
+    },
+    {
+      "path": "native-v2/receipt.json",
+      "bytes": 874468,
+      "sha256": "ca2776ddb9e76a9769960268ac032877940c9b64bed8d82d65314d15323639eb"
+    },
+    {
+      "path": "native-v2/refused/logs/motion-studio.log",
+      "bytes": 323,
+      "sha256": "a99bc3bf4ef107bdb0b5b192339a4ba2cd874b7a4af776a46ef4714a7847c1d4"
+    },
+    {
+      "path": "native-v2/refused/measurements.json",
+      "bytes": 302,
+      "sha256": "d601554695ba6cfdeb68c44130cd1f2124e2bddc804bdb0b79f5d7d36dc7d689"
+    },
+    {
+      "path": "native-v2/session-consumed.json",
+      "bytes": 54,
+      "sha256": "ddd66103c45af45d622fabacebb91b230b1821c8aa09385959f282448d77a166"
+    },
+    {
+      "path": "onnx266-v2/actual.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "onnx266-v2/actual.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "onnx266-v2/controller.py",
+      "bytes": 8386,
+      "sha256": "f5fc02d442973bc6c9ad7f8e61b2ffc5e19fffb5506880e74ecd7c71904d6105"
+    },
+    {
+      "path": "onnx266-v2/onnx266/logs/motion-studio.log",
+      "bytes": 23263,
+      "sha256": "156ca0e59edb0def80126c2348e3f0fb90fc1671b1cb2d137d3e010141decc14"
+    },
+    {
+      "path": "onnx266-v2/onnx266/measurements.json",
+      "bytes": 123833,
+      "sha256": "693c815d5d8d3bb65cfb3d818f4e138cd5f71ca65c4504f2b1e806d6da1a45aa"
+    },
+    {
+      "path": "onnx266-v2/quality.json",
+      "bytes": 13315,
+      "sha256": "257918789396ac28bfbecea5e50df94f1ebc52eda1c337a2cee03dd668dc61d7"
+    },
+    {
+      "path": "onnx266-v2/receipt.json",
+      "bytes": 876220,
+      "sha256": "9c7522bc7b7e0394d63036c9f1ed52168118a8e845faa53713f5030e089d0882"
+    },
+    {
+      "path": "onnx266-v2/session-consumed.json",
+      "bytes": 54,
+      "sha256": "2a0b281bea9a8467d3fc5e6dfbf338549bb09b5405494687540512a50055aceb"
+    },
+    {
+      "path": "source/crates/motion-host/examples/depth_reference.rs",
+      "bytes": 18626,
+      "sha256": "edcb8f2981e55afc1aa45e45e0798b757026c83e049677d3cc50dc94720c626e"
+    },
+    {
+      "path": "source/tools/depth_reference_metrics.py",
+      "bytes": 6503,
+      "sha256": "27f4442fa5ce1f4108544ced9566df4ad518972a78a14c4608d396577341a774"
+    }
+  ]
+}

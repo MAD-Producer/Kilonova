@@ -1,0 +1,25 @@
+{
+  "status": "complete_maintained_workspace_desktop_gpu_ffmpeg_passed",
+  "head": "4729ab6d1c7c0c535c9715a53bc79497a78970b4",
+  "archive": "depth75-wgsl-maintained-workspace-v1.zip",
+  "bytes": 502075,
+  "sha256": "1c379960158bbde6442c7ef9560e14d9bc37e06c6782b83a0fd07c52384c2b3f",
+  "members_readback_verified": 11,
+  "totals": {
+    "passed": 5240,
+    "failed": 0,
+    "original_ignored": 78,
+    "filtered": 0,
+    "summary_count": 447,
+    "observed_invocations": 447,
+    "expected_invocations": 447
+  },
+  "limits": [
+    "Windows local maintained workspace, GPU, FFmpeg and AI-depth at exact4729 source; Android excluded",
+    "Original assertions, features, ignores and budgets preserved; no filtered tests or abnormal exits",
+    "Separate exact4729 remote workflow failed an original expression frame deadline; not a whole-CI pass",
+    "Historical compiler and native crashes remain unresolved and preserved elsewhere",
+    "Does not qualify later capability code, photographic quality, sustained load or thermal behavior",
+    "Bounded text only; no weights, binaries, media, depth tensors or unbounded environment values"
+  ]
+}

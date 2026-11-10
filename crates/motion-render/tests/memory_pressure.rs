@@ -1,4 +1,5 @@
-use motion_render::{MemoryPressureReading, MemoryPressureSource, Renderer};
+use motion_render::{AdapterMemoryPressure, MemoryPressureReading, MemoryPressureSnapshot,
+    MemoryPressureSource, Renderer};
 
 fn native_probe(backend: wgpu::Backends, expected: MemoryPressureSource) {
     let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle_from_env();
@@ -13,6 +14,19 @@ fn native_probe(backend: wgpu::Backends, expected: MemoryPressureSource) {
     let budget = renderer.allocation_budget().clone();
     let before = budget.info().unwrap();
     let policy = renderer.memory_policy();
+    // The depth service can observe its existing adapter without constructing
+    // a Renderer or copying its GPU resources. Exercise that public boundary.
+    let mut observer = AdapterMemoryPressure::new(&renderer.adapter);
+    let native = observer.snapshot();
+    assert_eq!(native.backend, format!("{:?}", renderer.adapter_info.backend));
+    assert_eq!(native.minimum_query_interval_ms, 1000);
+    assert!(!native.is_physical_capacity && !native.is_frame_peak);
+    let encoded = serde_json::to_vec(&native).unwrap();
+    let decoded: MemoryPressureSnapshot = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(decoded.reading, native.reading);
+    assert_eq!(decoded.backend, native.backend);
+    assert_eq!(decoded.age_ms, native.age_ms);
+    assert!(!decoded.is_physical_capacity && !decoded.is_frame_peak);
     let first = renderer.memory_pressure();
     assert_eq!(
         first.backend,

@@ -1,0 +1,210 @@
+{
+  "schema": 1,
+  "head": "b388ada3d4e939cb18d976d7b4cdc94b695c32f1",
+  "status": "native_self_process_control_and_actual_cpu_gpu_peaks_passed",
+  "native_totals": {
+    "targets": 3,
+    "passed": 348,
+    "failed": 0,
+    "original_ignored": 0,
+    "filtered": 0
+  },
+  "actual_observations": {
+    "onnx266": [
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 1113554944,
+        "peak_resident_bytes": 355844096,
+        "pid": 36808,
+        "status": "observed"
+      },
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 1113362432,
+        "peak_resident_bytes": 355688448,
+        "pid": 15940,
+        "status": "observed"
+      }
+    ],
+    "wgsl518": [
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 652804096,
+        "peak_resident_bytes": 171118592,
+        "pid": 34288,
+        "status": "observed"
+      },
+      {
+        "method": "windows_process_memory_counters",
+        "peak_private_commit_bytes": 653156352,
+        "peak_resident_bytes": 171106304,
+        "pid": 38796,
+        "status": "observed"
+      }
+    ]
+  },
+  "limits": [
+    "One owned heavy native/model/GPU workload; original handle must terminate and be consumed before source edits",
+    "No assertions, ignores, budgets or timeouts changed; earlier275/1 host-library result remains failed",
+    "Actual self-process lifetime peaks only, not whole-process-tree or physical device memory",
+    "Two repeated frozen frames per actual route establish metadata propagation, not domain/transition/thermal qualification",
+    "No Android, panels, downloads, retries, cleanup or foreign process inspection/stops"
+  ],
+  "members": [
+    {
+      "path": "onnx266/logs/motion-studio.log",
+      "bytes": 1628,
+      "sha256": "41cb0ef4288518d29b5d1ab6e6eb1a20e941932b70d13f545e793c2077a4986b"
+    },
+    {
+      "path": "onnx266/measurements.json",
+      "bytes": 9683,
+      "sha256": "722e1c0b46414f86e65c8888e7d52b59955bdd831bd9de86702e077ed1681fea"
+    },
+    {
+      "path": "original/actual-onnx266.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/actual-onnx266.stdout.log",
+      "bytes": 4420,
+      "sha256": "2582e0ac3a93d10aced037828482b471f1f028e2646ba5f5a50a958e096987a9"
+    },
+    {
+      "path": "original/actual-product-build.stderr.log",
+      "bytes": 4363,
+      "sha256": "e9f6c6032fbe20c60d07a295fe3d43039125163ed407a90cbebf2585f6b72bee"
+    },
+    {
+      "path": "original/actual-product-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/actual-wgsl518.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/actual-wgsl518.stdout.log",
+      "bytes": 4496,
+      "sha256": "5b341de32833be1ca758169319dbe32e11453aa6bf8d6cddc3c7476014796a6b"
+    },
+    {
+      "path": "original/complete-host-lib-capability-session.stderr.log",
+      "bytes": 1619,
+      "sha256": "78d4f33287da66a0287ffde525e033b152b2591565d96c28e1fb8955e98e90af"
+    },
+    {
+      "path": "original/complete-host-lib-capability-session.stdout.log",
+      "bytes": 38840,
+      "sha256": "41b3f1e81ff83234414a75cc2f33af85e168c5ca60d1465cddb32db73243e679"
+    },
+    {
+      "path": "original/controller.py",
+      "bytes": 7201,
+      "sha256": "3c43de1d35cf419f1088d19573e40627fdb53ed7ea683459e3d98905ba525e2d"
+    },
+    {
+      "path": "original/host-without-ai-feature.stderr.log",
+      "bytes": 2182,
+      "sha256": "3bf789bc95b97dd9713e998e103777d7f124c797f4360e8f60c89f38f4133dbf"
+    },
+    {
+      "path": "original/host-without-ai-feature.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/inventory.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/inventory.stdout.log",
+      "bytes": 105,
+      "sha256": "375d2c0052f60620e2028afa900113eec5c4d05efb2ff4559766945b124c47b0"
+    },
+    {
+      "path": "original/provenance.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original/provenance.stdout.log",
+      "bytes": 46,
+      "sha256": "07e85a8e6484df7a35af7b81fd53db767fc48937065c28a92f3b3de5d05ab8a5"
+    },
+    {
+      "path": "original/receipt.json",
+      "bytes": 880359,
+      "sha256": "9b5a36ccd2e0366a33066f7faea68ef088630cd82ad45a197a2061ce0f5b0c7f"
+    },
+    {
+      "path": "original/session-consumed.json",
+      "bytes": 51,
+      "sha256": "53111ff39be2154de8fab4a1b21813d9ecfc46305dcae8a96bad718f399a0f05"
+    },
+    {
+      "path": "source/ATTRIBUTION.md",
+      "bytes": 38857,
+      "sha256": "f66aea149f353383d742d124f60e2339cfa983d0b6c0eb14bbb3b200cabe5c51"
+    },
+    {
+      "path": "source/Cargo.lock",
+      "bytes": 147918,
+      "sha256": "7620f092e84b9ab36b707f4b8f6072231d125bd367bc28d32ca005853a5e9afc"
+    },
+    {
+      "path": "source/NOTICE",
+      "bytes": 15362,
+      "sha256": "a718e928c6f9e7e5f637c170fb369719e4bb2b0325afc9cf37779e73d7e6a983"
+    },
+    {
+      "path": "source/commit.patch",
+      "bytes": 24989,
+      "sha256": "8e14c85167a85253ee27bff3e978b2e9b89a600cf313450894aab1b1bc85a4ed"
+    },
+    {
+      "path": "source/crates/motion-host/Cargo.toml",
+      "bytes": 2247,
+      "sha256": "35d5694771ec2aad4e795fbd61b7701a6abd4c20c87b42ee164846fdbc99dfe5"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/capability/memory.rs",
+      "bytes": 126,
+      "sha256": "e89e5fe466c77e35faff80fb4b85a984e7075a612cc30c42d60f9d3088d94ddf"
+    },
+    {
+      "path": "source/crates/motion-host/src/depth/wgsl.rs",
+      "bytes": 25429,
+      "sha256": "f1a21056a9ac12da6651c9a1ff9cabe23d1eadd105e2f94ecb695138c001ad6d"
+    },
+    {
+      "path": "source/crates/motion-host/src/process_memory.rs",
+      "bytes": 10124,
+      "sha256": "80b9acc0bec2c88b644e1ef7569044c659bd01185685d8665613567157d59861"
+    },
+    {
+      "path": "source/desktop/app/src/depth_worker/graph_runtime_impl.rs",
+      "bytes": 22468,
+      "sha256": "b1a68e409897203b33ba3e8cc824596b450628c405ccf1e4a68552bf7179466c"
+    },
+    {
+      "path": "wgsl518/logs/motion-studio.log",
+      "bytes": 6265,
+      "sha256": "3112318090b5f51a5cb47a16e8a0d6ba7b6d7cd25f552f1b8660480f3dc7a21f"
+    },
+    {
+      "path": "wgsl518/measurements.json",
+      "bytes": 9759,
+      "sha256": "880a8ba56967d319e665e692afddfc18ac1689905911f30795a265235815cde9"
+    }
+  ],
+  "archive": {
+    "path": "depth75-native-process-memory-v1.zip",
+    "bytes": 402078,
+    "sha256": "c86761299961dd25c6961cc3069c3e5d9e384bd78ba00207f5aa88de3072a356"
+  }
+}

@@ -1,5 +1,38 @@
 # 第三方归属说明 / Third-party attribution
 
+## Native self-process memory counters
+
+- Authors: The Rust Project Developers and libc contributors; Microsoft and
+  windows-rs contributors
+- Sources/revision: unmodified `libc` 0.2.190, upstream revision
+  `7b0ab5528dc7f361f3a0b4c06c2cad9971617f75`, crates.io checksum
+  `ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78`;
+  `windows-sys` 0.61.2 as pinned in the existing Windows API attribution below
+- License: MIT OR Apache-2.0; MIT selected, full notices retained in NOTICE
+- Modification scope: both crates already exist in Cargo.lock and remain
+  unmodified. Direct host dependencies supply typed desktop OS bindings for
+  self-process high-water marks. No process enumeration, device API, upstream
+  sample, new asset or default inference-runtime distribution is introduced
+
+## Owned inference-process memory API references
+
+- Authors: Microsoft Corporation; Python Software Foundation and contributors;
+  Linux man-pages contributors; Apple Inc. and XNU contributors
+- Sources/revision: [PROCESS_MEMORY_COUNTERS_EX](https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters_ex),
+  [GetProcessMemoryInfo](https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo),
+  [Python resource](https://docs.python.org/3/library/resource.html#resource.getrusage),
+  [Linux getrusage](https://man7.org/linux/man-pages/man2/getrusage.2.html),
+  accessed 2026-11-08; Darwin unit checked against official
+  [XNU kern_resource.c](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/kern_resource.c)
+  at revision `f6217f891ac0bb64f3d375211650a4c1ff8ca1ea`
+- Rights/scope: references to public API layouts and unit semantics only. No
+  upstream implementation, documentation prose or asset is copied or bundled;
+  the independently authored bindings, conversion and tests use the repository
+  MIT license. No rights in the reference documents or Apple source are claimed
+- Modification scope: self-process high-water marks in the already owned Python
+  worker, bounded unavailable metadata and typed host/probe propagation. No new
+  dependency, process enumeration, device measurement or product asset
+
 ## Windows 私有驱动缓存目录的系统接口
 
 - 作者：Microsoft Corporation 与 windows-rs contributors。
@@ -166,6 +199,54 @@ noncommercial Base/Large/Giant models are not used. No model weights, reference
 source or upstream images are bundled. The separately installed reference is
 unmodified; the owned export procedure produces a fixed-shape opset-17 ONNX
 artifact and retains its original license and provenance next to that artifact.
+
+The separately authorized indoor metric research candidate uses the same
+authors' official Hypersim Small reference at
+`a561b849ebae10a6f5ef49e26c83cbbcd36c71bf`, under its Apache-2.0 license.
+Weights: [official Hypersim Small repository](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Small),
+revision `3bc65d4e14a6786a61acec16453c50e12bf5f338`, file
+`depth_anything_v2_metric_hypersim_vits.pth`,99,222,290 bytes, SHA-256
+`b782898d8a3e8be1f639de33837ed85e9b4b73e40f8f5e5cd99067588d722545`.
+The reference and weights remain unmodified external research inputs. The
+independently authored export uses its metric head with the documented20-metre
+indoor maximum; it must retain separate model/processing/output identities and
+the original license. Numerical export agreement does not grant sensor/domain,
+cross-resolution, thermal or default-distribution qualification. No reference
+source or weights are added to the product or repository. Acquisition and
+environment reports remain under `artifacts/pr-queue/depth75-metric-acquisition-v1`.
+Its isolated CPU environment reuses the already recorded PyTorch2.14.1,
+ONNX1.23.2, ONNX Runtime1.31.0, NumPy2.4.6 and OpenCV5.0.0.93 versions, with
+unmodified torchvision0.29.1 (PyTorch contributors, BSD-3-Clause,
+[source](https://github.com/pytorch/vision)) for the official reference's
+transform composition. Exact distribution URLs, hashes and dependency metadata
+are retained in installation reports; no environment is bundled.
+Additional isolated metric-export tools remain unmodified and external:
+
+| Distribution/version | Author/source | License (retain original notices) |
+| --- | --- | --- |
+| sympy1.14.0 | SymPy development team; [PyPI](https://pypi.org/project/sympy/1.14.0/) | BSD |
+| mpmath1.3.0 | Fredrik Johansson; [PyPI](https://pypi.org/project/mpmath/1.3.0/) | BSD |
+| Jinja2 3.1.6 / MarkupSafe3.0.3 | Pallets contributors; [Jinja](https://pypi.org/project/Jinja2/3.1.6/), [MarkupSafe](https://pypi.org/project/MarkupSafe/3.0.3/) | BSD-3-Clause |
+| fsspec2026.9.0 | fsspec contributors; [PyPI](https://pypi.org/project/fsspec/2026.9.0/) | BSD-3-Clause |
+| networkx3.6.1 | Aric Hagberg and NetworkX contributors; [PyPI](https://pypi.org/project/networkx/3.6.1/) | BSD-3-Clause |
+| pillow13.0.0 | Jeffrey A. Clark and Pillow contributors; [PyPI](https://pypi.org/project/pillow/13.0.0/) | MIT-CMU |
+| filelock4.2.10 | filelock contributors; [PyPI](https://pypi.org/project/filelock/4.2.10/) | MIT |
+| protobuf7.36.2 | Protocol Buffers contributors; [PyPI](https://pypi.org/project/protobuf/7.36.2/) | BSD-3-Clause |
+| coloredlogs15.0.1 / humanfriendly10.0 | Peter Odding; [coloredlogs](https://pypi.org/project/coloredlogs/15.0.1/), [humanfriendly](https://pypi.org/project/humanfriendly/10.0/) | MIT |
+| flatbuffers25.12.19 | Derek Bailey and FlatBuffers contributors; [PyPI](https://pypi.org/project/flatbuffers/25.12.19/) | Apache-2.0 |
+| packaging26.3 | Donald Stufft and PyPA contributors; [PyPI](https://pypi.org/project/packaging/26.3/) | Apache-2.0 OR BSD-2-Clause |
+| setuptools84.2.1 | Python Packaging Authority; [PyPI](https://pypi.org/project/setuptools/84.2.1/) | MIT; retain vendored notices |
+| pyreadline3 3.5.4 | Bassem Girgis, Jorgen Stenarson, Gary Bishop, Jack Trainor; [PyPI](https://pypi.org/project/pyreadline3/3.5.4/) | BSD |
+
+The23 exact official wheel URLs, versions, hashes and metadata remain in
+`depth75-metric-wheel-stage-v1` and `depth75-metric-wheel-stage-dependencies-v2`.
+Installed versions remain in `depth75-metric-local-install-v2`. Coloredlogs,
+humanfriendly and pyreadline3 were staged but not installed. Acquisition does
+not imply installation. No package implementation is modified or redistributed.
+Torch's CPU wheel additionally declares Apache-2.0, LLVM-exception, BSD-2/3-Clause,
+BSL-1.0 and MIT notices; NumPy includes BSD-3-Clause,0BSD,MIT,Zlib and CC0-1.0.
+The short primary license descriptions do not replace their retained notices.
+
 The owned exporter also offers explicit 266-, 392- and 518-square candidate
 exports from those same pinned Small weights. Each export must independently
 pass the unchanged CPU reference error bounds before publication. This changes
@@ -187,6 +268,18 @@ uses unmodified PyTorch 2.14.1 (PyTorch contributors, BSD-3-Clause,
 Apache-2.0, [source](https://github.com/onnx/onnx)). Their existing licenses and
 notices remain in their external installations; no runtime binaries or packages
 are redistributed by this change.
+
+Local #75 resource restoration also uses an isolated, unmodified inspection
+installation of ONNX 1.23.2, ml_dtypes 0.5.4 (ml_dtypes authors,
+[source](https://github.com/jax-ml/ml_dtypes), Apache-2.0 with the included
+Eigen MPL-2.0 notice), and typing_extensions 4.15.0 (Python typing contributors,
+[source](https://github.com/python/typing_extensions), PSF-2.0). The exact PyPI
+wheel URLs and SHA-256 values are recorded in the local
+`artifacts/pr-queue/depth75-onnx-inspection-environment-v1` installation reports.
+These tools only read the already attributed Small export and restore resources
+against its pinned blueprint hashes. Their original licenses remain in the
+external installation. They do not change the inference environment and are
+not product dependencies, source modifications or redistributed assets.
 
 External depth validation also uses NASA's Eileen Collins portrait, distributed
 as `skimage/data/astronaut.png` in scikit-image v0.25.2 (Git blob
@@ -418,3 +511,46 @@ Naga GLSL 前端新增的间接官方 Cargo 依赖：
 |---|---|---|---|
 | pp-rs | Corentin Wallez / pp-rs Developers，https://github.com/Kangz/glslpp-rs | 0.2.1，BSD-3-Clause；精确 registry 校验和见 Cargo.lock，许可原文见 NOTICE | 无上游改动 |
 | unicode-xid | unicode-rs contributors，https://github.com/unicode-rs/unicode-xid | 0.2.6，MIT OR Apache-2.0；精确 registry 校验和见 Cargo.lock，随包保留许可 | 无上游改动 |
+
+## TUM RGB-D sensor reference (local depth validation only)
+
+Authors: J. Sturm, N. Engelhard, F. Endres, W. Burgard and D. Cremers.
+Source: https://cvg.cit.tum.de/data/datasets/rgbd-dataset and the official
+download catalogue https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download.
+Revision: the 2012 benchmark release, sequence `freiburg1_desk`, archive
+`rgbd_dataset_freiburg1_desk.tgz`. Exact acquired archive SHA-256 and any
+sequence-specific notices must be retained before inference. This entry
+preceded acquisition and does not claim that a model was evaluated.
+The subsequent single local acquisition retained 344,011,403 bytes, SHA-256
+`e983d6830916e66dc4a46a71368046b149b283de87769690e7aa4e0b9483530c`.
+The official URL redirected to `webshare.cvg.cit.tum.de`; the 1,215 archive
+entries contained no separately named license/notice files. The source-bound
+acquisition record is `engineering/validation/data/depth75-reference-acquisition-v1.json`.
+
+License: CC BY 4.0 unless a sequence-specific declaration states otherwise,
+as documented by the official benchmark page's License section. License link:
+https://creativecommons.org/licenses/by/4.0/ . Citation: *A Benchmark for the
+Evaluation of RGB-D SLAM Systems*, IROS, October 2012, the authors above.
+
+Modification scope: local timestamp association, PNG decoding, documented
+sensor-unit conversion and independently authored numerical evaluation only.
+No upstream evaluation script, implementation, image or sensor-depth array is
+copied into the product or evidence archive. The original external archive and
+selected frames remain local validation inputs. Author/source/revision/license
+and aggregate measurement identities accompany any published result. Sensor
+readings, asynchronous timestamps and missing values are not exact geometric
+ground truth or a certificate for other footage domains.
+
+
+## Existing CI Python YAML parser (local preflight)
+
+The isolated preflight also uses already installed, unmodified PyYAML6.0.3,
+Kirill Simonov and PyYAML contributors, [official project](https://pyyaml.org/),
+[version6.0.3](https://pypi.org/project/PyYAML/6.0.3/), MIT. This is the existing
+version explicitly required by `.github/workflows/ci.yml`; no new dependency or
+asset is introduced into the product. Its metadata/license remain in the external
+E-drive environment. The environment is read-only to this task; tests write only
+to their dedicated E-drive output/temp directories. The optional official-aspect
+metric export uses the previously attributed, unmodified Small reference and
+weights; independently authored preprocessing/export code and derived numeric
+reports do not change their license or confer domain/quality qualification.

@@ -1,0 +1,134 @@
+{
+  "archive": "depth75-qualified-file-output-v1.zip",
+  "bytes": 321754,
+  "sha256": "32fbf8884da9eba03d92fcca8f77f122184e544a6ec4a3c12d22a933fb05e159",
+  "members": [
+    {
+      "path": "actual-default-file-proof/child.stderr.log",
+      "bytes": 332,
+      "sha256": "cb8206a26707449bd4bf52e0a993dc00ddc88d6573542856522797772300516a"
+    },
+    {
+      "path": "actual-default-file-proof/child.stdout.log",
+      "bytes": 217,
+      "sha256": "9b091ff07b7f0153c3d2da76509874a009860178e5937e092fa2ad511c163993"
+    },
+    {
+      "path": "actual-default-file-proof/motion-studio.log",
+      "bytes": 2094,
+      "sha256": "a106acdd286960a0aa30887ba98a10b2948162b07b1c627626c54cb3a2392200"
+    },
+    {
+      "path": "actual-default-file-proof/proof.json",
+      "bytes": 424,
+      "sha256": "adadefbd4cf6b903fee56fa3518e59792efe01c8a770143366d5d7428b6c039c"
+    },
+    {
+      "path": "archive-controller.py",
+      "bytes": 3672,
+      "sha256": "b8b81db438061713d4babbdbc737684a699e02da5564482b9f928687ce350503"
+    },
+    {
+      "path": "native/actual-product-build.stderr.log",
+      "bytes": 4112,
+      "sha256": "371f11df28a21720efc8a317929cda4ace8cdae2cc238b050f6cbf174f16be76"
+    },
+    {
+      "path": "native/actual-product-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native/controller.py",
+      "bytes": 8497,
+      "sha256": "b23c5d7b83ebbe8342f7b2806726b28b69545406d16b693cc8ad00ab6f64c00b"
+    },
+    {
+      "path": "native/native.stderr.log",
+      "bytes": 1270,
+      "sha256": "edf521f766dd3efac45dd4697bb75a7b4d2e61a6ddd4322a00618830f8421b08"
+    },
+    {
+      "path": "native/native.stdout.log",
+      "bytes": 6936,
+      "sha256": "c468bd7d694ee409f114a765cbf31bc874a4b85f0b7514b4f27089f6e78b7bbd"
+    },
+    {
+      "path": "native/receipt.json",
+      "bytes": 876753,
+      "sha256": "c9b9d36987c4d8c648ff15369d755861a6a53d69c34b9642cddd7006ad8bae3e"
+    },
+    {
+      "path": "native/session-consumed.json",
+      "bytes": 49,
+      "sha256": "09b8611e95c14fa89fc8c2d7ae81d4ff7d6752b154622f64b6c9cbc7312ff305"
+    },
+    {
+      "path": "source/crates/motion-host/tests/depth_capability.rs",
+      "bytes": 48512,
+      "sha256": "97c65fa093a5ea2f8d95e6f930524399f7e2db00e3b34867f3a855f8299b2539"
+    },
+    {
+      "path": "source/crates/motion-host/tests/depth_capability/bindings.rs",
+      "bytes": 14073,
+      "sha256": "a41ff8bc9bea2f27b76097a45c46a64b0dff481feb3face2b09b2e42fa08201d"
+    },
+    {
+      "path": "source/crates/motion-host/tests/depth_capability/file_output.rs",
+      "bytes": 5421,
+      "sha256": "5076368b850f288442fd1ccdd61ba944f7cbef110694759c3da8658cf7386cdb"
+    },
+    {
+      "path": "source/crates/motion-host/tests/depth_session/transitions/qualified.rs",
+      "bytes": 9707,
+      "sha256": "569b5d0e7a589723df9099bd424d85e912bbca3a2278bd2dc51341d57b2eac58"
+    },
+    {
+      "path": "source/desktop/app/src/logging/sink.rs",
+      "bytes": 5321,
+      "sha256": "9b01675664300172e68f0f94a10cb4adf52fda52e25d4f9cf7021eb449accb84"
+    }
+  ],
+  "head": "441b5e13ccbd35599b1b087394a3ca2bf7962f74",
+  "native_status": "complete70_capability_session_default_file_proof_and_product_build_passed",
+  "totals": {
+    "passed": 70,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0
+  },
+  "predecessor": {
+    "head": "6d3798d99325124e828ca018d86afda8332028cd",
+    "receipt_sha256": "8f1fb6506b03812d0a0b49ed83e5e56d15b124cfc240e33212e195704fc35d39",
+    "totals": {
+      "passed": 1651,
+      "failed": 1,
+      "original_ignored": 3,
+      "filtered": 0
+    },
+    "source_bound_targets": 175,
+    "status": "original full command remains failed; new fixture did not submit settled request"
+  },
+  "actual_default_file_proof": {
+    "asset": 75002,
+    "backend_inferences": 0,
+    "cause": "depth backend failed: qualified execution differs field=provider required=\"actual-provider\" resolved=\"changed-provider\"",
+    "default_level": "Info",
+    "error_file_before_drop": true,
+    "failed": 1,
+    "file_start_before_resolution_return": true,
+    "request": 1,
+    "scope": "Controlled admission reports; actual desktop sink; no real model/device qualification"
+  },
+  "limits": [
+    "Production identity/source/cache/manifest bytes match the complete175-target failed predecessor",
+    "New fixture gains initial Idle100 tick; existing assertions, policy, product source and ignored cases unchanged",
+    "New actual-sink test and both complete capability/Session targets run without filtering; skipped actual product build also runs",
+    "Controlled backend and external admission fixtures, not actual learned-model/device qualification",
+    "Child stdout must contain only the expected Rust test harness; no product records are allowed",
+    "No retry, weakened assertion/deadline, own concurrent heavy workload, Android, panel edits or cleanup",
+    "Predecessor full175-target command remains failed; this is two complete related targets plus product build, not a new whole-workspace pass",
+    "No original assertion, product source, deadline, ignore or selection threshold changed",
+    "No model weights, binaries, media, RGB/depth arrays or upstream assets redistributed; issues75/88 remain incomplete"
+  ]
+}

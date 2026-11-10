@@ -1,0 +1,109 @@
+{
+  "scope": "Authored controllers/source and original results only; no weights, ONNX graph, tensors, upstream code, source images or depth reference payloads",
+  "bytes": 42218,
+  "sha256": "60730f12b75ce4af45982dc9ba7a7f990241564ad59b5d5262735c3f8ca8ce2f",
+  "members": [
+    {
+      "name": "export/controller.py",
+      "bytes": 2488,
+      "sha256": "121ad36745aeffa1282458ce0de831aa349a8b1fb880b666736b821c05007bf2"
+    },
+    {
+      "name": "export/receipt.json",
+      "bytes": 3139,
+      "sha256": "d5763bfddfa62a5fd764510724da315c4d4c75492658851b9d54b23d4aa14600"
+    },
+    {
+      "name": "export/export.stderr.log",
+      "bytes": 4850,
+      "sha256": "fd983efa89943fa0cc915e637301494e21ab91aa339bc2f11b5459b8512575c9"
+    },
+    {
+      "name": "export/export.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "sensor/controller.py",
+      "bytes": 5490,
+      "sha256": "6236e35ed31ec860e8350cc5cb305b8ef3ef820588114c9ecd1b1febfbc87c40"
+    },
+    {
+      "name": "sensor/receipt.json",
+      "bytes": 20996,
+      "sha256": "3ab410703056cdad47efdb2cc84d1c7f58cb04974d1e9e10afa17f592b9bd23d"
+    },
+    {
+      "name": "sensor/phases.log",
+      "bytes": 1629,
+      "sha256": "4755038257ef7c44ec932092589da953a432786f4934315163de5ef2c22cf8cc"
+    },
+    {
+      "name": "tools-missing-yaml/controller.py",
+      "bytes": 1590,
+      "sha256": "e957d1abdbb9faa0aefc812d7f125881a710216af877b40f513c7c2e17d0edb6"
+    },
+    {
+      "name": "tools-missing-yaml/receipt.json",
+      "bytes": 8708,
+      "sha256": "708f5b3c1635e09f6051757a8d8f08bfd124c8f4e07901157be6a81047e8adfc"
+    },
+    {
+      "name": "tools-missing-yaml/stderr.log",
+      "bytes": 25350,
+      "sha256": "29f8abe6b5575cbd51f1bf11926822cccc3ca3caad796d5f46c9803bcaa8aae0"
+    },
+    {
+      "name": "tools-missing-yaml/stdout.log",
+      "bytes": 1900,
+      "sha256": "3a1ff32baba5944eb0318c2cd225f171bb1f94d215ef72c633b5b9f7abef1e35"
+    },
+    {
+      "name": "tools-with-ci-yaml/controller.py",
+      "bytes": 1636,
+      "sha256": "71789e2c6748e55e4177cdc61110a50531b6609c6be8ea8946143d91d4162b5f"
+    },
+    {
+      "name": "tools-with-ci-yaml/receipt.json",
+      "bytes": 8720,
+      "sha256": "7abec70a2c927bf58462e4b73187dd472e7fff8f91b75fc8bd4b4f8d8fa0b673"
+    },
+    {
+      "name": "tools-with-ci-yaml/stderr.log",
+      "bytes": 28941,
+      "sha256": "d3f50087c3b62fe6c744ee5468dceed6c22f3aa24dde3a18bcccdc4d57d19302"
+    },
+    {
+      "name": "tools-with-ci-yaml/stdout.log",
+      "bytes": 2249,
+      "sha256": "7d7e6b7061c5b1b16373249a8cd1c1fa9b1c0da1b38f408d30a24005031eb772"
+    },
+    {
+      "name": "source/export_ai_depth.py",
+      "bytes": 14519,
+      "sha256": "fd259bd922aecf395e06454c6d724bab6fe74c7fc344838e267055e12625f634"
+    },
+    {
+      "name": "source/test_ci_metric_depth_export.py",
+      "bytes": 6687,
+      "sha256": "051cb913bedd40792cc034a3931cbcdef315e09122cc96b0f133dd37fb82b972"
+    },
+    {
+      "name": "model-manifest.json",
+      "bytes": 1808,
+      "sha256": "22039d3df14f76cfef32d66f7a28b0a74907dca7cbc7b1181a78bb27b8fd5be5"
+    },
+    {
+      "name": "export/phases.log",
+      "bytes": 1228,
+      "sha256": "ce13926daa8a9a8b4f68cd2afd52d1b6746cbba5b91ce605d1408d7f3346d83b"
+    }
+  ],
+  "terminals": {
+    "export": "session77031 terminald077db exit0 consumed",
+    "sensor": "session14341 terminal7b3c1d exit0 consumed",
+    "missingYaml": "session81788 terminala26ee9 controller0 child1 consumed",
+    "withYaml": "session37107 terminalae46cd exit0 consumed",
+    "metricAdmission": "exec55e838 exit0"
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "archive": "depth75-ci-d1975528-v1.zip",
+  "bytes": 596100,
+  "sha256": "e9f6765276e3687e6e9a4857a484b74dcebaf0da2f093708adcdc552f99987e7",
+  "source_head": "d197552823bef0fe3bc192f01649753e059dbd8c",
+  "run": 42595433015,
+  "members": {
+    "129086797394.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129086797394.log": {
+      "bytes": 555601,
+      "sha256": "3b77ee28d0865ae60bc4ca2207702ea03af2b5b8a2e8dc2c3f5a7de7c2760ac6"
+    },
+    "129086797652.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129086797652.log": {
+      "bytes": 568009,
+      "sha256": "657770c7b51d74dbb8f42156e4c74dddfb11c6a36d852ed155a16ee7bc5cc218"
+    },
+    "129086797713.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129086797713.log": {
+      "bytes": 578120,
+      "sha256": "83b35270703b6dd76725b063a9f1e8c2f22055784b44ff4259f5fbe35f4ba897"
+    },
+    "129086797873.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129086797873.log": {
+      "bytes": 25644,
+      "sha256": "8a0ca98b4785a366411efffa57afa55af57bbb6201b1fa2640fee703098b348b"
+    },
+    "129086797963.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129086797963.log": {
+      "bytes": 555913,
+      "sha256": "9e6f5806ec416d65ba0347f4eea59262b173c2a34867f2cb43039dbb89e5b112"
+    },
+    "129112240536.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129112240536.log": {
+      "bytes": 128194,
+      "sha256": "2bc103b5279af80c815c9b049ea24b944c1ab48d956e6aea73e9273470474de5"
+    },
+    "129112240546.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129112240546.log": {
+      "bytes": 90755,
+      "sha256": "e28e36266d8abcf56c79e665798c3863fa999d1e4e8f500e1d9bc0e9c7c90f3f"
+    },
+    "129112240626.download.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "129112240626.log": {
+      "bytes": 106109,
+      "sha256": "5b39b474ff8439936c50424161a635473cc6075dd0816c33835a040c4ea649b7"
+    },
+    "collection.json": {
+      "bytes": 5543,
+      "sha256": "f323c3ae319562dda6db1de19e6c2075cd4bd9230f8e69d94f72e0fb2ee93842"
+    },
+    "jobs.json": {
+      "bytes": 55227,
+      "sha256": "02ab20fbb8963a7a8b6acecd10dbfa771b1e9e7a729bf8049383dcee90b26a1c"
+    },
+    "partial-session-consumed.json": {
+      "bytes": 206,
+      "sha256": "440a4da2d0c616a7b26c67438e7677e8670b1e18423e1b814733ff8b5fedb88d"
+    },
+    "prior-partial-collection.json": {
+      "bytes": 4831,
+      "sha256": "5d658655db31369adda0a9f4c6a634729bf35940b9816acc4909a4e78e380c4a"
+    },
+    "run.json": {
+      "bytes": 14919,
+      "sha256": "2d694d102e52aee19c697d38bfc1e4e5c43d98b60f0c9ac692ebe3201f9f09a4"
+    },
+    "collector.py": {
+      "bytes": 5805,
+      "sha256": "beaa1a7e10d6224971f9e0f27dac59b4b45d684d9c36b142a76e9071ccd48ed2"
+    }
+  }
+}

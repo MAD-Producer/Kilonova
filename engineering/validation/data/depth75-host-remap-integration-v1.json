@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "archive": "depth75-host-remap-integration-v1.zip",
+  "bytes": 26597,
+  "sha256": "db86ac3f436cde187a585ff6ab03b754c143e4e7091c594ab6cf3ff8b17342b2",
+  "scope": "Actual explicit host-remap persistent cache and unqualified Session/frozen render; previous native/broad failures retained",
+  "members": {
+    "actual-cache.stderr.log": {
+      "bytes": 1314,
+      "sha256": "8c6a6853119f6adfe918ec21c4a6783bcf2655f92f473ba338855bd4e83ad274"
+    },
+    "actual-cache.stdout.log": {
+      "bytes": 203,
+      "sha256": "f59c5054fc378751cbc417e73572d678b6ab5a184ac846f344d863ef1bf1cb4a"
+    },
+    "actual-session.stderr.log": {
+      "bytes": 1637,
+      "sha256": "b610e907829b81e0a128469358caba008a650208ccfede747d284856b136d7c9"
+    },
+    "actual-session.stdout.log": {
+      "bytes": 205,
+      "sha256": "ad9f2ffc33b396b92e9a633648dd8e7fca0604173b7e0043352aaca719aeef69"
+    },
+    "cache/evidence.json": {
+      "bytes": 13853,
+      "sha256": "252073186e00b0bd47bc7efa139574cba0fbd5c2ae5701b0dd2943c9d47ff149"
+    },
+    "cache/fixture.json": {
+      "bytes": 994,
+      "sha256": "1d81e139592c15e40716e0a8767fd2cd94d46367ec24f4aa34ae22e8f7d0bd8a"
+    },
+    "cache/logs/motion-studio.log": {
+      "bytes": 16172,
+      "sha256": "8213fcdc4e957d23bc1952a26e0f718a4c46f32433f98ef4f8250448598923c4"
+    },
+    "collector.py": {
+      "bytes": 2415,
+      "sha256": "e336b15fee66fdc00d09bd9c58d0d2f996554e747a9bc60f1112b732d697dd8a"
+    },
+    "compile.stderr.log": {
+      "bytes": 1152,
+      "sha256": "3663106e6482562168a3a6f0a691520da1ad30d0f42d68299cdef76c587c3a18"
+    },
+    "compile.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "consumer.py": {
+      "bytes": 1821,
+      "sha256": "210c57797279b7b7ec991458f2fbed3b09cadfdb38a8d667b1804accf690f39b"
+    },
+    "controller.py": {
+      "bytes": 6190,
+      "sha256": "f465d0a2567bf5bc43f9a173186ae90315a38227afa032e9df86a53698b115ef"
+    },
+    "frozen-source/crates/motion-host/tests/depth_wgsl_retained.rs": {
+      "bytes": 18370,
+      "sha256": "6a77d7f0e338ccd14b54170770f05d59b33283857d0f8224539c05d8e1444446"
+    },
+    "frozen-source/crates/motion-host/tests/depth_wgsl_retained/session.rs": {
+      "bytes": 13226,
+      "sha256": "f171f38ae5adae2540eaa8c08b11f167b086e9d13e71a2ca8da1c451eec11cfa"
+    },
+    "receipt.json": {
+      "bytes": 2639,
+      "sha256": "f52d6e6bcd114d810f898c997523dff3968ae86062223f24907a39262680b623"
+    },
+    "session-consumed.json": {
+      "bytes": 285,
+      "sha256": "4a60203ff6fe9ba72fe3c663f582d8b1d21820f1c743ba499302b7cb1a3158ba"
+    },
+    "session/evidence.json": {
+      "bytes": 5909,
+      "sha256": "d41c4799cf888e4e51f5f6feffe2cf9178f4a95be99e1376417410f9fc0c2716"
+    },
+    "session/fixture.json": {
+      "bytes": 998,
+      "sha256": "ae83210e730566cb2838b2e7bb336d8315040b47d7796a8b55abd4f7e956bc63"
+    },
+    "session/logs/motion-studio.log": {
+      "bytes": 9059,
+      "sha256": "775818c87f14f2357a58aff43be44ba126df6f6350dd29030d1ad6259225584d"
+    }
+  }
+}
