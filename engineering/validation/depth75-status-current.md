@@ -156,3 +156,12 @@ The published `687cfda6` source subsequently completed
 Rust/GPU checks passed, for eight applicable successes and two policy skips.
 This precedes the physical-unit/placement/transition commits and does not qualify
 their new source or clear the earlier local and actual-model failures.
+
+
+The authorized [indoor metric candidate](depth75-metric-candidate-current.md)
+now has a verified isolated CPU environment and an actual passing numerical
+ONNX export. The same fixed32 sensor inputs subsequently rejected its direct
+physical predictions: primary24-frame RMS0.2786086 and maximum1.3642453 versus
+the original0.01/0.05 inverse-metre bounds. No calibration fit or changed gate
+hides that result. It is not admitted as a default inference/quality route.
+The original interrupted export and bootstrap failures remain recorded.

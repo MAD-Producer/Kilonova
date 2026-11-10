@@ -220,6 +220,33 @@ unmodified torchvision0.29.1 (PyTorch contributors, BSD-3-Clause,
 [source](https://github.com/pytorch/vision)) for the official reference's
 transform composition. Exact distribution URLs, hashes and dependency metadata
 are retained in installation reports; no environment is bundled.
+Additional isolated metric-export tools remain unmodified and external:
+
+| Distribution/version | Author/source | License (retain original notices) |
+| --- | --- | --- |
+| sympy1.14.0 | SymPy development team; [PyPI](https://pypi.org/project/sympy/1.14.0/) | BSD |
+| mpmath1.3.0 | Fredrik Johansson; [PyPI](https://pypi.org/project/mpmath/1.3.0/) | BSD |
+| Jinja2 3.1.6 / MarkupSafe3.0.3 | Pallets contributors; [Jinja](https://pypi.org/project/Jinja2/3.1.6/), [MarkupSafe](https://pypi.org/project/MarkupSafe/3.0.3/) | BSD-3-Clause |
+| fsspec2026.9.0 | fsspec contributors; [PyPI](https://pypi.org/project/fsspec/2026.9.0/) | BSD-3-Clause |
+| networkx3.6.1 | Aric Hagberg and NetworkX contributors; [PyPI](https://pypi.org/project/networkx/3.6.1/) | BSD-3-Clause |
+| pillow13.0.0 | Jeffrey A. Clark and Pillow contributors; [PyPI](https://pypi.org/project/pillow/13.0.0/) | MIT-CMU |
+| filelock4.2.10 | filelock contributors; [PyPI](https://pypi.org/project/filelock/4.2.10/) | MIT |
+| protobuf7.36.2 | Protocol Buffers contributors; [PyPI](https://pypi.org/project/protobuf/7.36.2/) | BSD-3-Clause |
+| coloredlogs15.0.1 / humanfriendly10.0 | Peter Odding; [coloredlogs](https://pypi.org/project/coloredlogs/15.0.1/), [humanfriendly](https://pypi.org/project/humanfriendly/10.0/) | MIT |
+| flatbuffers25.12.19 | Derek Bailey and FlatBuffers contributors; [PyPI](https://pypi.org/project/flatbuffers/25.12.19/) | Apache-2.0 |
+| packaging26.3 | Donald Stufft and PyPA contributors; [PyPI](https://pypi.org/project/packaging/26.3/) | Apache-2.0 OR BSD-2-Clause |
+| setuptools84.2.1 | Python Packaging Authority; [PyPI](https://pypi.org/project/setuptools/84.2.1/) | MIT; retain vendored notices |
+| pyreadline3 3.5.4 | Bassem Girgis, Jorgen Stenarson, Gary Bishop, Jack Trainor; [PyPI](https://pypi.org/project/pyreadline3/3.5.4/) | BSD |
+
+The23 exact official wheel URLs, versions, hashes and metadata remain in
+`depth75-metric-wheel-stage-v1` and `depth75-metric-wheel-stage-dependencies-v2`.
+Installed versions remain in `depth75-metric-local-install-v2`. Coloredlogs,
+humanfriendly and pyreadline3 were staged but not installed. Acquisition does
+not imply installation. No package implementation is modified or redistributed.
+Torch's CPU wheel additionally declares Apache-2.0, LLVM-exception, BSD-2/3-Clause,
+BSL-1.0 and MIT notices; NumPy includes BSD-3-Clause,0BSD,MIT,Zlib and CC0-1.0.
+The short primary license descriptions do not replace their retained notices.
+
 The owned exporter also offers explicit 266-, 392- and 518-square candidate
 exports from those same pinned Small weights. Each export must independently
 pass the unchanged CPU reference error bounds before publication. This changes

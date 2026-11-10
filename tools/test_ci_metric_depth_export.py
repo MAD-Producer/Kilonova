@@ -66,6 +66,34 @@ class MetricExportAdmission(unittest.TestCase):
             self.assertIn("ERROR operation=metric_export failed", evidence)
             self.assertFalse(output.exists())
 
+    def test_secondary_log_persistence_failure_preserves_original_export_exception(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name).resolve()
+            output = root / "export"
+            control = """
+import os, runpy, sys
+from unittest.mock import patch
+original = os.fsync
+calls = 0
+def persist(fd):
+    global calls
+    calls += 1
+    if calls == 2:
+        raise OSError('controlled secondary persistence failure')
+    original(fd)
+script = sys.argv.pop(1)
+with patch.object(os, 'fsync', persist):
+    runpy.run_path(script, run_name='__main__')
+"""
+            child = subprocess.run([sys.executable, "-B", "-c", control, exporter.__file__,
+                "--reference", str(root / "missing-reference"), "--weights", str(root / "missing"),
+                "--output", str(output), "--metric-hypersim"], capture_output=True)
+            self.assertNotEqual(child.returncode, 0)
+            self.assertEqual(child.stdout, b"")
+            self.assertIn(b"metric export log persistence failed", child.stderr)
+            self.assertIn(b"subprocess.CalledProcessError:", child.stderr.splitlines()[-1])
+            self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -102,18 +102,22 @@ def export(reference, weights, destination, side=518, *, metric=False, observe=N
         output = staged / (f"depth_anything_v2_metric_hypersim_vits_{side}.onnx" if metric else f"depth_anything_v2_vits_{side}.onnx")
         phase("reference_cpu_probe_and_export")
         with torch.no_grad():
+            phase("reference_cpu_probe")
             expected = model(tensor).cpu().numpy()
             if expected.shape != (1, side, side) or not np.isfinite(expected).all():
                 raise ValueError("reference returned invalid scalar depth")
+            phase("onnx_export")
             torch.onnx.export(model, (tensor,), str(output), input_names=["rgb"],
                               output_names=[output_name], opset_version=17,
                               dynamo=False, external_data=False)
         if output.stat().st_size > 256 << 20:
             raise ValueError("ONNX export exceeds the host model budget")
         phase("check_onnx_and_compare_cpu_probe")
+        phase("onnx_check")
         onnx.checker.check_model(str(output))
         options = ort.SessionOptions()
         options.intra_op_num_threads = options.inter_op_num_threads = 1
+        phase("onnx_cpu_session")
         session = ort.InferenceSession(str(output), sess_options=options, providers=["CPUExecutionProvider"])
         session.disable_fallback()
         inputs, outputs = session.get_inputs(), session.get_outputs()
@@ -123,6 +127,7 @@ def export(reference, weights, destination, side=518, *, metric=False, observe=N
                 or inputs[0].type != "tensor(float)" or outputs[0].type != "tensor(float)"
                 or session.get_providers() != ["CPUExecutionProvider"]):
             raise ValueError("exported model metadata or provider differs from requested profile")
+        phase("onnx_cpu_probe")
         actual = session.run([output_name], {"rgb": tensor.numpy().copy(order="C")})[0]
         if actual.shape != (1, side, side) or not np.isfinite(actual).all():
             raise ValueError("ONNX returned invalid scalar depth")
@@ -177,6 +182,7 @@ if __name__ == "__main__":
         export(args.reference, args.weights, args.output, args.side)
     else:
         import logging
+        import time
         logger = logging.getLogger("motion.metric_export")
         logger.setLevel(logging.INFO)
         # Invalid profiles must refuse before creating output or importing a
@@ -189,13 +195,29 @@ if __name__ == "__main__":
         errors.setLevel(logging.ERROR)
         logger.addHandler(sink)
         logger.addHandler(errors)
-        def observe(phase):
-            logger.info("start operation=metric_export phase=%s", phase)
+        began = time.monotonic()
+        current_phase = "admission"
+        def persist():
             sink.flush()
+            os.fsync(sink.stream.fileno())
+        def observe(phase):
+            global current_phase
+            current_phase = phase
+            logger.info("start operation=metric_export phase=%s elapsed_ms=%d", phase,
+                        (time.monotonic() - began) * 1000)
+            persist()
         try:
             export(args.reference, args.weights, args.output, args.side, metric=True, observe=observe)
+            logger.info("done operation=metric_export elapsed_ms=%d", (time.monotonic() - began) * 1000)
+            persist()
         except Exception:
-            logger.exception("operation=metric_export failed")
+            try:
+                logger.exception("operation=metric_export failed phase=%s elapsed_ms=%d", current_phase,
+                                 (time.monotonic() - began) * 1000)
+                persist()
+            except OSError as logging_error:
+                # A secondary disk failure must not replace the export cause.
+                sys.stderr.write("metric export log persistence failed: " + str(logging_error)[:512] + "\n")
             raise
         finally:
             sink.close()
