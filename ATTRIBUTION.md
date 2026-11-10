@@ -199,6 +199,27 @@ noncommercial Base/Large/Giant models are not used. No model weights, reference
 source or upstream images are bundled. The separately installed reference is
 unmodified; the owned export procedure produces a fixed-shape opset-17 ONNX
 artifact and retains its original license and provenance next to that artifact.
+
+The separately authorized indoor metric research candidate uses the same
+authors' official Hypersim Small reference at
+`a561b849ebae10a6f5ef49e26c83cbbcd36c71bf`, under its Apache-2.0 license.
+Weights: [official Hypersim Small repository](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Small),
+revision `3bc65d4e14a6786a61acec16453c50e12bf5f338`, file
+`depth_anything_v2_metric_hypersim_vits.pth`,99,222,290 bytes, SHA-256
+`b782898d8a3e8be1f639de33837ed85e9b4b73e40f8f5e5cd99067588d722545`.
+The reference and weights remain unmodified external research inputs. The
+independently authored export uses its metric head with the documented20-metre
+indoor maximum; it must retain separate model/processing/output identities and
+the original license. Numerical export agreement does not grant sensor/domain,
+cross-resolution, thermal or default-distribution qualification. No reference
+source or weights are added to the product or repository. Acquisition and
+environment reports remain under `artifacts/pr-queue/depth75-metric-acquisition-v1`.
+Its isolated CPU environment reuses the already recorded PyTorch2.14.1,
+ONNX1.23.2, ONNX Runtime1.31.0, NumPy2.4.6 and OpenCV5.0.0.93 versions, with
+unmodified torchvision0.29.1 (PyTorch contributors, BSD-3-Clause,
+[source](https://github.com/pytorch/vision)) for the official reference's
+transform composition. Exact distribution URLs, hashes and dependency metadata
+are retained in installation reports; no environment is bundled.
 The owned exporter also offers explicit 266-, 392- and 518-square candidate
 exports from those same pinned Small weights. Each export must independently
 pass the unchanged CPU reference error bounds before publication. This changes

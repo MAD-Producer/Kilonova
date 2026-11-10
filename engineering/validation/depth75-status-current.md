@@ -130,6 +130,11 @@ remain intact.
 
 ## Next acceptance boundaries
 
+The explicitly authorized [Hypersim Small metric candidate](depth75-metric-candidate-current.md)
+now has verified external weights/source and a distinct export entry. Its CPU
+environment installation failed with a native pip access violation before model
+execution; numerical export and actual metric inference remain unverified.
+
 1. Diagnose the retained original full-command failures. Inspect current-source
    CI separately; the original local command remains failed.
 2. Evaluate the retained actual one-service outcome without waiving its thermal

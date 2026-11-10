@@ -64,6 +64,12 @@ source, weights, images or inference runtime enter project/effect packages or
 the shipped product. Authors, revisions, hashes and modification scope are
 recorded in [ATTRIBUTION.md](ATTRIBUTION.md).
 
+The explicitly authorized Hypersim Small metric evaluation uses a distinct
+pinned Apache-2.0 checkpoint and the official unmodified metric reference in a
+separate CPU export environment on E. It never relabels the existing relative
+Small export as metric depth. Source/weight/license identities and installation
+reports are recorded separately; no new model or runtime enters distribution.
+
 ## 中文
 
 Motion Studio 是独立的 clean-room 实现。项目可以研究公开行为和公开记录的工作流，但不会复制 Adobe 源代码、二进制文件、资源、图标、指针、字体、音频、预设、模板、截图或专有文件数据。

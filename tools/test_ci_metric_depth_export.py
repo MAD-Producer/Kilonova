@@ -1,0 +1,71 @@
+"""Metric export admission; actual learned numerical evidence is separate."""
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+import export_ai_depth as exporter
+
+
+class MetricExportAdmission(unittest.TestCase):
+    def test_metric_identity_is_separate_and_only_the_declared_profile_is_admitted(self):
+        self.assertNotEqual(exporter.processing_identity(518), exporter.processing_identity(518, metric=True))
+        self.assertEqual(exporter.processing_identity(518, metric=True), exporter.METRIC_PROCESSING)
+        self.assertNotEqual(exporter.WEIGHTS_SHA256, exporter.METRIC_WEIGHTS_SHA256)
+        for side in (True, 518., "518", 266, 392, 517, 519):
+            with self.subTest(side=side), self.assertRaises(ValueError):
+                exporter.processing_identity(side, metric=True)
+        for flag in (1, None, "metric"):
+            with self.subTest(flag=flag), self.assertRaises(ValueError):
+                exporter.processing_identity(518, metric=flag)
+
+    def test_unsupported_metric_resolution_refuses_before_io_or_reference_import(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name).resolve()
+            output = root / "absent" / "export"
+            with mock.patch.object(exporter.subprocess, "check_output") as git:
+                for side in (266, 392, True, 518.):
+                    with self.subTest(side=side), self.assertRaises(ValueError):
+                        exporter.export(root / "reference", root / "weights", output, side, metric=True)
+                git.assert_not_called()
+            self.assertFalse(output.parent.exists())
+
+    def test_real_cli_preserves_prior_output_and_rejects_unsupported_metric_profiles(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name).resolve()
+            for optimized in (False, True):
+                output = root / str(optimized)
+                command = [sys.executable, "-B"] + (["-O"] if optimized else [])
+                child = subprocess.run(command + [exporter.__file__, "--reference", str(root),
+                    "--weights", str(root / "missing"), "--output", str(output),
+                    "--side", "266", "--metric-hypersim"], capture_output=True)
+                self.assertNotEqual(child.returncode, 0)
+                self.assertEqual(child.stdout, b"")
+                self.assertIn(b"metric export side must be 518", child.stderr)
+                self.assertFalse(output.exists())
+            marker = root / "model.onnx"
+            marker.write_bytes(b"previous output")
+            with self.assertRaises(FileExistsError):
+                exporter.export(root, root / "missing", root, metric=True)
+            self.assertEqual(marker.read_bytes(), b"previous output")
+
+    def test_default_cli_records_start_and_failure_without_stdout_or_published_model(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name).resolve()
+            output = root / "export"
+            child = subprocess.run([sys.executable, "-B", exporter.__file__,
+                "--reference", str(root / "missing-reference"), "--weights", str(root / "missing"),
+                "--output", str(output), "--metric-hypersim"], capture_output=True)
+            self.assertNotEqual(child.returncode, 0)
+            self.assertEqual(child.stdout, b"")
+            self.assertIn(b"operation=metric_export failed", child.stderr)
+            evidence = (root / "export.log").read_text(encoding="utf-8")
+            self.assertIn("INFO start operation=metric_export phase=verify_reference_and_weights", evidence)
+            self.assertIn("ERROR operation=metric_export failed", evidence)
+            self.assertFalse(output.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
