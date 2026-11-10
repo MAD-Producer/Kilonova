@@ -97,3 +97,13 @@ The external ONNX artifact is98940404 bytes, SHA-256
 Actual domain quality, independent WGSL/resource qualification for this shape,
 qualified cross-resolution/video transitions, conservative complete memory and
 thermal qualification remain pending. #75 and the full3D route remain incomplete.
+
+
+The subsequent exact-source717fe10c complete Python discovery includes the new
+profile, helper and admission tests:157 tests,156 passes and one original skip,
+no filtering or failures. Session16443 exited0 and terminal`e59913` was consumed;
+all tracked tools hashes were unchanged. The [raw logs and receipt archive](data/depth75-ci-717fe10c-tools-v1.zip)
+and [manifest](data/depth75-ci-717fe10c-tools-v1.json) passed complete readback/CRC.
+This supersedes the pending Python regression for that source, not the failed
+sensor gate or native/cross-platform acceptance. Earlier missing-yaml and local
+fixture failures remain recorded with their original scopes and unresolved causes.
