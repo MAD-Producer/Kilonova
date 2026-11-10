@@ -3,8 +3,8 @@ use crate::session::Result;
 use motion_render::{FrameRecorder, GpuTimer, PreviewMode};
 use serde_json::json;
 mod gesture;
-pub use gesture::{apply as camera_gesture, Gesture as CameraGesture, Mode as CameraMode};
 pub(crate) use gesture::History as CameraHistory;
+pub use gesture::{apply as camera_gesture, Gesture as CameraGesture, Mode as CameraMode};
 
 pub fn configure_memory(id: i64, total_mem: i64, guarded: bool) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
@@ -32,7 +32,9 @@ pub fn seek(id: i64, frame: f64) -> Result<serde_json::Value> {
         if !frame.is_finite() || frame < 0.0 || frame >= f64::from(s.engine.project().frames) {
             return Err("invalid frame".into());
         }
-        if s.frame != frame { s.cancel_pending_exposure()?; }
+        if s.frame != frame {
+            s.cancel_pending_exposure()?;
+        }
         s.frame = frame;
         s.sample()?;
         s.snapshot()
@@ -45,7 +47,9 @@ pub fn observe(id: i64, enabled: bool, az: f64, el: f64) -> Result<serde_json::V
         s.observing = enabled;
         s.view_revision += 1;
         if s.observer.view == motion_core::ObservationView::Free {
-            s.observer.orbit(az as f32, el as f32).map_err(crate::Error::from)?;
+            s.observer
+                .orbit(az as f32, el as f32)
+                .map_err(crate::Error::from)?;
         } else {
             s.observer
                 .pan(
@@ -75,9 +79,7 @@ pub fn navigate(
             return Err("invalid observation navigation".into());
         }
         s.observer_history = Default::default();
-        s.observer
-            .zoom(zoom as f32)
-            .map_err(crate::Error::from)?;
+        s.observer.zoom(zoom as f32).map_err(crate::Error::from)?;
         if multi || s.observer.view != motion_core::ObservationView::Free {
             s.sample()?;
             let target = s.observer.camera.target.value;
@@ -150,8 +152,10 @@ pub fn start_command_profiling(id: i64, slots: usize) -> Result<serde_json::Valu
     crate::session::with_session(id, |s| {
         let g = s.graphics.as_mut().ok_or("no preview surface")?;
         let observer = g.renderer.start_command_profiling(slots)?;
-        Ok(json!({"gpuCommands":observer.map(|observer| observer.snapshot()),
-            "scope":"explicit_encoder_intervals","completeGpuCoverage":false}))
+        Ok(
+            json!({"gpuCommands":observer.map(|observer| observer.snapshot()),
+            "scope":"explicit_encoder_intervals","completeGpuCoverage":false}),
+        )
     })
 }
 
@@ -160,15 +164,19 @@ pub fn stop_command_profiling(id: i64) -> Result<serde_json::Value> {
         let g = s.graphics.as_mut().ok_or("no preview surface")?;
         // Match the existing profiling stop: callbacks complete before final
         // reporting and errors preserve the original native poll cause.
-        g.renderer.device.poll(wgpu::PollType::wait_indefinitely())
+        g.renderer
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
             .map_err(|e| crate::Error::with_context("command profiling GPU wait", e))?;
         let observer = g.renderer.stop_command_profiling();
         let trace = observer.as_ref().and_then(|observer| {
             observer.stop_trace();
             observer.trace_snapshot()
         });
-        Ok(json!({"gpuCommands":observer.map(|observer| observer.snapshot()),
-            "gpuCommandTrace":trace,"completeGpuCoverage":false}))
+        Ok(
+            json!({"gpuCommands":observer.map(|observer| observer.snapshot()),
+            "gpuCommandTrace":trace,"completeGpuCoverage":false}),
+        )
     })
 }
 
@@ -176,7 +184,10 @@ pub fn stop_command_profiling(id: i64) -> Result<serde_json::Value> {
 /// Starting a window cannot merge pools or change native command identities.
 pub fn start_command_trace(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
-        let observer = s.graphics.as_ref().and_then(|g| g.renderer.command_observer())
+        let observer = s
+            .graphics
+            .as_ref()
+            .and_then(|g| g.renderer.command_observer())
             .ok_or("GPU command profiling is not active")?;
         let window = observer.start_trace()?;
         Ok(json!({"window":window,"gpuCommands":observer.snapshot(),"completeGpuCoverage":false}))
@@ -186,9 +197,14 @@ pub fn start_command_trace(id: i64) -> Result<serde_json::Value> {
 /// This only closes the creation window. Pending callbacks remain pending.
 pub fn stop_command_trace(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
-        let observer = s.graphics.as_ref().and_then(|g| g.renderer.command_observer())
+        let observer = s
+            .graphics
+            .as_ref()
+            .and_then(|g| g.renderer.command_observer())
             .ok_or("GPU command profiling is not active")?;
-        observer.stop_trace().ok_or("GPU command trace is not active")?;
+        observer
+            .stop_trace()
+            .ok_or("GPU command trace is not active")?;
         Ok(json!({"gpuCommandTrace":observer.trace_snapshot(),"completeGpuCoverage":false}))
     })
 }
@@ -199,7 +215,10 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
             return Err("invalid frame recording limit".into());
         }
         let g = s.graphics.as_mut().ok_or("no preview surface")?;
-        g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| crate::Error::with_context("profiling GPU wait", e))?;
+        g.renderer
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| crate::Error::with_context("profiling GPU wait", e))?;
         g.timer = GpuTimer::new(&g.renderer)?;
         s.recorder = Some(FrameRecorder::new(s.presented + 1, limit as usize));
         s.update_submission_tracking();
@@ -211,7 +230,10 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
 pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         if let Some(g) = &mut s.graphics {
-            g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| crate::Error::with_context("profiling GPU wait", e))?;
+            g.renderer
+                .device
+                .poll(wgpu::PollType::wait_indefinitely())
+                .map_err(|e| crate::Error::with_context("profiling GPU wait", e))?;
             if let Some(timer) = &mut g.timer {
                 for t in timer.collect().into_iter().flatten() {
                     if let Some(r) = &mut s.recorder {
@@ -220,17 +242,16 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
                 }
             }
         }
-        let r = s
-            .recorder
-            .as_ref()
-            .ok_or("frame recording is not active")?;
+        let r = s.recorder.as_ref().ok_or("frame recording is not active")?;
         let metadata = json!({"preview":s.preview_info(),"resourceLedger":s.texture_resource_ledger(),
+            "frameDimensionSource":if s.colors.is_some(){"managed_surface"}else{"working_preview"},
             "projectWidth":s.engine.project().width,"projectHeight":s.engine.project().height,
             "projectFps":s.engine.project().fps,"projectFrames":s.engine.project().frames,
             "layerCount":s.engine.project().layers.len(),"surfaceEpoch":s.surface_epoch,
             "platform":s.platform().name(),
             "graphics":s.graphics.as_ref().map(|g|json!({"surfaceWidth":g.config.width,"surfaceHeight":g.config.height,
-                "renderWidth":g.scratch.width,"renderHeight":g.scratch.height,
+                "renderWidth":if s.colors.is_some(){g.config.width}else{g.scratch.width},
+                "renderHeight":if s.colors.is_some(){g.config.height}else{g.scratch.height},
                 "adapter":g.renderer.adapter_info.name,"driver":g.renderer.adapter_info.driver,
                 "driverInfo":g.renderer.adapter_info.driver_info,"backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "assetTextureBytes":g.renderer.texture_bytes(),"renderTargetBytes":g.scratch.texture_bytes()+g.views.texture_bytes(),
@@ -285,5 +306,7 @@ pub fn resource_memory(id: i64) -> crate::Result<serde_json::Value> {
 
 /// Toggle bounded submission diagnostics without modifying project/history.
 pub fn resource_tracking(id: i64, enabled: bool) -> Result<serde_json::Value> {
-    crate::session::with_session(id, |session| Ok(session.configure_resource_tracking(enabled)))
+    crate::session::with_session(id, |session| {
+        Ok(session.configure_resource_tracking(enabled))
+    })
 }

@@ -1,31 +1,41 @@
 //! Read the actual ordinary window surface, including its format conversion.
 use super::*;
 use motion_core::{
-    Command, Content, Track,
     vector::{ShapeKind, VectorContent},
+    Command, Content, Track,
 };
 use motion_effects::native_color::NativeColorRuntime;
-use motion_host::{Session, SurfaceTarget, session::viewer::View};
+use motion_host::{session::viewer::View, Session, SurfaceTarget};
 use motion_render::{
-    ViewCamera,
     multiview::{ViewInspection, ViewPlacement},
+    ViewCamera,
 };
 use std::{collections::BTreeMap, time::Instant};
 use winit::platform::windows::EventLoopBuilderExtWindows;
-#[path = "authored_window_images.rs"]
-mod images;
-#[path = "authored_window_capture.rs"]
-mod display_capture;
-#[path = "authored_window_roi.rs"]
-mod roi;
 #[path = "authored_window_components.rs"]
 mod components;
-#[path = "authored_window_snapshots.rs"]
-mod snapshots;
 #[path = "authored_window_compositions.rs"]
 mod compositions;
+#[path = "authored_window_capture.rs"]
+mod display_capture;
+#[path = "authored_window_images.rs"]
+mod images;
+#[path = "authored_window_recording.rs"]
+mod recording;
+#[path = "authored_window_roi.rs"]
+mod roi;
+#[path = "authored_window_snapshots.rs"]
+mod snapshots;
 
 fn attach(session: &mut Session, events: &winit::event_loop::EventLoop<()>) {
+    attach_profiled(session, events, false);
+}
+
+fn attach_profiled(
+    session: &mut Session,
+    events: &winit::event_loop::EventLoop<()>,
+    profiled: bool,
+) {
     #[allow(deprecated)]
     let window = Arc::new(
         events
@@ -43,19 +53,17 @@ fn attach(session: &mut Session, events: &winit::event_loop::EventLoop<()>) {
         &instance,
         Some(&surface),
         wgpu::TextureFormat::Rgba8UnormSrgb,
-        false,
+        profiled,
         session.allocation_budget().clone(),
     ))
     .unwrap();
     let mut config = surface
         .get_default_config(&renderer.adapter, 128, 128)
         .unwrap();
-    assert!(
-        surface
-            .get_capabilities(&renderer.adapter)
-            .usages
-            .contains(wgpu::TextureUsages::COPY_SRC)
-    );
+    assert!(surface
+        .get_capabilities(&renderer.adapter)
+        .usages
+        .contains(wgpu::TextureUsages::COPY_SRC));
     config.usage |= wgpu::TextureUsages::COPY_SRC;
     session
         .attach(SurfaceTarget {
@@ -144,7 +152,13 @@ fn capture_inspected(
             };
         let done = if let Some(inspections) = inspections {
             if retained {
-                session.present_retained_views_with_inspection(owner, views, inspections, false, overlay)
+                session.present_retained_views_with_inspection(
+                    owner,
+                    views,
+                    inspections,
+                    false,
+                    overlay,
+                )
             } else {
                 session.render_views_with_inspection(owner, frame, views, inspections, overlay)
             }
@@ -350,13 +364,11 @@ fn qualify(events: &winit::event_loop::EventLoop<()>) {
             limited.preview_target_budget_bytes = 32;
             session.configure_memory_policy(limited)?;
             for _ in 0..2 {
-                assert!(
-                    session
-                        .render_views_with_overlay(77, 0.75, &cells, |_, _, _| panic!(
-                            "rejected group published"
-                        ))
-                        .is_err()
-                );
+                assert!(session
+                    .render_views_with_overlay(77, 0.75, &cells, |_, _, _| panic!(
+                        "rejected group published"
+                    ))
+                    .is_err());
                 assert_eq!(session.last_presented_frame, frame);
                 assert_eq!(
                     serde_json::to_vec(session.engine.project()).unwrap(),
@@ -366,20 +378,25 @@ fn qualify(events: &winit::event_loop::EventLoop<()>) {
             session.configure_memory_policy(policy)?;
             checked += check(&capture(session, 0.75, &cells, false), 4, original_expected);
             let mut inspections = [ViewInspection::default(); 4];
-            let legacy = session.graphics.as_ref().unwrap().renderer.render_target(64, 64)?;
+            let legacy = session
+                .graphics
+                .as_ref()
+                .unwrap()
+                .renderer
+                .render_target(64, 64)?;
             inspections[1].comparison = Some((&legacy, 0.5));
-            assert!(
-                session
-                    .render_views_with_inspection(77, 1., &cells, &inspections, |_, _, _| panic!(
-                        "unqualified inspection published"
-                    ))
-                    .is_err()
-            );
+            assert!(session
+                .render_views_with_inspection(77, 1., &cells, &inspections, |_, _, _| panic!(
+                    "unqualified inspection published"
+                ))
+                .is_err());
             assert_eq!(session.last_presented_frame, Some(0.75));
             assert_eq!(capture(session, 0.75, &cells, true), previous);
             session.clear_view_group()?;
-            assert!(session.view_group_current(77, &cells, true)?,
-                "clearing the legacy pool must preserve the shared managed owner");
+            assert!(
+                session.view_group_current(77, &cells, true)?,
+                "clearing the legacy pool must preserve the shared managed owner"
+            );
             checked += check(&capture(session, 1., &cells, false), 4, original_expected);
             assert_eq!(
                 serde_json::to_vec(session.engine.project()).unwrap(),
@@ -394,8 +411,10 @@ fn qualify(events: &winit::event_loop::EventLoop<()>) {
             assert_eq!(capture_owner(session, 1.375, &single, true, 0), pixels);
             assert_eq!(session.frame, 1.375);
             assert_eq!(session.last_presented_frame, Some(1.25));
-            assert_eq!(session.render_attempts, attempts,
-                "held single-view repaint must not resample the advanced clock");
+            assert_eq!(
+                session.render_attempts, attempts,
+                "held single-view repaint must not resample the advanced clock"
+            );
             std::fs::write(&config_path, &reference.configs[case.config].config).unwrap();
             Ok(())
         })
@@ -434,7 +453,7 @@ fn qualify(events: &winit::event_loop::EventLoop<()>) {
             Ok(())
         })
         .unwrap();
-        use motion_host::ops::editing::{HISTORY_REDO, HISTORY_UNDO, history};
+        use motion_host::ops::editing::{history, HISTORY_REDO, HISTORY_UNDO};
         history(id, HISTORY_UNDO).unwrap();
         motion_host::session::with_session(id, |session| {
             assert_eq!(

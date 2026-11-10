@@ -8,7 +8,10 @@ pub use capture::ManagedViewCapture;
 
 fn inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result<()> {
     validate_inspections(views, inspections)?;
-    if inspections.iter().any(|inspection| inspection.comparison.is_some()) {
+    if inspections
+        .iter()
+        .any(|inspection| inspection.comparison.is_some())
+    {
         return Err(refuse(
             "surface_inspection",
             "managed comparison consumer requires explicit integration",
@@ -17,9 +20,11 @@ fn inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result
     }
     Ok(())
 }
-fn comparison_resources(inspection:&[ViewInspection<'_>],ledger:&mut TextureResourceLedger) {
+fn comparison_resources(inspection: &[ViewInspection<'_>], ledger: &mut TextureResourceLedger) {
     for cell in inspection {
-        if let Some((snapshot,_))=cell.managed_comparison { snapshot.collect_texture_resources(ledger); }
+        if let Some((snapshot, _)) = cell.managed_comparison {
+            snapshot.collect_texture_resources(ledger);
+        }
     }
 }
 
@@ -34,8 +39,10 @@ impl Session {
     ) -> Result<bool> {
         self.check_thread()?;
         inspections(views, inspection)?;
-        if let Some(g)=&self.graphics {
-            if let Some(state)=&g.views.colors { state.validate_comparisons(&g.renderer,inspection)?; }
+        if let Some(g) = &self.graphics {
+            if let Some(state) = &g.views.colors {
+                state.validate_comparisons(&g.renderer, inspection)?;
+            }
         }
         self.observe_preview_pressure()?;
         if !self.view_group_current(owner, views, frozen)? {
@@ -69,10 +76,10 @@ impl Session {
                 false,
             )?;
         overlay(&g.renderer, &mut encoder, &target);
-        g.renderer
-            .submit_allocated(encoder.finish(), |ledger| {
-                g.views.collect(ledger); comparison_resources(inspection,ledger);
-            })?;
+        g.renderer.submit_allocated(encoder.finish(), |ledger| {
+            g.views.collect(ledger);
+            comparison_resources(inspection, ledger);
+        })?;
         g.renderer.check_health()?;
         g.renderer.queue.present(output);
         self.presented = self.presented.saturating_add(1);
@@ -95,15 +102,10 @@ impl Session {
         let Some(g) = &self.graphics else {
             return Ok(false);
         };
-        if let Some(state)=&g.views.colors { state.validate_comparisons(&g.renderer,inspection)?; }
-        validate_surface(views, [g.config.width, g.config.height])?;
-        if self.recorder.is_some() {
-            return Err(refuse(
-                "surface_recording",
-                "managed frame recording requires its explicit measurement consumer",
-            )
-            .into());
+        if let Some(state) = &g.views.colors {
+            state.validate_comparisons(&g.renderer, inspection)?;
         }
+        validate_surface(views, [g.config.width, g.config.height])?;
         let began = Instant::now();
         self.frame = frame;
         self.observe_preview_pressure()?;
@@ -160,9 +162,11 @@ impl Session {
             .graphics
             .as_mut()
             .ok_or("managed surface detached during submission")?;
+        let acquiring = Instant::now();
         let Some(output) = acquire_preview_surface(g)? else {
             return Ok(false);
         };
+        let acquire_us = acquiring.elapsed().as_micros() as u64;
         let target = output.texture.create_view(&Default::default());
         let mut encoder = g.renderer.allocation_command_encoder_for(
             motion_render::gpu_commands::CommandStage::CompositionAndPresentation,
@@ -183,19 +187,48 @@ impl Session {
                 true,
             )?;
         overlay(&g.renderer, &mut encoder, &target);
-        g.renderer
-            .submit_allocated(encoder.finish(), |ledger| {
-                g.views.collect(ledger); comparison_resources(inspection,ledger);
-            })?;
+        let presentation_command = encoder.command_identity();
+        let submitting = Instant::now();
+        g.renderer.submit_allocated(encoder.finish(), |ledger| {
+            g.views.collect(ledger);
+            comparison_resources(inspection, ledger);
+        })?;
+        let submit_us = submitting.elapsed().as_micros() as u64;
         g.renderer.check_health()?;
         g.views
             .colors
             .as_mut()
             .ok_or_else(|| refuse("surface_commit", "prepared display owner is missing"))?
             .commit()?;
+        let presenting = Instant::now();
         g.renderer.queue.present(output);
+        let present_call_us = presenting.elapsed().as_micros() as u64;
         self.presented = self.presented.saturating_add(1);
-        self.last_cpu_us = began.elapsed().as_micros() as u64;
+        let render_wall_us = began.elapsed().as_micros() as u64;
+        self.last_cpu_us = render_wall_us
+            .saturating_sub(acquire_us)
+            .saturating_sub(present_call_us);
+        if let Some(recorder) = &mut self.recorder {
+            recorder.record(FrameMeasurement {
+                sequence: self.presented,
+                frame,
+                elapsed_us: recorder.elapsed_us(),
+                cpu_prepare_us: self.last_cpu_us,
+                acquire_us,
+                submit_us,
+                present_call_us,
+                render_wall_us,
+                // This submission presents the complete managed surface;
+                // individual working cells may have different dimensions.
+                render_width: g.config.width,
+                render_height: g.config.height,
+                preview_fps: self.preview.tier().fps(),
+                gpu: None,
+                presentation_command,
+                exposure: None,
+                resources: None,
+            });
+        }
         self.last_presented_frame = Some(frame);
         self.last_presented_revision = self.engine.revision();
         self.last_presented_view_revision = self.view_revision;
