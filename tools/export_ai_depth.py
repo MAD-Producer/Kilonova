@@ -201,8 +201,8 @@ def arguments(argv=None):
     return parser.parse_args(argv)
 
 
-if __name__ == "__main__":
-    args = arguments()
+def main(argv=None):
+    args = arguments(argv)
     if not args.metric_hypersim:
         export(args.reference, args.weights, args.output, args.side, native_aspect=args.metric_native_aspect)
     else:
@@ -226,7 +226,7 @@ if __name__ == "__main__":
             sink.flush()
             os.fsync(sink.stream.fileno())
         def observe(phase):
-            global current_phase
+            nonlocal current_phase
             current_phase = phase
             logger.info("start operation=metric_export phase=%s elapsed_ms=%d", phase,
                         (time.monotonic() - began) * 1000)
@@ -246,4 +246,18 @@ if __name__ == "__main__":
                 sys.stderr.write("metric export log persistence failed: " + str(logging_error)[:512] + "\n")
             raise
         finally:
-            sink.close()
+            # Closing a buffered file can itself fail. Keep an active export
+            # exception primary; after successful export the close failure must
+            # still make the command fail rather than imply durable evidence.
+            primary_active = sys.exc_info()[0] is not None
+            try:
+                sink.close()
+            except OSError as close_error:
+                sys.stderr.write("ERROR metric export log closure failed phase=" + current_phase
+                                 + ": " + str(close_error)[:512] + "\n")
+                if not primary_active:
+                    raise
+
+
+if __name__ == "__main__":
+    main()

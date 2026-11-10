@@ -112,3 +112,8 @@ and [manifest](data/depth75-ci-717fe10c-tools-v1.json) passed complete readback/
 This supersedes the pending Python regression for that source, not the failed
 sensor gate or native/cross-platform acceptance. Earlier missing-yaml and local
 fixture failures remain recorded with their original scopes and unresolved causes.
+
+The later [log-closure correction](depth75-metric-log-close-current.md) preserves
+primary export failures and refuses a silent finalization failure. Its complete
+tool discovery has159 tests,158 passes and one original skip. The intervening
+phase-capture regression and its original failed invocation remain recorded.

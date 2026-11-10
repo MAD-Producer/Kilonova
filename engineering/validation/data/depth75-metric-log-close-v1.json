@@ -1,0 +1,76 @@
+{
+  "scope": "Original failed/successful complete Python CI discovery and exact final authored source; no optional model runtime or tensors",
+  "sourceBase": "2dff332e7c5101bcbc94fd8401ed61c146fcad4e",
+  "archive": "depth75-metric-log-close-v1.zip",
+  "bytes": 30938,
+  "sha256": "8562ca428d0c8e302e5d9ef868f8c2cf86aae24750ca3894aec74a1c3cbdca81",
+  "originalFailure": {
+    "terminal": "080b9d",
+    "session": 15588,
+    "tests": 159,
+    "failures": 1,
+    "originalSkipped": 1,
+    "scope": "Phase capture regression introduced by extracting main; original assertion unchanged"
+  },
+  "finalResult": {
+    "terminal": "568b01",
+    "session": 95992,
+    "tests": 159,
+    "passes": 158,
+    "originalSkipped": 1,
+    "exitCode": 0,
+    "sourceUnchanged": true
+  },
+  "members": [
+    {
+      "name": "final-source/tools/export_ai_depth.py",
+      "bytes": 15166,
+      "sha256": "f146fee9065b632728faab3b09f4f79f08fb24f20b5cf09e9a99b0402f494593"
+    },
+    {
+      "name": "final-source/tools/test_ci_metric_depth_export.py",
+      "bytes": 9666,
+      "sha256": "c021279adeffeaa566d380edfd9e8c7a077fe1057fe835cbc0b25eafd7020ea3"
+    },
+    {
+      "name": "v1/controller.py",
+      "bytes": 1574,
+      "sha256": "69a7c496a75a507e4c87a49d62b977b854d30d3f2bd8fd13a991834e594e6899"
+    },
+    {
+      "name": "v1/receipt.json",
+      "bytes": 8743,
+      "sha256": "d5ede206e641bc75074d3f4cb529c589684e5e36ae57392e6b790a8692fae970"
+    },
+    {
+      "name": "v1/stderr.log",
+      "bytes": 33605,
+      "sha256": "79a26ef0a5a03296633267ed374b83bdb519d08f2e9405073d01b6f74b0f5aac"
+    },
+    {
+      "name": "v1/stdout.log",
+      "bytes": 2165,
+      "sha256": "bb4d9906f56fe930c116f0372052dd348b59bfa0d06d0a7936ed521f29a3d12b"
+    },
+    {
+      "name": "v2/controller.py",
+      "bytes": 1574,
+      "sha256": "bdf31c244136763c9e442f16f53acc9ca2c99267ada1d0c195b49da556c38c41"
+    },
+    {
+      "name": "v2/receipt.json",
+      "bytes": 8743,
+      "sha256": "c8e785ce139bd03f1183ccf7e7f0624382f05abc3dce96d9e7068f388cd93292"
+    },
+    {
+      "name": "v2/stderr.log",
+      "bytes": 29743,
+      "sha256": "8a165d292e21d898feb1da2493b71eba6d54a24124e732668a88b1559fb3ab4d"
+    },
+    {
+      "name": "v2/stdout.log",
+      "bytes": 2165,
+      "sha256": "09a0079bf876318a78e39a9c5383dc73bf93d974315fcf9b1ad58e8ce3ace297"
+    }
+  ]
+}

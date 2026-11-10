@@ -120,6 +120,70 @@ with patch.object(os, 'fsync', persist):
             self.assertIn(b"subprocess.CalledProcessError:", child.stderr.splitlines()[-1])
             self.assertFalse(output.exists())
 
+    def test_secondary_log_closure_failure_preserves_actual_export_exception(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name).resolve()
+            output = root / "export"
+            control = """
+import logging, runpy, sys
+from unittest.mock import patch
+original = logging.FileHandler.close
+calls = 0
+def close(sink):
+    global calls
+    calls += 1
+    original(sink)
+    if calls == 1:
+        raise OSError('controlled secondary closure failure')
+script = sys.argv.pop(1)
+with patch.object(logging.FileHandler, 'close', close):
+    runpy.run_path(script, run_name='__main__')
+"""
+            child = subprocess.run([sys.executable, "-B", "-c", control, exporter.__file__,
+                "--reference", str(root / "missing-reference"), "--weights", str(root / "missing"),
+                "--output", str(output), "--metric-hypersim"], capture_output=True)
+            self.assertNotEqual(child.returncode, 0)
+            self.assertEqual(child.stdout, b"")
+            self.assertIn(b"ERROR metric export log closure failed phase=verify_reference_and_weights",
+                          child.stderr)
+            self.assertIn(b"subprocess.CalledProcessError:", child.stderr.splitlines()[-1])
+            evidence = (root / "export.log").read_text(encoding="utf-8")
+            self.assertIn("ERROR operation=metric_export failed", evidence)
+            self.assertFalse(output.exists())
+
+    def test_log_closure_failure_after_success_is_not_silently_accepted(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name).resolve()
+            # Only the successful export body is substituted here. This control
+            # tests CLI finalization, not learned inference or publication.
+            control = """
+import logging, sys
+from pathlib import Path
+from unittest.mock import patch
+script = Path(sys.argv.pop(1))
+sys.path.insert(0, str(script.parent))
+import export_ai_depth
+original = logging.FileHandler.close
+calls = 0
+def close(sink):
+    global calls
+    calls += 1
+    original(sink)
+    if calls == 1:
+        raise OSError('controlled primary closure failure')
+with patch.object(logging.FileHandler, 'close', close), patch.object(export_ai_depth, 'export'):
+    export_ai_depth.main()
+"""
+            child = subprocess.run([sys.executable, "-B", "-c", control, exporter.__file__,
+                "--reference", str(root), "--weights", str(root / "unused"),
+                "--output", str(root / "export"), "--metric-hypersim"], capture_output=True)
+            self.assertNotEqual(child.returncode, 0)
+            self.assertEqual(child.stdout, b"")
+            self.assertIn(b"ERROR metric export log closure failed phase=admission", child.stderr)
+            self.assertEqual(child.stderr.splitlines()[-1],
+                             b"OSError: controlled primary closure failure")
+            self.assertIn("INFO done operation=metric_export", (root / "export.log").read_text())
+
 
 if __name__ == "__main__":
     unittest.main()
