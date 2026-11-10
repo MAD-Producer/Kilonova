@@ -1,0 +1,12 @@
+{
+  "status": "archived_and_integrated_tested_component_not_committed",
+  "createdUtc": "2026-11-01T03:24:08.992649+00:00",
+  "sha256": "25d9f54dce684ebd03ec9663ea2f2ddee9ddc7c05c2c1e5e3049d84d96e8304b",
+  "members": 34,
+  "files": [
+    "crates/motion-host/src/session/viewer.rs",
+    "desktop/app/src/engine/prerender.rs",
+    "desktop/app/src/engine/prerender/tests.rs",
+    "desktop/app/src/engine/prerender/tests/multiview_admission.rs"
+  ]
+}

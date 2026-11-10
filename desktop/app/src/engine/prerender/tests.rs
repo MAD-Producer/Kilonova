@@ -10,6 +10,7 @@ mod foreground_refresh;
 mod source_freshness;
 mod input_priority;
 mod input_completion;
+mod multiview_admission;
 
 fn frame() -> UiFrame {
     UiFrame {
@@ -247,3 +248,5 @@ fn native_idle_owner_presents_a_warm_frame_and_rejects_an_edited_source() {
     )
     .unwrap();
 }
+
+mod input_poll_parking;

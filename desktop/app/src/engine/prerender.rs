@@ -15,6 +15,8 @@ use std::{
 };
 mod signals;
 mod input;
+#[cfg(test)]
+mod polling_tests;
 pub(crate) use input::InputActivity;
 #[cfg(all(test, target_os = "windows"))]
 mod tests;
@@ -80,7 +82,13 @@ impl Runtime {
         }
     }
     pub fn polling(&self) -> bool {
-        self.enabled || self.lease.is_some()
+        // Drain outstanding cancellation acknowledgments before parking. A
+        // foreground command wakes recv(), and its successful Present clears
+        // pending input. Optional faults require explicit configuration.
+        self.lease.is_some()
+            || (self.enabled
+                && self.fault.is_none()
+                && !matches!(self.signals.input_pending(), Ok(true)))
     }
     pub fn foreground_presented(&mut self, input_token: u64) {
         // Wake optional work immediately after a successful playback frame,
@@ -149,6 +157,7 @@ impl Runtime {
         Ok(s.graphics.is_some()
             && s.preview.mode == motion_render::PreviewMode::High
             && !s.observing
+            && !s.has_view_group()
             && !motion_host::render_sampling::needs_exposure(s.engine.project())
                 .map_err(|e| e.to_string())?
             && !s.engine.gesture_active())
@@ -404,8 +413,14 @@ impl Runtime {
     }
     pub fn status(&self) -> serde_json::Value {
         let scheduler = self.owner.as_ref().map(Coordinator::status);
-        serde_json::json!({"enabled":self.enabled,"experimental":true,"hold":self.hold,
-            "inputPending":self.signals.input_pending().ok(),
+        let input_pending = self.signals.input_pending().ok();
+        let hold = if self.enabled && self.fault.is_none() && input_pending == Some(true) {
+            "input"
+        } else {
+            self.hold
+        };
+        serde_json::json!({"enabled":self.enabled,"experimental":true,"hold":hold,
+            "inputPending":input_pending,
             "policy":{"enabled":self.policy.enabled,"window":self.policy.window,
                 "idleDelayMs":self.policy.idle_delay.as_millis(),
                 "maxSeekFramesPerSecond":self.policy.max_seek_frames_per_second},
