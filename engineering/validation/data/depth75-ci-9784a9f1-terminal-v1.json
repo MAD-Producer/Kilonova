@@ -1,0 +1,37 @@
+{
+  "archive": "depth75-ci-9784a9f1-terminal-v1.zip",
+  "bytes": 404880,
+  "sha256": "2397fa71ac729e6d7e2360587ce565e0536a56b57ab9061c6e264d8c06f23541",
+  "members": {
+    "depth75-ci-9784a9f1-terminal.json": {
+      "bytes": 34616,
+      "sha256": "09e5d2131c3d3814e1501c5601ae5651268a8657522ae65c7b05683f1971df99"
+    },
+    "depth75-ci-9784a9f1-rust-gpu.log": {
+      "bytes": 91802,
+      "sha256": "c0ff982f5f8f38216236244f4209fd853a08ce1c23f2db8b11bd9e69ac65aebb"
+    },
+    "depth75-ci-9784a9f1-windows-tests.log": {
+      "bytes": 579913,
+      "sha256": "c036e1be46a7dcb64112b672f63e5fbe31d5a289ae6f84605dc441de06f60162"
+    },
+    "depth75-ci-9784a9f1-macos-tests.log": {
+      "bytes": 555763,
+      "sha256": "a971b8f21ab5608032096c8119a4656d42b5a6262971487588447afb814e8bd1"
+    },
+    "depth75-ci-9784a9f1-linux-tests.log": {
+      "bytes": 569885,
+      "sha256": "85ceaf99d32e19a89a7256fc0a32a9938952f1a4b2569725dd63967180e74693"
+    },
+    "depth75-ci-9784a9f1-summary.json": {
+      "bytes": 3067,
+      "sha256": "29fa42ae4299963e308b96aa30d449d50f23a01537de292a671e09b6c6b4a2cb"
+    },
+    "depth75-ci-9784a9f1-archive-v1.py": {
+      "bytes": 3250,
+      "sha256": "1a1541a31edac6635d2ad6163c261af1c61d8aad533aa83498cff4121a421a4c"
+    }
+  },
+  "source": "9784a9f1455207e709b1cfcfd99580399fd6e48e",
+  "verdict": "failed_original_inventory_gate_three_platform_components_passed"
+}

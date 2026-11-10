@@ -4,6 +4,11 @@ Status: incomplete. This document separates implementation, observed results and
 unmet acceptance. No single component pass, old-source CI result or diagnostic
 archive establishes completion of #75 or the complete 3D roadmap.
 
+The [original 9784a9f1 CI](depth75-ci-9784a9f1-current.md) is now terminal:
+all three native platform test/build jobs succeeded, while the overall run
+failed its Python inventory admission. The local registration correction and
+159-tool result are recorded separately; the original failed gate is retained.
+
 The maintained delivery scope is desktop. Android is retired and its device
 qualification was explicitly waived. Old project/runtime compatibility is not
 a delivery requirement during this iteration. No external learned-model weights
