@@ -1,0 +1,12 @@
+{
+  "status": "archived_and_integrated_tested_component_not_committed",
+  "createdUtc": "2026-11-01T03:30:15.388561+00:00",
+  "sha256": "32ad8f0823556cd1645613befdc3e99e08fd9e42753c58d7363f6f6a1aea52fd",
+  "members": 41,
+  "files": [
+    "desktop/app/src/engine/prerender.rs",
+    "desktop/app/src/engine/prerender/tests.rs",
+    "desktop/app/src/engine/prerender/polling_tests.rs",
+    "desktop/app/src/engine/prerender/tests/input_poll_parking.rs"
+  ]
+}

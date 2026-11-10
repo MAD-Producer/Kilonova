@@ -1,4 +1,7 @@
 mod depth_images;
+mod composition_frames;
+pub use composition_frames::{CachedCompositionFrame, CompositionFrameCache, CompositionFrameCacheInfo,
+    CompositionFrameContext, CompositionFrameKey, NativeCompositionCandidate};
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
@@ -442,7 +445,7 @@ impl Renderer {
         precision_changes: bool,
         registry: Option<motion_effects::Registry>,
     ) -> Result<Self> {
-        let precision = crate::image_formats::color_precision(format)
+        crate::image_formats::color_precision(format)
             .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -452,6 +455,21 @@ impl Renderer {
                 ..Default::default()
             })
             .await?;
+        // The native initializer owns large pipeline futures. Keep the new
+        // adapter-sharing boundary from embedding another copy of that state
+        // or its large return value in callers on the default-stack GUI thread.
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes, registry)).await.map(|renderer| *renderer)
+    }
+    async fn new_on_adapter_with_options(
+        adapter: wgpu::Adapter,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
+        precision_changes: bool,
+        registry: Option<motion_effects::Registry>,
+    ) -> Result<Box<Self>> {
+        let precision = crate::image_formats::color_precision(format)
+            .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
         let adapter_info = adapter.get_info();
         let precision_features = crate::image_formats::working_features(precision);
         let missing = precision_features - adapter.features();
@@ -605,7 +623,7 @@ impl Renderer {
         let driver_pipeline_cache = crate::driver_pipeline_cache::DriverPipelineCache::new(&device, &adapter_info)?;
         effect_gpu.state.driver_pipeline_cache = driver_pipeline_cache.cache.clone();
         effect_gpu.builder.set_precision(precision);
-        let mut renderer = Self {
+        let mut renderer = Box::new(Self {
             memory_pressure_probe: Default::default(),
             allocation_budget,
             allocation_owner: Arc::new(()),
@@ -681,7 +699,7 @@ impl Renderer {
             composition_runs: 0,
             compositing_pipeline_set_builds: 0,
             allocation_uploads,
-        };
+        });
         renderer.effect_gpu.builder.device_dimension =
             renderer.device.limits().max_texture_dimension_2d.min(8192);
         renderer.upload_image(0, 1, 1, &[255; 4])?;
@@ -705,6 +723,18 @@ impl Renderer {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
         let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
         Self::new_profiled_with_precision_changes(&instance, None, format, false, budget).await
+    }
+    /// Independent native desktop device on the exact supplied adapter handle.
+    /// No foreground device, queue, texture or renderer crosses the owner thread.
+    /// This path targets native wgpu backends; repeated device creation from one
+    /// adapter is not a WebGPU browser contract.
+    pub async fn on_adapter_with_working_precision(
+        adapter: wgpu::Adapter,
+        precision: motion_effects::image_contract::ChannelPrecision,
+        budget: crate::AllocationBudget,
+    ) -> Result<Self> {
+        let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, false, budget, true, None)).await.map(|renderer| *renderer)
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
     /// Successfully encoded snapshot draws in the latest local composition
@@ -2893,7 +2923,12 @@ impl Renderer {
             format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::TEXTURE_BINDING | additional,
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | additional
+                | if category == crate::TextureCategory::PreviewTargets {
+                    // Preview candidates may receive an exact native cache copy.
+                    wgpu::TextureUsages::COPY_DST
+                } else { wgpu::TextureUsages::empty() },
             view_formats: &[],
         }, &self.allocation_budget, category)?;
         let view = texture.admitted_view()?;

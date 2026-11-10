@@ -37,6 +37,8 @@ mod viewer_inspection;
 pub(crate) mod viewer_input;
 pub(crate) mod viewer_frame;
 mod shutdown;
+mod prerender;
+pub(crate) use prerender::InputActivity;
 #[cfg(test)]
 mod native_test_evidence;
 #[cfg(test)]
@@ -182,6 +184,10 @@ fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>,
 /// compile-time change on both platforms.
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
+    ConfigurePrerender { policy: motion_host::prerender::Policy, reply: Sender<Result<Value, Error>> },
+    ConfigurePrerenderDisk { policy: motion_host::prerender::Policy, disk: Option<motion_desktop_media::movie::prerender::disk::Config>, reply: Sender<Result<Value, Error>> },
+    /// Internal idle poll; it does not enter the foreground command queue.
+    PrerenderPoll,
     CurveClipboardRead { source: crate::layer_clipboard::KeyframeSource, selection: Option<motion_core::KeyframeSelection>, local_selection: Option<motion_core::LocalKeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::curves::Read, Error>> },
     ClipboardRead { objects: Vec<u64>, reply: Sender<Result<crate::layer_clipboard::Read, Error>> },
     KeyframeClipboardRead { source: crate::layer_clipboard::KeyframeSource, selections: Vec<motion_core::KeyframeSelection>, local_selections: Vec<motion_core::LocalKeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::KeyframeRead, Error>> },
@@ -547,14 +553,14 @@ impl Command {
             | HitCandidates { reply, .. } | ViewerDrag { reply, .. } | ViewerInput { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
             | Composition { reply, .. } | Media { reply, .. } | TrackedVideoReplacement { reply, .. } | ImageInfo { reply, .. }
             | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
-            | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
+            | ResourceInfo { reply, .. } | ConfigurePrerender { reply, .. } | ConfigurePrerenderDisk { reply, .. } => ErrorReply::Value(reply.clone()),
             #[cfg(test)]
             TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } | TestWait {reply,..} => {
                 ErrorReply::Value(reply.clone())
             }
             #[cfg(test)]
             TestStudy { reply, .. } => ErrorReply::Value(reply.clone()),
-            Shutdown => return None,
+            Shutdown | PrerenderPoll => return None,
         };
         Some(reply)
     }
@@ -576,7 +582,7 @@ impl std::ops::Deref for ArcFrame {
 
 /// Handle used by the UI thread to talk to the engine.
 pub struct Engine {
-    sender: SyncSender<QueuedCommand>,
+    sender: SyncSender<Box<QueuedCommand>>,
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
     allocation_budget: motion_render::AllocationBudget,
@@ -591,6 +597,7 @@ pub struct Engine {
     queue_depth: Arc<AtomicUsize>,
     shutdown: Arc<AtomicBool>,
     pending_node_expect: Arc<Mutex<Option<(u64, u64)>>>,
+    prerender_signals: Arc<prerender::Signals>,
 }
 #[derive(Clone, Copy)]
 struct Flight {
@@ -611,10 +618,35 @@ struct QueuedCommand {
     queued: std::time::Instant,
     request: u64,
     context: crate::diagnostics::Context,
+    prerender_input: u64,
 }
 
 #[allow(dead_code)] // SDK bridge methods are intentionally available to future panels.
 impl Engine {
+    /// Publish input priority before UI layout/action generation, without queueing
+    /// work on the serial owner. This does not alter editor gesture semantics.
+    pub(crate) fn prerender_input(&self, activity: InputActivity) -> Result<(), String> {
+        self.prerender_signals.input(activity)
+    }
+    /// Read the independent native owner even while the serial Engine is blocked.
+    pub fn prerender_observation(&self) -> Result<Option<motion_desktop_media::movie::prerender::worker::Snapshot>, String> {
+        self.prerender_signals.snapshot()
+    }
+    /// Experimental profile; no UI setting or capability is enabled.
+    pub fn configure_prerender(&self, policy: motion_host::prerender::Policy) -> Result<Value, Error> {
+        self.call(|reply| Command::ConfigurePrerender { policy, reply })
+    }
+    pub fn configure_prerender_with_disk(&self, policy: motion_host::prerender::Policy, quota: u64) -> Result<Value, Error> {
+        let disk = if quota == 0 { None } else {
+            Some(motion_desktop_media::movie::prerender::disk::Config::new(
+                crate::directories().join("cache/prerender"), quota)?)
+        };
+        self.call(|reply| Command::ConfigurePrerenderDisk { policy, disk, reply })
+    }
+    pub fn set_prerender_playing(&self, playing: bool) -> Result<(), String> {
+        self.check_running()?;
+        self.prerender_signals.set_playing(playing)
+    }
     /// Inspect executing work without asking the (possibly blocked) worker.
     pub fn in_flight(&self) -> Option<(String, Duration)> {
         self.in_flight.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
@@ -681,6 +713,7 @@ impl Engine {
     /// Stop accepting work and drain accepted commands. This also works while
     /// an MCP reader still owns an Arc; it does not interrupt a native GPU call.
     pub fn request_shutdown(&self) -> Result<(), Error> {
+        self.prerender_signals.interrupt()?;
         let context = self.diagnostics.context();
         let mut gate_error = None;
         let queued = {
@@ -693,12 +726,13 @@ impl Engine {
             }
             // Wake an idle worker. A full queue already wakes it; after draining
             // it observes the flag without requiring another free queue slot.
-            let queued = self.sender.try_send(QueuedCommand {
+            let queued = self.sender.try_send(Box::new(QueuedCommand {
                 command: Command::Shutdown,
                 queued: Instant::now(),
                 request: self.diagnostics.next_request(),
                 context,
-            });
+                prerender_input: 0,
+            }));
             if queued.is_ok() { self.queue_depth.fetch_add(1, Ordering::AcqRel); }
             queued
         };
@@ -799,7 +833,11 @@ impl Engine {
         let worker_shutdown = shutdown.clone();
         let pending_node_expect = Arc::new(Mutex::new(None));
         let worker_node_expect = pending_node_expect.clone();
-        let (sender, receiver) = sync_channel::<QueuedCommand>(COMMAND_QUEUE_CAPACITY);
+        let prerender_signals = Arc::new(prerender::Signals::default());
+        let worker_prerender_signals = prerender_signals.clone();
+        // Command includes large editor snapshots. Move one pointer through
+        // mpsc rather than copying that payload through its stack frames.
+        let (sender, receiver) = sync_channel::<Box<QueuedCommand>>(COMMAND_QUEUE_CAPACITY);
         let (ready, opened) = channel::<Result<(i64, motion_render::AllocationBudget,
             motion_host::session::PipelinePreparationObservation), Error>>();
         let worker = std::thread::Builder::new()
@@ -877,6 +915,7 @@ impl Engine {
                 let mut frame_capture = frame_capture::Worker::new(worker_frame_flight);
                 let mut movie_freeze = movie_freeze::Worker::new(worker_movie_freeze_flight);
                 let mut frame_completions = frame_completion::Queue::default();
+                let mut prerender = prerender::Runtime::new(worker_prerender_signals);
                 let mut windows = std::collections::HashMap::new();
                 let mut failed_reply: Option<(ErrorReply, Error)> = None;
                 let mut completion_failure = None;
@@ -918,23 +957,30 @@ impl Engine {
                             break;
                         }
                     }
-                    let (QueuedCommand {command,queued,request,context}, resumed) =
+                    let optional_poll = frame_completions.is_empty() && !worker_preparation.preparing() && prerender.polling();
+                    let (QueuedCommand {command,queued,request,context,prerender_input}, resumed, received) =
                         if let Some(pending) = frame_completions.take_due() {
                             let frame_completion::Pending { command, meta, stamp, waiting } = pending;
                             (QueuedCommand { command, queued: meta.queued, request: meta.flight.request,
-                                context: meta.context }, Some((stamp, waiting, meta.flight)))
+                                context: meta.context, prerender_input: meta.prerender_input }, Some((stamp, waiting, meta.flight)), false)
                         } else {
-                            let delay = frame_completions.delay().or_else(||
-                                worker_preparation.preparing().then_some(preparation_progress::POLL_INTERVAL));
+                            let delay = [frame_completions.delay(),
+                                worker_preparation.preparing().then_some(preparation_progress::POLL_INTERVAL),
+                                optional_poll.then_some(prerender.wait_interval())].into_iter().flatten().min();
                             let received = if let Some(delay) = delay {
                                 match receiver.recv_timeout(delay) {
-                                    Ok(command) => Some(command),
+                                    Ok(command) => Some((*command, true)),
+                                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) if optional_poll => Some((QueuedCommand {
+                                        command: Command::PrerenderPoll, queued: Instant::now(),
+                                        request: worker_diagnostics.next_request(), context: worker_diagnostics.context(),
+                                        prerender_input: 0,
+                                    }, false)),
                                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
                                     Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => None,
                                 }
-                            } else { receiver.recv().ok() };
-                            let Some(command) = received else { break; };
-                            (command, None)
+                            } else { receiver.recv().ok().map(|command| (*command, true)) };
+                            let Some((command, received)) = received else { break; };
+                            (command, None, received)
                         };
                     let began=std::time::Instant::now();
                     let operation=command.diagnostic_name();
@@ -943,18 +989,18 @@ impl Engine {
                         // dispatch holds this same short gate across send + increment.
                         // recv can wake before send returns; never decrement first.
                         let mut current = worker_flight.lock().unwrap_or_else(|e| e.into_inner());
-                        if resumed.is_none() { worker_depth.fetch_sub(1, Ordering::AcqRel); }
+                        if received { worker_depth.fetch_sub(1, Ordering::AcqRel); }
                         *current = Some(flight);
                     }
                     CURRENT_COMMAND.set(Some(flight));
                     #[cfg(test)]
                     worker_diagnostics.native_test_phase("dispatch");
-                    if operation != "present" && resumed.is_none() {
+                    if operation != "present" && operation != "prerender_poll" && resumed.is_none() {
                         log::info!("start #{} {}", request, operation);
                         crate::logging::flush();
                     }
                     let on_panic = command.panic_reply();
-                    let meta = frame_completion::Meta { queued, flight, context: context.clone() };
+                    let meta = frame_completion::Meta { queued, flight, context: context.clone(), prerender_input };
                     let mut deferred = false;
                     let handled=motion_host::ops::catch_panic(|| {
                         // Keep this inside the existing panic/reply boundary.
@@ -995,12 +1041,15 @@ impl Engine {
                         &mut presentation,
                         &mut frame_capture,
                         &mut movie_freeze,
+                        &mut prerender,
+                        &worker_depth,
                         &worker_paints,
                         &worker_diagnostics,
                         &allocation_budget,
                         &worker_factory,
                         &mut frame_completions,
                         &mut continuation,
+                        prerender_input,
                         command,
                     );
                         if let Some(command) = continuation {
@@ -1015,7 +1064,7 @@ impl Engine {
                     CURRENT_COMMAND.set(None);
                     #[cfg(test)]
                     worker_diagnostics.native_test_phase("idle");
-                    if !deferred && (operation != "present" || flight.started.elapsed() >= Duration::from_millis(100)) {
+                    if !deferred && ((operation != "present" && operation != "prerender_poll") || flight.started.elapsed() >= Duration::from_millis(100)) {
                         log::debug!("done #{} {} {}ms", request, operation, flight.started.elapsed().as_millis());
                     }
                     match handled {
@@ -1057,6 +1106,7 @@ impl Engine {
                 drop(node_preview);
                 drop(frame_capture);
                 drop(movie_freeze);
+                drop(prerender);
                 {
                     static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
                     crate::fallback_observation::recovered(&worker_factory, &FAILURES, "engine.surface.shutdown", |factory| { factory.take(); });
@@ -1106,6 +1156,7 @@ impl Engine {
             queue_depth,
             shutdown,
             pending_node_expect,
+            prerender_signals,
         })
     }
 
@@ -1114,15 +1165,33 @@ impl Engine {
     }
     fn dispatch(&self, command: Command) -> Result<u64, Error> {
         self.check_running()?;
+        // Publication uses the same generation before any background enqueue.
+        // Never take the cancellation gate while holding the dispatch gate.
+        let prerender_input = if matches!(&command,
+            Command::Present { .. } | Command::PresentFrozen { .. } | Command::PresentPoll { .. }) {
+            self.prerender_signals.preempt_for_present()?
+        } else {
+            if matches!(&command, Command::Seek { .. } | Command::SeekAudioPreview { .. }) {
+                self.prerender_signals.preempt()?;
+            } else if !matches!(&command, Command::State(_) | Command::PreviewInfo(_) | Command::ProjectTicket(_)) {
+                self.prerender_signals.interrupt()?;
+            }
+            0
+        };
         let request = self.diagnostics.next_request();
         let operation = command.diagnostic_name();
         let context = self.diagnostics.context();
         enum Rejected {
             Stopped(Error),
             Finished,
-            Send(TrySendError<QueuedCommand>),
+            Send(TrySendError<Box<QueuedCommand>>),
         }
         let mut failure_poisoned = false;
+        // Allocate before entering the short dispatch gate so its closure
+        // captures only a pointer, including the full/disconnected reply path.
+        let mut command = Box::new(QueuedCommand {
+            command, queued: Instant::now(), request, context, prerender_input,
+        });
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
         let queued = crate::fallback_observation::recovered(&self.in_flight, &FAILURES, "engine.flight.dispatch", |_| {
             // Repeat the running check under the shutdown gate, but defer all
@@ -1138,9 +1207,9 @@ impl Engine {
             if self.worker.as_ref().is_some_and(|worker| worker.is_finished()) {
                 return Err(Rejected::Finished);
             }
-            self.sender.try_send(QueuedCommand {
-                command, queued: Instant::now(), request, context,
-            }).map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1).map_err(Rejected::Send)
+            command.queued = Instant::now();
+            self.sender.try_send(command)
+                .map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1).map_err(Rejected::Send)
         });
         if failure_poisoned {
             static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
@@ -1764,12 +1833,15 @@ fn handle(
     presentation: &mut PresentationState,
     frame_capture: &mut frame_capture::Worker,
     movie_freeze: &mut movie_freeze::Worker,
+    prerender: &mut prerender::Runtime,
+    foreground_depth: &AtomicUsize,
     paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: &crate::diagnostics::Diagnostics,
     allocation_budget: &motion_render::AllocationBudget,
     factory: &Mutex<Option<SurfaceFactory>>,
     frame_completions: &mut frame_completion::Queue,
     continuation: &mut Option<Command>,
+    prerender_input: u64,
     command: Command,
 ) -> bool {
     // Project operations and view changes can overwrite the shared scratch.
@@ -1778,6 +1850,7 @@ fn handle(
     if !matches!(
         &command,
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::PresentPoll { .. } | Command::SeekAudioPreview { .. }
+        | Command::PrerenderPoll | Command::ConfigurePrerender { .. } | Command::ConfigurePrerenderDisk { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
         | Command::CaptureViewerSnapshot { .. } | Command::SaveViewerSnapshot { .. }
         | Command::ViewerInput { .. }
@@ -1788,6 +1861,17 @@ fn handle(
     let frozen = matches!(&command, Command::PresentFrozen { .. } | Command::PresentPoll { frozen: true, .. });
     let polling = matches!(&command, Command::PresentPoll { .. });
     match command {
+        Command::ConfigurePrerender { policy, reply } => respond(reply,
+            prerender.configure(policy).map(|()| prerender.status()).map_err(Into::into)),
+        Command::ConfigurePrerenderDisk { policy, disk, reply } => respond(reply,
+            prerender.configure_with_disk(policy, disk).map(|()| prerender.status()).map_err(Into::into)),
+        Command::PrerenderPoll => {
+            let result = motion_host::session::with_session(id, |s| {
+                prerender.tick(s, foreground_depth, CURRENT_COMMAND.get().map_or(0, |f| f.request));
+                Ok(())
+            });
+            if let Err(error) = result { prerender.session_failure(error.to_string()); }
+        },
         #[cfg(test)]
         Command::TestStudy { operation, reply } => respond(reply, operation(id)),
         #[cfg(test)]
@@ -2262,6 +2346,9 @@ fn handle(
                     #[cfg(test)]
                     diagnostics.native_test_phase("present.host_render");
 
+                    // The optional cache contains one authored view. Independent
+                    // view groups retain their own native rendering contract.
+                    let cached = if reuse || batch.is_some() { None } else { prerender.cached(s, frame) };
                     let result=if let Some(views)=&batch {
                         if reuse {
                             presentation.composition_reuses+=1;
@@ -2275,7 +2362,11 @@ fn handle(
                         s.present_retained_with_view(viewport,ui.composition_image,overlay)
                     }else {
                         presentation.composition_renders+=1;
-                        s.render_with_view(frame,Some(viewport),ui.composition_image,overlay)
+                        match &cached {
+                            Some(cached) => s.render_cached_with_view(frame,Some(viewport),ui.composition_image,
+                                cached,cached.key().context(),overlay),
+                            None => s.render_with_view(frame,Some(viewport),ui.composition_image,overlay),
+                        }
                     };
                     #[cfg(test)]
                     diagnostics.native_test_phase("present.result");
@@ -2343,6 +2434,9 @@ fn handle(
         } else {
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
+        if matches!(&result, Ok(true)) && !frozen && ui.composition.is_some() {
+            prerender.foreground_presented(prerender_input);
+        }
         respond(reply,result);
         }
         },
@@ -2353,15 +2447,18 @@ fn handle(
             let next=ProjectGuard::acquire(&directory)?;
             let result=project::open_directory(id,&directory)?;*guard=next;Ok(result)
         })()),
-        Command::State(reply) => respond(reply,project::state(id).map(|mut state|{
+        Command::State(reply) => respond(reply,project::state(id).and_then(|mut state|{
+            let cached_presented = motion_host::session::with_session(id, |s| Ok(s.cached_presented))?;
             state["capabilities"]["layer_sampling"]["desktop_png"]=serde_json::json!({"exposure_renderer":true});
             state["capabilities"]["layer_sampling"]["desktop_movie"]=serde_json::json!({
                 "exposure_renderer":cfg!(feature="ffmpeg"),"codec_check":"export_start","requires":["h264","aac"]});
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "modelImport":{"supported":true,"formats":["gltf","glb","obj"],"tool":"import_model","owned":true,"pixelsPerMetre":100,"samples":1,"automaticAnimation":false},
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
-                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),"frameCompletions":frame_completions.status(),
-                "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalCandidatePipelineBuilds":node_preview.canonical.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalRetainedShaderCodeBytes":node_preview.canonical.as_ref().map_or(0,|p|p.shader_code_bytes()),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
+                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),"frameCompletions":frame_completions.status(),"prerender":prerender.status(),
+                "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalCandidatePipelineBuilds":node_preview.canonical.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalRetainedShaderCodeBytes":node_preview.canonical.as_ref().map_or(0,|p|p.shader_code_bytes()),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});
+            state["desktop"]["prerender"]["cachedPresented"] = serde_json::json!(cached_presented);
+            Ok(state)
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
         Command::NewProject { text, reply } => respond(reply,guard.changed(project::new_project_with_choice(id, &text, project::PreviousProject::Save))),

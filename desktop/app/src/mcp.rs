@@ -5,6 +5,8 @@ use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 #[path = "mcp/tracked_video.rs"]
 mod tracked_video;
+#[cfg(test)]
+mod prerender_tests;
 
 pub const PROTOCOL: &str = "2025-11-25";
 #[derive(Clone, Copy)]
@@ -44,6 +46,7 @@ impl ToolRouter<'_> {
             "render_preview" => &["frame"],
             "import_model" => &["path", "expectedRevision"],
             "import_tracking" => &["path", "source", "expectedRevision", "expectedDocumentGeneration"],
+            "configure_prerender" => &["enabled", "window", "idleDelayMs", "diskQuotaBytes"],
             _ => return Err("unknown editor tool".into()),
         };
         if args.keys().any(|key| !fields.contains(&key.as_str())) {
@@ -60,6 +63,7 @@ impl ToolRouter<'_> {
                 | "render_preview"
                 | "import_model"
                 | "import_tracking"
+                | "configure_prerender"
         );
         if write && matches!(self.access, Access::ReadOnly) {
             return Err("editor writes are disabled for this agent".into());
@@ -84,6 +88,28 @@ impl ToolRouter<'_> {
                 let generation = args.get("expectedDocumentGeneration").and_then(Value::as_u64)
                     .ok_or("expectedDocumentGeneration must be a nonnegative integer")?;
                 Ok(self.engine.import_tracking(path.into(), motion_core::media_assets::AssetRef { kind, id }, revision, generation)?)
+            },
+            "configure_prerender" => {
+                let enabled = args.get("enabled").and_then(Value::as_bool)
+                    .ok_or("enabled must be a boolean")?;
+                let window = args.get("window").map(|value| value.as_u64()
+                    .filter(|window| *window <= motion_host::prerender::MAX_WINDOW as u64)
+                    .ok_or("window must be an integer in [0, 8]"))
+                    .transpose()?.unwrap_or(3) as usize;
+                let idle_delay = args.get("idleDelayMs").map(|value| value.as_u64()
+                    .filter(|delay| *delay <= 60_000)
+                    .ok_or("idleDelayMs must be an integer in [0, 60000]"))
+                    .transpose()?.unwrap_or(200);
+                let disk_quota = args.get("diskQuotaBytes").map(|value| value.as_u64()
+                    .filter(|bytes| *bytes == 0 || (81..=(64u64 << 30)).contains(bytes))
+                    .ok_or("diskQuotaBytes must be 0 or an integer in [81, 68719476736]"))
+                    .transpose()?.unwrap_or(0);
+                Ok(self.engine.configure_prerender_with_disk(motion_host::prerender::Policy {
+                    enabled,
+                    window,
+                    idle_delay: std::time::Duration::from_millis(idle_delay),
+                    ..Default::default()
+                }, disk_quota)?)
             }
             "import_model" => {
                 let path = args.get("path").and_then(Value::as_str)
@@ -175,6 +201,7 @@ pub fn tools() -> Value {
             "expectedRevision":{"type":"integer","minimum":0},"expectedDocumentGeneration":{"type":"integer","minimum":0}
         }),&["path","source","expectedRevision","expectedDocumentGeneration"]),false),
         tool("tracked_video_replacement","Replace a tracked video and every attached solve in one saved undo step. Prepare a local video asynchronously, poll status until ready, then finish with the same requestId, current revision/document_generation, complete solve paths and explicit binding updates. Preparation changes no author state; status is allowed in read-only sessions, all other actions require editing. Cancel before release to discard unfinished preparation. Native video decoding is required. No implicit retracking, pose baking or source transcoding.",tracked_video::schema(),false),
+        tool("configure_prerender","Replace the experimental background prerender policy without editing the project. Disabled by default; requires a shared native High preview with authored camera and single-time rendering. Headless stdio reports no_surface and creates no background GPU owner. Window defaults to 3 frames, idle delay to 200 ms; window 0 also disables. Optional diskQuotaBytes defaults to 0 (disabled); nonzero enables app-owned native-byte caching without changing the project. Read motion_state for actual holds, disk hits/faults and cached presentations.",schema(json!({"enabled":{"type":"boolean"},"window":{"type":"integer","minimum":0,"maximum":motion_host::prerender::MAX_WINDOW},"idleDelayMs":{"type":"integer","minimum":0,"maximum":60000},"diskQuotaBytes":{"type":"integer","minimum":0,"maximum":68719476736u64,"oneOf":[{"const":0},{"minimum":81}],"description":"Optional app-owned native disk cache quota. 0 (default) disables disk IO; otherwise at least 81 bytes. Cache faults fall back to rendering; reads/writes run on the background owner."}}),&["enabled"]),false),
         tool("command_list","List registered editing commands and their JSON schemas.",schema(json!({}),&[]),true),
         tool("command_run","Execute one registered core command with a revision check and one undo boundary.",schema(json!({"command":command_schema,"expectedRevision":{"type":"integer","minimum":0}}),&["command","expectedRevision"]),false),
         tool("command_batch","Execute an atomic batch of registered editing commands with one undo boundary.",schema(json!({"commands":{"type":"array","minItems":1,"items":command_schema},"expectedRevision":{"type":"integer","minimum":0}}),&["commands","expectedRevision"]),false),

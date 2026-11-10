@@ -14,6 +14,7 @@ use std::{
 };
 
 pub const MAX_WINDOW: usize = 8;
+pub mod static_intervals;
 
 /// Content includes all immutable project/source/plugin/model dependencies;
 /// output includes format/color/quality/observer interpretation. UI chrome is
@@ -123,6 +124,7 @@ pub struct Counts {
 #[derive(Clone, Copy, Debug)]
 pub struct Status {
     pub enabled: bool,
+    pub window: usize,
     pub hold: Hold,
     pub pending: usize,
     pub in_flight: Option<FrameKey>,
@@ -148,6 +150,7 @@ impl Ticket {
 
 pub struct Scheduler {
     policy: Policy,
+    window_limit: usize,
     demand: Option<Demand>,
     last_motion: Duration,
     fast_seek: bool,
@@ -163,6 +166,7 @@ impl Scheduler {
         validate_policy(policy)?;
         Ok(Self {
             policy,
+            window_limit: MAX_WINDOW,
             demand: None,
             last_motion: Duration::ZERO,
             fast_seek: false,
@@ -191,7 +195,32 @@ impl Scheduler {
         }
         Ok(())
     }
+    /// An advisory work limit, independent of policy, content identity and cache
+    /// quota. Retain already admitted/completed frames; never alias their keys.
+    /// Foreground holds, cancellation and explicit policy invalidation still win.
+    pub fn set_window_limit(&mut self, limit: usize) -> Result<(), Error> {
+        if limit > MAX_WINDOW {
+            return Err(Error::InvalidPolicy);
+        }
+        if self.window_limit != limit {
+            self.window_limit = limit;
+            self.pending.clear();
+            if let Some(demand) = self.demand {
+                self.refresh(demand);
+            }
+        }
+        Ok(())
+    }
     pub fn update(&mut self, demand: Demand) -> Result<(), Error> {
+        self.update_inner(demand, false)
+    }
+    /// Continuous playback may retain an admitted frame inside the new window,
+    /// including the frame now due. Explicit seeks retain the conservative API
+    /// above. Context changes, reverse motion, holds and fast motion still cancel.
+    pub fn advance_playback(&mut self, demand: Demand) -> Result<(), Error> {
+        self.update_inner(demand, true)
+    }
+    fn update_inner(&mut self, demand: Demand, playback: bool) -> Result<(), Error> {
         if !demand.frame.is_finite() || demand.frame < 0. || demand.total_frames == 0 {
             self.invalidate();
             return Err(Error::InvalidDemand);
@@ -215,9 +244,34 @@ impl Scheduler {
                             > self.policy.max_seek_frames_per_second)
             });
             self.last_motion = demand.now;
-            self.cancel_flight();
+            let continuous = playback
+                && !self.fast_seek
+                && self.demand.is_some_and(|old| {
+                    old.playing
+                        && demand.playing
+                        && old.context == demand.context
+                        && old.total_frames == demand.total_frames
+                        && old.direction == demand.direction
+                        && match demand.direction {
+                            Direction::Forward => demand.frame >= old.frame,
+                            Direction::Backward => demand.frame <= old.frame,
+                        }
+                });
+            if !continuous
+                || self
+                    .flight
+                    .as_ref()
+                    .is_some_and(|t| !in_window(t.key, demand, self.policy.window))
+            {
+                self.cancel_flight();
+            }
             self.pending.clear();
-            self.completed.clear();
+            if continuous {
+                self.completed
+                    .retain(|key| in_window(*key, demand, self.policy.window));
+            } else {
+                self.completed.clear();
+            }
         }
         if demand.now.saturating_sub(self.last_motion) >= self.policy.idle_delay {
             self.fast_seek = false;
@@ -228,7 +282,8 @@ impl Scheduler {
     }
     // Only called with owner-held, already validated demand.
     fn refresh(&mut self, demand: Demand) {
-        self.hold = if !self.policy.enabled || self.policy.window == 0 {
+        let window = self.policy.window.min(self.window_limit);
+        self.hold = if !self.policy.enabled || window == 0 {
             Hold::Disabled
         } else if demand.foreground_pending {
             Hold::Foreground
@@ -256,7 +311,7 @@ impl Scheduler {
             self.hold = Hold::Empty;
             return;
         }
-        for step in 1..=self.policy.window {
+        for step in 1..=window {
             let frame = demand.frame
                 + if demand.direction == Direction::Forward {
                     step as f64
@@ -279,6 +334,14 @@ impl Scheduler {
         } else if self.pending.is_empty() {
             self.hold = Hold::Empty;
         }
+    }
+    /// Inspect the exact eligible destination before reserving real storage.
+    /// This does not consume a ticket, count a start or bypass any hold.
+    pub fn next_key(&self) -> Option<FrameKey> {
+        if self.flight.is_some() || !matches!(self.hold, Hold::Ready | Hold::Budget) {
+            return None;
+        }
+        self.pending.front().copied()
     }
     /// Admission must represent an actual shared-budget reservation owned by
     /// the consumer, not merely a guessed free-byte count. This scheduler never
@@ -355,6 +418,7 @@ impl Scheduler {
     pub fn status(&self) -> Status {
         Status {
             enabled: self.policy.enabled,
+            window: self.policy.window.min(self.window_limit),
             hold: self.hold,
             pending: self.pending.len(),
             in_flight: self.flight.as_ref().map(|t| t.key),
@@ -368,6 +432,16 @@ impl Scheduler {
             }
         }
     }
+}
+fn in_window(key: FrameKey, demand: Demand, window: usize) -> bool {
+    let distance = match demand.direction {
+        Direction::Forward => key.frame() - demand.frame,
+        Direction::Backward => demand.frame - key.frame(),
+    };
+    key.context() == demand.context
+        && distance >= 0.
+        && distance <= window as f64
+        && distance.fract() == 0.
 }
 impl Drop for Scheduler {
     fn drop(&mut self) {

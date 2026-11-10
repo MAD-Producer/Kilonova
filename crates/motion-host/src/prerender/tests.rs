@@ -34,6 +34,87 @@ fn ready() -> Scheduler {
 }
 
 #[test]
+fn advisory_static_window_keeps_exact_frames_and_can_expand_without_invalidation() {
+    let mut scheduler = ready();
+    scheduler.set_window_limit(1).unwrap();
+    assert_eq!(scheduler.status().window, 1);
+    assert_eq!(scheduler.status().pending, 1);
+    let first = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(first.key().frame(), 11.25);
+    assert_eq!(scheduler.finish(&first), Some(first.key()));
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    scheduler.set_window_limit(3).unwrap();
+    assert_eq!(scheduler.status().pending, 2);
+    let second = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(second.key().frame(), 12.25);
+    assert_eq!(scheduler.finish(&second), Some(second.key()));
+    let third = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(third.key().frame(), 13.25);
+    assert_eq!(scheduler.finish(&third), Some(third.key()));
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    assert_eq!(scheduler.status().counts.started, 3);
+    assert_eq!(scheduler.status().counts.completed, 3);
+    assert_eq!(scheduler.status().counts.canceled, 0);
+}
+
+#[test]
+fn reducing_an_advisory_window_retains_admitted_ownership_and_foreground_holds_win() {
+    let mut scheduler = ready();
+    let first = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(scheduler.finish(&first), Some(first.key()));
+    let second = scheduler.take_next(true).unwrap().unwrap();
+    scheduler.set_window_limit(1).unwrap();
+    assert!(!second.canceled());
+    assert_eq!(scheduler.status().in_flight, Some(second.key()));
+    assert_eq!(scheduler.finish(&second), Some(second.key()));
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    let before = scheduler.status();
+    assert_eq!(
+        scheduler.set_window_limit(MAX_WINDOW + 1),
+        Err(Error::InvalidPolicy)
+    );
+    assert_eq!(scheduler.status().window, before.window);
+    assert_eq!(scheduler.status().counts.completed, before.counts.completed);
+    scheduler.set_window_limit(3).unwrap();
+    let third = scheduler.take_next(true).unwrap().unwrap();
+    scheduler
+        .update(Demand {
+            foreground_pending: true,
+            ..demand()
+        })
+        .unwrap();
+    assert!(third.canceled());
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    assert_eq!(scheduler.finish(&third), None);
+    assert_eq!(scheduler.status().hold, Hold::Foreground);
+}
+
+#[test]
+fn destination_peek_does_not_consume_or_bypass_admission_and_holds() {
+    let mut scheduler = ready();
+    let key = scheduler.next_key().unwrap();
+    assert_eq!(key.frame(), 11.25);
+    assert_eq!(scheduler.next_key(), Some(key));
+    assert_eq!(scheduler.status().counts.started, 0);
+    assert!(scheduler.take_next(false).unwrap().is_none());
+    assert_eq!(scheduler.next_key(), Some(key));
+    let ticket = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(ticket.key(), key);
+    assert!(scheduler.next_key().is_none());
+    scheduler.finish(&ticket);
+    assert_eq!(scheduler.next_key().unwrap().frame(), 12.25);
+    scheduler
+        .update(Demand {
+            editing: true,
+            ..demand()
+        })
+        .unwrap();
+    assert!(scheduler.next_key().is_none());
+    scheduler.set_policy(Policy::default()).unwrap();
+    assert!(scheduler.next_key().is_none());
+}
+
+#[test]
 fn exact_fractional_directional_window_is_bounded() {
     let mut scheduler = ready();
     let mut frames = Vec::new();
@@ -342,4 +423,153 @@ fn dropping_owner_publishes_cancellation_to_blocked_worker() {
     drop(scheduler);
     release_tx.send(()).unwrap();
     worker.join().unwrap();
+}
+
+#[test]
+fn continuous_playback_keeps_only_exact_frames_in_the_moving_window() {
+    for direction in [Direction::Forward, Direction::Backward] {
+        let sign = if direction == Direction::Forward {
+            1.
+        } else {
+            -1.
+        };
+        let mut scheduler = ready();
+        scheduler
+            .update(Demand {
+                direction,
+                ..demand()
+            })
+            .unwrap();
+        let ticket = scheduler.take_next(true).unwrap().unwrap();
+        let next = Demand {
+            direction,
+            frame: demand().frame + sign,
+            now: Duration::from_millis(34),
+            ..demand()
+        };
+        scheduler.advance_playback(next).unwrap();
+        assert!(!ticket.canceled());
+        assert_eq!(scheduler.finish(&ticket), Some(ticket.key()));
+        assert_eq!(scheduler.status().counts.completed, 1);
+        assert_eq!(scheduler.next_key().unwrap().frame(), next.frame + sign);
+        // The retained completion set also follows the bounded window.
+        for step in 2..=8 {
+            let ticket = scheduler.take_next(true).unwrap().unwrap();
+            let frame = demand().frame + sign * step as f64;
+            scheduler
+                .advance_playback(Demand {
+                    frame,
+                    now: Duration::from_millis(34 * step),
+                    ..next
+                })
+                .unwrap();
+            assert!(!ticket.canceled());
+            assert_eq!(scheduler.finish(&ticket), Some(ticket.key()));
+            assert!(scheduler.completed.len() <= scheduler.policy.window + 1);
+            assert!(scheduler.completed.iter().all(|key| in_window(
+                *key,
+                scheduler.demand.unwrap(),
+                scheduler.policy.window
+            )));
+        }
+    }
+    // A changed fractional grid cannot authorize a nearby, inexact frame.
+    let mut scheduler = ready();
+    let ticket = scheduler.take_next(true).unwrap().unwrap();
+    scheduler
+        .advance_playback(Demand {
+            frame: 10.5,
+            now: Duration::from_millis(34),
+            ..demand()
+        })
+        .unwrap();
+    assert!(ticket.canceled());
+}
+
+#[test]
+fn playback_window_preservation_does_not_bypass_seek_context_or_hold_cancellation() {
+    let next = Demand {
+        frame: 11.25,
+        now: Duration::from_millis(34),
+        ..demand()
+    };
+    let cases = [
+        Demand {
+            frame: 30.25,
+            ..next
+        }, // fast seek and passed target
+        Demand {
+            frame: 9.25,
+            ..next
+        }, // motion opposite to declared direction
+        Demand {
+            direction: Direction::Backward,
+            ..next
+        },
+        Demand {
+            total_frames: 99,
+            ..next
+        },
+        Demand {
+            context: Context {
+                content: [3; 32],
+                ..context()
+            },
+            ..next
+        },
+        Demand {
+            context: Context {
+                output: [3; 32],
+                ..context()
+            },
+            ..next
+        },
+        Demand {
+            context: Context {
+                device_generation: 2,
+                ..context()
+            },
+            ..next
+        },
+        Demand {
+            context: Context {
+                document_generation: 2,
+                ..context()
+            },
+            ..next
+        },
+        Demand {
+            editing: true,
+            ..next
+        },
+        Demand {
+            foreground_pending: true,
+            ..next
+        },
+        Demand {
+            pressure: true,
+            ..next
+        },
+        Demand {
+            playing: false,
+            ..next
+        },
+        Demand {
+            frame: f64::NAN,
+            ..next
+        },
+    ];
+    for next in cases {
+        let mut scheduler = ready();
+        let ticket = scheduler.take_next(true).unwrap().unwrap();
+        let _ = scheduler.advance_playback(next);
+        assert!(ticket.canceled(), "{next:?}");
+        assert!(scheduler.finish(&ticket).is_none());
+        assert_eq!(scheduler.status().counts.completed, 0);
+    }
+    // The explicit-seek API remains conservative even at ordinary speed.
+    let mut scheduler = ready();
+    let ticket = scheduler.take_next(true).unwrap().unwrap();
+    scheduler.update(next).unwrap();
+    assert!(ticket.canceled());
 }

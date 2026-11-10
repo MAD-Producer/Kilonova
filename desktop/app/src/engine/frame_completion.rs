@@ -10,6 +10,7 @@ const PENDING_LIMIT: usize = COMMAND_QUEUE_CAPACITY;
 #[derive(Clone)]
 pub(super) struct Meta {
     pub queued: Instant,
+    pub prerender_input: u64,
     pub flight: Flight,
     pub context: crate::diagnostics::Context,
 }

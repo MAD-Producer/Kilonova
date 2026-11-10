@@ -199,6 +199,11 @@ impl State {
 }
 
 impl Session {
+    /// A grouped viewer owns outputs for its own cameras and placements.
+    /// Single authored-view prerender caches cannot satisfy that profile.
+    pub fn has_view_group(&self) -> bool {
+        self.graphics.as_ref().is_some_and(|g| g.views.request.is_some())
+    }
     /// Switching the surface back to the original single-view renderer retires
     /// this group's outputs before that renderer admits another target pair.
     /// There is one GPU group per Session, not an unbounded cache per window.

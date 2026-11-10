@@ -6,6 +6,7 @@ fn pending(request: u64) -> (Pending, std::sync::mpsc::Receiver<Result<bool, Err
         Pending {
             command: Command::Render { frame: 0., reply },
             meta: Meta {
+                prerender_input: 0,
                 queued: Instant::now(),
                 flight: Flight {
                     request,

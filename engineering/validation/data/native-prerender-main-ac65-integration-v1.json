@@ -1,0 +1,246 @@
+{
+  "archive": "native-prerender-main-ac65-integration-v1.zip",
+  "bytes": 1678622,
+  "sha256": "0412747b36bcbfb52c8d7a422706faae890ca690cfd072517e6c12ae40afbdb0",
+  "source_head": "ae5c1e18edd568838a3d636e599b5713669959e7",
+  "source_diff_sha256": "10f9f056f194c1df5f20ed3482afede3bcc4c7b66f81f662a17924dbe05f2a87",
+  "members": {
+    "prerender82-main-ac65-check-v1/controller.py": {
+      "bytes": 4542,
+      "sha256": "0ffce9a59073454d33ed2a2cc4683457fba03d2bad98af4d4bd6ea2f678a4fe7"
+    },
+    "prerender82-main-ac65-check-v1/receipt.json": {
+      "bytes": 900594,
+      "sha256": "e91fecc0d67ae43a16df2a6d1054f9e9b3530d73712acb4fb91df3957ae59927"
+    },
+    "prerender82-main-ac65-check-v1/source.diff": {
+      "bytes": 1535,
+      "sha256": "cf111d913cb83c9ca2735c18a7f3b36cdb01440c01223c65e5cabb4ce1a1bf75"
+    },
+    "prerender82-main-ac65-check-v1/stderr.log": {
+      "bytes": 377,
+      "sha256": "719b91e782016714ae4daf9fe2421e5ec45376791dbaedaba6d731da37ce1126"
+    },
+    "prerender82-main-ac65-check-v1/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-check-v1/original-controller.py": {
+      "bytes": 4542,
+      "sha256": "0ffce9a59073454d33ed2a2cc4683457fba03d2bad98af4d4bd6ea2f678a4fe7"
+    },
+    "prerender82-main-ac65-check-v2/controller.py": {
+      "bytes": 4648,
+      "sha256": "0c35a504d899d1aad93f73b6e345b702949636f69cbf42c6853e55cfef719d20"
+    },
+    "prerender82-main-ac65-check-v2/receipt.json": {
+      "bytes": 900594,
+      "sha256": "4b404e97c11c6ba77bb7cd986cf468788057f255d8a1dd40b8776dc4b70a5f8e"
+    },
+    "prerender82-main-ac65-check-v2/source.diff": {
+      "bytes": 3896,
+      "sha256": "82dc40d70589a1c62f8834555ac2792c80c518db0188fab8d353d7b631a9fe8b"
+    },
+    "prerender82-main-ac65-check-v2/stderr.log": {
+      "bytes": 1776,
+      "sha256": "d80210d0b0ed4877222f467ba0f700c43d8b54e35e974d3d086ef81968d92ec6"
+    },
+    "prerender82-main-ac65-check-v2/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-check-v2/original-controller.py": {
+      "bytes": 4648,
+      "sha256": "0c35a504d899d1aad93f73b6e345b702949636f69cbf42c6853e55cfef719d20"
+    },
+    "prerender82-main-ac65-check-v3/controller.py": {
+      "bytes": 4659,
+      "sha256": "a408c4b830ccb6ab4487b842d9d4cad7d0385bf63bb51a739c73af9d88d64238"
+    },
+    "prerender82-main-ac65-check-v3/receipt.json": {
+      "bytes": 900594,
+      "sha256": "de1d1b432c26d5967beda5e5250fd498ee90a6ff27b973d6af2f4b68f831c26e"
+    },
+    "prerender82-main-ac65-check-v3/source.diff": {
+      "bytes": 5825,
+      "sha256": "d227c4e95353a15bd173d12b9cbd7dd31164d819d005b6ee6dda995d60fb74d1"
+    },
+    "prerender82-main-ac65-check-v3/stderr.log": {
+      "bytes": 12003,
+      "sha256": "be7fc023bd22b2e5a7280dbf86a4c88b2f66d628c97d10c88c2d14921a6a2e21"
+    },
+    "prerender82-main-ac65-check-v3/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-check-v3/original-controller.py": {
+      "bytes": 4659,
+      "sha256": "a408c4b830ccb6ab4487b842d9d4cad7d0385bf63bb51a739c73af9d88d64238"
+    },
+    "prerender82-main-ac65-check-v4/controller.py": {
+      "bytes": 4662,
+      "sha256": "adf09894e95df89df577dcf8dff11980706ca320482b584841a3e86511721dfd"
+    },
+    "prerender82-main-ac65-check-v4/receipt.json": {
+      "bytes": 900613,
+      "sha256": "445bb479ea2f5a8f2e5e754679094e66d1a707eae5d890b10debcc4f882d55f3"
+    },
+    "prerender82-main-ac65-check-v4/source.diff": {
+      "bytes": 6369,
+      "sha256": "10f9f056f194c1df5f20ed3482afede3bcc4c7b66f81f662a17924dbe05f2a87"
+    },
+    "prerender82-main-ac65-check-v4/stderr.log": {
+      "bytes": 20999,
+      "sha256": "607cb077454cf7aa39a460f744e8d97dcd9eb576335336287c41aee535ed840d"
+    },
+    "prerender82-main-ac65-check-v4/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-check-v4/original-controller.py": {
+      "bytes": 4662,
+      "sha256": "adf09894e95df89df577dcf8dff11980706ca320482b584841a3e86511721dfd"
+    },
+    "prerender82-main-ac65-tools-v1/receipt.json": {
+      "bytes": 8546,
+      "sha256": "de749a4c05a75e9e35fa884dbb9b05695707de99c17eb8093636ad9f42ed007b"
+    },
+    "prerender82-main-ac65-tools-v1/stderr.log": {
+      "bytes": 25397,
+      "sha256": "06c120abebda5a07711c8dc7cc542a8222abbeabf851d17d748fc5e9bd46ab1d"
+    },
+    "prerender82-main-ac65-tools-v1/stdout.log": {
+      "bytes": 2172,
+      "sha256": "b32a8e99e711517328ab17364d25c1497c9ded15ace7fc77c7a4af6b0b39f27f"
+    },
+    "prerender82-main-ac65-tools-v1/original-controller.py": {
+      "bytes": 1506,
+      "sha256": "343ee79e6327a7857e3b3f049bdccb931d58ad458ef217984922b6df1a5e0cc4"
+    },
+    "prerender82-main-ac65-native-v1/build.stderr.log": {
+      "bytes": 1941,
+      "sha256": "0e31e126e8d3d370404f1cbc673ca0ba9c176a7437276a0090ed795592800694"
+    },
+    "prerender82-main-ac65-native-v1/build.stdout.log": {
+      "bytes": 511468,
+      "sha256": "27dfd88f0f1eb226b74d0eaef80ecbcf1796e6a57392f0645f796922fb5cae7a"
+    },
+    "prerender82-main-ac65-native-v1/controlled-block.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-native-v1/controlled-block.stdout.log": {
+      "bytes": 196,
+      "sha256": "e433e957b7bf658d470bd24984c39ca3b489c81036f4a3b86a3eb9250daf89e1"
+    },
+    "prerender82-main-ac65-native-v1/controller.py": {
+      "bytes": 6261,
+      "sha256": "6062b833f921568ebc01ba19b4756e8fa5075feebf0bb7ba2ac3d24ef14f8c25"
+    },
+    "prerender82-main-ac65-native-v1/deferred-input-generation.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-native-v1/deferred-input-generation.stdout.log": {
+      "bytes": 258,
+      "sha256": "e1a3e1a593e00081251a29039727954ed9905621556640a50a3e089238ff514e"
+    },
+    "prerender82-main-ac65-native-v1/frame-shutdown.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-native-v1/frame-shutdown.stdout.log": {
+      "bytes": 239,
+      "sha256": "4fe476ef241d38f5292b1a0f68b6dc3a025b5612a6211b52b953f129ff36dc98"
+    },
+    "prerender82-main-ac65-native-v1/input-parking.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-native-v1/input-parking.stdout.log": {
+      "bytes": 250,
+      "sha256": "d027de2fe715b69e0edac327d55bb03ea5af549339a11e23f31bfdea45fd5300"
+    },
+    "prerender82-main-ac65-native-v1/multiview.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-native-v1/multiview.stdout.log": {
+      "bytes": 252,
+      "sha256": "6bae51566cec00b74de327853b8647614285e77de51229dcd0ea667e99b4d931"
+    },
+    "prerender82-main-ac65-native-v1/polling-generation.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-native-v1/polling-generation.stdout.log": {
+      "bytes": 243,
+      "sha256": "662f66a5fd29eaa02091850ad73f3fa2934821a5094b155e3abeb66ff4ce9405"
+    },
+    "prerender82-main-ac65-native-v1/polling-protocol.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prerender82-main-ac65-native-v1/polling-protocol.stdout.log": {
+      "bytes": 552,
+      "sha256": "b549a06b5abde39b8f66d4f2e7d9762cb1ff84e75c74deb0bd2eaffe62a63390"
+    },
+    "prerender82-main-ac65-native-v1/receipt.json": {
+      "bytes": 903204,
+      "sha256": "7da23cc38310deb99fc5a44fd1f358a1b4bf99677cbaf806153f8e7602a3e018"
+    },
+    "prerender82-main-ac65-native-v1/source.diff": {
+      "bytes": 6369,
+      "sha256": "10f9f056f194c1df5f20ed3482afede3bcc4c7b66f81f662a17924dbe05f2a87"
+    },
+    "prerender82-main-ac65-native-v1/original-controller.py": {
+      "bytes": 6261,
+      "sha256": "6062b833f921568ebc01ba19b4756e8fa5075feebf0bb7ba2ac3d24ef14f8c25"
+    },
+    "locked-fetch/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "locked-fetch/stderr.log": {
+      "bytes": 231,
+      "sha256": "c5fb651927f230b6946fbc090fc051630edee87738ac288c79503e5bdcadacdf"
+    },
+    "source/crates/motion-render/src/renderer.rs": {
+      "bytes": 158938,
+      "sha256": "0080327f217b5c66a148c9c5fb97bc6a8c2bb134f7d3e1231f42920b57504094"
+    },
+    "source/desktop/app/src/engine.rs": {
+      "bytes": 139566,
+      "sha256": "6e73e3b6075fb0a5e4509e1569f6d83a431ba2b8cff3ec0776805d9f9ba41048"
+    },
+    "source/desktop/app/src/engine/frame_completion.rs": {
+      "bytes": 8213,
+      "sha256": "6269fa5f914ebf6ac116b10aef9f438ccf2d2890f3d3708261bdd793aa3eb12e"
+    },
+    "source/desktop/app/src/engine/frame_completion/tests/native.rs": {
+      "bytes": 13755,
+      "sha256": "cbcc347735e219a12bb62c7d61bde7df9803232d5d4ec90a43c4596d138b02b1"
+    },
+    "source/desktop/app/src/engine/prerender/tests.rs": {
+      "bytes": 8436,
+      "sha256": "beb0563171e1475aefa8b47d9b471e7d4f1c688094f76f4a74a40ee3bc89cfd6"
+    },
+    "source/desktop/app/src/engine/prerender/signals.rs": {
+      "bytes": 15207,
+      "sha256": "606777bf8542025fe3b54d7c143c3f2f131ec1c58c80c7908e289cbbca95bcde"
+    },
+    "source/desktop/app/src/engine/prerender/tests/input_poll_generation.rs": {
+      "bytes": 2740,
+      "sha256": "4d54f3a22501db27a2039abf78430ce0a570da65979ed7dafb3ce3c5080b5b32"
+    },
+    "prerender82-main-ac65-archive-v1.py": {
+      "bytes": 3047,
+      "sha256": "904c547a0c92e05afe526b902ebc15a8e2d6b0b5ae25bd395b6d2e1e1969e7ab"
+    }
+  },
+  "limits": [
+    "Selected ten controls and complete136-tool discovery; not full workspace or P95 acceptance",
+    "Deferred-frame test can return on unsupported driver cache; its optional report was not retained, so blocked-restore activation is not qualified",
+    "Original dependency and two compiler failures retained; no runtime or binary redistributed"
+  ]
+}
