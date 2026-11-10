@@ -540,3 +540,17 @@ selected frames remain local validation inputs. Author/source/revision/license
 and aggregate measurement identities accompany any published result. Sensor
 readings, asynchronous timestamps and missing values are not exact geometric
 ground truth or a certificate for other footage domains.
+
+
+## Existing CI Python YAML parser (local preflight)
+
+The isolated preflight also uses already installed, unmodified PyYAML6.0.3,
+Kirill Simonov and PyYAML contributors, [official project](https://pyyaml.org/),
+[version6.0.3](https://pypi.org/project/PyYAML/6.0.3/), MIT. This is the existing
+version explicitly required by `.github/workflows/ci.yml`; no new dependency or
+asset is introduced into the product. Its metadata/license remain in the external
+E-drive environment. The environment is read-only to this task; tests write only
+to their dedicated E-drive output/temp directories. The optional official-aspect
+metric export uses the previously attributed, unmodified Small reference and
+weights; independently authored preprocessing/export code and derived numeric
+reports do not change their license or confer domain/quality qualification.

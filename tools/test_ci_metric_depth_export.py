@@ -10,6 +10,32 @@ import export_ai_depth as exporter
 
 
 class MetricExportAdmission(unittest.TestCase):
+    def test_native_aspect_profile_is_explicit_and_cannot_relabel_existing_exports(self):
+        identity=exporter.processing_identity(518,metric=True,native_aspect=True)
+        self.assertEqual(identity,exporter.METRIC_NATIVE_PROCESSING)
+        self.assertNotEqual(identity,exporter.processing_identity(518,metric=True))
+        with tempfile.TemporaryDirectory() as name:
+            root=Path(name).resolve()
+            for kwargs in (dict(native_aspect=True),dict(metric=True,native_aspect=1),
+                           dict(metric=True,native_aspect="native")):
+                with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                    exporter.export(root/'reference',root/'weights',root/'absent'/'output',**kwargs)
+            self.assertFalse((root/'absent').exists())
+
+    def test_real_native_aspect_cli_requires_metric_before_io_under_optimization(self):
+        with tempfile.TemporaryDirectory() as name:
+            root=Path(name).resolve()
+            for optimized in (False,True):
+                output=root/str(optimized)/'output'
+                command=[sys.executable,'-B']+(['-O'] if optimized else [])
+                child=subprocess.run(command+[exporter.__file__,'--reference',str(root),
+                    '--weights',str(root/'missing'),'--output',str(output),'--metric-native-aspect'],
+                    capture_output=True)
+                self.assertNotEqual(child.returncode,0)
+                self.assertEqual(child.stdout,b'')
+                self.assertIn(b'native-aspect export requires the explicit metric profile',child.stderr)
+                self.assertFalse(output.parent.exists())
+
     def test_metric_identity_is_separate_and_only_the_declared_profile_is_admitted(self):
         self.assertNotEqual(exporter.processing_identity(518), exporter.processing_identity(518, metric=True))
         self.assertEqual(exporter.processing_identity(518, metric=True), exporter.METRIC_PROCESSING)

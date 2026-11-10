@@ -167,3 +167,10 @@ one original skip and no errors (19 passes), exec`b0e81b`; original logs remain
 in `depth75-ci-9784a9f1-inventory-fix-v1`. The existing assertions and inventory
 gate are unchanged. This narrow correction does not replace a new complete CI
 run, repair the earlier local fixture error, or qualify the metric model.
+
+
+The separately identified [official-aspect profile](depth75-metric-native-aspect-current.md)
+now exports the same weights at686x518 for640x480 source input, following the
+pinned reference's aspect-preserving preprocessing. All32 preprocessing inputs
+match the official transforms exactly. Primary RMS0.16983065 and maximum1.30505095
+still fail the original0.01/0.05 sensor gates; neither profile is qualified.
