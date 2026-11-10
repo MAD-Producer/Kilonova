@@ -3,6 +3,7 @@ use super::*;
 use std::fs;
 #[path = "../../../../../crates/motion-core/tests/support/color_project.rs"]
 mod fixture;
+pub(super) mod runtime_platform;
 
 #[test]
 fn color_preflight_and_missing_resources_reach_default_error_channels_without_changes() {
@@ -15,17 +16,35 @@ fn color_preflight_and_missing_resources_reach_default_error_channels_without_ch
         let active = root.join("library/default");
         motion_core::storage::save(&active, &initial).unwrap();
         let original = fs::read(active.join("project.json")).unwrap();
-        let engine =
-            Engine::start(active.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let missing_manifest = root.join("missing-runtime/ocio-runtime.json");
+        let platform = Arc::new(runtime_platform::RuntimePlatform {
+            manifest: missing_manifest.clone(),
+            before_manifest: None,
+            desktop: motion_desktop_media::platform(),
+        });
+        let engine = Engine::start(active.clone(), platform, 8 << 30).unwrap();
         let before = engine.state().unwrap();
         let mut invalid = fixture::settings();
         invalid.selection.config_key[0] ^= 1;
-        for settings in [fixture::settings(), invalid] {
+        for (index, settings) in [fixture::settings(), invalid].into_iter().enumerate() {
             let text = serde_json::to_string(&motion_core::Command::SetColorManagement {
                 settings: fixture::managed(settings),
             })
             .unwrap();
-            assert!(engine.edit(text).is_err());
+            let error = engine.edit(text).unwrap_err();
+            if index == 0 {
+                assert!(matches!(
+                    error.host(),
+                    Some(motion_host::Error::ColorPreparation(
+                        motion_host::color_preparation::Error::Resources(_)
+                    ))
+                ));
+            } else {
+                assert!(
+                    error.to_string().contains("selected content identity"),
+                    "{error}"
+                );
+            }
             let after = engine.state().unwrap();
             for key in ["project", "revision", "history", "canUndo", "canRedo"] {
                 assert_eq!(after[key], before[key], "{key}");
@@ -43,7 +62,23 @@ fn color_preflight_and_missing_resources_reach_default_error_channels_without_ch
         assert!(error.to_string().contains("phase=resolve"), "{error}");
         fixture::write_resources(&missing, &managed);
         let error = engine.open_project("project-101".into()).unwrap_err();
-        assert!(error.to_string().contains("phase=scene_create"), "{error}");
+        let Some(motion_host::Error::ColorPreparation(
+            motion_host::color_preparation::Error::Provider { source, .. },
+        )) = error.host()
+        else {
+            panic!("original native preparation cause: {error:?}")
+        };
+        let motion_host::Error::NativeColor(motion_effects::native_color::Error::Io {
+            phase,
+            path,
+            source,
+        }) = source.as_ref()
+        else {
+            panic!("original native IO: {source:?}")
+        };
+        assert_eq!(*phase, "manifest");
+        assert_eq!(path, &missing_manifest.display().to_string());
+        assert_eq!(source.kind(), std::io::ErrorKind::NotFound);
         let after = engine.state().unwrap();
         for key in ["project", "revision", "history", "canUndo", "canRedo"] {
             assert_eq!(after[key], before[key], "{key}");
@@ -94,13 +129,16 @@ fn color_preflight_and_missing_resources_reach_default_error_channels_without_ch
         .filter(|line| line.contains("ERROR") && line.contains("error #"))
         .collect();
     assert_eq!(errors.len(), 4, "{file}");
-    for cause in [
-        "phase=edit_prepare",
-        "selected content identity",
-        "phase=resolve",
-        "phase=scene_create",
+    for (operation, cause) in [
+        ("edit", "phase=resources"),
+        ("edit", "selected content identity"),
+        ("open_project", "phase=resolve"),
+        ("open_project", "phase=manifest"),
     ] {
-        let error = errors.iter().find(|line| line.contains(cause)).unwrap();
+        let error = errors
+            .iter()
+            .find(|line| line.contains(cause) && line.contains(&format!(" {operation} ")))
+            .unwrap();
         assert!(stderr.contains(cause), "{stderr}");
         assert!(!stdout.contains(cause), "{stdout}");
         let request = error
@@ -110,11 +148,6 @@ fn color_preflight_and_missing_resources_reach_default_error_channels_without_ch
             .split_whitespace()
             .next()
             .unwrap();
-        let operation = if cause == "phase=resolve" || cause == "phase=scene_create" {
-            "open_project"
-        } else {
-            "edit"
-        };
         assert!(
             file.find(&format!("start #{request} {operation}")).unwrap()
                 < file.find(*error).unwrap()

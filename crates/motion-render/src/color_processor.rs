@@ -11,6 +11,12 @@ use motion_effects::{
 };
 use std::{error::Error, fmt, sync::Arc};
 
+mod managed;
+pub use managed::{
+    CapturedColorImage, ColorImageContract, ColorImageRenderSourceError, ColorImageTarget,
+    ColorImageUploadError, ColorProcessorOutput, ColorRangeMismatch, ColorSpaceMismatch,
+};
+
 /// Retains primary admission and all native causes without displaying complete
 /// shader source in the outer diagnostic. Callers traverse source/native APIs.
 #[derive(Debug)]
@@ -64,13 +70,14 @@ impl Error for NativeColorProcessorError {
     }
 }
 
-/// Reuse while updating the original texture in place. ImageContract's legacy
-/// Linear/sRGB tag is not an OCIO space name; the compiled processor carries the
-/// explicit config/selection/phase identity. Caller must supply matching pixels.
-pub struct ColorProcessorOutput {
+/// Private raw transport. The public wrapper checks complete endpoint identity;
+/// ImageContract's legacy Linear tag only selects non-transferring float storage.
+#[derive(Clone)]
+struct RawColorProcessorOutput {
     pipeline: wgpu::RenderPipeline,
     tables_group: wgpu::BindGroup,
     source_group: wgpu::BindGroup,
+    source_layout: wgpu::BindGroupLayout,
     source: OwnedTexture,
     output: ImageContract,
     key: [u8; 32],
@@ -103,7 +110,7 @@ fn table_entry(binding: u32, bytes: u64) -> wgpu::BindGroupLayoutEntry {
         count: None,
     }
 }
-impl ColorProcessorOutput {
+impl RawColorProcessorOutput {
     pub fn new(
         renderer: &Renderer,
         source: &ImageCaptureTarget,
@@ -245,7 +252,7 @@ impl ColorProcessorOutput {
                 multiview_mask: None,
                 cache: None,
             });
-            Ok::<_, RenderError>((pipeline, tables_group, source_group, tables))
+            Ok::<_, RenderError>((pipeline, tables_group, source_group, source_layout, tables))
         })();
         let validation = validation.pop();
         let internal = internal.pop();
@@ -266,7 +273,7 @@ impl ColorProcessorOutput {
             }
             .into());
         }
-        let (pipeline, tables_group, source_group, tables) = result.map_err(|primary| {
+        let (pipeline, tables_group, source_group, source_layout, tables) = result.map_err(|primary| {
             if let Err(secondary) = &polled {
                 let text = format!("{primary}; OCIO image creation poll also failed: {secondary}");
                 primary.with_diagnostic(text)
@@ -280,6 +287,7 @@ impl ColorProcessorOutput {
             pipeline,
             tables_group,
             source_group,
+            source_layout,
             source: source.texture().clone(),
             output,
             key: processor.key(),
@@ -290,15 +298,32 @@ impl ColorProcessorOutput {
     pub fn key(&self) -> [u8; 32] {
         self.key
     }
-    pub fn output_contract(&self) -> ImageContract {
-        self.output
+    fn rebind(&self, renderer: &Renderer, source: &ImageCaptureTarget) -> Result<Self, RenderError> {
+        renderer.check_health()?;
+        if !Arc::ptr_eq(&self.owner, &renderer.allocation_owner) {
+            return Err(RenderError::Invalid("OCIO prepared pipeline belongs to another renderer".into()));
+        }
+        source.check_owner(renderer)?;
+        let source_group = renderer.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("rebound prepared OCIO source image"),
+            layout: &self.source_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(source.view()),
+            }],
+        });
+        renderer.check_health()?;
+        let mut rebound = self.clone();
+        rebound.source_group = source_group;
+        rebound.source = source.texture().clone();
+        Ok(rebound)
     }
     /// Exact image extents, one fragment per pixel. No resampling or implicit
     /// display transfer; AllocationEncoder retains admission through completion.
-    pub fn encode(
+    fn validate_destination(
         &self,
         renderer: &Renderer,
-        encoder: &mut AllocationEncoder,
+        encoder: &AllocationEncoder,
         destination: &ImageCaptureTarget,
     ) -> Result<(), RenderError> {
         renderer.check_health()?;
@@ -324,6 +349,9 @@ impl ColorProcessorOutput {
                 "OCIO source and destination must be distinct".into(),
             ));
         }
+        Ok(())
+    }
+    fn encode_validated(&self, encoder: &mut AllocationEncoder, destination: &ImageCaptureTarget) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("direct OCIO image transform"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -341,7 +369,6 @@ impl ColorProcessorOutput {
         pass.set_bind_group(0, &self.tables_group, &[]);
         pass.set_bind_group(1, &self.source_group, &[]);
         pass.draw(0..3, 0..1);
-        Ok(())
     }
     pub fn texture_resource_ledger(&self) -> TextureResourceLedger {
         let mut ledger = TextureResourceLedger::default();

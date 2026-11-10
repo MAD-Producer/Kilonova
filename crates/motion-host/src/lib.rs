@@ -24,6 +24,7 @@
 
 mod node_effects;
 mod error;
+pub mod color_preparation;
 #[cfg(feature = "ai-depth")]
 pub mod depth;
 pub mod depth_snapshot;

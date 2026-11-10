@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, sync::Arc};
 
+mod image_identity;
+pub use image_identity::ColorSpaceIdentity;
+
 pub const CONFIG_MANIFEST_VERSION: u32 = 1;
 pub const MAX_MANIFEST_BYTES: usize = 1024 * 1024;
 pub const MAX_CONFIG_BYTES: usize = 8 * 1024 * 1024;
@@ -285,6 +288,7 @@ impl ColorConfigManifest {
 
 /// Retains the exact verified resource bytes. Replacing a file on disk does not
 /// alter this object's identity. Construction is preparation, never a Present op.
+#[derive(Clone)]
 pub struct VerifiedColorConfig {
     manifest: ColorConfigManifest,
     key: [u8; 32],

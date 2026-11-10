@@ -13,6 +13,11 @@ pub fn space(name: &str) -> SpaceReference {
 pub fn signal(encoding: &str, reference: ReferenceSpace) -> ColorSignal {
     ColorSignal {
         encoding: encoding.into(),
+        transfer: if encoding == "scene-linear" {
+            ColorTransfer::Linear
+        } else {
+            ColorTransfer::ConfigDefined
+        },
         primaries: [[0.64, 0.33], [0.3, 0.6], [0.15, 0.06]],
         white_point: [0.3127, 0.3290],
         range: SignalRange::Full {},

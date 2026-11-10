@@ -30,6 +30,7 @@ struct VectorJob {
     scale: f32,
     width: u32,
     height: u32,
+    paint_space: crate::vector_mesh::PaintSpace,
 }
 
 fn ordered_batch<T: Send, R: Send>(
@@ -83,12 +84,13 @@ fn ordered_batch<T: Send, R: Send>(
 
 impl VectorJob {
     fn rasterize(self, limit: usize) -> (Self, Result<VectorMesh, VectorGeometryError>) {
-        let geometry = crate::vector_mesh::rasterize_with_limit(
+        let geometry = crate::vector_mesh::rasterize_in_space(
             &self.vector,
             self.size,
             self.scale,
             self.origin,
             limit,
+            self.paint_space,
         );
         let mesh = geometry.map(|geometry| {
             let mut hash = std::collections::hash_map::DefaultHasher::new();
@@ -97,6 +99,9 @@ impl VectorJob {
             geometry.root_opacity.to_bits().hash(&mut hash);
             self.width.hash(&mut hash);
             self.height.hash(&mut hash);
+            if self.paint_space == crate::vector_mesh::PaintSpace::Working {
+                "explicit working vector paints".hash(&mut hash);
+            }
             VectorMesh {
                 layer: self.layer,
                 width: self.width,
@@ -188,6 +193,56 @@ impl PlanBuilder {
         size: [u32; 2],
         scales: &[f32],
     ) -> Result<(), RenderError> {
+        self.prepare_vectors_in_space(scene, size, scales, crate::vector_mesh::PaintSpace::Srgb)
+    }
+
+    pub(crate) fn prepare_authored_inputs(
+        &mut self,
+        scene: &Scene,
+        size: [u32; 2],
+    ) -> Result<(), RenderError> {
+        preparation::validate_scene(scene)?;
+        self.cpu_preparation = CpuPreparationInfo {
+            worker_limit: self.cpu_preparation.worker_limit,
+            ..Default::default()
+        };
+        self.frame.vectors.clear();
+        let scale = (size[0] as f32 / scene.width as f32)
+            .min(size[1] as f32 / scene.height as f32).max(0.001);
+        self.frame.masks = self.mask_cache.build(scene, scale, false)?;
+        for mask in &self.frame.masks {
+            if mask.width > self.device_dimension || mask.height > self.device_dimension {
+                let rejection = ResourceRejection::TextureDimensions {
+                    width: mask.width, height: mask.height, max_dimension: self.device_dimension,
+                };
+                self.last_resource_rejection = Some(rejection);
+                return Err(RenderError::Resource { rejection, message: format!(
+                    "layer {}, mask {}: authored coverage exceeds device dimensions",
+                    scene.layers[mask.layer].id, mask.id) });
+            }
+        }
+        self.vector_cache.retain(|id, _| {
+            scene
+                .layers
+                .iter()
+                .any(|layer| layer.id == *id && layer.vector.is_some())
+        });
+        let scales = [1.; motion_model::MAX_LAYERS];
+        self.prepare_vectors_in_space(
+            scene,
+            size,
+            &scales[..scene.layers.len()],
+            crate::vector_mesh::PaintSpace::Working,
+        )
+    }
+
+    fn prepare_vectors_in_space(
+        &mut self,
+        scene: &Scene,
+        size: [u32; 2],
+        scales: &[f32],
+        paint_space: crate::vector_mesh::PaintSpace,
+    ) -> Result<(), RenderError> {
         let workers = self.cpu_preparation.worker_limit.clamp(1, MAX_WORKERS);
         let mut remaining = MAX_TRIANGLE_VERTICES;
         let mut cursor = 0;
@@ -219,10 +274,16 @@ impl PlanBuilder {
                     layer.source_rect[0] + layer.size[0] * 0.5 - layer.source_size[0] * 0.5,
                     layer.source_rect[1] + layer.size[1] * 0.5 - layer.source_size[1] * 0.5,
                 ];
-                if let Some((_, _, _, mesh)) =
-                    self.vector_cache.get(&layer.id).filter(|(v, s, r, mesh)| {
-                        v == vector && *s == layer.size && *r == scale && mesh.origin == origin
-                    })
+                if let Some((_, _, _, mesh, _)) =
+                    self.vector_cache
+                        .get(&layer.id)
+                        .filter(|(v, s, r, mesh, space)| {
+                            v == vector
+                                && *s == layer.size
+                                && *r == scale
+                                && mesh.origin == origin
+                                && *space == paint_space
+                        })
                 {
                     let mut mesh = mesh.clone();
                     mesh.layer = index;
@@ -259,6 +320,7 @@ impl PlanBuilder {
                     scale,
                     width,
                     height,
+                    paint_space,
                 });
             }
             self.cpu_preparation.vector_jobs += jobs.len();
@@ -302,8 +364,16 @@ impl PlanBuilder {
                         return Err(vector_error(scene, job.id, VectorGeometryError::Invalid(format!(
                             "vector triangle vertex limit exceeded (262144; remaining output limit {remaining})"))));
                     }
-                    self.vector_cache
-                        .insert(job.id, (job.vector, job.size, job.scale, mesh.clone()));
+                    self.vector_cache.insert(
+                        job.id,
+                        (
+                            job.vector,
+                            job.size,
+                            job.scale,
+                            mesh.clone(),
+                            job.paint_space,
+                        ),
+                    );
                     mesh
                 };
                 remaining = remaining

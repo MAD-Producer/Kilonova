@@ -1,5 +1,7 @@
 use crate::Renderer;
 mod memory;
+mod managed;
+pub use managed::{ManagedDisplayPresenter, ManagedDisplayTarget, ManagedDisplaySnapshot};
 #[cfg(test)]
 mod admission_tests;
 #[cfg(test)]
@@ -62,6 +64,23 @@ impl Presenter {
     }
     fn with_buffers(renderer: &Renderer, source: &wgpu::TextureView,
         format: wgpu::TextureFormat, buffers: memory::Buffers) -> Self {
+        Self::with_encoding(renderer, source, format, buffers, false)
+    }
+    fn with_prepared_pipeline(&self, renderer: &Renderer, source: &wgpu::TextureView,
+        buffers: memory::Buffers) -> Self {
+        let memory::Buffers { color: buffer, view: view_buffer } = buffers;
+        let group = Self::source_group(&renderer.device, &self.layout, &self.sampler, &buffer, source);
+        let view_group = Self::source_group(&renderer.device, &self.layout, &self.sampler, &view_buffer, source);
+        Self {
+            pipeline: self.pipeline.clone(), group, view_group, source: source.clone(),
+            format: self.format, layout: self.layout.clone(), sampler: self.sampler.clone(),
+            buffer, view_buffer, view_channel: ViewChannel::Color,
+            inspection_region: None, comparison_split: None, comparison_group: None,
+            comparison_ledger: None, comparison_allocation: None, source_allocation: None,
+        }
+    }
+    fn with_encoding(renderer: &Renderer, source: &wgpu::TextureView,
+        format: wgpu::TextureFormat, buffers: memory::Buffers, display_codes: bool) -> Self {
         let device = &renderer.device;
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Motion Studio surface presentation"),
@@ -70,7 +89,7 @@ impl Presenter {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: !display_codes },
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false,
                     },
@@ -79,7 +98,9 @@ impl Presenter {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Sampler(if display_codes {
+                        wgpu::SamplerBindingType::NonFiltering
+                    } else { wgpu::SamplerBindingType::Filtering }),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
@@ -95,8 +116,8 @@ impl Presenter {
             ],
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
+            mag_filter: if display_codes { wgpu::FilterMode::Nearest } else { wgpu::FilterMode::Linear },
+            min_filter: if display_codes { wgpu::FilterMode::Nearest } else { wgpu::FilterMode::Linear },
             ..Default::default()
         });
         let memory::Buffers { color: buffer, view: view_buffer } = buffers;
@@ -248,13 +269,36 @@ impl Presenter {
     pub(crate) fn encode_view_load(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4], load: bool) -> Result<(), crate::RenderError> {
-        if self.inspection_region.is_some() || self.comparison_split.is_some() {
-            let comparison = match self.comparison_split {
-                Some(split) => Some((self.comparison_group.as_ref().ok_or_else(||
-                    crate::RenderError::Invalid("viewer comparison snapshot is unavailable".into()))?, split)),
-                None => None,
-            };
-            let (live, captured) = Self::inspection_scissors(viewport, image, self.inspection_region, self.comparison_split)?;
+        self.encode_view_region_load(queue, encoder, output, timestamps, viewport, image,
+            background, self.inspection_region, load)
+    }
+    /// Supply the region with each draw, without changing retained presenter
+    /// state. Independent view cells still require independent uniforms.
+    pub(crate) fn encode_view_region_load(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
+        output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
+        viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4],
+        region: Option<[f32; 4]>, load: bool) -> Result<(), crate::RenderError> {
+        self.encode_view_region_group_load(queue, encoder, output, timestamps,
+            viewport, image, background, region, load, &self.view_group, None, None)
+    }
+    /// Typed managed presentation selects either the display-code group or the
+    /// original numeric working group. Both retain this cell's own uniform.
+    fn encode_view_region_group_load(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
+        output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
+        viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4],
+        region: Option<[f32; 4]>, load: bool, group: &wgpu::BindGroup,
+        channel: Option<ViewChannel>, comparison: Option<(&wgpu::BindGroup, f32)>) -> Result<(), crate::RenderError> {
+        if let Some(channel) = channel {
+            self.view_buffer.write(queue, 4, bytemuck::bytes_of(&(channel as u32)))?;
+        }
+        let comparison = match (comparison, self.comparison_split) {
+            (Some(explicit), _) => Some(explicit),
+            (None, Some(split)) => Some((self.comparison_group.as_ref().ok_or_else(||
+                crate::RenderError::Invalid("viewer comparison snapshot is unavailable".into()))?, split)),
+            (None, None) => None,
+        };
+        if region.is_some() || comparison.is_some() {
+            let (live, captured) = Self::inspection_scissors(viewport, image, region, comparison.map(|(_, split)| split))?;
             let [x, y, w, h] = viewport;
             self.write_view_geometry(queue, viewport, image)?;
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -273,7 +317,7 @@ impl Presenter {
             pass.set_pipeline(&self.pipeline);
             if let Some([x, y, w, h]) = live {
                 pass.set_scissor_rect(x, y, w, h);
-                pass.set_bind_group(0, &self.view_group, &[]);
+                pass.set_bind_group(0, group, &[]);
                 pass.draw(0..3, 0..1);
             }
             if let (Some([x, y, w, h]), Some((group, _))) = (captured, comparison) {
@@ -284,7 +328,7 @@ impl Presenter {
             return Ok(());
         }
         self.write_view_geometry(queue, viewport, image)?;
-        self.encode_group_impl(encoder, output, timestamps, Some(viewport), background, &self.view_group, None, load, false);
+        self.encode_group_impl(encoder, output, timestamps, Some(viewport), background, group, None, load, false);
         Ok(())
     }
     /// Present a live image, optionally comparing a captured image to its right.

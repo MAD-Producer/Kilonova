@@ -23,7 +23,11 @@ pub use image_capture::{CapturedImage, ImageCaptureTarget};
 mod color_output;
 mod color_lut;
 mod color_processor;
-pub use color_processor::{ColorProcessorOutput, NativeColorProcessorError};
+pub use color_processor::{
+    CapturedColorImage, ColorImageContract, ColorImageRenderSourceError, ColorImageTarget,
+    ColorImageUploadError, ColorProcessorOutput, ColorRangeMismatch, ColorSpaceMismatch,
+    NativeColorProcessorError,
+};
 pub use color_lut::{LutOutput, NativeLutError};
 mod lens_output;
 pub use lens_output::LensOutputPipeline;
@@ -95,7 +99,7 @@ pub use video_pixels::{rgb_video_to_rgba, ChromaLayout, VideoPlane, VideoRgbForm
 pub use video_gpu::EncodedVideoUpload;
 pub use measurement::{FrameMeasurement, FrameRecorder, FrameResources};
 pub use memory::TextureMemoryBreakdown;
-pub use presenter::{Presenter, ViewChannel};
+pub use presenter::{Presenter, ViewChannel, ManagedDisplayPresenter, ManagedDisplayTarget, ManagedDisplaySnapshot};
 pub use viewer_snapshot::ViewerSnapshot;
 pub use quality::{PreviewMode, PreviewPolicy, PreviewTier};
 pub use renderer::premultiply_pixels;
@@ -104,6 +108,7 @@ pub use renderer::{CaptureTarget, ExposureTarget, LayerRaster, RenderError, Rend
 pub use renderer::FIXED_RENDERER_ALLOCATION_BYTES;
 pub use renderer::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use renderer::WorkingPrecisionChange;
+pub use renderer::AuthoredImageSet;
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;
@@ -118,5 +123,5 @@ mod plane_coverage;
 mod plane_coordinates;
 pub mod selection_geometry;
 pub mod position_path;
-pub use scene::{DrawLayer, HitCandidate, NestedScene, Scene, ViewCamera};
+pub use scene::{AuthoredSceneError, AuthoredSceneFrame, AuthoredSceneSampler, DrawLayer, HitCandidate, NestedScene, Scene, ViewCamera};
 pub use compositor::{PlaneBatch, PlaneCompositor, PlaneVertex};

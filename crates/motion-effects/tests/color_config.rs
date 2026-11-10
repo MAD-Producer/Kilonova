@@ -1,6 +1,9 @@
 use motion_effects::color_config::*;
 use std::{collections::BTreeMap, error::Error as _, sync::Arc};
 
+#[path = "color_config/image_identity.rs"]
+mod image_identity;
+
 const CONFIG: &[u8] = b"independently authored closed config bytes\n";
 const LUT: &[u8] = b"LUT_1D_SIZE 2\n0 0 0\n1 1 1\n";
 fn role(value: &str) -> SpaceReference {

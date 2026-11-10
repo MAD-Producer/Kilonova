@@ -2161,6 +2161,7 @@ dependencies = [
  "motion-model",
  "motion-render",
  "motion-scene",
+ "png",
  "pollster",
  "raw-window-handle",
  "serde",
@@ -2175,6 +2176,7 @@ name = "motion-effects"
 version = "0.1.0"
 dependencies = [
  "image",
+ "libloading",
  "log",
  "naga",
  "regex",

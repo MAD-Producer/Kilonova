@@ -83,18 +83,41 @@ impl Session {
         } else {
             vec![id.into()]
         };
-        let mut next_scene = motion_render::Scene::for_composition(self.engine.project(), id)?;
-        next_scene.set_model_source_catalog(self.scene.model_source_catalog());
         let old = self.engine.project().composition_id.clone();
-        self.composition_contexts.entry(old).or_default().frame = self.frame;
+        let frames = self.engine.project().composition_view(id).map_err(crate::Error::from)?.frames;
+        let next_frame = if old == id { self.frame } else {
+            self.composition_contexts.get(id).map_or(0., |context| context.frame)
+        }.clamp(0., f64::from(frames - 1));
+        // Managed admission, native preparation, expression sampling and source
+        // allocation must all succeed before changing any active context.
+        let mut next_colors = None;
+        let mut surface_change = None;
+        let mut next_scene = if let Some(current) = &self.colors {
+            let destination = self.engine.project().composition(id).map_err(crate::Error::from)?;
+            let mut prepared = current.prepare_composition(
+                &destination,
+                &crate::color_preparation::Observation::new(self.document_generation),
+            )?;
+            let scene = crate::session::color::sample(&mut prepared, &destination, next_frame)
+                .map_err(|error| crate::Error::with_context(format!("composition={id} phase=sample"), error))?;
+            if let Some(graphics) = &mut self.graphics {
+                surface_change = crate::session::color::prepare_surface_change(
+                    graphics, Some(&prepared), &destination, &self.root, self.document_generation,
+                )?;
+            }
+            next_colors = Some(prepared);
+            scene
+        } else {
+            motion_render::Scene::for_composition(self.engine.project(), id)?
+        };
+        next_scene.set_model_source_catalog(self.scene.model_source_catalog());
         self.engine
             .activate_composition(id)
             .map_err(crate::Error::from)?;
+        self.composition_contexts.entry(old).or_default().frame = self.frame;
         let context = self.composition_contexts.entry(id.into()).or_default();
         context.path = route;
-        self.frame = context
-            .frame
-            .clamp(0., f64::from(self.engine.project().frames - 1));
+        self.frame = next_frame;
         context.selection.retain(|id| {
             (*id == 0 && self.engine.project().camera.created)
                 || self.engine.project().layers.iter().any(|l| l.id == *id)
@@ -108,10 +131,25 @@ impl Session {
         self.observer_history = Default::default();
         self.audio_mixer = None;
         self.video_frames.clear();
-        self.view_revision += 1;
+        let managed = next_colors.is_some();
+        if let Some(colors) = next_colors {
+            self.install_colors(Some(colors));
+            if let (Some(graphics), Some(change)) = (&mut self.graphics, surface_change) {
+                crate::session::color::install_surface_change(graphics, change);
+            }
+            // The candidate already sampled the destination exactly once.
+            if self.last_error.as_ref().is_some_and(|error|
+                error.starts_with("expression ") || error.starts_with("authored color phase=evaluate")) {
+                self.last_error = None;
+            }
+        } else {
+            self.view_revision += 1;
+        }
         self.last_presented_frame = None;
-        if let Err(error) = self.sample() {
-            self.last_error = Some(error.to_string());
+        if !managed {
+            if let Err(error) = self.sample() {
+                self.last_error = Some(error.to_string());
+            }
         }
         Ok(())
     }

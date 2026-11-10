@@ -1328,6 +1328,28 @@ impl Engine {
         self.trim();
         Ok(true)
     }
+    /// Prepare external immutable state before changing project or history.
+    /// Err and unwind leave both stacks, accounting and revision untouched.
+    pub fn undo_with_prepare(&mut self, prepare: impl FnOnce(&Project) -> Result<()>) -> Result<bool> {
+        if self.gesture.is_none() {
+            if let Some(entry) = self.undo.back() { prepare(&entry.project)?; }
+        }
+        self.undo()
+    }
+    pub fn redo_with_prepare(&mut self, prepare: impl FnOnce(&Project) -> Result<()>) -> Result<bool> {
+        if self.gesture.is_none() {
+            if let Some(entry) = self.redo.back() { prepare(&entry.project)?; }
+        }
+        self.redo()
+    }
+    pub fn end_gesture_with_prepare(&mut self, commit: bool, prepare: impl FnOnce(&Project) -> Result<()>) -> Result<()> {
+        if !commit {
+            if let Some(gesture) = &self.gesture {
+                if gesture.before.project != self.project { prepare(&gesture.before.project)?; }
+            }
+        }
+        self.end_gesture(commit)
+    }
     pub fn redo(&mut self) -> Result<bool> {
         if self.gesture.is_some() {
             log::warn!(

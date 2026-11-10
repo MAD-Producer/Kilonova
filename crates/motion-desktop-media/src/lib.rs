@@ -60,6 +60,16 @@ impl DesktopPlatform {
 }
 
 impl Platform for DesktopPlatform {
+    fn color_runtime_manifest(&self) -> motion_host::Result<Option<std::path::PathBuf>> {
+        let executable = std::env::current_exe()
+            .map_err(|cause| motion_host::Error::with_context("locate bundled OCIO runtime", cause))?;
+        let directory = executable.parent().ok_or("desktop executable has no directory")?;
+        #[cfg(target_os = "macos")]
+        let manifest = directory.join("../Resources/ocio/ocio-runtime.json");
+        #[cfg(not(target_os = "macos"))]
+        let manifest = directory.join("native/ocio/ocio-runtime.json");
+        Ok(Some(manifest))
+    }
     fn name(&self) -> &'static str {
         if Self::video_available() {
             "libav"

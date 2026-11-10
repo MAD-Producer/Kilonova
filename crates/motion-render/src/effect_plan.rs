@@ -517,6 +517,7 @@ pub struct PlanBuilder {
             [f32; 2],
             f32,
             crate::vector_mesh::VectorMesh,
+            crate::vector_mesh::PaintSpace,
         ),
     >,
     mask_cache: crate::mask_plan::MaskCache,
@@ -1074,6 +1075,7 @@ impl PlanBuilder {
         }
     }
     fn build_preview_internal(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, guarded: bool) -> Result<&EffectFramePlan, RenderError> {
+        scene.require_legacy_colors()?;
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         // Scene generators sample births, camera/light sources and occlusion
@@ -1113,6 +1115,7 @@ impl PlanBuilder {
         guarded: bool,
         materialize: &[u64],
     ) -> Result<&EffectFramePlan, RenderError> {
+        scene.require_legacy_colors()?;
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         self.effect_execution = None;

@@ -2,12 +2,12 @@
 //! implicit precision reduction. Producers must honor the declared meaning.
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::{image_formats, RenderError, Renderer, TextureResourceLedger};
-use motion_effects::image_contract::{ImageContract, ImageStorage, ImageUsage};
+use motion_effects::image_contract::{ImageContract, ImageMeaning, ImageStorage, ImageUsage};
 
 pub struct ImageCaptureTarget {
     texture: OwnedTexture,
     view: crate::AdmittedTextureView,
-    buffer: crate::allocation_buffer::AllocationBuffer,
+    buffer: Option<crate::allocation_buffer::AllocationBuffer>,
     owner: std::sync::Arc<()>,
     contract: ImageContract,
     storage: ImageStorage,
@@ -49,11 +49,15 @@ impl ImageCaptureTarget {
     pub(crate) fn texture(&self) -> &OwnedTexture {
         &self.texture
     }
-    pub(crate) fn check_owner(&self, renderer: &Renderer) -> Result<(), RenderError> {
+    /// Host-side typed consumers must validate the target before encoding GPU
+    /// work. This rejects another device without relying on a driver panic.
+    pub fn check_owner(&self, renderer: &Renderer) -> Result<(), RenderError> {
         if std::sync::Arc::ptr_eq(&renderer.allocation_owner, &self.owner) {
             Ok(())
         } else {
-            Err(RenderError::Invalid("image target belongs to another renderer".into()))
+            Err(RenderError::Invalid(
+                "image target belongs to another renderer".into(),
+            ))
         }
     }
     pub fn view(&self) -> &wgpu::TextureView {
@@ -74,9 +78,10 @@ impl ImageCaptureTarget {
     pub fn texture_bytes(&self) -> u64 {
         u64::from(self.row_bytes) * u64::from(self.height)
     }
-    /// Staging buffer capacity is separate from the texture ledger.
+    /// Retained staging capacity, separate from the texture ledger. GPU-only
+    /// targets report zero; explicit reads use temporary admitted staging.
     pub fn readback_bytes(&self) -> u64 {
-        u64::from(self.row_stride) * u64::from(self.height)
+        self.buffer.as_ref().map_or(0, |buffer| buffer.size())
     }
     pub fn texture_resource_ledger(&self) -> TextureResourceLedger {
         let mut ledger = TextureResourceLedger::default();
@@ -90,6 +95,48 @@ impl ImageCaptureTarget {
 }
 
 impl Renderer {
+    /// Move an existing native compositor result into raw image transport.
+    /// The actual storage fixes precision; native compositor alpha is premultiplied.
+    /// This transfers the same texture/view reservation, without copying pixels.
+    pub(crate) fn image_from_render_target(
+        &self,
+        source: crate::RenderTarget,
+    ) -> Result<ImageCaptureTarget, RenderError> {
+        self.check_health()?;
+        source.check_owner(self)?;
+        if source.view.texture() != &**source.texture() {
+            return Err(RenderError::Invalid(
+                "OCIO native render source view belongs to another texture".into(),
+            ));
+        }
+        let format = source.texture().format();
+        if format != wgpu::TextureFormat::Rgba32Float {
+            return Err(crate::ColorImageRenderSourceError { format }.into());
+        }
+        let storage = ImageStorage::Rgba32Float;
+        let (width, height) = (source.texture().width(), source.texture().height());
+        let layout = image_layout(width, height, storage, &self.device.limits(), false)?;
+        let (texture, view, owner) = source.into_image_parts();
+        Ok(ImageCaptureTarget {
+            texture,
+            view,
+            buffer: None,
+            owner,
+            contract: ImageContract::new(
+                ImageMeaning::Color {
+                    space: motion_effects::WorkingSpace::Linear,
+                    alpha: motion_effects::AlphaMode::Premultiplied,
+                },
+                motion_effects::image_contract::ChannelPrecision::Float32,
+            ),
+            storage,
+            width,
+            height,
+            row_bytes: layout.row_bytes,
+            row_stride: layout.row_stride,
+        })
+    }
+
     /// Allocate a format-preserving capture target after capability/size checks.
     /// The producer pipeline must target `image_formats::native_format(storage)`.
     /// This does not change the renderer's scene-working precision or pipelines.
@@ -99,11 +146,33 @@ impl Renderer {
         height: u32,
         contract: ImageContract,
     ) -> Result<ImageCaptureTarget, RenderError> {
+        self.image_target(width, height, contract, true)
+    }
+
+    /// GPU-only intermediate/source. Explicit readback allocates a temporary
+    /// staging buffer; ordinary rendering retains no readback capacity.
+    pub(crate) fn image_render_target(
+        &self,
+        width: u32,
+        height: u32,
+        contract: ImageContract,
+    ) -> Result<ImageCaptureTarget, RenderError> {
+        self.image_target(width, height, contract, false)
+    }
+
+    fn image_target(
+        &self,
+        width: u32,
+        height: u32,
+        contract: ImageContract,
+        retain_readback: bool,
+    ) -> Result<ImageCaptureTarget, RenderError> {
         self.check_health()?;
         let required = ImageUsage {
             sampled: true,
             render: true,
             copy_src: true,
+            copy_dst: !retain_readback,
             ..Default::default()
         };
         let storage = self
@@ -114,7 +183,19 @@ impl Renderer {
                     format!("image capture {width}x{height} phase=format-capabilities: {cause}");
                 RenderError::from(cause).with_diagnostic(message)
             })?;
-        let layout = capture_layout(width, height, storage, &self.device.limits())?;
+        let layout = image_layout(
+            width,
+            height,
+            storage,
+            &self.device.limits(),
+            retain_readback,
+        )?;
+        let mut usage = wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::COPY_SRC
+            | wgpu::TextureUsages::TEXTURE_BINDING;
+        if !retain_readback {
+            usage |= wgpu::TextureUsages::COPY_DST;
+        }
         let texture = self.device.create_admitted_texture(
             &wgpu::TextureDescriptor {
                 label: Some("Motion Studio format-preserving image capture"),
@@ -127,25 +208,27 @@ impl Renderer {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: image_formats::native_format(storage),
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                    | wgpu::TextureUsages::COPY_SRC
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                usage,
                 view_formats: &[],
             },
             self.allocation_budget(),
             crate::TextureCategory::CaptureTargets,
         )?;
         let view = texture.admitted_view()?;
-        let buffer = crate::allocation_buffer::AllocationBuffer::new(
-            &self.device,
-            self.allocation_budget(),
-            &wgpu::BufferDescriptor {
-                label: Some("Motion Studio format-preserving image staging"),
-                size: layout.buffer_bytes,
-                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                mapped_at_creation: false,
-            },
-        )?;
+        let buffer = retain_readback
+            .then(|| {
+                crate::allocation_buffer::AllocationBuffer::new(
+                    &self.device,
+                    self.allocation_budget(),
+                    &wgpu::BufferDescriptor {
+                        label: Some("Motion Studio format-preserving image staging"),
+                        size: layout.buffer_bytes,
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                        mapped_at_creation: false,
+                    },
+                )
+            })
+            .transpose()?;
         Ok(ImageCaptureTarget {
             texture,
             view,
@@ -173,6 +256,29 @@ impl Renderer {
                 "image capture phase=readback: target belongs to another renderer".into(),
             ));
         }
+        let temporary;
+        let buffer = match &target.buffer {
+            Some(buffer) => buffer,
+            None => {
+                let layout = capture_layout(
+                    target.width,
+                    target.height,
+                    target.storage,
+                    &self.device.limits(),
+                )?;
+                temporary = crate::allocation_buffer::AllocationBuffer::new(
+                    &self.device,
+                    self.allocation_budget(),
+                    &wgpu::BufferDescriptor {
+                        label: Some("Motion Studio explicit image readback staging"),
+                        size: layout.buffer_bytes,
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                        mapped_at_creation: false,
+                    },
+                )?;
+                &temporary
+            }
+        };
         let mut encoder = self.allocation_command_encoder_for(
             crate::gpu_commands::CommandStage::ReadbackCopy,
             &wgpu::CommandEncoderDescriptor {
@@ -182,7 +288,7 @@ impl Renderer {
         encoder.copy_texture_to_buffer(
             target.texture.as_image_copy(),
             wgpu::TexelCopyBufferInfo {
-                buffer: &target.buffer,
+                buffer,
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(target.row_stride),
@@ -204,33 +310,41 @@ impl Renderer {
             u64::from(target.row_stride) * u64::from(target.height.saturating_sub(1)) + row_bytes,
         );
         let (send, receive) = std::sync::mpsc::sync_channel(1);
-        target
-            .buffer
+        buffer
             .slice(..)
             .map_async(wgpu::MapMode::Read, move |result| {
                 let _ = send.send(result);
             });
         // Covers poll, device-health, callback and mapped-range failures too.
-        let mut unmap = UnmapOnDrop { buffer: &target.buffer, receive: &receive, failed: false };
+        let mut unmap = UnmapOnDrop {
+            buffer,
+            receive: &receive,
+            failed: false,
+        };
         #[cfg(test)]
-        crate::readback::after_map(&target.buffer);
+        crate::readback::after_map(buffer);
         self.device.poll(wgpu::PollType::wait_indefinitely())?;
         self.check_health()?;
         receive
             .recv()
-            .map_err(|cause| crate::ReadbackError::Callback { context: "image capture callback: ", cause })?
+            .map_err(|cause| crate::ReadbackError::Callback {
+                context: "image capture callback: ",
+                cause,
+            })?
             .map_err(|cause| {
                 unmap.failed = true;
-                crate::ReadbackError::Mapping { context: "image capture mapping: ", cause }
+                crate::ReadbackError::Mapping {
+                    context: "image capture mapping: ",
+                    cause,
+                }
             })?;
         let pixels = (|| {
-            let mapped = target
-                .buffer
-                .slice(..)
-                .get_mapped_range()
-                .map_err(|cause| {
-                    crate::ReadbackError::Range { context: "image capture mapped range: ", cause }
-                })?;
+            let mapped = buffer.slice(..).get_mapped_range().map_err(|cause| {
+                crate::ReadbackError::Range {
+                    context: "image capture mapped range: ",
+                    cause,
+                }
+            })?;
             observation.mapped(mapped.len() as u64);
             let mut pixels = Vec::with_capacity(target.texture_bytes() as usize);
             for row in mapped.chunks_exact(target.row_stride as usize) {
@@ -258,62 +372,251 @@ struct CaptureLayout {
 }
 
 impl Renderer {
-    /// Explicit user pick from a retained SDR preview. Copies one texel only,
-    /// excluding UI overlays; never called by hover or presentation polling.
-    /// Returns straight sRGB values, matching authored editor color parameters.
-    pub fn sample_preview_pixel(&self, source: &crate::RenderTarget, point: [u32; 2])
-        -> Result<[f32; 4], RenderError> {
+    /// Explicit one-texel read of raw Float32 color transport. No transfer,
+    /// clipping, alpha conversion or full-frame staging allocation.
+    pub(crate) fn sample_image_pixel_f32(
+        &self,
+        source: &ImageCaptureTarget,
+        point: [u32; 2],
+    ) -> Result<[f32; 4], RenderError> {
         self.check_health()?;
         source.check_owner(self)?;
-        let format = source.texture().format();
-        if point[0] >= source.width || point[1] >= source.height
-            || !matches!(format, wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb) {
-            return Err(RenderError::Invalid("preview color pick requires an in-bounds SDR pixel".into()));
+        if source.storage() != ImageStorage::Rgba32Float
+            || point[0] >= source.width()
+            || point[1] >= source.height()
+        {
+            return Err(RenderError::Invalid(
+                "managed color pick requires an in-bounds Float32 pixel".into(),
+            ));
         }
         let observation = self.image_readback.begin();
-        let buffer = crate::allocation_buffer::AllocationBuffer::new(&self.device,
-            self.allocation_budget(), &wgpu::BufferDescriptor {
-                label: Some("Motion Studio single color pick"), size: wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
+        let buffer = crate::allocation_buffer::AllocationBuffer::new(
+            &self.device,
+            self.allocation_budget(),
+            &wgpu::BufferDescriptor {
+                label: Some("Motion Studio working color pick"),
+                size: u64::from(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
                 mapped_at_creation: false,
-            })?;
-        let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::ReadbackCopy,
-            &wgpu::CommandEncoderDescriptor { label: Some("Motion Studio preview color pick") })?;
-        encoder.copy_texture_to_buffer(wgpu::TexelCopyTextureInfo {
-            texture: source.texture(), mip_level: 0,
-            origin: wgpu::Origin3d { x: point[0], y: point[1], z: 0 }, aspect: wgpu::TextureAspect::All,
-        }, wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout {
-            offset: 0, bytes_per_row: Some(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT), rows_per_image: Some(1),
-        } }, wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 });
-        self.submit_allocated(encoder.finish(), |ledger| source.collect_texture_resources(ledger,
-            "preview/color-pick", crate::TextureState::PreviewFront))?;
-        observation.submitted(4, 4);
+            },
+        )?;
+        let mut encoder = self.allocation_command_encoder_for(
+            crate::gpu_commands::CommandStage::ReadbackCopy,
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("working color pick"),
+            },
+        )?;
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: source.texture(),
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: point[0],
+                    y: point[1],
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
+                    rows_per_image: Some(1),
+                },
+            },
+            wgpu::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.submit_allocated(encoder.finish(), |ledger| {
+            ledger.merge(source.texture_resource_ledger());
+        })?;
+        observation.submitted(16, 16);
         let (send, receive) = std::sync::mpsc::sync_channel(1);
-        buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| { let _ = send.send(result); });
-        let mut unmap = UnmapOnDrop { buffer: &buffer, receive: &receive, failed: false };
+        buffer
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |result| {
+                let _ = send.send(result);
+            });
+        let mut unmap = UnmapOnDrop {
+            buffer: &buffer,
+            receive: &receive,
+            failed: false,
+        };
         #[cfg(test)]
         crate::readback::after_map(&buffer);
         self.device.poll(wgpu::PollType::wait_indefinitely())?;
         self.check_health()?;
-        receive.recv().map_err(|cause| crate::ReadbackError::Callback { context: "color pick callback: ", cause })?
+        receive
+            .recv()
+            .map_err(|cause| crate::ReadbackError::Callback {
+                context: "working color pick callback: ",
+                cause,
+            })?
             .map_err(|cause| {
                 unmap.failed = true;
-                crate::ReadbackError::Mapping { context: "color pick mapping: ", cause }
+                crate::ReadbackError::Mapping {
+                    context: "working color pick mapping: ",
+                    cause,
+                }
             })?;
-        let mapped = buffer.slice(..).get_mapped_range()
-            .map_err(|cause| crate::ReadbackError::Range { context: "color pick mapped range: ", cause })?;
+        let mapped =
+            buffer
+                .slice(..)
+                .get_mapped_range()
+                .map_err(|cause| crate::ReadbackError::Range {
+                    context: "working color pick mapped range: ",
+                    cause,
+                })?;
+        observation.mapped(mapped.len() as u64);
+        let value = std::array::from_fn(|i| {
+            f32::from_le_bytes([
+                mapped[i * 4],
+                mapped[i * 4 + 1],
+                mapped[i * 4 + 2],
+                mapped[i * 4 + 3],
+            ])
+        });
+        observation.completed(16);
+        Ok(value)
+    }
+
+    /// Explicit user pick from a retained SDR preview. Copies one texel only,
+    /// excluding UI overlays; never called by hover or presentation polling.
+    /// Returns straight sRGB values, matching authored editor color parameters.
+    pub fn sample_preview_pixel(
+        &self,
+        source: &crate::RenderTarget,
+        point: [u32; 2],
+    ) -> Result<[f32; 4], RenderError> {
+        self.check_health()?;
+        source.check_owner(self)?;
+        let format = source.texture().format();
+        if point[0] >= source.width
+            || point[1] >= source.height
+            || !matches!(
+                format,
+                wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb
+            )
+        {
+            return Err(RenderError::Invalid(
+                "preview color pick requires an in-bounds SDR pixel".into(),
+            ));
+        }
+        let observation = self.image_readback.begin();
+        let buffer = crate::allocation_buffer::AllocationBuffer::new(
+            &self.device,
+            self.allocation_budget(),
+            &wgpu::BufferDescriptor {
+                label: Some("Motion Studio single color pick"),
+                size: wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            },
+        )?;
+        let mut encoder = self.allocation_command_encoder_for(
+            crate::gpu_commands::CommandStage::ReadbackCopy,
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("Motion Studio preview color pick"),
+            },
+        )?;
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: source.texture(),
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: point[0],
+                    y: point[1],
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
+                    rows_per_image: Some(1),
+                },
+            },
+            wgpu::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.submit_allocated(encoder.finish(), |ledger| {
+            source.collect_texture_resources(
+                ledger,
+                "preview/color-pick",
+                crate::TextureState::PreviewFront,
+            )
+        })?;
+        observation.submitted(4, 4);
+        let (send, receive) = std::sync::mpsc::sync_channel(1);
+        buffer
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |result| {
+                let _ = send.send(result);
+            });
+        let mut unmap = UnmapOnDrop {
+            buffer: &buffer,
+            receive: &receive,
+            failed: false,
+        };
+        #[cfg(test)]
+        crate::readback::after_map(&buffer);
+        self.device.poll(wgpu::PollType::wait_indefinitely())?;
+        self.check_health()?;
+        receive
+            .recv()
+            .map_err(|cause| crate::ReadbackError::Callback {
+                context: "color pick callback: ",
+                cause,
+            })?
+            .map_err(|cause| {
+                unmap.failed = true;
+                crate::ReadbackError::Mapping {
+                    context: "color pick mapping: ",
+                    cause,
+                }
+            })?;
+        let mapped =
+            buffer
+                .slice(..)
+                .get_mapped_range()
+                .map_err(|cause| crate::ReadbackError::Range {
+                    context: "color pick mapped range: ",
+                    cause,
+                })?;
         observation.mapped(mapped.len() as u64);
         let alpha = mapped[3] as f32 / 255.;
         let decode = |v: u8| {
             let v = v as f32 / 255.;
             let linear = if format.is_srgb() {
-                if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
-            } else { v };
+                if v <= 0.04045 {
+                    v / 12.92
+                } else {
+                    ((v + 0.055) / 1.055).powf(2.4)
+                }
+            } else {
+                v
+            };
             if alpha > 0. {
                 crate::renderer::linear_to_srgb((linear / alpha).clamp(0., 1.))
-            } else { 0. }
+            } else {
+                0.
+            }
         };
-        let value = [decode(mapped[0]), decode(mapped[1]), decode(mapped[2]), alpha];
+        let value = [
+            decode(mapped[0]),
+            decode(mapped[1]),
+            decode(mapped[2]),
+            alpha,
+        ];
         observation.completed(4);
         Ok(value)
     }
@@ -324,6 +627,16 @@ fn capture_layout(
     height: u32,
     storage: ImageStorage,
     limits: &wgpu::Limits,
+) -> Result<CaptureLayout, RenderError> {
+    image_layout(width, height, storage, limits, true)
+}
+
+fn image_layout(
+    width: u32,
+    height: u32,
+    storage: ImageStorage,
+    limits: &wgpu::Limits,
+    readback: bool,
 ) -> Result<CaptureLayout, RenderError> {
     let invalid = |reason: &str| {
         RenderError::Invalid(format!(
@@ -345,8 +658,7 @@ fn capture_layout(
         .checked_mul(u64::from(height))
         .ok_or_else(|| invalid("staging capacity overflow"))?;
     if row_stride > u64::from(u32::MAX)
-        || buffer_bytes > limits.max_buffer_size
-        || buffer_bytes > usize::MAX as u64
+        || (readback && (buffer_bytes > limits.max_buffer_size || buffer_bytes > usize::MAX as u64))
     {
         return Err(invalid(
             "staging capacity exceeds device or address-space limit",
@@ -362,6 +674,26 @@ fn capture_layout(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn gpu_only_layout_does_not_require_an_unallocated_readback_buffer() {
+        let mut limits = wgpu::Limits::default();
+        limits.max_buffer_size = 1024;
+        let layout = image_layout(17, 3, ImageStorage::Rgba32Float, &limits, false).unwrap();
+        assert_eq!(
+            (layout.row_bytes, layout.row_stride, layout.buffer_bytes),
+            (272, 512, 1536),
+        );
+        assert!(capture_layout(17, 3, ImageStorage::Rgba32Float, &limits).is_err());
+        assert!(image_layout(0, 3, ImageStorage::Rgba32Float, &limits, false).is_err());
+        assert!(image_layout(
+            limits.max_texture_dimension_2d + 1,
+            3,
+            ImageStorage::Rgba32Float,
+            &limits,
+            false,
+        )
+        .is_err());
+    }
     #[test]
     fn capture_capacity_checks_include_alignment_precision_and_device_buffer_limit() {
         let mut limits = wgpu::Limits::default();

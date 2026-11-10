@@ -1,6 +1,11 @@
 {
   "version": 1,
   "tools": {
+    "tools/test_ci_ocio_package.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Discovered with test_ci_*.py; checks real pinned license bytes, native runtime admission and all desktop archive layouts, including simulated signing byte changes and missing-library negatives. Native execution is qualified separately."
+    },
     "tools/color-management/export_processor.py": {
       "mode": "manual",
       "command": "python tools/color-management/export_processor.py --config-directory <verified-bundle> --selection <explicit-selection.json> --phase <phase> --input-alpha <alpha> --output-alpha <alpha> --output <new-file.json>",
@@ -24,6 +29,21 @@
         "Explicit reference fixture output directory"
       ],
       "reason": "Maintainer-only numerical reference generation uses a pinned external runtime; CI consumes committed fixtures without installing OCIO or regenerating acceptance values."
+    },
+    "tools/color-management/generate_range_reference.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/generate_range_reference.py crates/motion-effects/tests/color_processor/reference.json <new-range-reference.json>",
+      "requires": ["Separately installed official opencolorio==2.6.0 reference runtime", "Unchanged pinned processor reference and a new output file"],
+      "reason": "Independent OCIO CPU code-range oracle with explicit Float32 and alpha boundaries; CI consumes committed results without regenerating acceptance values."
+    },
+    "tools/color-management/generate_source_reference.py": {
+      "mode": "manual",
+      "command": "python tools/color-management/generate_source_reference.py crates/motion-effects/tests/color_processor/reference.json <new-source-reference.json>",
+      "requires": [
+        "Separately installed official opencolorio==2.6.0 reference runtime",
+        "Committed content-identified color processor reference and a new output file"
+      ],
+      "reason": "Maintainer-only original-image CPU reference generation uses the pinned external runtime; CI validates committed samples without installing OCIO or regenerating acceptance values."
     },
     "tools/depth_tensor.py": {
       "mode": "manual",
@@ -463,6 +483,21 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow unittest discovery; tests counter identity/unknown/reset handling and real child failure rejection, not GPU acceptance."
+    },
+    "tools/prepare_ocio.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "requires": [
+        "Native C/C++ desktop toolchain, CMake 3.26+ and Ninja",
+        "Pinned sources or network access to official GitHub source archives",
+        "New exclusive output directory"
+      ],
+      "reason": "Native desktop matrix builds the pinned runtime and qualifies real processor preparation before release packaging; ordinary managed Session rendering remains a separate boundary."
+    },
+    "tools/test_ci_ocio.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Verify source integrity, archive confinement, native build failure evidence, and exclusive runtime publication via standard unittest discovery."
     }
   },
   "android_tests": {

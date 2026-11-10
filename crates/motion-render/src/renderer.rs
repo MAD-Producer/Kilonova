@@ -12,6 +12,8 @@ mod phase_adjustment;
 mod exposure_frame;
 mod nested_exposure;
 mod working_precision;
+mod authored_images;
+pub use authored_images::AuthoredImageSet;
 mod model_layers;
 mod projected_mattes;
 mod depth_materials;
@@ -102,6 +104,12 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
+    #[error(transparent)]
+    AuthoredScene(#[from] crate::AuthoredSceneError),
+    #[error("{0}")]
+    ColorImageRenderSource(#[from] #[source] crate::ColorImageRenderSourceError),
+    #[error("{0}")]
+    ColorImageUpload(#[from] #[source] crate::ColorImageUploadError),
     #[error("GPU validation: {0}")]
     ScratchGraph(#[from] crate::effect_plan::ScratchGraphError),
     #[error("GPU validation: {0}")]
@@ -112,6 +120,10 @@ pub enum RenderError {
     LutPipeline(#[from] crate::NativeLutError),
     #[error(transparent)]
     ColorProcessorPipeline(#[from] crate::NativeColorProcessorError),
+    #[error(transparent)]
+    ColorSpaceMismatch(#[from] crate::ColorSpaceMismatch),
+    #[error(transparent)]
+    ColorRangeMismatch(#[from] crate::ColorRangeMismatch),
     #[error(transparent)]
     PipelinePreparation(#[from] crate::PipelinePreparationError),
     #[error("GPU validation: {0}")]
@@ -941,6 +953,7 @@ impl Renderer {
     /// snapshot production and its worker/queue; this API does not spawn threads.
     pub fn prepare_effect_pipeline_job(&mut self, scenes: Vec<Scene>, width: u32, height: u32,
         context: crate::PipelinePreparationContext) -> Result<crate::PipelinePreparationJob> {
+        for scene in &scenes { scene.require_legacy_colors()?; }
         crate::PipelinePreparationJob::new(self, scenes, width, height, context)
     }
     pub fn cancel_effect_pipeline_preparation(&mut self) { self.pipeline_preparation.cancel(); }
@@ -2030,6 +2043,7 @@ impl Renderer {
         self.draw_internal(scene,view,width,height,false,crate::gpu_commands::CommandStage::Composition)
     }
     fn draw_internal(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,preview:bool,stage:crate::gpu_commands::CommandStage)->Result<RenderStats> {
+        scene.require_legacy_colors()?;
         let mut encoder = self
             .allocation_command_encoder_for(stage, &wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio frame"),
@@ -2075,6 +2089,7 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
     ) -> Result<RenderStats> {
+        scene.require_legacy_colors()?;
         self.snapshot_encodes.clear();
         scene.validate_depth_ready()?;
         self.allocation_budget.check()?;
@@ -2143,7 +2158,84 @@ impl Renderer {
         }
         Ok((child_stats, child_diagnostics))
     }
+    /// Submit an actual working-space authored frame. Source values have already
+    /// passed the native CPU processor; no sRGB decode/encode is implied here.
+    /// Target ownership, full identity and extents are checked before any write.
+    pub fn draw_authored_scene(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+    ) -> Result<RenderStats> {
+        self.draw_authored_scene_images(frame, target, None, false)
+    }
+    pub fn draw_authored_scene_with_images(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+        images: &AuthoredImageSet,
+    ) -> Result<RenderStats> {
+        self.draw_authored_scene_images(frame, target, Some(images), false)
+    }
+    /// Explicit bounded preview consumer. Fits the sampled composition into a
+    /// smaller target without changing its geometry, camera or color contract.
+    /// Formal frame consumers above retain their exact-extent requirement.
+    pub fn draw_authored_preview(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+        images: Option<&AuthoredImageSet>,
+    ) -> Result<RenderStats> {
+        self.draw_authored_scene_images(frame, target, images, true)
+    }
+    fn draw_authored_scene_images(
+        &mut self,
+        frame: &crate::AuthoredSceneFrame,
+        target: &crate::ColorImageTarget,
+        images: Option<&AuthoredImageSet>,
+        preview: bool,
+    ) -> Result<RenderStats> {
+        self.check_health()?;
+        target.image().check_owner(self)?;
+        if self.target_format != wgpu::TextureFormat::Rgba32Float {
+            return Err(crate::ColorImageRenderSourceError { format: self.target_format }.into());
+        }
+        if target.contract() != frame.contract() {
+            return Err(crate::AuthoredSceneError::Destination {
+                expected: frame.contract(), actual: target.contract(),
+            }.into());
+        }
+        let size = [target.image().width(), target.image().height()];
+        if (!preview && size != frame.size())
+            || (preview && (size[0] > frame.size()[0] || size[1] > frame.size()[1])) {
+            return Err(crate::AuthoredSceneError::Extent {
+                expected: frame.size(), actual: size,
+            }.into());
+        }
+        self.check_resident_sources()?;
+        self.validate_authored_images(frame, target, images)?;
+        self.allocation_budget.check()?;
+        let rasters = self.layer_gpu.authored_raster_guard();
+        let masks = self.mask_gpu.authored_raster_guard();
+        let mut encoder = self.allocation_command_encoder_for(
+            crate::gpu_commands::CommandStage::Composition,
+            &wgpu::CommandEncoderDescriptor { label: Some("authored OCIO composition") },
+        )?;
+        let stats = self.encode_local_colors(
+            &frame.scene, target.image().view(), size[0], size[1], &mut encoder, None, false, true, images,
+        )?;
+        self.submit_allocated(encoder.finish(), |ledger| {
+            ledger.merge(target.texture_resource_ledger());
+            if let Some(images) = images { ledger.merge(images.ledger.clone()); }
+        })?;
+        rasters.commit();
+        masks.commit();
+        self.check_health()?;
+        Ok(stats)
+    }
     fn encode_local(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool)->Result<RenderStats> {
+        self.encode_local_colors(scene, view, width, height, encoder, timestamps, preview, false, None)
+    }
+    fn encode_local_colors(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool,working_colors:bool,authored_images:Option<&AuthoredImageSet>)->Result<RenderStats> {
         self.snapshot_encodes.clear();
         if width == 0 || height == 0 || scene.layers.len() > MAX_LAYERS {
             return Err(RenderError::Invalid(
@@ -2153,28 +2245,63 @@ impl Renderer {
         #[cfg(test)]
         { self.composition_runs = 0; }
         let started = Instant::now();
-        if scene.effects.iter().any(|e| e.enabled) || scene.layers.iter().any(|l|!l.masks.is_empty())
+        if scene.effects.iter().any(|e| e.enabled) || (!working_colors && scene.layers.iter().any(|l|!l.masks.is_empty()))
             || scene
                 .layers
                 .iter()
-                .any(|l| l.vector.is_some() || l.adjustment || l.track_matte.is_some()
+                .any(|l| (l.vector.is_some() && !working_colors) || l.adjustment || l.track_matte.is_some()
                     || l.blend != motion_model::compositing::LayerBlend::default() || !l.composite_visible)
         {
+            if working_colors {
+                return Err(RenderError::Invalid("authored working colors cannot enter a legacy effect consumer".into()));
+            }
             return self.encode_effects(scene, Some(view), width, height, encoder, timestamps, preview, None, false);
         }
-        // Direct drawing consumes neither mask coverage nor effect-input snapshots.
-        // Release both without discarding reusable compositing pipelines.
-        self.release_effect_input_images();
+        // Managed direct drawing consumes typed coverage, without entering the
+        // effect plan's legacy color conversion or effect-input snapshots.
+        self.release_effect_inputs(working_colors);
         self.effect_diagnostics.clear();
         if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
-        let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes();
+        if working_colors {
+            self.effect_gpu.builder.prepare_authored_inputs(scene, [width, height])?;
+            let other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes()
+                + authored_images.map_or(0, |images| images.ledger.total_known_bytes());
+            let planned = &self.effect_gpu.builder.frame.masks;
+            let pixel_bytes = motion_effects::image_contract::coverage_storage(self.working_precision()).bytes_per_pixel();
+            let [mw, mh, slots] = {
+                let (w, h, slots) = crate::mask_plan::scratch_dimensions(planned);
+                [u64::from(w), u64::from(h), slots as u64]
+            };
+            let coverage = planned.chunk_by(|a,b| a.layer == b.layer)
+                .map(|g| u64::from(g[0].width) * u64::from(g[0].height) * pixel_bytes).sum::<u64>();
+            let retiring = self.images.iter().filter(|(key,_)| matches!(key,TextureKey::Mask(_)))
+                .map(|(_,image)| image.bytes).sum::<u64>();
+            let required = self.texture_bytes.saturating_sub(retiring)
+                + other + coverage + mw * mh * slots * pixel_bytes;
+            let limit = self.effect_gpu.builder.source_texture_budget;
+            if required > limit {
+                return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, required, limit,
+                    "authored sources and numeric mask coverage exceed configured source texture budget"));
+            }
+            if self.mask_gpu.prepare_checked(
+                &self.device, &self.queue, encoder, &self.image_layout, scene,
+                &self.effect_gpu.builder.frame.masks, &mut self.images, &mut self.texture_bytes,
+                other, self.effect_gpu.builder.source_texture_budget, None,
+            )? {
+                self.effect_gpu.state.invalidate();
+            }
+        }
+        let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes()
+            + authored_images.map_or(0, |images| images.ledger.total_known_bytes())
+            + if working_colors { self.mask_gpu.scratch_bytes() } else { 0 };
+        let vectors = if working_colors { self.effect_gpu.builder.frame.vectors.as_slice() } else { &[] };
         if self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
             &self.image_layout,
             &self.sampler,
             scene,
-            &[],
+            vectors,
             &mut self.images,
             &mut self.texture_bytes,
             vector_other,
@@ -2215,12 +2342,14 @@ impl Renderer {
         }
         for (index, layer) in scene.layers.iter().enumerate() {
             let asset = texture_key(scene, layer);
-            if !self.images.contains_key(&asset) {
+            if !(working_colors && layer.asset.is_some()) && !self.images.contains_key(&asset) {
                 return Err(RenderError::Invalid(format!("draw image is not uploaded")));
             }
             let mut color = layer.color;
-            for c in &mut color[..3] {
-                *c = srgb_to_linear(*c);
+            if !working_colors {
+                for c in &mut color[..3] {
+                    *c = srgb_to_linear(*c);
+                }
             }
             let uniform = DrawUniform {
                 // Model/shared rasters already contain the camera projection.
@@ -2245,10 +2374,13 @@ impl Renderer {
                 .write_buffer(&self.uniform_buffer, 0, &self.upload[..upload_bytes]);
         }
         let alpha = scene.background[3];
+        let background = if working_colors { scene.background } else {
+            [srgb_to_linear(scene.background[0]), srgb_to_linear(scene.background[1]), srgb_to_linear(scene.background[2]), alpha]
+        };
         let clear = wgpu::Color {
-            r: (srgb_to_linear(scene.background[0]) * alpha) as f64,
-            g: (srgb_to_linear(scene.background[1]) * alpha) as f64,
-            b: (srgb_to_linear(scene.background[2]) * alpha) as f64,
+            r: (background[0] * alpha) as f64,
+            g: (background[1] * alpha) as f64,
+            b: (background[2] * alpha) as f64,
             a: alpha as f64,
         };
         {
@@ -2278,24 +2410,35 @@ impl Renderer {
                 0.0,
                 1.0,
             );
-            pass.set_pipeline(&self.pipeline);
             pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             for batch in &self.compositor.batches {
                 let index = batch.layer;
                 let layer = &scene.layers[index];
+                let masked = working_colors && !layer.masks.is_empty();
+                pass.set_pipeline(if masked { &self.masked_pipeline } else { &self.pipeline });
                 pass.set_bind_group(
                     0,
                     &self.uniform_group,
                     &[(index * self.uniform_stride) as u32],
                 );
-                pass.set_bind_group(1, &self.images[&texture_key(scene, layer)].bind_group, &[]);
+                let image = if working_colors && layer.asset.is_some() {
+                    &layer.asset.and_then(|asset| authored_images.and_then(|images| images.entries.get(&asset)))
+                        .ok_or_else(|| RenderError::Invalid("validated authored image binding is missing".into()))?.bind_group
+                } else { &self.images[&texture_key(scene, layer)].bind_group };
+                pass.set_bind_group(1, image, &[]);
+                if masked {
+                    let coverage = self.images.get(&TextureKey::Mask(layer.id)).ok_or_else(||
+                        RenderError::Invalid(format!("authored coverage layer={} frame={}: prepared image is missing", layer.id, scene.frame)))?;
+                    pass.set_bind_group(2, &coverage.bind_group, &[]);
+                }
                 pass.draw(batch.vertices.clone(), 0..1);
             }
         }
         Ok(RenderStats {
             cpu_prepare_us: started.elapsed().as_micros() as u64,
             draw_calls: self.compositor.batches.len() as u32,
-            texture_bytes: self.texture_bytes + self.video_plane_bytes() + self.models.texture_bytes(),
+            texture_bytes: self.texture_bytes + self.video_plane_bytes() + self.models.texture_bytes()
+                + authored_images.map_or(0, |images| images.ledger.total_known_bytes()),
             parameter_upload_bytes: (upload_bytes
                 + self.geometry_upload.len() * std::mem::size_of::<GeometryVertex>())
                 as u64,
@@ -2306,10 +2449,14 @@ impl Renderer {
             particles_culled: 0,
         })
     }
+    #[cfg(test)]
     fn release_effect_input_images(&mut self) {
+        self.release_effect_inputs(false);
+    }
+    fn release_effect_inputs(&mut self, retain_masks: bool) {
         let mut removed = false;
         self.images.retain(|key, image| {
-            if matches!(key, TextureKey::Mask(_) | TextureKey::EffectInput(_)) {
+            if matches!(key, TextureKey::EffectInput(_)) || (!retain_masks && matches!(key, TextureKey::Mask(_))) {
                 self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
                 removed = true;
                 false
@@ -3076,6 +3223,9 @@ pub struct RenderTarget {
 }
 impl RenderTarget {
     pub(crate) fn texture(&self) -> &OwnedTexture { &self.texture }
+    pub(crate) fn into_image_parts(self) -> (OwnedTexture, crate::AdmittedTextureView, Arc<()>) {
+        (self.texture, self.view, self.owner)
+    }
     pub(crate) fn check_owner(&self, renderer: &Renderer) -> Result<()> {
         if Arc::ptr_eq(&renderer.allocation_owner, &self.owner) { Ok(()) }
         else { Err(RenderError::Invalid("render target belongs to another renderer".into())) }
