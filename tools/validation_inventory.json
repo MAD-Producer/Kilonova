@@ -112,6 +112,11 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Validate explicit export resolution admission, processing identity isolation and non-overwrite behavior, including actual invalid CLI subprocesses under optimized Python; no model execution or quality claim"
     },
+    "tools/test_ci_metric_depth_export.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Validate separate pinned metric export admission, refusal before IO, non-overwrite and default file/Error stderr/stdout boundaries, including preservation of the primary failure after a secondary persistence failure; no model execution or quality claim"
+    },
     "tools/build_android.py": {
       "mode": "manual",
       "command": "python tools/build_android.py --task assembleDebug",

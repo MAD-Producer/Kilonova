@@ -143,3 +143,27 @@ registered as an automatic host inference route or product quality tier.
 Actual metric WGSL/resource inventory, cross-resolution/video, conservative
 memory and thermal qualification remain open. Original relative failures and
 full native regression failures in `depth75-status-current.md` remain failures.
+
+
+## Subsequent original-failure observation and CI inventory correction
+
+One separate instrumented fixture observation wraps `PurePath._make_child` only
+to record the underlying TypeError if it occurs. It does not replace results or
+change the test assertions. It completed without reproducing the failure and
+recorded no path-error events (`depth75-path-fixture-cause-observation-v1`,
+exec`e7e65c`). This is not a repair and does not clear the earlier failed full
+relative suite. No interpreter, backend or environment workaround was applied.
+
+Exact published source9784a9f1 reached CI run42734644701. Its completed Rust/GPU
+job129560767905 failed the tool inventory: the newly added
+`tools/test_ci_metric_depth_export.py` was not classified. The original155-test
+CI invocation reported one error and one skip. The job log is retained as
+`depth75-ci-9784a9f1-rust-gpu.log`. This is an authored integration omission;
+no Rust or model defect is inferred from that inventory exception.
+
+The follow-up registers the new file as ordinary CI discovery, with its actual
+admission/diagnostic scope. `test_ci_tools.py` subsequently ran20 tests with
+one original skip and no errors (19 passes), exec`b0e81b`; original logs remain
+in `depth75-ci-9784a9f1-inventory-fix-v1`. The existing assertions and inventory
+gate are unchanged. This narrow correction does not replace a new complete CI
+run, repair the earlier local fixture error, or qualify the metric model.
