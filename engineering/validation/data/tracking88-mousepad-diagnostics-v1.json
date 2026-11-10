@@ -1,0 +1,93 @@
+{
+  "archive": "tracking88-mousepad-diagnostics-v1.zip",
+  "bytes": 31258,
+  "sha256": "53d6f7aa73cd3da8a90be45887593338af1bfe360c359b8dab059f4439c1d7ee",
+  "members": {
+    "aggregate.json": {
+      "bytes": 4930,
+      "sha256": "4c2868d0dd70c3fc9002b08417a72f224671c10b18ceb837b927520142a3fad4"
+    },
+    "collector.py": {
+      "bytes": 6295,
+      "sha256": "37c7f05260590ac58dcc8cadc01664e076fe710be276d4f7b8ec7c62e9d3c36a"
+    },
+    "controller.log": {
+      "bytes": 690,
+      "sha256": "69af1ee84f5558dd83c55bd7c5ebf56d90fc2609c67ecddcbe21c7659645a076"
+    },
+    "full-observer.py": {
+      "bytes": 19542,
+      "sha256": "fb33efa7e9ebd3130893d5edbd564456309050581ace97a8a99efbd30d73fc18"
+    },
+    "full-session-consumed.json": {
+      "bytes": 3312,
+      "sha256": "9f6a7abee279d6c1dc7916443775827266b5f6777865a110409a47fc62ab2bbb"
+    },
+    "no-corrections.stderr.log": {
+      "bytes": 284,
+      "sha256": "810aaa95292a4154ff901d0c9dc7b7d31bbfd3fe271584e9ecfb4738ad9ef35b"
+    },
+    "no-corrections.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "no-corrections.tracking.log": {
+      "bytes": 789,
+      "sha256": "7504c5cf5128f4b492e6efeb8df799d4405034a09ddd68a540e17caa500bb412"
+    },
+    "original-prototype.stderr.log": {
+      "bytes": 143,
+      "sha256": "14464d8904ebb4ba95a28eba645ec8dfc5eae048f83a5f16d2d3139ebb48f1e0"
+    },
+    "original-prototype.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "original-prototype.tracking.log": {
+      "bytes": 849,
+      "sha256": "116c90bd856ce593b26340234b28253d753f4bfad0d14fe4b1104f10f1cbd402"
+    },
+    "periodic-manual-200.stderr.log": {
+      "bytes": 7497,
+      "sha256": "7ed0de89d53a0e3e5bd994fabbbc6f5153238273e8e2ba539de8521b1d4c195e"
+    },
+    "periodic-manual-200.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "periodic-manual-200.tracking.log": {
+      "bytes": 9145,
+      "sha256": "af35c6852ea22778970aca5fbc1c09b1f2306a91e6ce8b6cac90d7610a133c98"
+    },
+    "plate_contract.py": {
+      "bytes": 7382,
+      "sha256": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f"
+    },
+    "plate_flow.py": {
+      "bytes": 13160,
+      "sha256": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188"
+    },
+    "selected-observer.py": {
+      "bytes": 7826,
+      "sha256": "7df3f691f6de8e4cfc8991a94be2e265d82f7744a7074a6922969c3d96605d50"
+    },
+    "selected-session-consumed.json": {
+      "bytes": 219,
+      "sha256": "2e734f835029238909472d6c97a0afddb823c87d6303dc120c5185de4e8eafe9"
+    },
+    "selected.decode.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "selected.observation.log": {
+      "bytes": 1244,
+      "sha256": "fcb759159cb176f1196c606f728ccbb99a6d4e94183151c3915c19b6d24b9cb2"
+    },
+    "track_plate.py": {
+      "bytes": 14676,
+      "sha256": "46174e1296d5fe28390eb289ed34a661e59002312b49a2b7629407c6f61004e4"
+    }
+  },
+  "qualified": false,
+  "readback": "Every member CRC, byte length and SHA-256 verified"
+}

@@ -1,0 +1,23 @@
+{
+  "status": "retained_extent_residuals_recomputed_not_tracker_acceptance",
+  "archive": "tracking88-extent-residual-audit-v1.zip",
+  "bytes": 4332,
+  "sha256": "d9025c036b8e0a0a3363bea31ac4d63c964a7e6a3eed628f5a54666318808b19",
+  "members": {
+    "audit.py": {
+      "bytes": 5897,
+      "sha256": "8011056047e024a1ac27d6fa67e3d8d2e73c417c14a3d8b045002d771a9164b3"
+    },
+    "receipt.json": {
+      "bytes": 5316,
+      "sha256": "4fe62b3ef9708bf9a092361e1402d1624c59fc9f74ebfce8e8f88b7f335c331d"
+    }
+  },
+  "limits": [
+    "No video decoding, inference, CV import, tracking rerun, threshold tuning or production source edits",
+    "ROI probe reference is interpolated from the four annotations, not independently measured interior ground truth",
+    "Descriptive spatial residuals cannot establish feature correspondences, model uncertainty or root cause",
+    "All original915/890/836 automatic visible observations and original15px corner gate retained",
+    "No third-party annotations, per-frame outputs, video, original requests or photographs redistributed"
+  ]
+}

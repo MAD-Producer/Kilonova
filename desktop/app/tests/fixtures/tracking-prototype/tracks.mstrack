@@ -1,0 +1,3624 @@
+{
+  "version": 1,
+  "source_id": "Motion Studio external point/planar prototype",
+  "source_sha256": "3d83869cf562e3708faac68567a85cb1c429c538286805139927c9b26b04fc06",
+  "source_extent": [
+    256,
+    192
+  ],
+  "coordinates": "right_down_forward",
+  "ticks_per_second": 1000,
+  "nominal_rate": [
+    24,
+    1
+  ],
+  "source_pts": [
+    0,
+    42,
+    83,
+    125,
+    167,
+    208,
+    250,
+    292,
+    333,
+    375,
+    417,
+    458,
+    500,
+    542,
+    583,
+    625,
+    667,
+    708,
+    750,
+    792,
+    833,
+    875,
+    917,
+    958,
+    1000,
+    1042,
+    1083,
+    1125,
+    1167,
+    1208,
+    1250,
+    1292,
+    1333,
+    1375,
+    1417,
+    1458,
+    1500,
+    1542,
+    1583,
+    1625,
+    1667,
+    1708,
+    1750,
+    1792,
+    1833,
+    1875,
+    1917,
+    1958,
+    2000,
+    2042,
+    2083,
+    2125,
+    2167,
+    2208,
+    2250,
+    2292,
+    2333,
+    2375,
+    2417,
+    2458,
+    2500,
+    2542,
+    2583,
+    2625,
+    2667,
+    2708,
+    2750,
+    2792,
+    2833,
+    2875,
+    2917,
+    2958,
+    3000,
+    3042,
+    3083,
+    3125,
+    3167,
+    3208,
+    3250,
+    3292,
+    3333,
+    3375,
+    3417,
+    3458,
+    3500,
+    3542,
+    3583,
+    3625,
+    3667,
+    3708,
+    3750,
+    3792,
+    3833,
+    3875,
+    3917,
+    3958
+  ],
+  "meters_per_world_unit": null,
+  "tracks": [
+    {
+      "id": "feature",
+      "kind": "point",
+      "reference_index": null,
+      "samples": [
+        {
+          "source_index": 0,
+          "visibility": "visible",
+          "confidence": 1.0,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              80.0,
+              70.0
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 1,
+          "visibility": "visible",
+          "confidence": 0.8160242438316345,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              80.49183654785156,
+              70.17462158203125
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 2,
+          "visibility": "visible",
+          "confidence": 0.8640002608299255,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              80.99563598632812,
+              70.33109283447266
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 3,
+          "visibility": "visible",
+          "confidence": 0.8551199436187744,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              81.49835968017578,
+              70.50386047363281
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 4,
+          "visibility": "visible",
+          "confidence": 0.8561923503875732,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              82.0057601928711,
+              70.66229248046875
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 5,
+          "visibility": "visible",
+          "confidence": 0.8647472262382507,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              82.50963592529297,
+              70.82879638671875
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 6,
+          "visibility": "visible",
+          "confidence": 0.8340405225753784,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              83.02217102050781,
+              70.98743438720703
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 7,
+          "visibility": "visible",
+          "confidence": 0.8397805690765381,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              83.51638793945312,
+              71.1605453491211
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 8,
+          "visibility": "visible",
+          "confidence": 0.8758142590522766,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              84.0177993774414,
+              71.31785583496094
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 9,
+          "visibility": "visible",
+          "confidence": 0.8648504614830017,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              84.51741027832031,
+              71.48719787597656
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 10,
+          "visibility": "visible",
+          "confidence": 0.8692408800125122,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              85.0232925415039,
+              71.64695739746094
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 11,
+          "visibility": "visible",
+          "confidence": 0.8758651614189148,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              85.52780151367188,
+              71.81822204589844
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 12,
+          "visibility": "visible",
+          "confidence": 0.8509595990180969,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              86.03779602050781,
+              71.96540832519531
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 13,
+          "visibility": "visible",
+          "confidence": 0.8588890433311462,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              86.52803039550781,
+              72.14530944824219
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 14,
+          "visibility": "visible",
+          "confidence": 0.8819476366043091,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              87.02961730957031,
+              72.30635070800781
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 15,
+          "visibility": "visible",
+          "confidence": 0.8687821626663208,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              87.52722930908203,
+              72.47135925292969
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 16,
+          "visibility": "visible",
+          "confidence": 0.8799591660499573,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              88.0371322631836,
+              72.62565612792969
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 17,
+          "visibility": "visible",
+          "confidence": 0.8854091167449951,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              88.53909301757812,
+              72.7933349609375
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 18,
+          "visibility": "visible",
+          "confidence": 0.8593379855155945,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              89.04174041748047,
+              72.95130920410156
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 19,
+          "visibility": "visible",
+          "confidence": 0.8711000680923462,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              89.53038024902344,
+              73.12478637695312
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 20,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 21,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 22,
+          "visibility": "occluded",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": true
+        },
+        {
+          "source_index": 23,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 24,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 25,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 26,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 27,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 28,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 29,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 30,
+          "visibility": "visible",
+          "confidence": 1.0,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              94.98364231188658,
+              74.86864280757412
+            ]
+          },
+          "manual_correction": true
+        },
+        {
+          "source_index": 31,
+          "visibility": "visible",
+          "confidence": 0.8909683227539062,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              95.48503875732422,
+              75.04936981201172
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 32,
+          "visibility": "visible",
+          "confidence": 0.8967269062995911,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              95.97686767578125,
+              75.21806335449219
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 33,
+          "visibility": "visible",
+          "confidence": 0.8855319023132324,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              96.4701156616211,
+              75.37859344482422
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 34,
+          "visibility": "visible",
+          "confidence": 0.9037497639656067,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              96.9679183959961,
+              75.53276824951172
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 35,
+          "visibility": "visible",
+          "confidence": 0.9038622379302979,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              97.45878601074219,
+              75.6910171508789
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 36,
+          "visibility": "visible",
+          "confidence": 0.8924633264541626,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              97.95771789550781,
+              75.83859252929688
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 37,
+          "visibility": "visible",
+          "confidence": 0.9044012427330017,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              98.45543670654297,
+              76.0225830078125
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 38,
+          "visibility": "visible",
+          "confidence": 0.9089400172233582,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              98.94514465332031,
+              76.18490600585938
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 39,
+          "visibility": "visible",
+          "confidence": 0.899307131767273,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              99.44170379638672,
+              76.3530044555664
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 40,
+          "visibility": "visible",
+          "confidence": 0.9188079237937927,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              99.9310073852539,
+              76.50517272949219
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 41,
+          "visibility": "visible",
+          "confidence": 0.9175589084625244,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              100.42822265625,
+              76.6627197265625
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 42,
+          "visibility": "visible",
+          "confidence": 0.9107247591018677,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              100.9187240600586,
+              76.80548095703125
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 43,
+          "visibility": "visible",
+          "confidence": 0.9170390367507935,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              101.41768646240234,
+              76.98328399658203
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 44,
+          "visibility": "visible",
+          "confidence": 0.9187463521957397,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              101.9055404663086,
+              77.14786529541016
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 45,
+          "visibility": "visible",
+          "confidence": 0.9096928834915161,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              102.39793395996094,
+              77.31815338134766
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 46,
+          "visibility": "visible",
+          "confidence": 0.9283111691474915,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              102.88370513916016,
+              77.4697494506836
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 47,
+          "visibility": "visible",
+          "confidence": 0.9272488355636597,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              103.3856201171875,
+              77.62692260742188
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 48,
+          "visibility": "visible",
+          "confidence": 0.9232507348060608,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              103.87130737304688,
+              77.77510833740234
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 49,
+          "visibility": "visible",
+          "confidence": 0.9262968301773071,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              104.37427520751953,
+              77.940673828125
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 50,
+          "visibility": "visible",
+          "confidence": 0.9271726012229919,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              104.85701751708984,
+              78.115234375
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 51,
+          "visibility": "visible",
+          "confidence": 0.9215503334999084,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              105.35572052001953,
+              78.28118133544922
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 52,
+          "visibility": "visible",
+          "confidence": 0.935162365436554,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              105.83261108398438,
+              78.44007110595703
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 53,
+          "visibility": "visible",
+          "confidence": 0.937379002571106,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              106.33512115478516,
+              78.5899887084961
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 54,
+          "visibility": "visible",
+          "confidence": 0.932812511920929,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              106.80770874023438,
+              78.73978424072266
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 55,
+          "visibility": "visible",
+          "confidence": 0.9287286400794983,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              107.31774139404297,
+              78.89471435546875
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 56,
+          "visibility": "visible",
+          "confidence": 0.9374222755432129,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              107.7964859008789,
+              79.07807922363281
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 57,
+          "visibility": "visible",
+          "confidence": 0.930705189704895,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              108.30093383789062,
+              79.23237609863281
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 58,
+          "visibility": "visible",
+          "confidence": 0.9343944787979126,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              108.76884460449219,
+              79.40338134765625
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 59,
+          "visibility": "visible",
+          "confidence": 0.9413063526153564,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              109.27470397949219,
+              79.54798126220703
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 60,
+          "visibility": "visible",
+          "confidence": 0.9386090040206909,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              109.7432861328125,
+              79.70127868652344
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 61,
+          "visibility": "visible",
+          "confidence": 0.9349414706230164,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              110.25963592529297,
+              79.85482788085938
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 62,
+          "visibility": "visible",
+          "confidence": 0.9365493655204773,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              110.72515869140625,
+              80.03265380859375
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 63,
+          "visibility": "visible",
+          "confidence": 0.9304471015930176,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              111.23403930664062,
+              80.19501495361328
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 64,
+          "visibility": "visible",
+          "confidence": 0.9363239407539368,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              111.69404602050781,
+              80.36002349853516
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 65,
+          "visibility": "visible",
+          "confidence": 0.9441066980361938,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              112.20197296142578,
+              80.51162719726562
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 66,
+          "visibility": "visible",
+          "confidence": 0.9441067576408386,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              112.66905212402344,
+              80.6570053100586
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 67,
+          "visibility": "visible",
+          "confidence": 0.9373844861984253,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              113.17852783203125,
+              80.80602264404297
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 68,
+          "visibility": "visible",
+          "confidence": 0.9376615881919861,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              113.65204620361328,
+              80.9784927368164
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 69,
+          "visibility": "visible",
+          "confidence": 0.9370192289352417,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              114.15343475341797,
+              81.15430450439453
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 70,
+          "visibility": "visible",
+          "confidence": 0.930342435836792,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              114.61679077148438,
+              81.31539916992188
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 71,
+          "visibility": "visible",
+          "confidence": 0.9395236968994141,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              115.11972045898438,
+              81.46376037597656
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 72,
+          "visibility": "visible",
+          "confidence": 0.9360958337783813,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              115.5861587524414,
+              81.61725616455078
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 73,
+          "visibility": "visible",
+          "confidence": 0.9283114671707153,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              116.08899688720703,
+              81.76451873779297
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 74,
+          "visibility": "visible",
+          "confidence": 0.9293269515037537,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              116.56378936767578,
+              81.92892456054688
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 75,
+          "visibility": "visible",
+          "confidence": 0.9248160123825073,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              117.05834197998047,
+              82.09098052978516
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 76,
+          "visibility": "visible",
+          "confidence": 0.9136881232261658,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              117.53385925292969,
+              82.27360534667969
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 77,
+          "visibility": "visible",
+          "confidence": 0.9246191382408142,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              118.01593017578125,
+              82.41478729248047
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 78,
+          "visibility": "visible",
+          "confidence": 0.9195500016212463,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              118.49565887451172,
+              82.56228637695312
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 79,
+          "visibility": "visible",
+          "confidence": 0.9164914488792419,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              118.97661590576172,
+              82.71186065673828
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 80,
+          "visibility": "visible",
+          "confidence": 0.9201048016548157,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              119.47238159179688,
+              82.86536407470703
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 81,
+          "visibility": "visible",
+          "confidence": 0.9158217310905457,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              119.9503402709961,
+              83.03553771972656
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 82,
+          "visibility": "visible",
+          "confidence": 0.9110207557678223,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              120.44302368164062,
+              83.20899963378906
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 83,
+          "visibility": "visible",
+          "confidence": 0.9300186634063721,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              120.90013122558594,
+              83.36548614501953
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 84,
+          "visibility": "visible",
+          "confidence": 0.9290361404418945,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              121.40434265136719,
+              83.50914764404297
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 85,
+          "visibility": "visible",
+          "confidence": 0.93132084608078,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              121.86013793945312,
+              83.65797424316406
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 86,
+          "visibility": "visible",
+          "confidence": 0.9314252138137817,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              122.37486267089844,
+              83.81378173828125
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 87,
+          "visibility": "visible",
+          "confidence": 0.9263889193534851,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              122.82575988769531,
+              83.96583557128906
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 88,
+          "visibility": "visible",
+          "confidence": 0.924957811832428,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              123.33455657958984,
+              84.15436553955078
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 89,
+          "visibility": "visible",
+          "confidence": 0.9348585605621338,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              123.78270721435547,
+              84.30577850341797
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 90,
+          "visibility": "visible",
+          "confidence": 0.9389856457710266,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              124.29753875732422,
+              84.46493530273438
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 91,
+          "visibility": "visible",
+          "confidence": 0.9358195662498474,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              124.74803161621094,
+              84.6091079711914
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 92,
+          "visibility": "visible",
+          "confidence": 0.934074342250824,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              125.26105499267578,
+              84.76082611083984
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 93,
+          "visibility": "visible",
+          "confidence": 0.9327404499053955,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              125.71282958984375,
+              84.9091796875
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 94,
+          "visibility": "visible",
+          "confidence": 0.9334461688995361,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              126.22285461425781,
+              85.08997344970703
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 95,
+          "visibility": "visible",
+          "confidence": 0.927933394908905,
+          "observation": {
+            "kind": "point",
+            "pixels": [
+              126.662841796875,
+              85.24876403808594
+            ]
+          },
+          "manual_correction": false
+        }
+      ]
+    },
+    {
+      "id": "plane",
+      "kind": "plane",
+      "reference_index": 0,
+      "samples": [
+        {
+          "source_index": 0,
+          "visibility": "visible",
+          "confidence": 1.0,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 1,
+          "visibility": "visible",
+          "confidence": 0.9874828021377378,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.000941680466533,
+                0.0002967063373014316,
+                0.4410970541239962
+              ],
+              [
+                -0.0001993387842445011,
+                1.000547540965011,
+                0.17045011700225673
+              ],
+              [
+                9.375093441001387e-06,
+                -5.016016460891255e-06,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 2,
+          "visibility": "visible",
+          "confidence": 0.9897111573571433,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.001379977672738,
+                0.0006009173803850654,
+                0.9022685957985331
+              ],
+              [
+                -0.0006062428712000254,
+                1.0008501106488672,
+                0.35657921665769243
+              ],
+              [
+                1.5882155338314685e-05,
+                -9.947902287625679e-06,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 3,
+          "visibility": "visible",
+          "confidence": 0.9840365799505173,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.002259056223293,
+                0.0009803468308054487,
+                1.338193665934319
+              ],
+              [
+                -0.0008478759734210757,
+                1.0013767906818403,
+                0.5310433974285033
+              ],
+              [
+                2.471219514693867e-05,
+                -1.4609593970427764e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 4,
+          "visibility": "visible",
+          "confidence": 0.986635648309023,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0027182405072665,
+                0.001167164327460146,
+                1.8044205906630566
+              ],
+              [
+                -0.001204924860472912,
+                1.0015367959115522,
+                0.7203135685015226
+              ],
+              [
+                3.1716389565091705e-05,
+                -2.042002942672847e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 5,
+          "visibility": "visible",
+          "confidence": 0.9831116093329691,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0036370512049804,
+                0.0015008437675565962,
+                2.24402186208644
+              ],
+              [
+                -0.0014657555888435631,
+                1.00210977604605,
+                0.8957337366809666
+              ],
+              [
+                4.077414572013692e-05,
+                -2.5020460989848797e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 6,
+          "visibility": "visible",
+          "confidence": 0.9854446505961424,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0042853996917958,
+                0.0018502550353652633,
+                2.6919922580283027
+              ],
+              [
+                -0.0018163490868871675,
+                1.002496322193686,
+                1.0800312329291726
+              ],
+              [
+                4.8266977275381505e-05,
+                -2.9689972158130225e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 7,
+          "visibility": "visible",
+          "confidence": 0.9807606812248997,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0051451709758543,
+                0.002230636602704751,
+                3.1323747448154116
+              ],
+              [
+                -0.0020585487677298544,
+                1.0030762281435799,
+                1.2508426954199843
+              ],
+              [
+                5.686666957360238e-05,
+                -3.391373409318864e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 8,
+          "visibility": "visible",
+          "confidence": 0.9824989942463027,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0056616640639062,
+                0.0024307399138883204,
+                3.594589906428863
+              ],
+              [
+                -0.0023699243697631674,
+                1.0033058664658903,
+                1.4345189618885499
+              ],
+              [
+                6.432105880375723e-05,
+                -3.9762840915017236e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 9,
+          "visibility": "visible",
+          "confidence": 0.9780696827721386,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0063552125943442,
+                0.0026957414466099103,
+                4.046519079218609
+              ],
+              [
+                -0.002684915577003759,
+                1.0036878896922965,
+                1.6164845392793346
+              ],
+              [
+                7.234454697795083e-05,
+                -4.4928776694929307e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 10,
+          "visibility": "visible",
+          "confidence": 0.9763719912188449,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0070547979525455,
+                0.0029972832282546416,
+                4.4969379018970725
+              ],
+              [
+                -0.0029744110028315385,
+                1.0040957441152247,
+                1.7954267143904716
+              ],
+              [
+                8.05394427928614e-05,
+                -5.013674265593618e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 11,
+          "visibility": "visible",
+          "confidence": 0.9739741035687703,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.007795325127865,
+                0.0034169202780645756,
+                4.937055051708732
+              ],
+              [
+                -0.003334569516664072,
+                1.0046136993162762,
+                1.977888803903687
+              ],
+              [
+                8.818136323658202e-05,
+                -5.399310358381252e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 12,
+          "visibility": "visible",
+          "confidence": 0.973882642795209,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.00851230681988,
+                0.0036886807396954414,
+                5.387963051617074
+              ],
+              [
+                -0.003624716238770498,
+                1.005023859184557,
+                2.154358936650076
+              ],
+              [
+                9.62197935898685e-05,
+                -5.9167841837287e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 13,
+          "visibility": "visible",
+          "confidence": 0.969587199404687,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0092883695806085,
+                0.003986742706255508,
+                5.833471555427234
+              ],
+              [
+                -0.003907979966687273,
+                1.0054091010206494,
+                2.336791491659293
+              ],
+              [
+                0.00010443819755139631,
+                -6.412826535828753e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 14,
+          "visibility": "visible",
+          "confidence": 0.9677729235317066,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0099170230350163,
+                0.004247553143816903,
+                6.2888832262185055
+              ],
+              [
+                -0.004205400611757004,
+                1.005784224424649,
+                2.5141708101513722
+              ],
+              [
+                0.0001124321881552602,
+                -6.970877329093941e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 15,
+          "visibility": "visible",
+          "confidence": 0.9655618435969376,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0105699294595716,
+                0.004551926254436688,
+                6.740491304365063
+              ],
+              [
+                -0.004525252262277655,
+                1.00613072265457,
+                2.6994306405301622
+              ],
+              [
+                0.00012019656326651294,
+                -7.460957904660325e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 16,
+          "visibility": "visible",
+          "confidence": 0.9660047328852154,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.011167389440789,
+                0.004855142520509514,
+                7.194232579671173
+              ],
+              [
+                -0.004858476673278074,
+                1.0064728788520694,
+                2.883796751753348
+              ],
+              [
+                0.00012780461771114243,
+                -7.974585385404089e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 17,
+          "visibility": "visible",
+          "confidence": 0.9632192486964152,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0120444645670614,
+                0.005217723743309003,
+                7.6317307168648805
+              ],
+              [
+                -0.005135120313573176,
+                1.0070175128162975,
+                3.058060484731306
+              ],
+              [
+                0.00013627273436623614,
+                -8.406972928181262e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 18,
+          "visibility": "visible",
+          "confidence": 0.9613937941569931,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.012691160635781,
+                0.005526145452999954,
+                8.08274884706117
+              ],
+              [
+                -0.005446733764225992,
+                1.0073795790862714,
+                3.2409698407033916
+              ],
+              [
+                0.00014414263975446166,
+                -8.923870774108606e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 19,
+          "visibility": "visible",
+          "confidence": 0.9583431453085184,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0134085646845048,
+                0.005827337402527226,
+                8.53357433508046
+              ],
+              [
+                -0.00575154454018776,
+                1.0078407352884247,
+                3.418453321999133
+              ],
+              [
+                0.00015212390131045842,
+                -9.39667057728261e-05,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 20,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 21,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 22,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 23,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 24,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 25,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 26,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 27,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 28,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 29,
+          "visibility": "lost",
+          "confidence": 0.0,
+          "observation": null,
+          "manual_correction": false
+        },
+        {
+          "source_index": 30,
+          "visibility": "visible",
+          "confidence": 1.0,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.021,
+                0.009,
+                13.5
+              ],
+              [
+                -0.009,
+                1.012,
+                5.3999999999999995
+              ],
+              [
+                0.00023999999999999998,
+                -0.00015000000000000001,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": true
+        },
+        {
+          "source_index": 31,
+          "visibility": "visible",
+          "confidence": 0.9853880669224,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0218352505849881,
+                0.00914316317668441,
+                13.950377877243328
+              ],
+              [
+                -0.009317111026374938,
+                1.012277364145627,
+                5.601645823781075
+              ],
+              [
+                0.00024850693218195485,
+                -0.0001559418141107205,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 32,
+          "visibility": "visible",
+          "confidence": 0.9890710556200208,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0224844819644265,
+                0.00987823162313016,
+                14.382916969785326
+              ],
+              [
+                -0.009526042301210236,
+                1.012944525306143,
+                5.762878927890977
+              ],
+              [
+                0.0002567921186254859,
+                -0.00015930252873721533,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 33,
+          "visibility": "visible",
+          "confidence": 0.9848883728173615,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.023080521540243,
+                0.009658683320593608,
+                14.861011635324399
+              ],
+              [
+                -0.009769641838771517,
+                1.0129574220072375,
+                5.938629356598713
+              ],
+              [
+                0.0002635344630014291,
+                -0.00016583747187998136,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 34,
+          "visibility": "visible",
+          "confidence": 0.9843279838246606,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0242798650290001,
+                0.010616524553422046,
+                15.259181624682485
+              ],
+              [
+                -0.009922235685662681,
+                1.0140830674600874,
+                6.080511531605181
+              ],
+              [
+                0.0002740933613433164,
+                -0.0001681746753965921,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 35,
+          "visibility": "visible",
+          "confidence": 0.9776424612077022,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0249709649717644,
+                0.010037075816700032,
+                15.749518891712945
+              ],
+              [
+                -0.01032817401655911,
+                1.0139134163924828,
+                6.284308589417898
+              ],
+              [
+                0.0002825098861275611,
+                -0.00017768534928869388,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 36,
+          "visibility": "visible",
+          "confidence": 0.9795911480874425,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.025852068792903,
+                0.011356900679025898,
+                16.147371130889066
+              ],
+              [
+                -0.010850494016450584,
+                1.0152056753829275,
+                6.461229643069769
+              ],
+              [
+                0.00029005050616195434,
+                -0.0001764829230023632,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 37,
+          "visibility": "visible",
+          "confidence": 0.9770025174587965,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0260264274876576,
+                0.010604461869656705,
+                16.66599900910693
+              ],
+              [
+                -0.011156161922367744,
+                1.0144006760826112,
+                6.6866402100160816
+              ],
+              [
+                0.00029756066121215826,
+                -0.00018814050540333675,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 38,
+          "visibility": "visible",
+          "confidence": 0.9764007511908426,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.027046505902448,
+                0.011824193352642998,
+                17.06065122561671
+              ],
+              [
+                -0.011424725516679604,
+                1.015649101245722,
+                6.8384529607315026
+              ],
+              [
+                0.0003051123621459807,
+                -0.0001871410076995537,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 39,
+          "visibility": "visible",
+          "confidence": 0.9731952534122781,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0276588585040192,
+                0.011059285591545277,
+                17.562034121845784
+              ],
+              [
+                -0.011422545541975613,
+                1.015140223146894,
+                7.025158345904309
+              ],
+              [
+                0.0003150497332936362,
+                -0.00019918669865899536,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 40,
+          "visibility": "visible",
+          "confidence": 0.9697897279273231,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.02893973050606,
+                0.0123827066601057,
+                17.94183930192444
+              ],
+              [
+                -0.011684582843534809,
+                1.0167018263448753,
+                7.162363354900182
+              ],
+              [
+                0.0003234240538921206,
+                -0.00019752367537946192,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 41,
+          "visibility": "visible",
+          "confidence": 0.9677143641314176,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0292072413289124,
+                0.011945357457231277,
+                18.4444993976141
+              ],
+              [
+                -0.012001326028615018,
+                1.0164355740595845,
+                7.359481075638609
+              ],
+              [
+                0.00033056047278378264,
+                -0.00020640689948084104,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 42,
+          "visibility": "visible",
+          "confidence": 0.9710919577581524,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0304335727151206,
+                0.013001278640185672,
+                18.839908838173095
+              ],
+              [
+                -0.012297815534035398,
+                1.0176833483988075,
+                7.515872138497848
+              ],
+              [
+                0.0003400808696256626,
+                -0.00020731962234441772,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 43,
+          "visibility": "visible",
+          "confidence": 0.9670365006145644,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0305490492223064,
+                0.012698053609584639,
+                19.339003824139734
+              ],
+              [
+                -0.01279073915479677,
+                1.017285405991715,
+                7.736148022244657
+              ],
+              [
+                0.00034598985226546897,
+                -0.0002154909400231577,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 44,
+          "visibility": "visible",
+          "confidence": 0.9655511716205797,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0315806889710066,
+                0.013367752244757794,
+                19.758514968158234
+              ],
+              [
+                -0.01300940604093299,
+                1.018069466912779,
+                7.901393922746791
+              ],
+              [
+                0.00035518295969075113,
+                -0.00021872973171371926,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 45,
+          "visibility": "visible",
+          "confidence": 0.9578962698242203,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0318414564642848,
+                0.013108943410914379,
+                20.248176056788033
+              ],
+              [
+                -0.01336078193931065,
+                1.0177761850995,
+                8.104718561496625
+              ],
+              [
+                0.00036223273830616196,
+                -0.00022729324447401465,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 46,
+          "visibility": "visible",
+          "confidence": 0.9612395009172432,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0334305134350366,
+                0.013930255421806127,
+                20.644160655956586
+              ],
+              [
+                -0.013456424362816546,
+                1.0190752164336523,
+                8.247288115140359
+              ],
+              [
+                0.0003731065936569796,
+                -0.00022860368390391017,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 47,
+          "visibility": "visible",
+          "confidence": 0.9549080108834542,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0335886963231744,
+                0.013954744394860353,
+                21.12533856209476
+              ],
+              [
+                -0.01391510399838516,
+                1.0189762424114006,
+                8.451798852383567
+              ],
+              [
+                0.00037930647859221533,
+                -0.0002355831204148105,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 48,
+          "visibility": "visible",
+          "confidence": 0.9547032622122038,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0350591805107752,
+                0.01444975255516706,
+                21.541730369802263
+              ],
+              [
+                -0.014003327690326825,
+                1.0199680930709443,
+                8.603562068365537
+              ],
+              [
+                0.0003902608086821977,
+                -0.00023884948818871804,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 49,
+          "visibility": "visible",
+          "confidence": 0.9508811022710547,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.035038387341236,
+                0.014645660927729207,
+                22.019082921873128
+              ],
+              [
+                -0.014491788545341657,
+                1.0199303816932193,
+                8.802822559160289
+              ],
+              [
+                0.00039551340893938404,
+                -0.000245212752555587,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 50,
+          "visibility": "visible",
+          "confidence": 0.9518681794142436,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0359213916870365,
+                0.014831169869591206,
+                22.466835849228072
+              ],
+              [
+                -0.014725546721803163,
+                1.0202743420398777,
+                8.98372484454135
+              ],
+              [
+                0.0004041624518094086,
+                -0.00025047480225531897,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 51,
+          "visibility": "visible",
+          "confidence": 0.9477521474077921,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0366245377467267,
+                0.015452198423617822,
+                22.906104000508943
+              ],
+              [
+                -0.015065324919575306,
+                1.0210374038798586,
+                9.153454187428546
+              ],
+              [
+                0.00041154745771714897,
+                -0.0002530091893881918,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 52,
+          "visibility": "visible",
+          "confidence": 0.9483145269135308,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.037559452099666,
+                0.015536808959453263,
+                23.347217465018613
+              ],
+              [
+                -0.015271822870590592,
+                1.0212145251798297,
+                9.337924844693088
+              ],
+              [
+                0.00042092061912163886,
+                -0.0002601676492306342,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 53,
+          "visibility": "visible",
+          "confidence": 0.9414164099099548,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.038601813462693,
+                0.01619381043950498,
+                23.781994243093667
+              ],
+              [
+                -0.015482770343852714,
+                1.0223348576500326,
+                9.487946469829632
+              ],
+              [
+                0.0004299492182524448,
+                -0.0002617374224431447,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 54,
+          "visibility": "visible",
+          "confidence": 0.9458553843013991,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0387997064976084,
+                0.016051630620673395,
+                24.25615055370856
+              ],
+              [
+                -0.015910921299730558,
+                1.0218268293755546,
+                9.70684894538225
+              ],
+              [
+                0.000436349246107309,
+                -0.00027085164756583246,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 55,
+          "visibility": "visible",
+          "confidence": 0.9353444282335214,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0399923687448287,
+                0.016751186747015732,
+                24.681594184550377
+              ],
+              [
+                -0.016042005723708817,
+                1.02295073634254,
+                9.854411828468212
+              ],
+              [
+                0.0004460947926182781,
+                -0.00027252867237730305,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 56,
+          "visibility": "visible",
+          "confidence": 0.9393029001539459,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0406120426871797,
+                0.01674333048928893,
+                25.13813746924707
+              ],
+              [
+                -0.016374179367848244,
+                1.0228745940239448,
+                10.053559135173948
+              ],
+              [
+                0.00045391396696993117,
+                -0.0002799175796405247,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 57,
+          "visibility": "visible",
+          "confidence": 0.9313926525924716,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0415083568950692,
+                0.01722520723677343,
+                25.582227585551166
+              ],
+              [
+                -0.01662041351798158,
+                1.023723921610336,
+                10.214958439497641
+              ],
+              [
+                0.0004627135901636883,
+                -0.00028319427687415746,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 58,
+          "visibility": "visible",
+          "confidence": 0.9321631466893027,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0419675314698962,
+                0.0172247434513706,
+                26.049757285179485
+              ],
+              [
+                -0.016957055987993404,
+                1.0236716819884912,
+                10.412968508313037
+              ],
+              [
+                0.0004704525275833392,
+                -0.0002906432949070799,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 59,
+          "visibility": "visible",
+          "confidence": 0.9273348063984634,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0426175613826374,
+                0.017800860803281804,
+                26.493472499343273
+              ],
+              [
+                -0.017419033092859495,
+                1.0243959516509134,
+                10.58976980167263
+              ],
+              [
+                0.0004771870018030905,
+                -0.00029303639103820067,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 60,
+          "visibility": "visible",
+          "confidence": 0.929146728182326,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0436934039356738,
+                0.01794402521985532,
+                26.933258471589795
+              ],
+              [
+                -0.01746975169140211,
+                1.02473099394725,
+                10.757589211217123
+              ],
+              [
+                0.00048755420754401156,
+                -0.0002996211122548941,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 61,
+          "visibility": "visible",
+          "confidence": 0.9237932534619523,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0443679485054649,
+                0.01824791300382903,
+                27.38297743506697
+              ],
+              [
+                -0.01786108116937874,
+                1.0251233280402707,
+                10.946773960703375
+              ],
+              [
+                0.0004953152469772766,
+                -0.00030462173884456505,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 62,
+          "visibility": "visible",
+          "confidence": 0.9242538466111323,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0453240017206713,
+                0.018817307749846694,
+                27.815416673264156
+              ],
+              [
+                -0.018105403145130757,
+                1.0259454091154745,
+                11.109826711740551
+              ],
+              [
+                0.0005035252398012968,
+                -0.00030726961768855275,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 63,
+          "visibility": "visible",
+          "confidence": 0.915166479669498,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0457038071907867,
+                0.018750911647642962,
+                28.285811482393143
+              ],
+              [
+                -0.018353069385701845,
+                1.0257493898064782,
+                11.304945715182704
+              ],
+              [
+                0.0005111578303489772,
+                -0.0003154733471888928,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 64,
+          "visibility": "visible",
+          "confidence": 0.9205185720700588,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0464725525587542,
+                0.019129784593418506,
+                28.73732313338393
+              ],
+              [
+                -0.018655302745515166,
+                1.026349153885538,
+                11.478793132959105
+              ],
+              [
+                0.0005194304024657416,
+                -0.0003194888471255004,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 65,
+          "visibility": "visible",
+          "confidence": 0.9138106195650988,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0474998416910626,
+                0.019665411345379913,
+                29.161603361449504
+              ],
+              [
+                -0.018908752566851334,
+                1.0270415419857772,
+                11.652765833055438
+              ],
+              [
+                0.0005278199748116491,
+                -0.0003225396240634522,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 66,
+          "visibility": "visible",
+          "confidence": 0.9136361384434162,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0481342048149336,
+                0.01977085328012898,
+                29.62426348080986
+              ],
+              [
+                -0.019160095116165052,
+                1.0272176214337025,
+                11.833449995099294
+              ],
+              [
+                0.0005366487022991843,
+                -0.00032956174686150425,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 67,
+          "visibility": "visible",
+          "confidence": 0.907081268791483,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0488644289517044,
+                0.020254281005881832,
+                30.061095000860565
+              ],
+              [
+                -0.019619324671183054,
+                1.0278453400480232,
+                12.018112336121025
+              ],
+              [
+                0.0005432274978140246,
+                -0.00033222101738914275,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 68,
+          "visibility": "visible",
+          "confidence": 0.9082802092923979,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.049672521085981,
+                0.020545087486248555,
+                30.511708196029254
+              ],
+              [
+                -0.019795847194431723,
+                1.0282943066270753,
+                12.186578159774532
+              ],
+              [
+                0.000552425287904399,
+                -0.0003380392657000818,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 69,
+          "visibility": "visible",
+          "confidence": 0.9032297670336532,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.050798200318236,
+                0.021027281339597394,
+                30.94112597092881
+              ],
+              [
+                -0.020041799723828992,
+                1.0291188673936675,
+                12.353988497596514
+              ],
+              [
+                0.0005620586283174677,
+                -0.0003414647966740365,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 70,
+          "visibility": "visible",
+          "confidence": 0.9043958049480881,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0508463476330343,
+                0.020976684405849662,
+                31.421970293890336
+              ],
+              [
+                -0.02054345225682954,
+                1.0287701367431739,
+                12.567023417020822
+              ],
+              [
+                0.0005676314141337684,
+                -0.00034960490361194405,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 71,
+          "visibility": "visible",
+          "confidence": 0.8969241357405292,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.052060470301439,
+                0.021177748441431155,
+                31.861385603797114
+              ],
+              [
+                -0.020604874118121556,
+                1.029406766109339,
+                12.726858894688963
+              ],
+              [
+                0.0005784755468190736,
+                -0.0003546213627676454,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 72,
+          "visibility": "visible",
+          "confidence": 0.9002359682462676,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.052837470103868,
+                0.02172150251260108,
+                32.29703262310936
+              ],
+              [
+                -0.020926493134821148,
+                1.029938102506702,
+                12.90721458758798
+              ],
+              [
+                0.0005856837730078681,
+                -0.0003579714805245771,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 73,
+          "visibility": "visible",
+          "confidence": 0.89265184433713,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0536869164039577,
+                0.021980455140136985,
+                32.745053201628345
+              ],
+              [
+                -0.02118950775065428,
+                1.0304907624333053,
+                13.080311285821956
+              ],
+              [
+                0.0005945390874910173,
+                -0.0003629501551704667,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 74,
+          "visibility": "visible",
+          "confidence": 0.8934558305986635,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0544959533906768,
+                0.02233544938676293,
+                33.189395452554955
+              ],
+              [
+                -0.02142062199979972,
+                1.0308719312048038,
+                13.261131386810561
+              ],
+              [
+                0.0006032765689976797,
+                -0.0003683765226770793,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 75,
+          "visibility": "visible",
+          "confidence": 0.8876917918066463,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0542357095370842,
+                0.022258631649503317,
+                33.67244928295092
+              ],
+              [
+                -0.02204123946720029,
+                1.030511058894262,
+                13.470538013852432
+              ],
+              [
+                0.0006066041801618696,
+                -0.000375853160394214,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 76,
+          "visibility": "visible",
+          "confidence": 0.887631946080735,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.055867048914853,
+                0.02288346308496244,
+                34.09446420410097
+              ],
+              [
+                -0.021878773356725514,
+                1.031654043618959,
+                13.606786986875068
+              ],
+              [
+                0.0006194344358382614,
+                -0.0003785780813790941,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 77,
+          "visibility": "visible",
+          "confidence": 0.8825010412642024,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0563995623256688,
+                0.02315372046819591,
+                34.54346754992247
+              ],
+              [
+                -0.02240603728727125,
+                1.0319774355897313,
+                13.801808244995112
+              ],
+              [
+                0.0006254932767625518,
+                -0.0003832112383910062,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 78,
+          "visibility": "visible",
+          "confidence": 0.88238474598981,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0569993526940678,
+                0.0235959480861191,
+                35.00039832721168
+              ],
+              [
+                -0.02273269055156245,
+                1.0325954760321054,
+                13.975493685802652
+              ],
+              [
+                0.0006335261410539753,
+                -0.0003873134202497973,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 79,
+          "visibility": "visible",
+          "confidence": 0.8789940060233375,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0578436097703794,
+                0.023635325600892303,
+                35.44436410844114
+              ],
+              [
+                -0.022937094675789117,
+                1.032599940715498,
+                14.168649422096308
+              ],
+              [
+                0.0006427234043336083,
+                -0.0003948971171104494,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 80,
+          "visibility": "visible",
+          "confidence": 0.8767572238012483,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.058957269544139,
+                0.024376807270327608,
+                35.87574397213503
+              ],
+              [
+                -0.023225616009322842,
+                1.0338471737577235,
+                14.316467490523154
+              ],
+              [
+                0.0006512237566315245,
+                -0.0003955211064932852,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 81,
+          "visibility": "visible",
+          "confidence": 0.8747796780367826,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.059797129439882,
+                0.02436174822749842,
+                36.323246308056866
+              ],
+              [
+                -0.023434725161123028,
+                1.033643097267809,
+                14.523485231731556
+              ],
+              [
+                0.0006608354349435812,
+                -0.00040376121931962717,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 82,
+          "visibility": "visible",
+          "confidence": 0.8706852671099201,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.060769366871479,
+                0.024749058121876243,
+                36.769822879452285
+              ],
+              [
+                -0.02362098812720051,
+                1.0344776974864944,
+                14.677887052814732
+              ],
+              [
+                0.0006699936271712578,
+                -0.00040769541733029556,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 83,
+          "visibility": "visible",
+          "confidence": 0.8678349240585905,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0611098132983874,
+                0.025142167380872348,
+                37.21599277042987
+              ],
+              [
+                -0.02417526526709051,
+                1.0346560343176956,
+                14.880799846966957
+              ],
+              [
+                0.0006756033225925818,
+                -0.000412419735534123,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 84,
+          "visibility": "visible",
+          "confidence": 0.8653509737998633,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0626480000940106,
+                0.025554553319577542,
+                37.64567132491664
+              ],
+              [
+                -0.024100223509987567,
+                1.03562920122275,
+                15.025749245164608
+              ],
+              [
+                0.0006871228747653439,
+                -0.0004156581795574105,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 85,
+          "visibility": "visible",
+          "confidence": 0.8602113323522004,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0630275241760447,
+                0.025628933973513877,
+                38.10809200516491
+              ],
+              [
+                -0.024492846781475522,
+                1.0356211304425824,
+                15.219299187720708
+              ],
+              [
+                0.0006942143697506389,
+                -0.00042295999138657167,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 86,
+          "visibility": "visible",
+          "confidence": 0.8587573789390452,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0636258562209062,
+                0.02605105618818849,
+                38.55691998640208
+              ],
+              [
+                -0.02485222397146609,
+                1.0360984699886981,
+                15.401418097304225
+              ],
+              [
+                0.000701532820741723,
+                -0.0004270868196554693,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 87,
+          "visibility": "visible",
+          "confidence": 0.8566892112688687,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0652570141342703,
+                0.026664226189148644,
+                38.97046036423652
+              ],
+              [
+                -0.024872807215525584,
+                1.0372457119621252,
+                15.546400060749951
+              ],
+              [
+                0.0007125745262622519,
+                -0.00042939674647265373,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 88,
+          "visibility": "visible",
+          "confidence": 0.8533711545173845,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0650203392481117,
+                0.026584830036439862,
+                39.45393032369401
+              ],
+              [
+                -0.025424059450123975,
+                1.0367604051973185,
+                15.764400030106854
+              ],
+              [
+                0.0007176705855145634,
+                -0.0004379067410301472,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 89,
+          "visibility": "visible",
+          "confidence": 0.8503240884379363,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0674426290610335,
+                0.027827469481333845,
+                39.8150674884074
+              ],
+              [
+                -0.025242151666191644,
+                1.0388233031664709,
+                15.86682489424037
+              ],
+              [
+                0.0007307957850542508,
+                -0.00043624568913382215,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 90,
+          "visibility": "visible",
+          "confidence": 0.845546119989945,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0671181731393393,
+                0.02731464780935802,
+                40.33291677215735
+              ],
+              [
+                -0.02587393879509563,
+                1.038060419047127,
+                16.10772407656458
+              ],
+              [
+                0.0007361480746713805,
+                -0.0004462777212222786,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 91,
+          "visibility": "visible",
+          "confidence": 0.8455033081408523,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0682191774250418,
+                0.027848761910248487,
+                40.760239695174675
+              ],
+              [
+                -0.026060581291951775,
+                1.0387948096773982,
+                16.26851374287804
+              ],
+              [
+                0.0007457260797085193,
+                -0.0004504735287802943,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 92,
+          "visibility": "visible",
+          "confidence": 0.8412784550859316,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0690278404848064,
+                0.02776217137521736,
+                41.225409036147155
+              ],
+              [
+                -0.026290666286553178,
+                1.0389375524288038,
+                16.458967675747303
+              ],
+              [
+                0.0007543209576490901,
+                -0.0004567710826299908,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 93,
+          "visibility": "visible",
+          "confidence": 0.8400552955391419,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0699730187836205,
+                0.028935182436097714,
+                41.6182764870598
+              ],
+              [
+                -0.026606339526519515,
+                1.0400372477324884,
+                16.610263755506725
+              ],
+              [
+                0.0007617801887186249,
+                -0.000457780496676732,
+                0.9999999999999999
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 94,
+          "visibility": "visible",
+          "confidence": 0.8362733021636336,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0698931036808583,
+                0.028573591000327716,
+                42.13717880514848
+              ],
+              [
+                -0.027089669938377556,
+                1.0397429099925741,
+                16.82564174176918
+              ],
+              [
+                0.0007677844143290802,
+                -0.0004656251823190656,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        },
+        {
+          "source_index": 95,
+          "visibility": "visible",
+          "confidence": 0.8331043691353306,
+          "observation": {
+            "kind": "plane",
+            "matrix": [
+              [
+                1.0707941829538643,
+                0.028740141008562307,
+                42.577603670106235
+              ],
+              [
+                -0.027319768182271102,
+                1.04002686606954,
+                17.006570507614
+              ],
+              [
+                0.0007767378551394029,
+                -0.000471956545236152,
+                1.0
+              ]
+            ]
+          },
+          "manual_correction": false
+        }
+      ]
+    }
+  ]
+}

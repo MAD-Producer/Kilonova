@@ -1,0 +1,138 @@
+{
+  "status": "failed_full_run_and_unresolved_diagnostic_archived",
+  "createdUtc": "2026-11-06T05:08:23.091885+00:00",
+  "source": "270840919743570dad144ec3a7e609eac91fe1db",
+  "totals": {
+    "passed": 4934,
+    "failed": 1,
+    "originalIgnored": 78,
+    "measured": 0,
+    "filtered": 0,
+    "summaryCount": 421,
+    "invocations": 421,
+    "expectedInvocations": 421
+  },
+  "elapsedSeconds": 8415.297,
+  "archive": "tracking88-terminal-public-v1.zip",
+  "bytes": 716242,
+  "sha256": "d45951c200762dbbdae075f435aaa73381fcb8d88a9f81ef1585d1a3ad50faa2",
+  "entries": {
+    "archive-controller.py": {
+      "bytes": 3530,
+      "sha256": "7458032f51e5473cd64f5c5e6c0e65ad330786cb518770c3081478927166170d"
+    },
+    "executions/tracking88-prototype-workspace-terminal-v3/controller.py": {
+      "bytes": 3915,
+      "sha256": "6bf1075137e37123cd096a7c6e9d69c4c14930ca145e70b43e9c268f1e48e488"
+    },
+    "executions/tracking88-prototype-workspace-terminal-v3/receipt.json": {
+      "bytes": 2272,
+      "sha256": "830fd01d5d6b163cbaf877ea328557150183c9567dcbf18032b013e907ced745"
+    },
+    "executions/tracking88-publication-same-binary-v1/controller.py": {
+      "bytes": 3945,
+      "sha256": "8f7488da50147710d5e589cea96bdcda48a75faae17351e02c579cd0482cf973"
+    },
+    "executions/tracking88-publication-same-binary-v1/receipt.json": {
+      "bytes": 1339,
+      "sha256": "84fbc2ca159edc0b58f0450b19b2c2859a6c125f7dbacc0e213e71049a7142b5"
+    },
+    "executions/tracking88-publication-same-binary-v1/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "executions/tracking88-publication-same-binary-v1/stdout.log": {
+      "bytes": 188,
+      "sha256": "85c64bc85ce73f9e729d7737194dec9c115bbddfbe30b83ae0fa1d039231f23e"
+    },
+    "executions/v1/cargo-metadata.json": {
+      "bytes": 259989,
+      "sha256": "db16226106d2b16e642f1477748424a91a1d828aac21f38e65bb97f747d5b6b6"
+    },
+    "executions/v1/controller.py": {
+      "bytes": 6509,
+      "sha256": "69d7e63728f3ce4b929dc9d1c79bb8d85fb0eb519209be8f78bc6636fe4d2b8a"
+    },
+    "executions/v1/exit.json": {
+      "bytes": 311743,
+      "sha256": "d71f65dab5639f8fad06d1a2f23b94560b51627db22a986ba356cb18bceef56f"
+    },
+    "executions/v1/stderr.log": {
+      "bytes": 1490,
+      "sha256": "061df9011c9febc4d3d9db08fbe1935ed540ca7542c618b5e3332c1341132a1b"
+    },
+    "executions/v1/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "executions/v2/cargo-metadata.json": {
+      "bytes": 259989,
+      "sha256": "db16226106d2b16e642f1477748424a91a1d828aac21f38e65bb97f747d5b6b6"
+    },
+    "executions/v2/controller.py": {
+      "bytes": 6715,
+      "sha256": "76fb513986cc7cda6b13fe14709c260d3a2f937bf3214dc8d04d7ad76adbccc3"
+    },
+    "executions/v2/exit.json": {
+      "bytes": 311944,
+      "sha256": "0c0614ccdf8ad485f2c33c7cd18a58d46f7645d6a5195a9b32ee8189003432dc"
+    },
+    "executions/v2/stderr.log": {
+      "bytes": 15642,
+      "sha256": "3394884786fc0851cc8dffcc2c1e6552ec2c58421581248b4e681fa8b1ba8f75"
+    },
+    "executions/v2/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "executions/v3/cargo-metadata.json": {
+      "bytes": 259989,
+      "sha256": "db16226106d2b16e642f1477748424a91a1d828aac21f38e65bb97f747d5b6b6"
+    },
+    "executions/v3/controller.py": {
+      "bytes": 6878,
+      "sha256": "5547b2442bbb83dfa1b06d749e55aea2cf85870add32d284a7521402f012e748"
+    },
+    "executions/v3/exit.json": {
+      "bytes": 409898,
+      "sha256": "6d8feb5f9387f90f6dd1703cecc2576f2bd583f0819b71b25ac436c7a1f17230"
+    },
+    "executions/v3/stderr.log": {
+      "bytes": 130335,
+      "sha256": "e93d117cf9a60a2be8a7b109eff2eb68fed579792d32080ae7275deb27fe8aa6"
+    },
+    "executions/v3/stdout.log": {
+      "bytes": 578622,
+      "sha256": "60fd1545bed403fc0cb1e623d6906115eeae6c8f55fd00ffd8a95b92d3f96ddd"
+    },
+    "original-failure/original-failure.log": {
+      "bytes": 7229,
+      "sha256": "850d71260b0b57d2b914b9c2be1894d0bfbfb28506191431c1d813a12de48e44"
+    },
+    "original-failure/receipt.json": {
+      "bytes": 2113,
+      "sha256": "3e8ee6a6243b6692c2700aa6fad8df1f7d293af0d7deb516918e903960d77fed"
+    },
+    "original-failure/sources/crates/motion-core/src/storage.rs": {
+      "bytes": 24662,
+      "sha256": "ea046fc46ece93274ae19574530c5121d394c01e564e9ea11f2e60e11f1c4cb3"
+    },
+    "original-failure/sources/crates/motion-core/src/storage/publication.rs": {
+      "bytes": 4120,
+      "sha256": "84409669f4679b969069f547a3ebc97cbc4fb031034e8d41b1a5dd3bcf355ae1"
+    },
+    "original-failure/sources/crates/motion-core/tests/format_version_boundaries.rs": {
+      "bytes": 1796,
+      "sha256": "5e49bab3af5022e3595458c57ce55d02cb960477026bc3ef6a7eac322ff7f6b2"
+    },
+    "private-full-archive-manifest.json": {
+      "bytes": 455026,
+      "sha256": "37b27029a52691774c46c14b2ee8e2b2836e639cc7d4eebd1703f4b8948974c7"
+    }
+  },
+  "limits": [
+    "Original full run failed; a single passing diagnostic is not a repair or full pass",
+    "Private full-source archive and retained exe/PDB are identified by hashes, not duplicated",
+    "No later-main test coverage or photographed tracking quality acceptance is claimed"
+  ]
+}

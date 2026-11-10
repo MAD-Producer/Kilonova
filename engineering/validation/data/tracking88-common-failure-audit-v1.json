@@ -1,0 +1,97 @@
+{
+  "status": "retained_observations_recomputed_not_new_tracker_acceptance",
+  "annotation_sha256": "d4e36ea6f58d11fcdaab2e604786401725059581c767c65b9923595f79567886",
+  "common_bad_count": 21,
+  "union_bad_count": 21,
+  "identical_bad_indices": true,
+  "limits": [
+    "No source video decoding, model/tracker rerun or production edit",
+    "Independent numeric read of retained outputs against pinned annotations; no new useful-coverage or uncertainty qualification",
+    "Confidence ranges are descriptive; no threshold tuned or acceptance weakened",
+    "Third-party annotations, requests and per-frame payloads stay local and are not redistributed"
+  ],
+  "variants": [
+    {
+      "name": "original",
+      "raw_output_sha256": "5dd567b7f1ec994a4120700fe529abdf97fdc27ffd7c10f327751ab91bc68dfa",
+      "automatic_visible": 915,
+      "over_15_pixels": 21,
+      "maximum_error": 56.6400304460409,
+      "rms_error": 5.552521925956851,
+      "bad_confidence": {
+        "count": 21,
+        "minimum": 0.8750063503008115,
+        "median": 0.8978041821035365,
+        "maximum": 0.9125607289673777
+      },
+      "other_visible_confidence": {
+        "count": 894,
+        "minimum": 0.4428490339751717,
+        "median": 0.8075951357550892,
+        "maximum": 0.9959854803081912
+      }
+    },
+    {
+      "name": "persistent-descriptors",
+      "raw_output_sha256": "1c0f23d0f0aa2b5b79f82ed63041f3cabe8bcd569e3ec806533a7710b91998ca",
+      "automatic_visible": 890,
+      "over_15_pixels": 21,
+      "maximum_error": 56.6382058844451,
+      "rms_error": 5.621686091068053,
+      "bad_confidence": {
+        "count": 21,
+        "minimum": 0.8749162334924553,
+        "median": 0.8977444349168603,
+        "maximum": 0.912582630223491
+      },
+      "other_visible_confidence": {
+        "count": 869,
+        "minimum": 0.4428490339751717,
+        "median": 0.8088831610085965,
+        "maximum": 0.9959854803081912
+      }
+    },
+    {
+      "name": "manual-photometric-support",
+      "raw_output_sha256": "80f15505b610a78718be911562a9e419d71580f798479e315d667edc4adb696f",
+      "automatic_visible": 836,
+      "over_15_pixels": 21,
+      "maximum_error": 57.93787310591938,
+      "rms_error": 5.82546673448141,
+      "bad_confidence": {
+        "count": 21,
+        "minimum": 0.8530579224524909,
+        "median": 0.8827925700206976,
+        "maximum": 0.9290522536273166
+      },
+      "other_visible_confidence": {
+        "count": 815,
+        "minimum": 0.36923072026407383,
+        "median": 0.8014061592642493,
+        "maximum": 0.9959854803081912
+      }
+    }
+  ],
+  "retained_output_scope": "Original 2300-frame periodic-manual-200 request, unchanged between candidates; same pinned annotation mapping; automatic visible observations only",
+  "local_full_receipt_sha256": "4be8c43f2e30d57f79c8b46704f293595677764fe43a970b40c508d642de93e7",
+  "tracker_source_at_review": {
+    "plate_contract.py": "35f40ceab0c4314e907059a73913852caadfc9c2f64def3c08934d1d9e277a7f",
+    "plate_flow.py": "222995ad7f8af9815dd4d82ac2fabb982e95d9ae981e7c5c1f6c3f77532ad188",
+    "track_plate.py": "46174e1296d5fe28390eb289ed34a661e59002312b49a2b7629407c6f61004e4"
+  },
+  "decision": "Existing candidates remain rejected; no source fix, quality pass or confidence threshold change follows from this audit",
+  "archive": "tracking88-common-failure-audit-v1.zip",
+  "archive_bytes": 3426,
+  "archive_sha256": "2e97af1a16f9b937695f17c6102b46c06c0defc94eb72c1c823f25bfcebb36c5",
+  "members": {
+    "independent-audit.py": {
+      "bytes": 3756,
+      "sha256": "0f932c1593975202252d45930f70385520387098e33cf8ab586b315027da75f0"
+    },
+    "summary.json": {
+      "bytes": 3307,
+      "sha256": "8b1564a301508d2e8f1d6b178f6e2ecf9aecdda4e38a86591c911c34f1c61f5b"
+    }
+  },
+  "exclusion": "No third-party frames, annotation payloads, per-frame observation/error arrays, original requests, native executable or runtime assets included"
+}

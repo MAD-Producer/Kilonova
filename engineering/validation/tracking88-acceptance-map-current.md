@@ -1,6 +1,30 @@
 # Tracking #88: integrated acceptance map
 
-Current integration: the [combined workspace record](3d-professional-workspace-current.md)
+The [complete original-corner support partition](tracking88-image-support-current.md)
+now locates all21 historical and all10 final-window maximum-error failures at
+outside-image corners. Every corner remains in its original gate. This does not
+prove physical plane/annotation validity or resolve the failed coverage/quality.
+
+The [reference-window correction](tracking88-reference-window-current.md) now
+bounds full-resolution plane refinement support. Fresh complete two-mode phone
+and mousepad measurements still fail quality/coverage; the24 passing controls
+do not replace full native regression or qualify the tracker.
+
+The [new prototype/current-main integration](tracking88-prototype-main-integration-current.md)
+includes maintained main `e02b1975` and the reference-depth branch. Fresh complete
+tools/CV/CLI gates passed on their recorded earlier source. The latest frozen
+`a21c3c1c` full run has terminated: 4,935 passed, **two failed**, 78 original
+ignores across all 423 targets, including the two video-retirement targets.
+Valid project publication still fails with OS error 5, and the plugin-settings
+valid-mode subprocess fails without an original exit-status record. Both
+original causes remain unresolved; a passing isolated child diagnostic is not
+a repair. Exact-head CI passed eight applicable checks, separately from these
+failed full-run and real-footage gates. #582 remains a draft. Earlier sections
+below retain historical source boundaries rather than current completion claims.
+The [retained support diagnostics](tracking88-support-diagnostics-current.md)
+do not repair or waive the original photographed tracking failure.
+
+Historical delivered integration: the [combined workspace record](3d-professional-workspace-current.md)
 passes 4,896 tests across all 417 maintained targets on `c190ab20`, including
 main `50bef478`. Matching-source three-platform CI and freshly built actual
 CPU inference/frozen output also pass. Earlier sections below retain their
@@ -118,3 +142,11 @@ on main e314cc92. Four actual tests pass across three complete selected targets;
 all 61 source/golden/native/frozen PNGs match retained bytes. It preserves the
 full-workspace, native-crash and final-head CI boundaries rather than transferring
 historical green results to the new combined source.
+
+## Frozen prototype output Surface qualification
+
+The [new Windows Surface record](tracking88-prototype-surface-current.md)
+executes the actual measured synthetic point/plane output through a native
+window, retained-front reuse, strict missing refusal, manual recovery, history
+and reopen. It retains the failed photographed quality conclusion and does not
+claim final full regression or cross-platform CI completion.

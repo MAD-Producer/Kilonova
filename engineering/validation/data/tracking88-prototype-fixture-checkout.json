@@ -1,0 +1,28 @@
+{
+  "command": [
+    "git",
+    "-c",
+    "core.autocrlf=true",
+    "checkout-index",
+    "--prefix=E:/Dev/aem/artifacts/pr-queue/tracking88-prototype-fixture-checkout-v1/",
+    "--",
+    "desktop/app/tests/fixtures/tracking-prototype/motion.webm",
+    "desktop/app/tests/fixtures/tracking-prototype/tracks.mstrack"
+  ],
+  "exitCode": 0,
+  "files": [
+    {
+      "path": "desktop/app/tests/fixtures/tracking-prototype/motion.webm",
+      "sha256": "3d83869cf562e3708faac68567a85cb1c429c538286805139927c9b26b04fc06",
+      "indexSha256": "3d83869cf562e3708faac68567a85cb1c429c538286805139927c9b26b04fc06",
+      "worktreeSha256": "3d83869cf562e3708faac68567a85cb1c429c538286805139927c9b26b04fc06"
+    },
+    {
+      "path": "desktop/app/tests/fixtures/tracking-prototype/tracks.mstrack",
+      "sha256": "bf02b43596c206cef0d9451e08a98409076ede774a8257a87141a260ad05cf55",
+      "indexSha256": "bf02b43596c206cef0d9451e08a98409076ede774a8257a87141a260ad05cf55",
+      "worktreeSha256": "bf02b43596c206cef0d9451e08a98409076ede774a8257a87141a260ad05cf55"
+    }
+  ],
+  "scope": "Packaging-only exact checkout identity; no new GPU execution"
+}
