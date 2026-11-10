@@ -1,0 +1,103 @@
+{
+  "scope": "Authored source/controllers, original measurement receipts and control logs; no video, photograph, annotations, track assets, inference weights or third-party code",
+  "bytes": 20078,
+  "sha256": "fc141b33172b4ea0f62724208ece0c75dad1b4c3b9204d3294ab21a8897ecd59",
+  "members": [
+    {
+      "name": "controls/controller.py",
+      "sha256": "8258aefc3e8215d5065fc12fbe6e39d4579b3ccf3e180fa723141d5dd6d88613",
+      "bytes": 1436
+    },
+    {
+      "name": "controls/receipt.json",
+      "sha256": "006d19df29a873c857795f65459bbb95e4d13ec3194d586746441719f9204161",
+      "bytes": 681
+    },
+    {
+      "name": "controls/stderr.log",
+      "sha256": "ba1d4405178050dff41b0abbe70007d02ec0fc5ab0e4d4d43fa3432e333eb5cd",
+      "bytes": 1912
+    },
+    {
+      "name": "controls/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "phone/controller.py",
+      "sha256": "a1ef48d93a494b8da4935bd9789e36c56c3aa59b83e6c5b8beb6b29aab63a7a5",
+      "bytes": 4987
+    },
+    {
+      "name": "phone/receipt.json",
+      "sha256": "e001ef7acd532e775ef4f34e38ef1ffbdda5d24d0cc60e26c11fb94eeb1124ba",
+      "bytes": 4761
+    },
+    {
+      "name": "mousepad/controller.py",
+      "sha256": "663573ae19af2ac958998628d72d9c1bd06e406e71ba2d806c49755198f28d0a",
+      "bytes": 4087
+    },
+    {
+      "name": "mousepad/receipt.json",
+      "sha256": "e212b2e8b76bd9d00519a9650a1cc38f7220d491f72a7361a1e07efb99cee05a",
+      "bytes": 3647
+    },
+    {
+      "name": "admission/controller.py",
+      "sha256": "72648df65fdcff4a0dfc511c45bd6dfbf4eb8dd8010279e582ea1cc8320e0a78",
+      "bytes": 1093
+    },
+    {
+      "name": "admission/calibration.stderr.log",
+      "sha256": "2a10fd99e3330283a575dbcf598ab32fc6ffe68bcdae4079f9be4e4c4dfa1a88",
+      "bytes": 535
+    },
+    {
+      "name": "admission/calibration.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "admission/diagnostics.stderr.log",
+      "sha256": "5d9346b45502fec388a3fed58ea4fcbaffe5905d061ea28d1cda35ba53dd3d51",
+      "bytes": 507
+    },
+    {
+      "name": "admission/diagnostics.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "admission/plate.stderr.log",
+      "sha256": "d013ec727e6596bb07b85e33abf6e39534b8d5a75679159a66a3f9f8c15ac5cc",
+      "bytes": 1946
+    },
+    {
+      "name": "admission/plate.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "admission/receipt.json",
+      "sha256": "c7f4644cf6152e53e5f4e3679b4d1c04ce3e82240de82dcef83554f14839e143",
+      "bytes": 1041
+    },
+    {
+      "name": "source/plate_flow.py",
+      "sha256": "58df01bfe60bf6f488eed3d43198ad9f2ffb692006f88768314b888209574f21",
+      "bytes": 14359
+    },
+    {
+      "name": "source/test_flow.py",
+      "sha256": "c86987c8a18554fd52f3fc7bf2ce163f9d37c2c03ef225877a8e9f4338991d5d",
+      "bytes": 9061
+    }
+  ],
+  "terminalResults": {
+    "controls": "exec e5bcb9 exit0",
+    "phone": "exec f7477e exit0",
+    "mousepad": "session54071 terminal005108 exit0 consumed",
+    "admission": "exec3f35f1 exit0"
+  }
+}

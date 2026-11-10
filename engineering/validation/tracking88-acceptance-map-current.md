@@ -1,5 +1,10 @@
 # Tracking #88: integrated acceptance map
 
+The [reference-window correction](tracking88-reference-window-current.md) now
+bounds full-resolution plane refinement support. Fresh complete two-mode phone
+and mousepad measurements still fail quality/coverage; the24 passing controls
+do not replace full native regression or qualify the tracker.
+
 The [new prototype/current-main integration](tracking88-prototype-main-integration-current.md)
 includes maintained main `e02b1975` and the reference-depth branch. Fresh complete
 tools/CV/CLI gates passed on their recorded earlier source. The latest frozen

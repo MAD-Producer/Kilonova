@@ -1,0 +1,223 @@
+{
+  "scope": "Authored source/controllers, original measurement receipts, control logs for three explicitly changed domain implementations; no media/annotations/track assets/runtime payloads",
+  "bytes": 43083,
+  "sha256": "277b1a528c150003f6842f301d966c073dfeada9af7571bb68b249b0a9782dad",
+  "members": [
+    {
+      "name": "v1/controls/controller.py",
+      "sha256": "8258aefc3e8215d5065fc12fbe6e39d4579b3ccf3e180fa723141d5dd6d88613",
+      "bytes": 1436
+    },
+    {
+      "name": "v1/controls/receipt.json",
+      "sha256": "006d19df29a873c857795f65459bbb95e4d13ec3194d586746441719f9204161",
+      "bytes": 681
+    },
+    {
+      "name": "v1/controls/stderr.log",
+      "sha256": "ba1d4405178050dff41b0abbe70007d02ec0fc5ab0e4d4d43fa3432e333eb5cd",
+      "bytes": 1912
+    },
+    {
+      "name": "v1/controls/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v1/phone/controller.py",
+      "sha256": "a1ef48d93a494b8da4935bd9789e36c56c3aa59b83e6c5b8beb6b29aab63a7a5",
+      "bytes": 4987
+    },
+    {
+      "name": "v1/phone/receipt.json",
+      "sha256": "e001ef7acd532e775ef4f34e38ef1ffbdda5d24d0cc60e26c11fb94eeb1124ba",
+      "bytes": 4761
+    },
+    {
+      "name": "v1/mousepad/controller.py",
+      "sha256": "663573ae19af2ac958998628d72d9c1bd06e406e71ba2d806c49755198f28d0a",
+      "bytes": 4087
+    },
+    {
+      "name": "v1/mousepad/receipt.json",
+      "sha256": "e212b2e8b76bd9d00519a9650a1cc38f7220d491f72a7361a1e07efb99cee05a",
+      "bytes": 3647
+    },
+    {
+      "name": "v1/admission/controller.py",
+      "sha256": "72648df65fdcff4a0dfc511c45bd6dfbf4eb8dd8010279e582ea1cc8320e0a78",
+      "bytes": 1093
+    },
+    {
+      "name": "v1/admission/receipt.json",
+      "sha256": "c7f4644cf6152e53e5f4e3679b4d1c04ce3e82240de82dcef83554f14839e143",
+      "bytes": 1041
+    },
+    {
+      "name": "v1/admission/calibration.stderr.log",
+      "sha256": "2a10fd99e3330283a575dbcf598ab32fc6ffe68bcdae4079f9be4e4c4dfa1a88",
+      "bytes": 535
+    },
+    {
+      "name": "v1/admission/calibration.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v1/admission/diagnostics.stderr.log",
+      "sha256": "5d9346b45502fec388a3fed58ea4fcbaffe5905d061ea28d1cda35ba53dd3d51",
+      "bytes": 507
+    },
+    {
+      "name": "v1/admission/diagnostics.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v1/admission/plate.stderr.log",
+      "sha256": "d013ec727e6596bb07b85e33abf6e39534b8d5a75679159a66a3f9f8c15ac5cc",
+      "bytes": 1946
+    },
+    {
+      "name": "v1/admission/plate.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v2/controls/controller.py",
+      "sha256": "d1ad4e7902655a7c186fa4aa5610ff277ba69a786898f869682a9239a98de049",
+      "bytes": 1446
+    },
+    {
+      "name": "v2/controls/receipt.json",
+      "sha256": "f2fb4bb7fb72ba0bca48f23d473c7974f8b01ec4dfafc69b602a99ed30cc553a",
+      "bytes": 682
+    },
+    {
+      "name": "v2/controls/stderr.log",
+      "sha256": "225fbfb6b14f3d29c08d00a0d8f62c5a0331abd52dc989d27670b999630cec3e",
+      "bytes": 1912
+    },
+    {
+      "name": "v2/controls/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v2/phone/controller.py",
+      "sha256": "e3cd8728d9d38f5e10ba29a3149991cd6e78e9d905fbb91d3eb6f2b5eb7e01e2",
+      "bytes": 5038
+    },
+    {
+      "name": "v2/phone/receipt.json",
+      "sha256": "b0dd413873f1ac213720cc6d9b3fdcbf9b17ba3c30136b647bce783b9899d67a",
+      "bytes": 4763
+    },
+    {
+      "name": "v2/mousepad/controller.py",
+      "sha256": "08b793be3132a61766d55b918017f8c4105d6296790e807a2d301b9889c3726b",
+      "bytes": 4128
+    },
+    {
+      "name": "v2/mousepad/receipt.json",
+      "sha256": "a326b834b7521a2ca4379e70df46555bd46780c79f96cb3b7146cd878a1f5ef7",
+      "bytes": 3643
+    },
+    {
+      "name": "v3/controls/controller.py",
+      "sha256": "09380b052d711f9a259dfbf005d2e910f2c3a55600316b577334c6ed37059e3c",
+      "bytes": 1446
+    },
+    {
+      "name": "v3/controls/receipt.json",
+      "sha256": "628c464ac9849aa10addfb0842f3a65ba999656094b95414d2d982c5da5e724f",
+      "bytes": 682
+    },
+    {
+      "name": "v3/controls/stderr.log",
+      "sha256": "955de92a300621e3a944da6adb9574528a4358d792ace8147af686a399cfc906",
+      "bytes": 1912
+    },
+    {
+      "name": "v3/controls/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v3/phone/controller.py",
+      "sha256": "af89aaf70df540ee5b0c43ec4f5f86950fe46a68928e000210e94202923af006",
+      "bytes": 5038
+    },
+    {
+      "name": "v3/phone/receipt.json",
+      "sha256": "e07e1b79e94eccfd8e7f4d927bcbb3c1b5f2272625740399876f3a8a742b6677",
+      "bytes": 4763
+    },
+    {
+      "name": "v3/mousepad/controller.py",
+      "sha256": "45c9774c8579ad3f10f9660fe8c91429070fbb59582fcb7ebfeafa4051ee5ed7",
+      "bytes": 4128
+    },
+    {
+      "name": "v3/mousepad/receipt.json",
+      "sha256": "0e3fcf4ad666d3d52c3928392f0fbaf0cab0737a425e76550f7d08c4384cc316",
+      "bytes": 3647
+    },
+    {
+      "name": "v3/admission/controller.py",
+      "sha256": "02a7f832860f8e1255bfd286d936e15b11f5957b839ec5d5c5c0e70172b82d48",
+      "bytes": 1101
+    },
+    {
+      "name": "v3/admission/receipt.json",
+      "sha256": "421b504017a414d333e38e808af6bca64cdddfb417cf3696e11e18d1d2929210",
+      "bytes": 1040
+    },
+    {
+      "name": "v3/admission/calibration.stderr.log",
+      "sha256": "7ee222f1452342a952061c2d8f26b6be960ce9857c002ea0afd78b38fcd15149",
+      "bytes": 535
+    },
+    {
+      "name": "v3/admission/calibration.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v3/admission/diagnostics.stderr.log",
+      "sha256": "20cc639dcec05013959f7169c8dbf29d0a2d005b86f8f6fd65d90ce4eaacc7c3",
+      "bytes": 507
+    },
+    {
+      "name": "v3/admission/diagnostics.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "v3/admission/plate.stderr.log",
+      "sha256": "14c913af2833e8b14f889b8f204689a0d4c1dd8c6fe11f4f1092c97a31a9eb12",
+      "bytes": 1946
+    },
+    {
+      "name": "v3/admission/plate.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "final-source/plate_flow.py",
+      "sha256": "d673569265d2b499d86fd800b8dc7c27d9cd589c3a29d4f660eb76df9663dfb6",
+      "bytes": 15459
+    },
+    {
+      "name": "final-source/test_flow.py",
+      "sha256": "c72b310a1983b412da09bc8baacd2c14516d2bec4d0a2e2b2fa7fcacc8e92f55",
+      "bytes": 9063
+    }
+  ],
+  "final_terminal_results": {
+    "controls": "exec7c568b exit0",
+    "phone": "exec1970f8 exit0",
+    "mousepad": "session26347 terminal50f0a4 exit0 consumed",
+    "admission": "exec0fda00 exit0"
+  }
+}

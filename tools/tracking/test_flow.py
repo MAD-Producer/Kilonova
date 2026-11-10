@@ -11,6 +11,38 @@ class FlowControls(unittest.TestCase):
         self.texture=flow.prepare(self.rng.integers(20,235,(160,192),np.uint8))
         self.seed=dict(id='feature',kind='point',position=[80.,70.])
 
+    def test_plane_seed_windows_stay_inside_selected_plane_after_manual_reseed(self):
+        seed=dict(kind='plane',roi=[24.,24.,128.,104.])
+        tracker=flow.Tracker(seed,self.texture)
+        matrices=[np.eye(3),np.array([[1.,.08,2.],[.02,.9,4.],[.0001,0.,1.]])]
+        radius=flow.LK_WINDOW//2+1+1+flow.LIMITS['prefilterKernel']//2
+        for matrix in matrices:
+            with self.subTest(matrix=matrix.tolist()):
+                tracker.reseed(self.texture,matrix)
+                self.assertGreaterEqual(len(tracker.points),flow.LIMITS['minimumFeatures'])
+                for x,y in tracker.points.astype(int):
+                    patch=tracker.reference_roi_mask[y-radius:y+radius+1,x-radius:x+radius+1]
+                    self.assertEqual(patch.shape,(2*radius+1,)*2)
+                    self.assertTrue(np.all(patch==255))
+
+    def test_plane_with_texture_only_at_boundary_refuses_instead_of_using_outside_support(self):
+        image=np.full((160,192),128,np.uint8)
+        noise=self.rng.integers(20,235,(104,128),np.uint8)
+        noise[9:-9,9:-9]=128
+        image[24:128,24:152]=noise
+        image=flow.prepare(image)
+        seed=dict(kind='plane',roi=[24.,24.,128.,104.])
+        # Verify this is textured in the selected region; refusal must come
+        # from window support rather than an accidentally empty control.
+        centres=np.zeros_like(image);centres[24:128,24:152]=255
+        found=flow.cv2.goodFeaturesToTrack(image,200,.01,5,mask=centres,blockSize=5)
+        self.assertIsNotNone(found)
+        self.assertGreaterEqual(len(found),flow.LIMITS['minimumFeatures'])
+        tracker=flow.Tracker(seed,image)
+        self.assertIsNone(tracker.initial)
+        self.assertFalse(tracker.active)
+        self.assertIn('too few source features',tracker.reason)
+
     def test_explicit_reference_tracks_analytic_translation_without_accumulated_drift(self):
         tracker=flow.Tracker(self.seed,self.texture)
         for index in range(1,21):

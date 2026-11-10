@@ -14,6 +14,18 @@ LIMITS = dict(forwardBackwardPixels=1.0, photometricError=12.0,
               minimumFeatures=16, minimumFitInliers=12, minimumInlierRatio=0.7,
               maximumFeatures=200, prefilterSigmaPixels=1.0, prefilterKernel=5,
               referenceAgreementPixels=1.0, planeConsensusMaxPixels=3.0)
+LK_WINDOW = 21
+
+
+def reference_window_support(mask, *, already_prefiltered=False):
+    # Full-resolution reference LK reads a window, interpolation neighbours,
+    # and already-prefiltered pixels. A valid centre alone is insufficient.
+    # The Scharr derivative also reads one neighbouring pixel.
+    radius = LK_WINDOW // 2 + 1 + 1
+    if not already_prefiltered:
+        radius += LIMITS['prefilterKernel'] // 2
+    return cv2.erode(mask, np.ones((2*radius+1,)*2, np.uint8),
+                     borderType=cv2.BORDER_CONSTANT, borderValue=0)
 
 
 def prepare(gray):
@@ -54,7 +66,7 @@ def flow(previous, current, points, initial=None, check_appearance=True):
     # A supplied correspondence already comes from adjacent-frame pyramidal LK.
     # Reference refinement stays at the full-resolution level: a coarse
     # pyramid can select an unrelated basin even for a two-pixel true motion.
-    options = dict(winSize=(21,21), maxLevel=3 if initial is None else 0,
+    options = dict(winSize=(LK_WINDOW,)*2, maxLevel=3 if initial is None else 0,
                    criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, .01),
                    minEigThreshold=1e-4)
     guess = None if initial is None else np.asarray(initial,np.float32).reshape(-1,1,2).copy()
@@ -139,6 +151,8 @@ class Tracker:
         quad = transform(matrix, [[x,y],[x+w,y],[x+w,y+h],[x,y+h]])
         mask = np.zeros(gray.shape, np.uint8)
         cv2.fillConvexPoly(mask, np.rint(quad).astype(np.int32), 255)
+        self.reference_roi_mask = mask.copy()
+        mask = reference_window_support(mask)
         found = cv2.goodFeaturesToTrack(gray, LIMITS['maximumFeatures'], .01, 5, mask=mask, blockSize=5)
         require(found is not None and len(found) >= LIMITS['minimumFeatures'], 'plane has too few source features')
         points = found.reshape(-1,2)
@@ -186,10 +200,25 @@ class Tracker:
             extent=(self.reference_gray.shape[1],self.reference_gray.shape[0])
             aligned=cv2.warpPerspective(current,warp,extent,
                 flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
-            support=cv2.warpPerspective(np.full(current.shape,255,np.uint8),warp,extent,
+            # Propagate the selected domain through filtering in current-image
+            # coordinates before rectification. A fixed reference-space margin
+            # cannot bound a source-space filter under a projective warp.
+            # Float masks retain partial interpolation support; UInt8 rounding
+            # could turn a nearly complete footprint back into an accepted255.
+            current_support=cv2.warpPerspective(self.reference_roi_mask.astype(np.float32),warp,
+                (current.shape[1],current.shape[0]),flags=cv2.INTER_LINEAR)
+            current_support=cv2.erode(current_support,
+                np.ones((LIMITS['prefilterKernel'],)*2,np.uint8),
+                borderType=cv2.BORDER_CONSTANT,borderValue=0)
+            support=cv2.warpPerspective(current_support,warp,extent,
                 flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
-            # Include the 21-pixel LK window and its interpolation neighbours.
-            support=cv2.erode(support,np.ones((23,23),np.uint8),borderType=cv2.BORDER_CONSTANT,borderValue=0)
+            # Both decoded-image support and the explicitly selected reference
+            # plane must cover the complete full-resolution refinement window.
+            reference_support=cv2.erode(self.reference_roi_mask,
+                np.ones((LIMITS['prefilterKernel'],)*2,np.uint8),
+                borderType=cv2.BORDER_CONSTANT,borderValue=0)
+            support=reference_window_support(np.minimum(support,reference_support),
+                already_prefiltered=True)
             residual,checked,_=flow(self.reference_gray,aligned,self.image_reference,
                 initial=self.image_reference)
             # Invalid flow coordinates must not enter integer conversion or a
