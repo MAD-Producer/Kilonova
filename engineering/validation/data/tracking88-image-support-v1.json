@@ -1,0 +1,47 @@
+{
+  "scope": "Authored observers and aggregate geometry/error partitions only; no frames, overlays, annotation arrays or track payloads",
+  "sourceHead": "eb9b4825",
+  "archive": "tracking88-image-support-v1.zip",
+  "bytes": 11028,
+  "sha256": "8b2b58b31d94cee6dab98b54a67281247c9cc396a2e5089ab20390e7923256be",
+  "originalEncodingFailure": {
+    "terminal": "50cbba",
+    "exitCode": 1,
+    "phase": "Before output directory and decode; checkpoint JSON used Windows default GBK instead of UTF-8"
+  },
+  "completedSparse": {
+    "terminal": "d63db3",
+    "exitCode": 0
+  },
+  "completedFullPartition": {
+    "terminal": "5c96ae",
+    "exitCode": 0
+  },
+  "members": [
+    {
+      "name": "initial-encoding-failure/controller.py",
+      "bytes": 6356,
+      "sha256": "6ee718822e98aa3f054353f991140a4f2d17e4c610431bf87686d3308b620c4d"
+    },
+    {
+      "name": "tracking88-corner-visibility-v1/controller.py",
+      "bytes": 3810,
+      "sha256": "c31aa5916cd65206b5f9b3e4918195ca3454b65decb0b80465e9967e55716cb1"
+    },
+    {
+      "name": "tracking88-corner-visibility-v1/receipt.json",
+      "bytes": 2604,
+      "sha256": "bf490f7a1b78929d91eed8a7e4f629968dd1db112291b621541f133eb36a9e1d"
+    },
+    {
+      "name": "tracking88-physical-extent-v2/controller.py",
+      "bytes": 6404,
+      "sha256": "def94b2a8ef6e5a4f58664c8d6331a3c248ceab5d9acbc45669bcac5641d9fa0"
+    },
+    {
+      "name": "tracking88-physical-extent-v2/receipt.json",
+      "bytes": 3726,
+      "sha256": "0f59af42d5e8a2e70684630e58e32e5ef1a5b9bb30342828f9273b807dd6625a"
+    }
+  ]
+}

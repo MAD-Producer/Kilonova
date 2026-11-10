@@ -1,5 +1,10 @@
 # Tracking #88: integrated acceptance map
 
+The [complete original-corner support partition](tracking88-image-support-current.md)
+now locates all21 historical and all10 final-window maximum-error failures at
+outside-image corners. Every corner remains in its original gate. This does not
+prove physical plane/annotation validity or resolve the failed coverage/quality.
+
 The [reference-window correction](tracking88-reference-window-current.md) now
 bounds full-resolution plane refinement support. Fresh complete two-mode phone
 and mousepad measurements still fail quality/coverage; the24 passing controls
