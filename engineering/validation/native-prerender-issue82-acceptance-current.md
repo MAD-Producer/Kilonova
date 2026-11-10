@@ -1,6 +1,10 @@
 # Issue 82 acceptance map
 
-Current integration: see [main-8573 integration](native-prerender-integration-main-8573-current.md). The latest completed combined result below remains failed; later component passes and rebasing do not qualify the final source.
+Current integration: see [main-ac65 integration](native-prerender-main-ac65-current.md).
+The latest completed combined result below remains failed; later selected
+controls, tool passes and rebasing do not qualify the final source. The older
+[main-8573 integration](native-prerender-integration-main-8573-current.md) remains
+source-bound evidence.
 
 Issue: [#82](https://github.com/MAD-Producer/Kilonova/issues/82).
 Delivery: [draft PR #575](https://github.com/MAD-Producer/Kilonova/pull/575).

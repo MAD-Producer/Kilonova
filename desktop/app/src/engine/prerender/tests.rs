@@ -27,7 +27,7 @@ fn frame() -> UiFrame {
 }
 fn receive<T>(
     events: &mut EventLoop<()>,
-    pending: &std::sync::mpsc::Receiver<Result<T, String>>,
+    pending: &std::sync::mpsc::Receiver<Result<T, Error>>,
 ) -> T {
     crate::native_test_support::receive(events, pending, Duration::from_secs(60))
         .unwrap()
@@ -250,3 +250,4 @@ fn native_idle_owner_presents_a_warm_frame_and_rejects_an_edited_source() {
 }
 
 mod input_poll_parking;
+mod input_poll_generation;

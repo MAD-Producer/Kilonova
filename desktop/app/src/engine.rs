@@ -1167,7 +1167,8 @@ impl Engine {
         self.check_running()?;
         // Publication uses the same generation before any background enqueue.
         // Never take the cancellation gate while holding the dispatch gate.
-        let prerender_input = if matches!(&command, Command::Present { .. } | Command::PresentFrozen { .. }) {
+        let prerender_input = if matches!(&command,
+            Command::Present { .. } | Command::PresentFrozen { .. } | Command::PresentPoll { .. }) {
             self.prerender_signals.preempt_for_present()?
         } else {
             if matches!(&command, Command::Seek { .. } | Command::SeekAudioPreview { .. }) {

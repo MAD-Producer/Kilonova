@@ -377,6 +377,7 @@ mod tests {
                     .recv_timeout(Duration::from_secs(5))
                     .unwrap()
                     .unwrap_err()
+                    .to_string()
                     .contains("surface"));
             }
             match (editing, drain(&mut worker).outcome) {

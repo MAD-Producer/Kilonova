@@ -458,7 +458,7 @@ impl Renderer {
         // The native initializer owns large pipeline futures. Keep the new
         // adapter-sharing boundary from embedding another copy of that state
         // or its large return value in callers on the default-stack GUI thread.
-        Box::pin(Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes)).await.map(|renderer| *renderer)
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes, registry)).await.map(|renderer| *renderer)
     }
     async fn new_on_adapter_with_options(
         adapter: wgpu::Adapter,
@@ -466,6 +466,7 @@ impl Renderer {
         timestamps: bool,
         allocation_budget: crate::AllocationBudget,
         precision_changes: bool,
+        registry: Option<motion_effects::Registry>,
     ) -> Result<Box<Self>> {
         let precision = crate::image_formats::color_precision(format)
             .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
@@ -733,7 +734,7 @@ impl Renderer {
         budget: crate::AllocationBudget,
     ) -> Result<Self> {
         let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
-        Box::pin(Self::new_on_adapter_with_options(adapter, format, false, budget, true)).await.map(|renderer| *renderer)
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, false, budget, true, None)).await.map(|renderer| *renderer)
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
     /// Successfully encoded snapshot draws in the latest local composition

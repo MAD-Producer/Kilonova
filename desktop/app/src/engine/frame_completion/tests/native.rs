@@ -176,6 +176,7 @@ fn native_pending_frames_complete_without_resampling_or_starving_edits_and_cance
         engine.float_window(7, floating.clone(), 64, 64).unwrap();
         let supported = engine.call(|reply|Command::TestStudy { operation: |id| motion_host::session::with_session(id, |s|
             Ok(serde_json::json!({"supported":s.graphics.as_ref().unwrap().renderer.driver_pipeline_cache_info().supported}))), reply }).unwrap()["supported"] == true;
+        engine.prerender_input(prerender::InputActivity::Pulse).unwrap();
         let first = engine.present_async(frame(0)).unwrap();
         if !supported {
             assert!(receive(&mut events, &first));
@@ -208,6 +209,9 @@ fn native_pending_frames_complete_without_resampling_or_starving_edits_and_cance
             first.try_recv(),
             Err(std::sync::mpsc::TryRecvError::Empty)
         ));
+        // A new input generation arrives after all three frame commands were
+        // dispatched. Resuming a deferred command must retain its older token.
+        engine.prerender_input(prerender::InputActivity::Pulse).unwrap();
         let before = engine.preview_info().unwrap()["video"]["renderAttempts"].clone();
         for _ in 0..65 {
             assert!(engine.preview_info().unwrap()["pipelinePreparation"]["preparing"] == true);
@@ -288,6 +292,11 @@ fn native_pending_frames_complete_without_resampling_or_starving_edits_and_cance
                 receive(&mut events, &rendered),
                 "Render must wait for the original frame preparation"
             );
+            assert!(engine.prerender_signals.input_pending().unwrap(),
+                "resumed frames acknowledged input newer than their dispatch");
+            assert!(receive(&mut events, &engine.present_poll_async(frame(0), false).unwrap()));
+            assert!(!engine.prerender_signals.input_pending().unwrap(),
+                "the current polling frame must acknowledge the pending input");
             crate::native_test_support::capture_ui(
                 &mut events,
                 &engine,
