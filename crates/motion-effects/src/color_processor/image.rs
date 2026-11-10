@@ -77,7 +77,10 @@ pub struct CompiledColorImageProcessor {
 }
 impl CompiledColorImageProcessor {
     pub fn is_opaque_display(&self) -> bool {
-        self.opaque_display
+        self.opaque_display && self.phase() == ColorProcessorPhase::WorkingToDisplay
+    }
+    pub fn is_opaque_output(&self) -> bool {
+        self.opaque_display && self.phase() == ColorProcessorPhase::WorkingToOutput
     }
     pub fn input_range(&self) -> CodeValueRange {
         self.input_range
@@ -162,6 +165,31 @@ impl ColorProcessorSource {
             return Err(invalid(
                 "opaque display",
                 "requires WorkingToDisplay with premultiplied full-range working RGB",
+            ));
+        }
+        self.compile_image_mode(
+            config,
+            selection,
+            CodeValueRange::FULL,
+            CodeValueRange::FULL,
+            true,
+        )
+    }
+
+    /// Explicit alpha-less export endpoint. Matte in linear working storage
+    /// before the project's output transform, never in encoded output RGB.
+    /// Existing display and alpha-preserving image programs remain separate.
+    pub fn compile_output_over_black(
+        &self,
+        config: &VerifiedColorConfig,
+        selection: &ColorSelection,
+    ) -> Result<CompiledColorImageProcessor> {
+        if self.phase != ColorProcessorPhase::WorkingToOutput
+            || self.input_alpha != AlphaMode::Premultiplied
+        {
+            return Err(invalid(
+                "opaque output",
+                "requires WorkingToOutput with premultiplied full-range working RGB",
             ));
         }
         self.compile_image_mode(

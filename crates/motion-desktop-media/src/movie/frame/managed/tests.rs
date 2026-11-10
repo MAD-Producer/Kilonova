@@ -1,5 +1,5 @@
 use super::*;
-use motion_core::{Asset, Content, Layer, color_management::*};
+use motion_core::{color_management::*, Asset, Content, Layer};
 use motion_effects::{
     color_config::*, color_processor::ColorProcessorPhase, native_color::NativeColorRuntime,
 };
@@ -9,17 +9,17 @@ use serde::Deserialize;
 mod resources;
 
 #[derive(Deserialize)]
-struct Reference {
-    configs: Vec<Config>,
+pub(crate) struct Reference {
+    pub(crate) configs: Vec<Config>,
 }
 #[derive(Deserialize)]
-struct Config {
-    manifest: ColorConfigManifest,
-    config: String,
-    selection: ColorSelection,
+pub(crate) struct Config {
+    pub(crate) manifest: ColorConfigManifest,
+    pub(crate) config: String,
+    pub(crate) selection: ColorSelection,
 }
 
-struct NativePlatform(PathBuf);
+pub(crate) struct NativePlatform(pub(crate) PathBuf);
 impl Platform for NativePlatform {
     fn name(&self) -> &'static str {
         "native-png-test"
@@ -70,12 +70,12 @@ impl Platform for NativePlatform {
         panic!("PNG export must not need a window")
     }
 }
-fn runtime() -> PathBuf {
+pub(crate) fn runtime() -> PathBuf {
     std::env::var_os("MOTION_TEST_OCIO_RUNTIME")
         .expect("explicit native OCIO runtime")
         .into()
 }
-fn reference() -> Reference {
+pub(crate) fn reference() -> Reference {
     serde_json::from_str(include_str!(
         "../../../../../motion-effects/tests/color_processor/reference.json"
     ))
@@ -108,7 +108,12 @@ fn signal(
         alpha,
     }
 }
-fn project(config: &Config, root: &Path, transfer: ColorTransfer, alpha: AlphaMode) -> Project {
+pub(crate) fn project(
+    config: &Config,
+    root: &Path,
+    transfer: ColorTransfer,
+    alpha: AlphaMode,
+) -> Project {
     let mut p = Project::new(64, 32, 30, 8).unwrap();
     let mut selection = config.selection.clone();
     let space = SpaceReference::Space {

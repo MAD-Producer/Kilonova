@@ -21,6 +21,8 @@ use std::{
 pub mod frame;
 pub mod durable;
 mod allocation_observation;
+#[cfg_attr(not(feature = "ffmpeg"), allow(dead_code))]
+mod managed;
 
 #[cfg(test)]
 fn package_budget_project() -> Project {
@@ -673,6 +675,8 @@ pub struct MovieResult {
     pub revision: u64,
     pub video_encoder: String,
     pub audio_codec: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_output: Option<serde_json::Value>,
 }
 
 /// A cheap, transferable source plan. Materialize it on an export worker.
@@ -1050,12 +1054,24 @@ impl FrozenMovie {
         use motion_render::{image_resources::Resolution, Renderer};
         use std::time::{Duration, Instant};
         control.check()?;
+        let p = &self.project;
+        let managed_color = !matches!(
+            p.color_management.as_ref(),
+            motion_core::color_management::ProjectColorManagement::Unmanaged {}
+        );
+        if managed_color {
+            managed::qualify(p)?;
+        }
         let mut report = |value: f64| {
             control.set_progress(value);
             progress(value);
         };
         let output = export_destination(output, &self.source_paths)?;
-        if !overwrite && output.try_exists().map_err(|e| format!("inspect MP4 destination: {e}"))? {
+        if !overwrite
+            && output
+                .try_exists()
+                .map_err(|e| format!("inspect MP4 destination: {e}"))?
+        {
             return Err(format!("MP4 output already exists: {}", output.display()));
         }
         let temporary = tempfile::Builder::new()
@@ -1063,37 +1079,73 @@ impl FrozenMovie {
             .suffix(".mp4")
             .tempfile_in(output.parent().unwrap())
             .map_err(|e| e.to_string())?;
-        let p = &self.project;
         self.depth.validate_project(p).map_err(|e| e.to_string())?;
-        let depth = self.depth.verify_sources_with_platform(self.assets.path(), self.platform.clone(), &|| control.check().map_err(Into::into))
+        let depth = self
+            .depth
+            .verify_sources_with_platform(self.assets.path(), self.platform.clone(), &|| {
+                control.check().map_err(Into::into)
+            })
             .map_err(|e| e.to_string())?;
         if depth.layer_count() > 0 && motion_host::render_sampling::needs_exposure(p)? {
             return Err("frozen calibrated depth with exposure sampling is not supported".into());
         }
+        if managed_color && depth.layer_count() > 0 {
+            return Err(
+                "MP4 colour phase=depth: calibrated depth requires explicit managed integration"
+                    .into(),
+            );
+        }
         let mut encoder =
             crate::encode::Mp4Encoder::new(temporary.path(), p.width, p.height, p.fps)?;
         let encoder_name = encoder.video_encoder.clone();
-        let mut renderer =
-            pollster::block_on(Renderer::headless_with_working_precision(p.working_precision, self.allocation_budget.clone())).map_err(|e| format!("export GPU: {e}"))?;
+        let mut renderer = pollster::block_on(Renderer::headless_with_working_precision(
+            p.working_precision,
+            self.allocation_budget.clone(),
+        ))
+        .map_err(|e| format!("export GPU: {e}"))?;
         renderer.set_effect_registry(self.registry.clone());
         renderer
             .set_memory_policy(self.memory_policy)
             .map_err(|e| e.to_string())?;
-        renderer
-            .configure_assets(p, self.assets.path())
-            .map_err(|e| e.to_string())?;
-        let mut scene = Scene::new(p).map_err(|error| error.to_string())?;
-        scene.set_model_source_catalog(renderer.model_source_catalog());
-        let document = if motion_host::render_sampling::needs_exposure(p)? {
-            Some(motion_render::exposure_scene::ExposureDocument::new(Arc::new(p.clone()))
-                .map_err(|error| error.to_string())?)
-        } else { None };
-        let target = renderer.sdr_video_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
-            .map_err(|error| error.to_string())?;
+        let mut managed = if managed_color {
+            Some(managed::ManagedMovie::prepare(
+                &mut renderer,
+                p,
+                self.assets.path(),
+                &*self.platform,
+                self.observation_request,
+                control,
+            )?)
+        } else {
+            None
+        };
+        let mut legacy = if !managed_color {
+            renderer
+                .configure_assets(p, self.assets.path())
+                .map_err(|e| e.to_string())?;
+            let mut scene = Scene::new(p).map_err(|error| error.to_string())?;
+            scene.set_model_source_catalog(renderer.model_source_catalog());
+            let document = if motion_host::render_sampling::needs_exposure(p)? {
+                Some(
+                    motion_render::exposure_scene::ExposureDocument::new(Arc::new(p.clone()))
+                        .map_err(|error| error.to_string())?,
+                )
+            } else {
+                None
+            };
+            let target = renderer
+                .sdr_video_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
+                .map_err(|error| error.to_string())?;
+            Some((scene, document, target))
+        } else {
+            None
+        };
         let mut proxies = motion_host::preview_video::PreviewVideoCache::default();
         let mut videos = motion_host::video_frames::VideoFrames::new(self.platform.clone());
         let mut mixer = motion_media::AudioMixer::new(p.clone(), self.assets.path())?;
-        let samples = self.range.sample_bounds(p.fps, motion_media::OUTPUT_RATE as u32)
+        let samples = self
+            .range
+            .sample_bounds(p.fps, motion_media::OUTPUT_RATE as u32)
             .map_err(|error| error.to_string())?;
         let total_samples = samples.end;
         let output_frames = self.frames();
@@ -1112,54 +1164,87 @@ impl FrozenMovie {
                 Some(f64::from(frame)),
                 || {
                     control.check()?;
-                    let pixels = if let Some(document) = &document {
-                        render_exposure_frame(&mut renderer, &mut videos, &mut proxies, p,
-                            document.clone(), self.assets.path(), f64::from(frame), control, &target)?
+                    let pixels = if let Some(managed) = managed.as_mut() {
+                        managed.render(&mut renderer, p, f64::from(frame), control)?
                     } else {
-                        // Scene::sample performs the same animated, expression and recursive
-                        // composition evaluation used by the editing host.
-                        scene
-                            .sample(p, f64::from(frame), None, &motion_core::ExpressionEvaluator)
-                            .map_err(|e| e.to_string())?;
-                        depth.attach_checked(&mut scene, &|| control.check().map_err(Into::into)).map_err(|e| e.to_string())?;
-                        renderer.retain_video_instances(&scene);
-                        renderer
-                            .prepare_scene_assets(&scene, Resolution::Full, false)
-                            .map_err(|e| e.to_string())?;
-                        let began = Instant::now();
-                        let decoded = loop {
-                            control.check()?;
-                            if let Some(frames) = videos.prepare_scene_exact(p, self.assets.path(), &scene)? {
-                                break frames;
+                        let (scene, document, target) = legacy
+                            .as_mut()
+                            .ok_or("movie export phase=frame: prepared renderer is unavailable")?;
+                        if let Some(document) = document {
+                            render_exposure_frame(
+                                &mut renderer,
+                                &mut videos,
+                                &mut proxies,
+                                p,
+                                document.clone(),
+                                self.assets.path(),
+                                f64::from(frame),
+                                control,
+                                target,
+                            )?
+                        } else {
+                            // Scene::sample performs the same animated, expression and recursive
+                            // composition evaluation used by the editing host.
+                            scene
+                                .sample(
+                                    p,
+                                    f64::from(frame),
+                                    None,
+                                    &motion_core::ExpressionEvaluator,
+                                )
+                                .map_err(|e| e.to_string())?;
+                            depth
+                                .attach_checked(scene, &|| control.check().map_err(Into::into))
+                                .map_err(|e| e.to_string())?;
+                            renderer.retain_video_instances(scene);
+                            renderer
+                                .prepare_scene_assets(scene, Resolution::Full, false)
+                                .map_err(|e| e.to_string())?;
+                            let began = Instant::now();
+                            let decoded = loop {
+                                control.check()?;
+                                if let Some(frames) =
+                                    videos.prepare_scene_exact(p, self.assets.path(), scene)?
+                                {
+                                    break frames;
+                                }
+                                if began.elapsed() > Duration::from_secs(30) {
+                                    return Err("export video frame decode timed out".into());
+                                }
+                                std::thread::sleep(Duration::from_millis(2));
+                            };
+                            for (object, decoded) in decoded {
+                                let source = scene
+                                    .video_layers()
+                                    .into_iter()
+                                    .find(|l| l.id == object)
+                                    .and_then(|l| l.video.as_ref())
+                                    .ok_or("export video instance missing")?
+                                    .asset;
+                                decoded.upload(&mut renderer, object, source)?;
                             }
-                            if began.elapsed() > Duration::from_secs(30) {
-                                return Err("export video frame decode timed out".into());
-                            }
-                            std::thread::sleep(Duration::from_millis(2));
-                        };
-                        for (object, decoded) in decoded {
-                            let source = scene
-                                .video_layers()
-                                .into_iter()
-                                .find(|l| l.id == object)
-                                .and_then(|l| l.video.as_ref())
-                                .ok_or("export video instance missing")?
-                                .asset;
-                            decoded.upload(&mut renderer, object, source)?;
+                            renderer
+                                .capture_sdr(scene, target)
+                                .map_err(|e| format!("render export frame {frame}: {e}"))?
+                                .0
+                                .pixels
                         }
-                        renderer
-                            .capture_sdr(&scene, &target)
-                            .map_err(|e| format!("render export frame {frame}: {e}"))?.0.pixels
                     };
                     control.check()?;
                     encoder.video_frame(&pixels, frame - self.range.in_frame)?;
-                    let until = u64::try_from(p.fps.ticks_at_frame(
-                        i64::from(frame) + 1,
-                        motion_media::OUTPUT_RATE as u32,
-                        motion_core::ClockRounding::Floor,
-                    ).map_err(|error| format!("export audio boundary frame={frame}: {error}"))?)
-                        .map_err(|error| format!("export audio boundary frame={frame}: {error}"))?
-                        .min(total_samples);
+                    let until = u64::try_from(
+                        p.fps
+                            .ticks_at_frame(
+                                i64::from(frame) + 1,
+                                motion_media::OUTPUT_RATE as u32,
+                                motion_core::ClockRounding::Floor,
+                            )
+                            .map_err(|error| {
+                                format!("export audio boundary frame={frame}: {error}")
+                            })?,
+                    )
+                    .map_err(|error| format!("export audio boundary frame={frame}: {error}"))?
+                    .min(total_samples);
                     while sample < until {
                         control.check()?;
                         let count = block_size.min((total_samples - sample) as usize);
@@ -1170,7 +1255,10 @@ impl FrozenMovie {
                         encoder.audio_frame(&pcm[..count * 2], sample - samples.start)?;
                         sample += count as u64;
                     }
-                    report(0.1 + f64::from(frame + 1 - self.range.in_frame) / f64::from(output_frames) * 0.88);
+                    report(
+                        0.1 + f64::from(frame + 1 - self.range.in_frame) / f64::from(output_frames)
+                            * 0.88,
+                    );
                     Ok(())
                 },
             )?;
@@ -1220,8 +1308,7 @@ impl FrozenMovie {
             } else {
                 temporary.persist_noclobber(&output)
             };
-            published
-                .map_err(|e| format!("publish MP4: {}", e.error))?;
+            published.map_err(|e| format!("publish MP4: {}", e.error))?;
             state.published = true;
         }
         report(1.0);
@@ -1235,6 +1322,7 @@ impl FrozenMovie {
             revision: self.revision,
             video_encoder: encoder_name,
             audio_codec: "aac",
+            color_output: managed.map(|managed| managed.description),
         })
     }
 }

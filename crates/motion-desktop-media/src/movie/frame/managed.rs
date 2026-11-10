@@ -185,7 +185,7 @@ pub(super) fn render(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 impl ManagedPng {
     pub fn encode(&self, path: &Path, width: u32, height: u32, pixels: &[u8]) -> Result<()> {

@@ -2,7 +2,7 @@
 use super::*;
 use motion_render::{image_resources::Resolution, Renderer, Scene};
 use std::time::{Duration, Instant};
-mod managed;
+pub(crate) mod managed;
 
 pub struct FrameFreezePlan {
     sources: MovieFreezePlan,

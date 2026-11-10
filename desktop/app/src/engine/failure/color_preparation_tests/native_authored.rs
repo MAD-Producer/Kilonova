@@ -14,6 +14,8 @@ mod compositions;
 mod surface;
 #[path = "native_png.rs"]
 mod png;
+#[path = "native_output.rs"]
+mod output;
 #[path = "native_masks.rs"]
 mod masks;
 #[cfg(target_os = "windows")]

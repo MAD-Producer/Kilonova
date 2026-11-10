@@ -35,6 +35,8 @@ pub(crate) mod observation;
 pub use images::{PreparedSourceImage, SourceImageRequest};
 mod native_authored;
 pub use native_authored::{prepare_native_authored_project, PreparedNativeAuthoredProject};
+mod native_output;
+pub use native_output::prepare_native_opaque_output;
 
 pub const MAX_PROGRAMS: usize = 256;
 pub const MAX_PROGRAM_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;

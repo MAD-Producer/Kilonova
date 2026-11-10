@@ -367,7 +367,9 @@ jobs:
           cargo test -p motion-host --lib color_preparation::tests --locked -- --include-ignored --nocapture --test-threads=1
           cargo test -p motion-host --test color_preparation authored:: --locked -- --ignored --nocapture --test-threads=1
           cargo test -p motion-desktop-media --lib movie::frame::managed::tests --locked -- --ignored --nocapture --test-threads=1
+          cargo test -p motion-desktop-media --lib movie::managed::tests --locked -- --ignored --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::png::managed_png_worker_preserves_default_channels_and_publishes_before_native_work --locked -- --ignored --exact --nocapture --test-threads=1
+          cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::output::opaque_output_retains_original_runtime_failure_and_default_error_channels --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::masks::managed_mask_budget_reaches_default_channels_and_recovers_frozen_png --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_initialization::native_initialization_exception_reaches_default_channels_without_changing_the_project --locked -- --ignored --exact --nocapture --test-threads=1
           cargo test -p motion-desktop --bin motion-studio engine::failure::color_preparation_tests::native_authored::unsupported_authored_consumer_reaches_default_channels_without_partial_publication --locked -- --ignored --exact --nocapture --test-threads=1
@@ -439,6 +441,20 @@ jobs:
       - name: Verify packaged-runtime video decoding
         if: github.event_name != 'pull_request'
         run: cargo test -p motion-desktop-media --locked --features ffmpeg,gpu-tests --test libav -- --test-threads=1
+      - name: Qualify managed MP4 colour output
+        if: github.event_name != 'pull_request'
+        env:
+          MOTION_TEST_OCIO_RUNTIME: ${{ github.workspace }}/artifacts/ocio-native/prefix/ocio-runtime.json
+          MOTION_COLOR_TEST_EVIDENCE: ${{ github.workspace }}/artifacts/ocio-native/managed-output
+        run: cargo test -p motion-desktop-media --locked --features ffmpeg,gpu-tests --lib movie::managed::tests -- --ignored --nocapture --test-threads=1
+      - name: Preserve managed MP4 qualification evidence
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: managed-mp4-${{ matrix.platform }}
+          path: artifacts/ocio-native/managed-output/**
+          if-no-files-found: warn
+          retention-days: 7
       - name: Package desktop release archive
         if: github.event_name != 'pull_request'
         run: python tools/package_desktop.py --binary artifacts/desktop/${{ matrix.binary }} --platform ${{ matrix.platform }} --build-report artifacts/desktop/desktop-build.json --ocio-runtime artifacts/ocio-native/prefix/ocio-runtime.json --output artifacts/desktop-release
