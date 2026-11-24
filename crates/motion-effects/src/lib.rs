@@ -4,6 +4,7 @@ pub mod image_contract;
 pub mod color_lut;
 pub mod color_config;
 pub mod color_processor;
+pub mod native_color;
 pub mod execution_plan;
 pub mod execution_template;
 pub mod pointwise;

@@ -7,6 +7,10 @@ use motion_core::composition::CompositionError;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
+    NativeColor(#[from] motion_effects::native_color::Error),
+    #[error(transparent)]
+    ColorPreparation(#[from] crate::color_preparation::Error),
+    #[error(transparent)]
     PipelinePreparation(#[from] std::sync::Arc<crate::PipelinePreparationError>),
     #[error(transparent)]
     TrackingSource(#[from] crate::tracking::project::Error),

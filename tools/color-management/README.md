@@ -1,8 +1,29 @@
 # 色彩管理准备与数值验收
 
-这是 #83 的底层 LUT 验收工具，不是应用的运行时依赖，也不是 OCIO 配置加载器。
-应用与 CI 测试只消费提交的独立 Cube 数值样例及参考 JSON，不要求安装 Python
-或 OpenColorIO。原生 Rust/WGSL 实现不链接 OCIO。
+本目录的 Python 工具只用于独立准备和验收，产品不依赖 Python。
+固定原生 OCIO 随桌面包交付的范围与限制见
+[`native-ocio-bundling.md`](../../engineering/validation/native-ocio-bundling.md)。
+
+## RGB 码值范围增量
+
+`compile_image_with_ranges` 在反预乘之后将明确的黑白码值归一化，在输出预乘
+之前重新编码。范围属于 `ColorImageContract`；绑定和编码都校验范围身份。
+全范围路径沿用原来的程序，不裁剪负值和高亮，也不改变透明度。
+原始目标显式包装接口声明全范围；有限范围生产者必须传完整 contract 分配或上传。
+
+```text
+python tools/color-management/generate_range_reference.py crates/motion-effects/tests/color_processor/reference.json <new-range-reference.json>
+```
+
+生成器使用固定外部 OCIO 2.6.0 和显式 Float32 边界，独占创建新参考文件。
+60 组参考覆盖三个阶段、原三份配置、透明度组合，以及输入 8 位有限范围、
+输出 10 位有限范围和两端有限范围。既有三份参考字节不变。CI 只消费参考，
+不会重跑生成器来更新验收值。这不代表普通 managed Session 已接入。
+
+## 独立 Cube 参考
+
+底层 LUT 验收只消费提交的独立 Cube 数值样例及参考 JSON；不把参考生成器
+当作应用运行时依赖，也不将 Cube 文件解析器当作 OCIO 配置加载器。
 
 在独立 Python 环境安装官方 `opencolorio==2.6.0` 后运行：
 
@@ -126,8 +147,23 @@ WGSL、Float32 RGBA 数值表及完整处理器身份。输入 JSON 最大 16 Mi
 建立不可变的源纹理绑定、管线和预算准入后的数值表。源和输出必须为颜色、
 Float32 且 alpha 与已准备程序完全一致；数据、深度、法线和覆盖率应走原有
 数值路径。本接口明确拒绝其他精度，不通过隐式裁剪掩盖 half-float 溢出。
-`ImageContract` 中历史 Linear/sRGB 标签不能替代完整 OCIO 空间：调用方仍须
-保证图片值属于编译时明确选择的空间，本批没有新增工程/资产的完整空间标记。
+`ImageContract` 中历史 Linear/sRGB 标签不能替代完整 OCIO 空间。后续接线
+使用 `ColorImageContract` 和 `ColorImageTarget`，将完整配置 hash 与明确空间/
+display/view 的身份带入纹理；`VerifiedColorConfig::space_identity` 解析角色为
+规范空间名，同一角色和名称得到相同身份。编译后的处理器公开两端身份，
+创建绑定时检查源与输出声明，编码时再次检查目标。错误返回 typed
+`ColorSpaceMismatch`，没有隐式改标签或替代变换。原始存储管线已收为私有。
+
+`Renderer::color_image_target` 分配有明确身份的浮点纹理；
+`ColorImageTarget::from_image` 是生产者显式声明边界，拒绝数据图像、整数
+存储和旧 sRGB 语义，不能替代像素转换。内部 Linear 标签仅为原有 ABI 选择
+不做传递函数的浮点存储。`read_color_image_target` 同时返回空间身份与原始
+字节；读取仍只用于明确导出/验收。普通 scene/effect DAG 尚未使用此身份。
+
+两阶段 CPU 参考保存在 `chain_reference.json`：三份原始配置、14 组输入→工作
+空间→显示/输出，含透明度组合；每阶段按 Float32 存储量化，记录原参考文件
+SHA-256。原始配置、shader 和数值表保持不变。对应 GPU 测试在同一编码器内
+连续建立两次绘制，中间不读回 CPU，另验证空间/配置不匹配时不分配表、不写目标。
 
 每帧复用该绑定，经原有 `AllocationEncoder` 调用 `encode`，目标必须等大、
 与源分离且声明匹配。提交仍走 `Renderer::submit_allocated`，合并绑定与目标
@@ -138,3 +174,77 @@ GPU 创建失败返回 `RenderError::ColorProcessorPipeline`，原始 wgpu cause
 相关错误、poll 和可能的首要预算错误分别保留。外层文字仅包含阶段、短身份
 和错误种类，不展示整段 shader。宿主命令、开始/在途状态和默认日志/错误信道
 尚未接线，不能把这些库级返回值描述为应用错误提示已完成。
+
+## 工程与宿主 CPU 准备边界
+
+工程现在通过 `ProjectColorManagement` 显式保存配置、选择和素材解释；
+`motion_core::storage::read_color_config` 读取项目目录内的完整哈希资源闭包。
+这些字段及资源验证不等于 managed 渲染已启用。
+
+`motion_host::color_preparation::prepare_project_colors` 接受工程、项目目录、
+可信程序准备器回调和带 request ID 的 `Observation`。回调收到确切配置字节、
+完整选择、阶段与两端 alpha，返回已有 `ColorProcessorSource`；它不自动启动
+外部 OCIO/Python，不搜索配置，不选择替代角色或变换。项目中的不同输入由
+各自程序处理，相同请求复用 `Arc`；数据素材保持独立路由。全部编译成功才
+返回不可变程序集。当前只准入 full-range，有限范围输入不会被错误套用
+full-range 程序。程序数、编译 shader/数值表有效载荷均有硬上限。
+
+准备必须在调用方的非 Present 操作中执行。进入文件读取、准备器或编译前
+发布 in-flight 并写 Info；实际失败保留原始 source，通过现有 logger 记录 Error。
+unmanaged 是正常 None。独立观察不需要会话锁；不返回的准备器保持在途，
+panic 传播并由 RAII 清理状态。接口不新增线程、重试、重启或产品超时。
+
+这一步仍未将程序集安装进普通 Session/Scene、合成和 effect DAG、显示或
+导出链。managed 工程的既有拒绝边界继续存在。实际数值程序和高位深/OS
+显示能力分别验收，不能由 CPU 准备成功推断。见
+[本次交付与限制](../../engineering/validation/project-color-preparation.md)。
+
+## Float32 素材上传与 GPU-only 目标
+
+`Renderer::upload_color_image_f32` 接受明确空间身份、alpha 和 Float32 RGBA，
+在分配前检查数量与有限值，保留负值、高光及通道位模式；不执行色彩转换或
+预乘。调用方提供正确的像素解释，再通过明确程序变换。写队列前接入原有
+pending-upload 预算保留，未提交时销毁包装也不会提前释放准入。
+
+`color_image_target` 不再预留整图读回缓冲；显式读回才创建有预算准入的临时
+缓冲并在完成后释放。原 `image_capture_target` 的可复用读回缓冲行为保持。
+这还不是普通素材解码或 Session 接线，不据此宣称高位深导入或 HDR 显示完成。
+见[上传与资源验收](../../engineering/validation/color-upload-preparation.md)。
+
+## 原生合成目标交接
+
+`Renderer::color_image_from_render_target` 消费已有 Float32 `RenderTarget`，
+把同一个纹理、view 与准入移交给 `ColorImageTarget`，不复制或读回像素。
+实际存储必须为 Rgba32Float，alpha 来自原生合成的 premultiplied 契约。
+宽高读取真实纹理描述符；公开 view 被替换成其他纹理时明确拒绝。
+准备一次后，原生 Scene 可复用 `image().view()` 写帧，接着在同一编码器内
+调用 `ColorProcessorOutput::encode` 执行明确 display/output 变换。
+
+空间身份仍须由生产者正确声明，不会把普通 Scene 的线性 sRGB 自动变成
+ACES。该接口没有解除 managed Session 拒绝边界，也没有安装 OS 显示链。
+见[原生 Scene 像素与错误验收](../../engineering/validation/color-native-scene.md)。
+
+## 原始静态文件的输入准备
+
+`PreparedProjectColors::prepare_source_image` 按工程素材 ID 读取 PNG/JPEG，
+使用已准备的逐素材解释生成可复用的工作空间 Float32 纹理。原始 PNG 支持
+8/16 位、灰度、调色板透明度和 Adam7；保留存储样本，不自动解码 sRGB、不
+预乘、不缩放，也不读写 RGBA8 代理。JPEG 使用实际解码的 8 位样本。输入
+空间及 alpha 解释仍由工程明确指定，不能从文件扩展名猜测。
+
+CPU 输出有效载荷受 renderer 的 decoded-image 预算约束；PNG codec 工作区
+另限 16 MiB，JPEG 同时准入其解码图和 Float32 输出。这不是整个进程的内存
+测量。输入纹理、变换表和工作纹理遵守已有 GPU 准入及在途保留，不在生产
+准备路径读回 CPU。全部成功后才返回工作纹理；数据路由返回正常 None，
+未知素材、视频或过期配置明确拒绝。取消检查到第一次队列写入之前，之后
+完成一次提交；GPU 准备失败时已排队上传仍按已有规则保留到后续提交完成。
+
+原文件输入的 CPU 数值参考可用固定外部运行时重建到新文件：
+
+```powershell
+python tools/color-management/generate_source_reference.py crates/motion-effects/tests/color_processor/reference.json output/source_reference.json
+```
+
+该入口尚未安装到普通 Session/Scene，也没有接通视频、EXR、图像序列、导出
+编码或 OS 显示链。原文件→工作空间→display/output 的库级验收不等于这些
+功能已经启用。详见[原文件输入验收](../../engineering/validation/color-original-source.md)。

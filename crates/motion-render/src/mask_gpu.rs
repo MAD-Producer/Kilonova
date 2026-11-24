@@ -36,6 +36,7 @@ pub(crate) struct MaskGpu {
     scratch: Vec<FxTexture>,
     scratch_size: (u32, u32),
     fingerprints: HashMap<u64, u64>,
+    raster_invalidated: std::sync::Arc<std::sync::atomic::AtomicBool>,
     meshes: HashMap<(u64,u64),(u64,crate::allocation_buffer::AllocationBuffer)>,
     active_layers_scratch: HashSet<u64>,
     active_meshes_scratch: HashSet<(u64, u64)>,
@@ -75,6 +76,7 @@ impl MaskGpu {
             uniform_layout: self.uniform_layout.clone(), input_layout: self.input_layout.clone(),
             sampler: self.sampler.clone(), uniforms: vec![], inputs_cached: false,
             scratch: vec![], scratch_size: (0, 0), fingerprints: HashMap::new(),
+            raster_invalidated: Default::default(),
             meshes: HashMap::new(), active_layers_scratch: HashSet::new(),
             active_meshes_scratch: HashSet::new(), uploads: 0,
             #[cfg(test)]
@@ -87,6 +89,10 @@ impl MaskGpu {
         for (i,t) in self.scratch.iter().enumerate() {
             ledger.retained(&t.texture, crate::TextureCategory::MaskScratch, format!("masks/scratch/{i}"));
         }
+    }
+    /// An abandoned encoder has not published its cached coverage pixels.
+    pub(crate) fn authored_raster_guard(&self) -> crate::layer_gpu::raster_guard::RasterGuard {
+        crate::layer_gpu::raster_guard::RasterGuard::new(self.raster_invalidated.clone())
     }
     #[cfg(test)]
     pub fn new(device: &wgpu::Device, image_layout: &wgpu::BindGroupLayout,
@@ -239,6 +245,7 @@ impl MaskGpu {
             scratch: vec![],
             scratch_size: (0, 0),
             fingerprints: HashMap::new(),
+            raster_invalidated: Default::default(),
             meshes: HashMap::new(),
             active_layers_scratch: HashSet::new(),
             active_meshes_scratch: HashSet::new(),
@@ -519,6 +526,9 @@ impl MaskGpu {
     ) -> Result<bool, RenderError> {
         #[cfg(test)]
         self.input_binding_observations.clear();
+        if self.raster_invalidated.swap(false, std::sync::atomic::Ordering::AcqRel) {
+            self.fingerprints.clear();
+        }
         let mut active = std::mem::take(&mut self.active_layers_scratch);
         let mut active_meshes = std::mem::take(&mut self.active_meshes_scratch);
         active.extend(masks.iter().map(|m| scene.layers[m.layer].id));

@@ -92,8 +92,15 @@ impl Buffers {
         }
     }
     pub fn admitted(renderer: &Renderer, format: wgpu::TextureFormat) -> Result<Self, RenderError> {
+        Self::admitted_mode(renderer, format, false)
+    }
+    pub(super) fn admitted_display_codes(renderer: &Renderer, format: wgpu::TextureFormat) -> Result<Self, RenderError> {
+        Self::admitted_mode(renderer, format, true)
+    }
+    fn admitted_mode(renderer: &Renderer, format: wgpu::TextureFormat, display_codes: bool) -> Result<Self, RenderError> {
         let buffer = |label, writable| -> Result<Buffer, RenderError> {
-            let mode = Self::mode(format, writable);
+            let mut mode = Self::mode(format, writable);
+            mode[0] |= u32::from(display_codes) << 2;
             Ok(Buffer::Admitted {
                 buffer: AllocationBuffer::new_init(
                     &renderer.device,

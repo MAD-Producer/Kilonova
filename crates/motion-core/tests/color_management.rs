@@ -8,6 +8,48 @@ use std::{error::Error as _, sync::Arc};
 mod fixture;
 
 #[test]
+fn signal_transfer_is_required_explicit_and_preserved_by_history() {
+    let mut signal = fixture::signal("sdr-video", ReferenceSpace::Display);
+    assert_eq!(signal.transfer, ColorTransfer::ConfigDefined);
+    for transfer in [
+        ColorTransfer::Linear,
+        ColorTransfer::Srgb,
+        ColorTransfer::ConfigDefined,
+    ] {
+        signal.transfer = transfer;
+        let mut value = serde_json::to_value(&signal).unwrap();
+        assert_eq!(
+            serde_json::from_value::<ColorSignal>(value.clone()).unwrap(),
+            signal
+        );
+        value.as_object_mut().unwrap().remove("transfer");
+        assert!(serde_json::from_value::<ColorSignal>(value)
+            .unwrap_err()
+            .to_string()
+            .contains("transfer"));
+    }
+    let mut value = serde_json::to_value(&signal).unwrap();
+    value["transfer"] = serde_json::json!("infer_from_encoding");
+    assert!(serde_json::from_value::<ColorSignal>(value).is_err());
+
+    let mut settings = fixture::settings();
+    settings.display.transfer = ColorTransfer::Srgb;
+    let mut engine = Engine::new(fixture::project()).unwrap();
+    let before = engine.snapshot();
+    engine
+        .apply_batch(vec![Command::SetColorManagement {
+            settings: fixture::managed(settings),
+        }])
+        .unwrap();
+    let after = engine.snapshot();
+    assert_ne!(after.color_management, before.color_management);
+    assert!(engine.undo().unwrap());
+    assert_eq!(engine.snapshot(), before);
+    assert!(engine.redo().unwrap());
+    assert_eq!(engine.snapshot(), after);
+}
+
+#[test]
 fn explicit_default_and_current_format_never_invent_missing_color_settings() {
     let original = Project::new(64, 64, 30, 120).unwrap();
     assert_eq!(

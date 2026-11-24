@@ -1,4 +1,35 @@
 use super::*;
+
+#[test]
+fn color_command_cause_keeps_native_io_after_a_long_path_without_replacing_error() {
+    let root = tempfile::tempdir().unwrap();
+    let io = std::fs::File::open(root.path().join("absent-ocio-manifest.json")).unwrap_err();
+    let original_cause = io.to_string();
+    let original_kind = io.kind();
+    let path = "界".repeat(6000);
+    let error = motion_host::Error::ColorPreparation(motion_host::color_preparation::Error::Provider {
+        target: motion_host::color_preparation::Target::DefaultInput,
+        phase: motion_effects::color_processor::ColorProcessorPhase::InputToWorking,
+        source: Box::new(motion_host::Error::NativeColor(motion_effects::native_color::Error::Io {
+            phase: "manifest", path: path.clone(), source: io,
+        })),
+    });
+    let text = command_cause(&error);
+    assert!(text.contains("provider failed") && text.contains("phase=manifest"), "{text}");
+    assert!(text.contains(&original_cause), "{text}");
+    assert!(text.chars().count() <= 2048);
+    assert!(!text.contains(&path));
+    // Negative control: the old outer-only formatting loses the native cause.
+    assert!(!crate::fallback_observation::error_cause(&error).contains("phase=manifest"));
+    let motion_host::Error::ColorPreparation(motion_host::color_preparation::Error::Provider { source, .. }) = error else { unreachable!() };
+    let motion_host::Error::NativeColor(motion_effects::native_color::Error::Io { phase, path: retained, source }) = *source else { unreachable!() };
+    assert_eq!(phase, "manifest");
+    assert_eq!(retained, path);
+    assert_eq!(source.kind(), original_kind);
+    assert_eq!(source.to_string(), original_cause);
+    let ordinary = motion_host::Error::from("ordinary host failure");
+    assert_eq!(command_cause(&ordinary), crate::fallback_observation::error_cause(&ordinary));
+}
 use crate::engine::{respond, Command, Engine};
 use serde_json::json;
 use std::{path::PathBuf, sync::mpsc::channel};

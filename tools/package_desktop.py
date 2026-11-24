@@ -110,7 +110,7 @@ def runtime_payload(manifest_path, platform):
     return manifest, files
 
 
-def package(binary, platform, build_report, output, *, sign=True):
+def package(binary, platform, build_report, output, *, sign=True, ocio_runtime=None):
     from ci_release import build_kind, release_kind, version_code
     binary = Path(binary).resolve()
     if not binary.is_file():
@@ -124,6 +124,10 @@ def package(binary, platform, build_report, output, *, sign=True):
     if not build.get("ffmpeg_runtime"):
         raise ValueError("FFmpeg-enabled release has no runtime manifest")
     runtime, runtime_files = runtime_payload(build["ffmpeg_runtime"], platform)
+    ocio, ocio_files = None, []
+    if ocio_runtime is not None:
+        from prepare_ocio import runtime_payload as ocio_payload
+        ocio, ocio_files = ocio_payload(ocio_runtime, platform)
     kind = build_kind(os.environ["GITHUB_EVENT_NAME"], os.environ["GITHUB_REF"])
     base_version = (release_kind(os.environ["GITHUB_REF"])[1] if kind != "validation"
                     else tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"])
@@ -159,6 +163,17 @@ def package(binary, platform, build_report, output, *, sign=True):
             shutil.copy2(source, destination)
             bundled.append(destination)
         (staging / "FFmpeg-SOURCE.json").write_text(json.dumps(runtime, indent=2) + "\n", encoding="utf-8")
+        ocio_dir = (staging / "MotionStudio.app/Contents/Resources/ocio" if platform.startswith("macos-")
+                    else staging / "native/ocio")
+        if ocio is not None:
+            for source, relative in ocio_files:
+                destination = ocio_dir / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, destination)
+                bundled.append(destination)
+            receipt = staging / "OCIO-SOURCE.json"
+            receipt.write_text(json.dumps(ocio, indent=2) + "\n", encoding="utf-8")
+            bundled.append(receipt)
         if platform.startswith("macos-"):
             app = staging / "MotionStudio.app"
             plist = {
@@ -174,10 +189,30 @@ def package(binary, platform, build_report, output, *, sign=True):
                     raise ValueError("macOS app signing requires the macOS runner")
                 for library in sorted(native_dir.glob("*.dylib")):
                     subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(library)], check=True)
+                if ocio is not None:
+                    for library in sorted(ocio_dir.glob("lib/*.dylib")):
+                        subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(library)], check=True)
+                    # Signing changes bytes; keep source receipt unchanged and
+                    # bind the runtime manifest to the actual signed payload.
+                    for entry in ocio["files"]:
+                        entry["sha256"] = digest(ocio_dir / entry["path"])
+            if ocio is not None:
+                manifest = ocio_dir / "ocio-runtime.json"
+                manifest.write_text(json.dumps(ocio, indent=2) + "\n", encoding="utf-8")
+                bundled.append(manifest)
+            if sign:
                 subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(app)], check=True)
                 subprocess.run(["codesign", "--verify", "--strict", str(app)], check=True)
             info["signing"] = "ad-hoc" if sign else "test-only-unsigned"
             info["notarised"] = False
+        elif ocio is not None:
+            manifest = ocio_dir / "ocio-runtime.json"
+            manifest.write_text(json.dumps(ocio, indent=2) + "\n", encoding="utf-8")
+            bundled.append(manifest)
+        if ocio is not None:
+            info["capabilities"]["ocioNative"] = True
+            info["ocio"] = {"version": ocio["version"], "sourceLockSha256": ocio["sourceLockSha256"],
+                            "manifest": manifest.relative_to(staging).as_posix()}
         info["runtimeFiles"] = [{"path": p.relative_to(staging).as_posix(), "sha256": digest(p)} for p in bundled]
         info["ffmpeg"] = runtime["provenance"]
         archive = Path(temporary) / info["archive"]
@@ -233,7 +268,10 @@ def collect_desktop_assets(folder, release):
         name = archive_name(platform, release["kind"], release["versionName"])
         if info.get("schemaVersion") != 1 or info.get("platform") != platform or info.get("archive") != name:
             raise ValueError("Desktop platform/archive mismatch")
-        if info.get("capabilities") != {"ffmpeg": True, "videoEncoder": False}:
+        expected_capabilities = {"ffmpeg": True, "videoEncoder": False}
+        if "ocio" in info:
+            expected_capabilities["ocioNative"] = True
+        if info.get("capabilities") != expected_capabilities:
             raise ValueError("Unverified desktop runtime dependencies")
         if platform.startswith("macos-") and info.get("signing") != "ad-hoc":
             raise ValueError("macOS app bundle was not signed")
@@ -244,6 +282,36 @@ def collect_desktop_assets(folder, release):
         if len(runtime) < 5 or not info.get("ffmpeg", {}).get("source"):
             raise ValueError("Desktop FFmpeg runtime evidence is missing")
         with (tarfile.open(path) if platform == "linux-x86_64" else zipfile.ZipFile(path)) as bundle:
+            if "ocio" in info:
+                from prepare_ocio import runtime_identity
+                expected_manifest = ("MotionStudio.app/Contents/Resources/ocio/ocio-runtime.json"
+                                     if platform.startswith("macos-") else "native/ocio/ocio-runtime.json")
+                if info["ocio"].get("manifest") != expected_manifest:
+                    raise ValueError("Invalid bundled OCIO manifest path")
+                read = bundle.extractfile if platform == "linux-x86_64" else bundle.open
+                with read(expected_manifest) as source:
+                    data = source.read(65537)
+                    if len(data) > 65536:
+                        raise ValueError("Bundled OCIO manifest exceeds capacity")
+                    native = json.loads(data)
+                runtime_identity(native, platform)
+                if (info["ocio"].get("version") != native["version"]
+                        or info["ocio"].get("sourceLockSha256") != native["sourceLockSha256"]):
+                    raise ValueError("Bundled OCIO source receipt differs")
+                actual = {entry["path"]: entry["sha256"] for entry in runtime}
+                base = str(Path(expected_manifest).parent).replace("\\", "/")
+                for entry in native["files"] + native["licenses"]:
+                    if actual.get(base + "/" + entry["path"]) != entry["sha256"]:
+                        raise ValueError("Bundled OCIO runtime inventory incomplete")
+                if expected_manifest not in actual:
+                    raise ValueError("Bundled OCIO manifest is not content-bound")
+                if "OCIO-SOURCE.json" not in actual:
+                    raise ValueError("Bundled OCIO source receipt is not content-bound")
+                with read("OCIO-SOURCE.json") as source:
+                    data = source.read(65537)
+                    if len(data) > 65536:
+                        raise ValueError("Bundled OCIO source receipt exceeds capacity")
+                    runtime_identity(json.loads(data), platform)
             for entry in runtime:
                 member = entry["path"]
                 if Path(member).is_absolute() or ".." in Path(member).parts or "\\" in member:
@@ -265,9 +333,11 @@ def main():
     parser.add_argument("--binary", required=True)
     parser.add_argument("--platform", choices=PLATFORMS, required=True)
     parser.add_argument("--build-report", required=True)
+    parser.add_argument("--ocio-runtime", help="Explicit pinned native OCIO manifest to include")
     parser.add_argument("--output", default="artifacts/desktop-release")
     args = parser.parse_args()
-    print(json.dumps(package(args.binary, args.platform, args.build_report, args.output), indent=2))
+    print(json.dumps(package(args.binary, args.platform, args.build_report, args.output,
+                             ocio_runtime=args.ocio_runtime), indent=2))
 
 
 if __name__ == "__main__":

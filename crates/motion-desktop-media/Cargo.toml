@@ -30,6 +30,7 @@ serde_json.workspace = true
 sha2 = "0.10"
 log.workspace = true
 image.workspace = true
+png = "=0.18.1"
 wgpu.workspace = true
 pollster.workspace = true
 raw-window-handle = "0.6"

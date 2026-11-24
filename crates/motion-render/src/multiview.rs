@@ -201,14 +201,19 @@ pub struct ViewInspection<'a> {
     pub channel: crate::ViewChannel,
     pub region: Option<[f32; 4]>,
     pub comparison: Option<(&'a RenderTarget, f32)>,
+    pub managed_comparison: Option<(&'a crate::ManagedDisplaySnapshot, f32)>,
 }
 impl ViewInspection<'_> {
     pub fn validate(&self, placement: ViewPlacement) -> Result<(), RenderError> {
+        if self.comparison.is_some() && self.managed_comparison.is_some() {
+            return Err(RenderError::Invalid("viewer inspection mixes legacy and managed comparison sources".into()));
+        }
         Presenter::inspection_scissors(
             placement.viewport,
             placement.image,
             self.region,
-            self.comparison.map(|(_, split)| split),
+            self.comparison.map(|(_, split)| split)
+                .or_else(||self.managed_comparison.map(|(_, split)| split)),
         )?;
         Ok(())
     }
@@ -301,6 +306,9 @@ impl ViewFramePresenter {
         }
         for (index, placement) in placements.iter().enumerate() {
             let inspection = &inspections[index];
+            if inspection.managed_comparison.is_some() {
+                return Err(RenderError::Invalid("managed comparison requires the typed managed consumer".into()));
+            }
             inspection
                 .validate(*placement)
                 .map_err(|cause| RenderError::Context {

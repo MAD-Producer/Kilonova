@@ -5,6 +5,8 @@ use serde::Serialize;
 pub(crate) mod instance_ids;
 mod depth;
 mod view;
+mod authored;
+pub use authored::{AuthoredSceneError, AuthoredSceneFrame, AuthoredSceneSampler};
 pub use view::ViewCamera;
 // Bounded authored payload per scene; old/new samples may coexist during refresh.
 const MAX_CURVE_SOURCE_BYTES: usize = 32 * 1024 * 1024;
@@ -109,6 +111,9 @@ pub(crate) fn plane_size(scene: &Scene, layer: &DrawLayer, overlay: bool) -> [f3
 }
 #[derive(Clone, Debug)]
 pub struct Scene {
+    // Copied inspection contexts retain their meaning. Only the explicit
+    // authored renderer can consume these already transformed paint values.
+    color_contract: Option<crate::ColorImageContract>,
     pub camera: CameraPose,
     pub camera_viewport: [f32; 4],
     camera_sample: Option<motion_model::CameraSample>,
@@ -160,6 +165,16 @@ pub struct NestedScene {
     pub scene: std::sync::Arc<Scene>,
 }
 impl Scene {
+    pub fn color_contract(&self) -> Option<crate::ColorImageContract> { self.color_contract }
+    pub(crate) fn require_legacy_colors(&self) -> std::result::Result<(), crate::RenderError> {
+        if self.color_contract.is_some() {
+            return Err(AuthoredSceneError::Admission {
+                phase: "consumer", object: None,
+                reason: "managed working colors require an explicit authored render consumer",
+            }.into());
+        }
+        Ok(())
+    }
     /// Install immutable source ownership before sampling, including child scenes.
     pub fn set_model_source_catalog(&mut self, catalog: crate::ModelSourceCatalog) { self.model_sources = catalog; }
     pub fn model_source_catalog(&self) -> crate::ModelSourceCatalog { self.model_sources.clone() }
@@ -219,6 +234,7 @@ impl Scene {
         let mut context = Self::empty(self.camera, self.background, self.width, self.height,
             self.fps, self.composition_id.clone());
         context.camera_viewport = self.camera_viewport;
+        context.color_contract = self.color_contract;
         context.camera_sample = self.camera_sample;
         context.model_sources = self.model_sources.clone();
         context.depth_required = self.depth_required.clone();
@@ -248,6 +264,7 @@ impl Scene {
     }
     fn empty(camera: CameraPose, background: [f32; 4], width: u32, height: u32, fps: motion_model::FrameRate, composition_id: String) -> Self {
         Self {
+            color_contract: None,
             camera,
             camera_viewport: [0., 0., width as f32, height as f32],
             camera_sample: None,
@@ -325,6 +342,7 @@ impl Scene {
             Ok(())
         })();
         if result.is_err() { self.composition_camera = None; }
+        if result.is_ok() { self.color_contract = None; }
         result
     }
     pub(crate) fn sample_exposure_instance(&mut self, document:&Project, project:&Project,

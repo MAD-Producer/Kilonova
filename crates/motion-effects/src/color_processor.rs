@@ -8,13 +8,20 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 mod image;
-pub use image::CompiledColorImageProcessor;
+pub use image::{CodeValueRange, CompiledColorImageProcessor};
 
 pub const COLOR_PROCESSOR_VERSION: u32 = 1;
 pub const MAX_PROCESSOR_JSON_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_PROCESSOR_SHADER_BYTES: usize = 256 * 1024;
 pub const MAX_PROCESSOR_TABLES: usize = 4;
 pub const MAX_PROCESSOR_TABLE_TEXELS: usize = 262_144;
+
+fn plane_depth() -> u32 {
+    1
+}
+fn is_plane(depth: &u32) -> bool {
+    *depth == 1
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -37,6 +44,10 @@ pub struct ColorProcessorTable {
     pub binding: u32,
     pub width: u32,
     pub height: u32,
+    /// One means the existing 2D table. Higher depth is an explicit RGB cube;
+    /// a missing depth therefore has the same meaning as an ordinary plane.
+    #[serde(default = "plane_depth", skip_serializing_if = "is_plane")]
+    pub depth: u32,
     pub channels: u32,
     pub interpolation: TableInterpolation,
     pub values: Vec<f32>,
@@ -179,13 +190,31 @@ impl ColorProcessorSource {
                     "duplicate original resource binding",
                 ));
             }
-            if table.width == 0 || table.height == 0 || !matches!(table.channels, 1 | 3) {
+            if table.width == 0
+                || table.height == 0
+                || table.depth == 0
+                || !matches!(table.channels, 1 | 3)
+            {
                 return Err(invalid(
                     "table shape",
                     "requires nonzero dimensions and 1 or 3 channels",
                 ));
             }
-            let texels = u64::from(table.width) * u64::from(table.height);
+            if table.depth > 1
+                && (table.width != table.depth
+                    || table.height != table.depth
+                    || table.channels != 3)
+            {
+                return Err(invalid("table shape", "3D tables require a cubic RGB grid"));
+            }
+            let texels = u64::from(table.width)
+                .checked_mul(u64::from(table.height))
+                .and_then(|value| value.checked_mul(u64::from(table.depth)))
+                .ok_or(ColorProcessorError::Capacity {
+                    field: "table texels",
+                    requested: usize::MAX,
+                    limit: MAX_PROCESSOR_TABLE_TEXELS,
+                })?;
             if texels > MAX_PROCESSOR_TABLE_TEXELS as u64 {
                 return Err(ColorProcessorError::Capacity {
                     field: "table texels",
@@ -218,14 +247,19 @@ impl ColorProcessorSource {
         }
         let mut header = String::from("#version 460\n");
         for (index, table) in self.tables.iter().enumerate() {
+            let sampler = if table.depth == 1 {
+                "sampler2D"
+            } else {
+                "sampler3D"
+            };
             let declaration = format!(
-                "layout(set=0, binding = {}) uniform sampler2D {};",
+                "layout(set=0, binding = {}) uniform {sampler} {};",
                 table.binding, table.sampler_name
             );
             if source.matches(&declaration).count() != 1 {
                 return Err(invalid(
                     "table declaration",
-                    "expected one exact OCIO 2.6 Vulkan sampler2D declaration",
+                    "expected one exact OCIO 2.6 Vulkan declaration matching the table dimension",
                 ));
             }
             source = source.replacen(&declaration, "", 1);
@@ -321,6 +355,10 @@ impl ColorProcessorSource {
         digest.update((self.shader.len() as u64).to_le_bytes());
         digest.update(self.shader.as_bytes());
         for table in &self.tables {
+            if table.depth != 1 {
+                digest.update(b"motion-ocio-cube-depth\0");
+                digest.update(table.depth.to_le_bytes());
+            }
             digest.update(serde_json::to_vec(&(
                 &table.texture_name,
                 &table.sampler_name,
@@ -364,12 +402,32 @@ fn replace_expression(source: &str, from: &str, to: &str) -> String {
 }
 
 fn sample_function(index: usize, table: &ColorProcessorTable) -> String {
+    if table.depth != 1 {
+        return cube_sample_function(index, table);
+    }
     let width = table.width;
     let height = table.height;
-    let mut code=format!("\nlayout(set=0,binding={index},std430) readonly buffer MotionTable{index} {{ vec4 samples[]; }} motion_table_{index};\nvec4 motion_fetch_{index}(ivec2 p) {{ return motion_table_{index}.samples[p.y*{width}+p.x]; }}\nvec4 motion_sample_{index}(vec2 uv) {{\n");
+    let mut code = format!(
+        "\nlayout(set=0,binding={index},std430) readonly buffer MotionTable{index} {{ vec4 samples[]; }} motion_table_{index};\nvec4 motion_fetch_{index}(ivec2 p) {{ return motion_table_{index}.samples[p.y*{width}+p.x]; }}\nvec4 motion_sample_{index}(vec2 uv) {{\n"
+    );
     match table.interpolation {
         TableInterpolation::Nearest => code.push_str(&format!("ivec2 p=ivec2(clamp(floor(uv*vec2({width}.0,{height}.0)),vec2(0.0),vec2({}.0,{}.0))); return motion_fetch_{index}(p); }}\n",width-1,height-1)),
         TableInterpolation::Linear => code.push_str(&format!("vec2 p=clamp(uv*vec2({width}.0,{height}.0)-vec2(0.5),vec2(0.0),vec2({}.0,{}.0)); ivec2 lo=ivec2(floor(p)); ivec2 hi=min(lo+ivec2(1),ivec2({},{})); vec2 t=p-vec2(lo); return mix(mix(motion_fetch_{index}(lo),motion_fetch_{index}(ivec2(hi.x,lo.y)),t.x),mix(motion_fetch_{index}(ivec2(lo.x,hi.y)),motion_fetch_{index}(hi),t.x),t.y); }}\n",width-1,height-1,width-1,height-1)),
+    }
+    code
+}
+
+fn cube_sample_function(index: usize, table: &ColorProcessorTable) -> String {
+    let edge = table.depth;
+    let last = edge - 1;
+    // OCIO's shader supplies the RGB-to-texture axis mapping. Preserve its
+    // coordinates and x-fastest texture storage; never add another RGB swizzle.
+    let mut code = format!(
+        "\nlayout(set=0,binding={index},std430) readonly buffer MotionTable{index} {{ vec4 samples[]; }} motion_table_{index};\nvec4 motion_fetch_{index}(ivec3 p) {{ return motion_table_{index}.samples[(p.z*{edge}+p.y)*{edge}+p.x]; }}\nvec4 motion_sample_{index}(vec3 uv) {{\n"
+    );
+    match table.interpolation {
+        TableInterpolation::Nearest => code.push_str(&format!("ivec3 p=ivec3(clamp(floor(uv*{edge}.0),vec3(0.0),vec3({last}.0))); return motion_fetch_{index}(p); }}\n")),
+        TableInterpolation::Linear => code.push_str(&format!("vec3 p=clamp(uv*{edge}.0-vec3(0.5),vec3(0.0),vec3({last}.0)); ivec3 lo=ivec3(floor(p)); ivec3 hi=min(lo+ivec3(1),ivec3({last})); vec3 t=p-vec3(lo);\nvec4 a=mix(mix(motion_fetch_{index}(lo),motion_fetch_{index}(ivec3(hi.x,lo.y,lo.z)),t.x),mix(motion_fetch_{index}(ivec3(lo.x,hi.y,lo.z)),motion_fetch_{index}(ivec3(hi.x,hi.y,lo.z)),t.x),t.y);\nvec4 b=mix(mix(motion_fetch_{index}(ivec3(lo.x,lo.y,hi.z)),motion_fetch_{index}(ivec3(hi.x,lo.y,hi.z)),t.x),mix(motion_fetch_{index}(ivec3(lo.x,hi.y,hi.z)),motion_fetch_{index}(hi),t.x),t.y); return mix(a,b,t.z); }}\n")),
     }
     code
 }

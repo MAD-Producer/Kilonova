@@ -66,22 +66,28 @@ impl log::Log for FileLogger {
         if !self.enabled(record.metadata()) {
             return;
         }
-        if IN_PANIC_HOOK.get() {
-            // The previous panic hook already preserves console stderr output.
+        let stderr_fallback = if IN_PANIC_HOOK.get() {
             // The panic may have originated while this very thread held writer.
             match self.writer.try_lock() {
-                Ok(mut writer) => self.write(record, &mut *writer),
+                Ok(mut writer) => {
+                    self.write(record, &mut *writer);
+                    false
+                }
                 Err(_) => {
                     let _ = writeln!(io::stderr(), "{}: {}", record.level(), record.args());
+                    true
                 }
             }
         } else {
             let mut writer = self.lock_writer();
             self.write(record, &mut *writer);
-        }
-        if record.level() == log::Level::Error && !IN_PANIC_HOOK.get() {
+            false
+        };
+        if record.level() == log::Level::Error && !stderr_fallback {
             // Flush the file and release its mutex before console IO: an MCP
             // client may pipe stderr without draining it. Keep the cause on disk.
+            // This includes the forced panic backtrace, which the original hook
+            // may omit. The original hook still runs; a raw fallback is not repeated.
             // stdout remains the command-list / JSON-RPC transport.
             let _ = writeln!(io::stderr(), "ERROR {}: {}", record.target(), record.args());
         }

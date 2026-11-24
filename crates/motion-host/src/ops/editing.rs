@@ -139,12 +139,28 @@ impl Session {
         let camera_sources = resources || commands.iter().any(selects_camera);
         let previous_models = self.scene.model_source_catalog();
         let mut candidate_models = None;
+        let mut candidate_colors = None;
+        let mut candidate_surface = None;
+        let mut candidate_scene = None;
+        let color_platform = self.platform().clone();
         let previous_nodes = self.engine.project().node_resources()?;
         if self.editor.as_ref().is_some_and(|e| e.gesture) {
             return Err("finish the plugin editor gesture before ordinary edits".into());
         }
         let results = apply_prepared_with_cameras(&mut self.engine, commands, &previous_models, |project| {
-                project.color_management.require_unmanaged("edit_prepare").map_err(motion_core::Error::from)?;
+                candidate_colors = crate::session::color::prepare_edit(self.colors.as_ref(), project,
+                    &self.root, color_platform.as_ref(), self.document_generation)?;
+                if let Some(graphics) = &mut self.graphics {
+                    let prepared = match candidate_colors.as_ref() {
+                        Some(colors) => colors.as_ref(),
+                        None => self.colors.as_ref(),
+                    };
+                    candidate_surface = crate::session::color::prepare_surface_change(graphics,
+                        prepared, project, &self.root, self.document_generation)?;
+                }
+                if candidate_colors.as_ref().is_some_and(Option::is_none) {
+                    candidate_scene = Some(motion_render::Scene::new(project)?);
+                }
                 for (composition, command) in &video_samples {
                     let Command::VideoDepthCalibration { object, sample } = command else { continue; };
                     let view = project.composition_view(composition)?;
@@ -190,6 +206,14 @@ impl Session {
                 }
                 Ok(())
             })?;
+        if let Some(colors) = candidate_colors { self.install_colors(colors); }
+        if let (Some(graphics), Some(change)) = (&mut self.graphics, candidate_surface) {
+            crate::session::color::install_surface_change(graphics, change);
+        }
+        if let Some(mut scene) = candidate_scene {
+            scene.set_model_source_catalog(candidate_models.as_ref().unwrap_or(&previous_models).clone());
+            self.scene = scene;
+        }
         if let Some(catalog) = candidate_models { self.scene.set_model_source_catalog(catalog); }
         if let Some(registry) = registry {
             self.effects.set_registry(registry.clone());
@@ -259,16 +283,16 @@ pub fn history(id: i64, op: i32) -> Result<Value> {
         let active = s.engine.project().composition_id.clone();
         match op {
             HISTORY_UNDO => {
-                s.engine.undo().map_err(crate::Error::from)?;
+                s.prepare_color_history(op, &active)?;
             }
             HISTORY_REDO => {
-                s.engine.redo().map_err(crate::Error::from)?;
+                s.prepare_color_history(op, &active)?;
             }
             HISTORY_BEGIN => s.engine.begin_gesture().map_err(crate::Error::from)?,
             HISTORY_COMMIT if s.editor.as_ref().is_some_and(|e|e.gesture) => s.close_plugin_editor(true, "host_commit")?,
             HISTORY_CANCEL if s.editor.as_ref().is_some_and(|e|e.gesture) => s.close_plugin_editor(false, "host_cancel")?,
             HISTORY_COMMIT => s.engine.end_gesture(true).map_err(crate::Error::from)?,
-            HISTORY_CANCEL => s.engine.end_gesture(false).map_err(crate::Error::from)?,
+            HISTORY_CANCEL => s.prepare_color_history(op, &active)?,
             _ => return Err("invalid history operation".into()),
         }
         if !s.engine.gesture_active() {
