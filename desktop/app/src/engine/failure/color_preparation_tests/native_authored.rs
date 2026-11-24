@@ -67,7 +67,7 @@ fn project(root: &std::path::Path) -> motion_core::Project {
         [32., 32., 0.],
         [1.; 4],
     );
-    layer.three_d = true;
+    layer.blend.space = motion_core::compositing::BlendSpace::Srgb;
     p.layers.push(layer);
     p.validate().unwrap();
     let resource = &p.color_management.resources().unwrap()[0];

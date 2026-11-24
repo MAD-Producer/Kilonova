@@ -71,7 +71,7 @@ fn managed_composition_activation_reuses_verified_bytes_and_preserves_failed_con
     ));
     let mut unsupported = second.clone();
     unsupported.id = "comp-unsupported".into();
-    unsupported.layers[0].three_d = true;
+    unsupported.layers[0].blend.space = motion_core::compositing::BlendSpace::Srgb;
     let mut failing = second.clone();
     failing.id = "comp-expression".into();
     failing.expressions.push(PropertyExpression {

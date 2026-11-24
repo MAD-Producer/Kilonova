@@ -30,7 +30,7 @@ fn managed_composition_worker_keeps_original_causes_and_default_error_channels()
         };
         managed.compositions.push(target.clone());
         target.id = "comp-unsupported".into();
-        target.layers[0].three_d = true;
+        target.layers[0].blend.space = motion_core::compositing::BlendSpace::Srgb;
         managed.compositions.push(target.clone());
         target.id = "comp-expression".into();
         target.layers[0].three_d = false;

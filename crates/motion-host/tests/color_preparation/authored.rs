@@ -258,6 +258,21 @@ fn native_authored_composites_fractional_opacity_and_refuses_stale_consumers_bef
             .unwrap()
             .unwrap();
     let mut renderer = renderer();
+    let mut spatial = p.clone();
+    spatial.layers[0].three_d = true;
+    let spatial_frame = prepared
+        .authored
+        .sample(&spatial, 5.5, &ExpressionEvaluator)
+        .unwrap();
+    let spatial_target = renderer
+        .color_image_target(64, 64, spatial_frame.contract())
+        .unwrap();
+    renderer
+        .draw_authored_scene(spatial_frame, &spatial_target)
+        .unwrap();
+    assert!(read(&renderer, &spatial_target)
+        .iter()
+        .any(|pixel| pixel[3] > 0.));
     let frame = prepared
         .authored
         .sample(&p, 5.5, &ExpressionEvaluator)
@@ -350,7 +365,7 @@ fn native_authored_composites_fractional_opacity_and_refuses_stale_consumers_bef
         })
     ));
     let mut unsupported = p.clone();
-    unsupported.layers[0].three_d = true;
+    unsupported.layers[0].blend.space = motion_core::compositing::BlendSpace::Srgb;
     assert!(matches!(
         prepared
             .authored
